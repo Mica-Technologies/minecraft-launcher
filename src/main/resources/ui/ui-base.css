@@ -2044,3 +2044,29 @@
 .accountStatusWarning {
     -fx-text-fill: -color-warning;
 }
+
+/* Running Games window: status dots and chips per session phase. */
+.sessionDot { -fx-fill: -color-text-subtle; }
+.sessionDot.sessionStatus-preparing { -fx-fill: -color-warning; }
+.sessionDot.sessionStatus-running   { -fx-fill: -color-primary; }
+.sessionDot.sessionStatus-crashed,
+.sessionDot.sessionStatus-failed    { -fx-fill: -color-danger; }
+
+.stat-chip.sessionStatus-preparing { -fx-text-fill: -color-warning; }
+.stat-chip.sessionStatus-running   { -fx-text-fill: -color-primary; }
+.stat-chip.sessionStatus-crashed,
+.stat-chip.sessionStatus-failed    { -fx-text-fill: -color-danger; }
+
+.gameSessionPane {
+    -fx-background-color: -color-bg;
+}
+
+.gameSessionPane .progress-bar > .bar {
+    -fx-background-color: -color-primary;
+    -fx-background-insets: 0;
+    -fx-padding: 3;
+}
+
+.gameSessionPane .progress-bar > .track {
+    -fx-background-color: -color-border;
+}

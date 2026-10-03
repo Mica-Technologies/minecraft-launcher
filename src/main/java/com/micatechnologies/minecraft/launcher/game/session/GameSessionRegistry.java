@@ -42,7 +42,7 @@ public final class GameSessionRegistry
 
     private final List< GameSession > sessions  = new ArrayList<>();
     private final List< Runnable >    listeners = new CopyOnWriteArrayList<>();
-    private volatile boolean          oneAtATime = true;
+    private volatile boolean          oneAtATime = false;
 
     /**
      * Creates an empty registry. Production code uses {@link #get()}.
@@ -62,8 +62,8 @@ public final class GameSessionRegistry
     }
 
     /**
-     * Sets whether only one game may be active at a time. On while the GUI shows a single
-     * game's progress and console in the main window.
+     * Sets whether only one game may be active at a time. Off by default: the Running Games
+     * window shows any number of games.
      *
      * @param value the rule
      *

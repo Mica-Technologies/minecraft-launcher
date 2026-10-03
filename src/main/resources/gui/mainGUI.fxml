@@ -212,6 +212,8 @@
             <font><Font size="11.0"/></font>
         </Label>
         <Pane HBox.hgrow="ALWAYS"/>
+        <!-- Shown while any game is launching or running; opens the Running Games window. -->
+        <MFXButton fx:id="runningGamesBtn" prefHeight="26.0" managed="false" visible="false" styleClass="primary"/>
         <MFXButton fx:id="exitBtn" text="%main.navbar.exit" prefHeight="26.0"/>
     </HBox>
 </GridPane>

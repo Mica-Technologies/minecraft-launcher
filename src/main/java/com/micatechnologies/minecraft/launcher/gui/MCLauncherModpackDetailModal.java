@@ -2728,24 +2728,14 @@ public class MCLauncherModpackDetailModal extends StackPane
 
     private static void startPlay( GameModPack pack )
     {
+        var running = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get()
+                .activeForPack( com.micatechnologies.minecraft.launcher.game.session.GameSession.keyFor( pack ) );
+        if ( running != null ) {
+            RunningGamesWindow.showSession( running );
+            return;
+        }
         ConfigManager.setLastModPackSelected( pack.getPackName() );
-        SystemUtilities.spawnNewTask( () -> {
-            Platform.setImplicitExit( false );
-            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence( pack ) );
-            LauncherCore.play( pack, () -> GUIUtilities.JFXPlatformRun( () -> {
-                try {
-                    Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
-                    MCLauncherGuiController.goToMainGui();
-                    MCLauncherGuiController.requestFocus();
-                }
-                catch ( Exception e ) {
-                    Logger.logError(
-                            LocalizationManager.get( "log.modpackDetail.loadMainGuiFailed" ) );
-                    Logger.logThrowable( e );
-                    LauncherCore.closeApp();
-                }
-            } ) );
-        } );
+        SystemUtilities.spawnNewTask( () -> LauncherCore.play( pack ) );
     }
 
     /**

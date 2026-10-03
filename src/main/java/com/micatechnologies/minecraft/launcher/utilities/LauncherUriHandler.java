@@ -72,7 +72,7 @@ import java.util.Set;
  * a second game while one is already launching or running ({@link LauncherCore#isGameRunning()})
  * and, before swapping the scene out for the launch-progress screen, give the current screen a
  * chance to confirm — so an in-progress Settings edit isn't silently discarded (see
- * {@code MCLauncherAbstractGui.confirmNavigateAwayForDeepLink}).</p>
+ * {@code MCLauncherGuiController.mayLeaveForLaunch}).</p>
  *
  * <p>Install-time scheme registration is also still TODO. jpackage's per-platform install
  * scripts will need to declare {@code mmcl://} as a handled scheme:</p>

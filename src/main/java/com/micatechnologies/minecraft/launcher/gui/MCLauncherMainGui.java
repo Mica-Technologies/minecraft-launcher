@@ -123,6 +123,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML Label offlineLabel;
     @SuppressWarnings( "unused" ) @FXML Label backgroundFetchLabel;
     @SuppressWarnings( "unused" ) @FXML MFXButton exitBtn;
+    @SuppressWarnings( "unused" ) @FXML MFXButton runningGamesBtn;
     private MCLauncherModpackDetailModal detailModal;
 
     // ===== Filter / sort / pagination state =====
@@ -377,6 +378,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Settings repaints the name and avatar in place, with no restart.
         bindAccountHeader();
         MCLauncherAuthManager.accounts().addListener( accountListener );
+
+        // Running games: a footer button while any game is launching or running, and Play
+        // buttons that say so for a running pack (clicking one shows its tab).
+        runningGamesBtn.setOnAction( e -> RunningGamesWindow.showWindow() );
+        com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().addListener( sessionsListener );
+        refreshRunningGames();
         versionLabel.setText( LocalizationManager.format( "main.versionLabel",
                 LauncherConstants.LAUNCHER_APPLICATION_VERSION ) );
 
@@ -682,6 +689,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @Override
     void cleanup() {
         MCLauncherAuthManager.accounts().removeListener( accountListener );
+        com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().removeListener( sessionsListener );
         // Set first: async work that lands after this (manifest revalidate, image caching)
         // must not rebuild or re-subscribe cards on a torn-down screen. The old Scene object
         // outlives the transition, so getScene() != null is no guard on its own.
@@ -1287,6 +1295,26 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     //  Hero card view — one per modpack
     // =========================================================================================
 
+    /** Follows games starting and ending; removed in {@link #cleanup()}. */
+    private final Runnable sessionsListener = () -> javafx.application.Platform.runLater( this::refreshRunningGames );
+
+    /** Shows how many games are running and marks running packs' Play buttons. */
+    private void refreshRunningGames()
+    {
+        if ( disposed ) {
+            return;
+        }
+        int active = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().active().size();
+        runningGamesBtn.setText( LocalizationManager.format( "main.runningGames", active ) );
+        runningGamesBtn.setVisible( active > 0 );
+        runningGamesBtn.setManaged( active > 0 );
+        for ( javafx.scene.Node n : modpackCardList.getChildren() ) {
+            if ( n instanceof ModpackHeroCard card ) {
+                card.refreshPlayState();
+            }
+        }
+    }
+
     /** Repaints the header when the accounts change; removed in {@link #cleanup()}. */
     private final Runnable accountListener = () -> javafx.application.Platform.runLater( this::bindAccountHeader );
 
@@ -1749,6 +1777,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
             // Button enable / disable state
             playBtn.setDisable( AnnouncementManager.getDisableGameplay() );
+            refreshPlayState();
             // Say so when Play launches as an account other than the default. Set every bind:
             // cards are pooled, so a stale tooltip would follow the card to another pack.
             String overrideUuid = ConfigManager.getAccountOverrideForPack( newPack.getSettingsKey() );
@@ -1883,6 +1912,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             setupImageCycle( this.pack, logo.getImage(), ConfigManager.getShowPackBackgrounds() );
         }
 
+        /** Shows "Running" on the Play button while this pack's game is launching or running
+         *  (clicking it then shows the game's tab), "Play" otherwise. */
+        private void refreshPlayState()
+        {
+            if ( pack == null ) {
+                return;
+            }
+            boolean running = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get()
+                    .isPackActive( pack );
+            playBtn.setText( LocalizationManager.get( running ? "main.card.running" : "common.button.play" ) );
+        }
+
         /** Drops this card's image-cycle clock subscription (idempotent). Invoked
          *  by the scene-detach listener and by {@link MCLauncherMainGui#cleanup()}
          *  so a torn-down GUI's cards leave the shared clock's listener list,
@@ -1915,32 +1956,21 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         }
 
         /**
-         * Launches the given pack. Records it as the last-selected pack, sets the
-         * Discord game presence, and hands off to
-         * {@link LauncherCore#play(GameModPack, Runnable)} with a completion
-         * callback that re-shows and re-focuses the main GUI once the game exits.
-         * Runs the launch off the FX thread.
+         * Launches the given pack, or, when it is already running, brings its tab in the
+         * Running Games window forward. Records it as the last-selected pack. The launch runs
+         * off the FX thread and shows in the Running Games window; this screen stays put.
          *
          * @param pack the pack to launch
          */
         private void startPlay( GameModPack pack ) {
+            var running = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get()
+                    .activeForPack( com.micatechnologies.minecraft.launcher.game.session.GameSession.keyFor( pack ) );
+            if ( running != null ) {
+                RunningGamesWindow.showSession( running );
+                return;
+            }
             ConfigManager.setLastModPackSelected( pack.getPackName() );
-            SystemUtilities.spawnNewTask( () -> {
-                Platform.setImplicitExit( false );
-                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence( pack ) );
-                LauncherCore.play( pack, () -> GUIUtilities.JFXPlatformRun( () -> {
-                    try {
-                        Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
-                        MCLauncherGuiController.goToMainGui();
-                        MCLauncherGuiController.requestFocus();
-                    }
-                    catch ( Exception e ) {
-                        Logger.logError( LocalizationManager.get( "log.mainGui.loadMainGuiFailed" ) );
-                        Logger.logThrowable( e );
-                        LauncherCore.closeApp();
-                    }
-                } ) );
-            } );
+            SystemUtilities.spawnNewTask( () -> LauncherCore.play( pack ) );
         }
 
         /**

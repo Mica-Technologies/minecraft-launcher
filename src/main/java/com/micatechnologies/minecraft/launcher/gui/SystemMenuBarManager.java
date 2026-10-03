@@ -338,7 +338,7 @@ public final class SystemMenuBarManager
         discordItem.setSelected( ConfigManager.getDiscordRpcEnable() );
         discordItem.setOnAction( e -> toggleDiscordRpc( discordItem.isSelected() ) );
 
-        consoleItem = new CheckMenuItem( LocalizationManager.get( "menu.view.inGameConsole" ) );
+        consoleItem = new CheckMenuItem( LocalizationManager.get( "menu.view.keepGamesWindowOpen" ) );
         consoleItem.setSelected( ConfigManager.getInGameConsoleEnable() );
         consoleItem.setOnAction( e -> ConfigManager.setInGameConsoleEnable( consoleItem.isSelected() ) );
 

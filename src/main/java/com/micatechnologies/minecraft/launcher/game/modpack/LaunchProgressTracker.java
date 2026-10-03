@@ -91,8 +91,12 @@ public final class LaunchProgressTracker
          */
         StepId( String displayLabel ) { this.displayLabel = displayLabel; }
 
-        /** Human-readable label rendered next to the step's status icon. */
-        public String displayLabel() { return displayLabel; }
+        /** Human-readable label rendered next to the step's status icon, localized under
+         *  {@code launchStep.<NAME>} with the English constructor label as the fallback. */
+        public String displayLabel() {
+            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                    .getOr( "launchStep." + name(), displayLabel );
+        }
     }
 
     /**
@@ -213,6 +217,30 @@ public final class LaunchProgressTracker
 
     /** @return immutable ordered view of every active row */
     public List< Step > steps() { return orderedSteps; }
+
+    /**
+     * Overall progress across every step: finished, failed and skipped steps count whole,
+     * running steps count their own progress, pending steps nothing.
+     *
+     * @return 0..1
+     *
+     * @since 2026.10
+     */
+    public double overallFraction()
+    {
+        if ( orderedSteps.isEmpty() ) {
+            return 0;
+        }
+        double done = 0;
+        for ( Step s : orderedSteps ) {
+            switch ( s.state() ) {
+                case DONE, FAILED, SKIPPED -> done += 1.0;
+                case RUNNING -> done += Math.max( 0, Math.min( 1, s.progress() ) );
+                case PENDING -> { /* counts toward the total only */ }
+            }
+        }
+        return done / orderedSteps.size();
+    }
 
     /** Snapshot of every row currently in {@link State#RUNNING}. Used by the
      *  launch flow's NetworkUtilities retry listener so cross-cutting events

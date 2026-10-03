@@ -1563,13 +1563,10 @@ class GameModPackLauncher
         //     have a GUI console to feed and the launcher itself has nothing to do with the
         //     log stream beyond surfacing it.
         //
-        //   * Client + in-game console ON: PIPE. The in-game console GUI's readStream threads
-        //     drain getInputStream() / getErrorStream() for display.
-        //
-        //   * Client + in-game console OFF: DISCARD. Nothing is going to read the streams,
-        //     so let the kernel sink them — otherwise the pipe buffer fills within a few
-        //     hundred ms of Forge logging and the child JVM stalls on its next println
-        //     (visible as "JVM in Task Manager, no Minecraft window").
+        //   * Client: PIPE. The game's session (GameLog) drains getInputStream() /
+        //     getErrorStream() for the whole life of the game. It must: an unread pipe
+        //     fills within a few hundred ms of Forge logging and the game then stalls on its
+        //     next println ("JVM in Task Manager, no Minecraft window").
         ProcessUtilities.ChildIoMode ioMode;
         if ( GameModeManager.isServer() ) {
             ioMode = ProcessUtilities.ChildIoMode.INHERIT;
@@ -1580,11 +1577,11 @@ class GameModPackLauncher
             // would lose it.)
             ioMode = ProcessUtilities.ChildIoMode.PIPE;
         }
-        else if ( ConfigManager.getInGameConsoleEnable() ) {
-            ioMode = ProcessUtilities.ChildIoMode.PIPE;
-        }
         else {
-            ioMode = ProcessUtilities.ChildIoMode.DISCARD;
+            // GUI: always PIPE. The game's session captures the output (GameLog) for the
+            // Running Games window and the session log file, whether or not that window is
+            // showing; "show console on launch" only decides whether it opens.
+            ioMode = ProcessUtilities.ChildIoMode.PIPE;
         }
         try {
             // Redact --accessToken / --clientToken / legacy "token:<token>:<uuid>" before

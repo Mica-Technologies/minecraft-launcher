@@ -926,21 +926,7 @@ public final class ModpackContentBrowser
     private static void connectToServer( GameModPack pack, ServerFavorite fav )
     {
         pack.setQuickJoinServer( fav );
-        SystemUtilities.spawnNewTask( () -> {
-            javafx.application.Platform.setImplicitExit( false );
-            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence( pack ) );
-            LauncherCore.play( pack, () -> javafx.application.Platform.runLater( () -> {
-                try {
-                    var top = MCLauncherGuiController.getTopStageOrNull();
-                    if ( top != null ) top.show();
-                    MCLauncherGuiController.goToMainGui();
-                    MCLauncherGuiController.requestFocus();
-                }
-                catch ( Exception e ) {
-                    Logger.logErrorSilent( LocalizationManager.format( "log.contentBrowser.quickJoinReturnFailed", e.getMessage() ) );
-                }
-            } ) );
-        } );
+        SystemUtilities.spawnNewTask( () -> LauncherCore.play( pack ) );
     }
 
     /**

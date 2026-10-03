@@ -543,6 +543,7 @@ public class MCLauncherGuiWindow extends Application
             cleanupPlaceholderAnimations();
             // Prepare scene environment
             gui.setup();
+            guardCloseWhileGamesRun();
 
             // Sync the stage's min size to the new scene's rootPane min so each
             // screen enforces its own minimum. The global MIN_WIDTH/MIN_HEIGHT
@@ -1441,6 +1442,71 @@ public class MCLauncherGuiWindow extends Application
             if ( child instanceof javafx.scene.Parent nested && hasHelpButton( nested ) ) return true;
         }
         return false;
+    }
+
+    /**
+     * Wraps the current screen's window-close handler so that closing the launcher while games
+     * are launching or running asks first. Quitting can leave the games running (they lose
+     * their launcher-side log from then on) or stop them; "Keep playing" cancels. With no game
+     * active, or once the user has chosen, the screen's own handler runs as before (and still
+     * protects unsaved work).
+     */
+    private void guardCloseWhileGamesRun()
+    {
+        javafx.event.EventHandler< javafx.stage.WindowEvent > current = stage.getOnCloseRequest();
+        // A screen that sets no handler of its own leaves the previous screen's guard installed;
+        // unwrap it rather than guarding twice (which would ask twice).
+        javafx.event.EventHandler< javafx.stage.WindowEvent > screenHandler =
+                current instanceof CloseGuard guard ? guard.screenHandler : current;
+        stage.setOnCloseRequest( new CloseGuard( screenHandler, event -> {
+            var active = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().active();
+            if ( active.isEmpty() ) {
+                if ( screenHandler != null ) {
+                    screenHandler.handle( event );
+                }
+                return;
+            }
+            event.consume();
+            com.micatechnologies.minecraft.launcher.utilities.SystemUtilities.spawnNewTask( () -> {
+                int answer = GUIUtilities.showQuestionMessage(
+                        LocalizationManager.get( "session.quit.title" ),
+                        LocalizationManager.format( "session.quit.header", active.size() ),
+                        LocalizationManager.get( "session.quit.body" ),
+                        LocalizationManager.get( "session.quit.leaveRunning" ),
+                        LocalizationManager.get( "session.quit.stopGames" ),
+                        stage );
+                if ( answer == 0 ) {
+                    return;  // keep playing
+                }
+                if ( answer == 2 ) {
+                    for ( var session : active ) {
+                        session.cancel();
+                        session.stop( false );
+                    }
+                }
+                GUIUtilities.JFXPlatformRun( () -> {
+                    if ( screenHandler != null ) {
+                        screenHandler.handle( new javafx.stage.WindowEvent( stage,
+                                                                            javafx.stage.WindowEvent.WINDOW_CLOSE_REQUEST ) );
+                    }
+                    else {
+                        com.micatechnologies.minecraft.launcher.LauncherCore.closeApp();
+                    }
+                } );
+            } );
+        } ) );
+    }
+
+    /** The close handler {@link #guardCloseWhileGamesRun} installs, remembering the screen's own. */
+    private record CloseGuard( javafx.event.EventHandler< javafx.stage.WindowEvent > screenHandler,
+                               javafx.event.EventHandler< javafx.stage.WindowEvent > body )
+            implements javafx.event.EventHandler< javafx.stage.WindowEvent >
+    {
+        @Override
+        public void handle( javafx.stage.WindowEvent event )
+        {
+            body.handle( event );
+        }
     }
 
     /**

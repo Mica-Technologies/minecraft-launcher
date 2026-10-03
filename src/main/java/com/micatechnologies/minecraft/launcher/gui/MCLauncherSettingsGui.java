@@ -2461,46 +2461,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Guards an external navigation (a {@code mmcl://} deep-link launching a game) against
-     * silently discarding unsaved settings edits. When there are pending changes, prompts
-     * the user to save-and-continue, discard-and-continue, or cancel. Mirrors the
-     * return-button / window-close unsaved-changes flows already wired in {@link #setup()}.
-     *
-     * <p>Invoked from the URI handler's worker thread, so the dialog (which blocks until
-     * answered) runs off the FX thread exactly like the other two unsaved-changes prompts.</p>
-     *
-     * @return {@code true} to let the launch proceed (after optionally saving),
-     *         {@code false} to stay on settings and abort the deep-link launch
-     *
-     * @since 3.5
-     */
-    @Override
-    public boolean confirmNavigateAwayForDeepLink() {
-        if ( !hasUnsavedChanges() ) {
-            return true;
-        }
-        int response = GUIUtilities.showQuestionMessage(
-                LocalizationManager.get( "dialog.settings.unsavedOnLaunch.title" ),
-                LocalizationManager.get( "dialog.settings.unsavedOnLaunch.header" ),
-                LocalizationManager.get( "dialog.settings.unsavedOnLaunch.body" ),
-                LocalizationManager.get( "dialog.settings.unsavedOnLaunch.button.saveAndContinue" ),
-                LocalizationManager.get( "dialog.settings.unsavedOnLaunch.button.discardAndContinue" ),
-                stage );
-        if ( response == 1 ) {
-            // Save, then let the launch proceed. saveBtn's handler reads the control values
-            // (which survive the upcoming scene swap), so firing it here is safe.
-            GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
-            return true;
-        }
-        if ( response == 2 ) {
-            // Discard unsaved edits and proceed.
-            return true;
-        }
-        // Cancel (0) -- stay on settings, abort the launch.
-        return false;
-    }
-
-    /**
      * Writes every settings control's current value back to {@link ConfigManager}
      * and applies the immediate, non-restart side effects (theme refresh, proxy
      * reload, stage resizability, RGB repaint). Shared by the Save and Save &amp;

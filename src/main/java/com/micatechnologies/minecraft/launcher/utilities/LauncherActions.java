@@ -199,26 +199,13 @@ public final class LauncherActions
                 return;
             }
             ConfigManager.setLastModPackSelected( pack.getPackName() );
-            Platform.setImplicitExit( false );
-            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence( pack ) );
-            LauncherCore.play( pack, () -> GUIUtilities.JFXPlatformRun( () -> {
-                try {
-                    Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
-                    MCLauncherGuiController.goToMainGui();
-                    MCLauncherGuiController.requestFocus();
-                }
-                catch ( Exception ex ) {
-                    Logger.logError( LocalizationManager.get( "log.launcherActions.returnMainGuiFailed" ) );
-                    Logger.logThrowable( ex );
-                }
-            } ) );
+            LauncherCore.play( pack );
         } );
     }
 
     /**
-     * Whether a launch from the menu bar, dock or tray may start now. Refuses while a game is
-     * running or launching (a second launch would replace the first one's progress session)
-     * and lets the current screen protect unsaved work, since the launch replaces it.
+     * Whether a launch from the menu bar, dock or tray may start now: refused only on screens
+     * that lock navigation (the login screen).
      *
      * <p>Must be called off the FX thread.</p>
      *
@@ -228,12 +215,8 @@ public final class LauncherActions
      */
     public static boolean readyToLaunch()
     {
-        if ( LauncherCore.isGameRunning() ) {
-            NotificationManager.warn( LocalizationManager.get( "notification.launch.gameRunning.title" ),
-                                      LocalizationManager.get( "notification.launch.gameRunning.body" ) );
-            GUIUtilities.JFXPlatformRun( MCLauncherGuiController::requestFocus );
-            return false;
-        }
+        // Several games may run at once; the session registry refuses the conflicting cases
+        // (same pack, same account) with its own message.
         return MCLauncherGuiController.mayLeaveForLaunch();
     }
 

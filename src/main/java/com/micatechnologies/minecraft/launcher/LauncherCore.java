@@ -32,7 +32,6 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
-import com.micatechnologies.minecraft.launcher.gui.MCLauncherGameConsoleGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherLoginGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
@@ -476,6 +475,47 @@ public class LauncherCore
     }
 
     /**
+     * Wraps up a game that has exited: records the play time, and on a crash notifies the
+     * user, attaches the newest crash report to the session and brings its tab forward.
+     *
+     * @param session      the game's session
+     * @param pack         the pack that ran
+     * @param process      the exited process
+     * @param launchStartMs when the game was started
+     * @param gui          whether a GUI is showing
+     */
+    private static void onGameExited( com.micatechnologies.minecraft.launcher.game.session.GameSession session,
+                                      GameModPack pack, Process process, long launchStartMs, boolean gui ) {
+        pack.recordSessionEnd( System.currentTimeMillis() - launchStartMs );
+        int exitCode;
+        try {
+            exitCode = process.exitValue();
+        }
+        catch ( IllegalThreadStateException e ) {
+            exitCode = -1;
+        }
+        if ( exitCode == 0 ) {
+            return;
+        }
+        Logger.logError( LocalizationManager.format( "log.launcherCore.gameCrashedExitCode", exitCode ) );
+        NotificationManager.error(
+                LocalizationManager.get( "notification.launch.gameCrashed.title" ),
+                LocalizationManager.format( "notification.launch.gameCrashed.body",
+                                            pack.getFriendlyName() != null ? pack.getFriendlyName() : "Minecraft",
+                                            exitCode ) );
+        try {
+            session.setCrashReport( pack.getLatestCrashReport() );
+        }
+        catch ( RuntimeException e ) {
+            Logger.logWarningSilent( LocalizationManager.format( "log.launcherCore.crashReportReadFailed",
+                                                                 e.getClass().getSimpleName() ) );
+        }
+        if ( gui ) {
+            com.micatechnologies.minecraft.launcher.gui.RunningGamesWindow.showSession( session );
+        }
+    }
+
+    /**
      * Tells the user why a launch was refused: the pack is already running, its account is
      * already playing something else, or (while the GUI can follow only one game) another game
      * is active.
@@ -496,6 +536,13 @@ public class LauncherCore
             case OK -> "";
         };
         Logger.logStd( LocalizationManager.format( "log.launcherCore.launchRefused", decision.outcome() ) );
+        if ( MCLauncherGuiController.shouldCreateGui()
+                && decision.outcome() == com.micatechnologies.minecraft.launcher.game.session.LaunchAdmission.Outcome.PACK_ALREADY_RUNNING
+                && other != null ) {
+            // Asking to play a pack that's already up means "show me that game".
+            com.micatechnologies.minecraft.launcher.gui.RunningGamesWindow.showSession( other );
+            return;
+        }
         if ( MCLauncherGuiController.shouldCreateGui() ) {
             NotificationManager.warn( LocalizationManager.get( "launch.refused.title" ), message );
             GUIUtilities.JFXPlatformRun( MCLauncherGuiController::requestFocus );
@@ -672,26 +719,9 @@ public class LauncherCore
         }
         try {
         if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
-            // Build the step-list launch progress GUI + tracker + bridge. The tracker's
-            // step set is per-pack-type: vanilla packs omit MODPACK_CONTENT (no mods/
-            // configs/resources to sync) and the two Forge stages (no Forge to set up).
-            // Mojang piston-meta libs/assets + JRE install + security scan still apply.
-            com.micatechnologies.minecraft.launcher.gui.MCLauncherLaunchProgressGui playProgressWindow = null;
-            try {
-                if ( MCLauncherGuiController.shouldCreateGui() ) {
-                    playProgressWindow = MCLauncherGuiController.goToLaunchProgressGui();
-                }
-            }
-            catch ( IOException e ) {
-                Logger.logError( LocalizationManager.get( "log.launcherCore.launchProgressGuiLoadFailed" ) );
-                Logger.logThrowable( e );
-            }
-
-            // Steps are tailored per-pack: vanilla skips the modded
-            // rows entirely; Fabric (and any future post-install-less
-            // loader) drops FORGE_PROCESSORS — keeping that row would
-            // show a step that instantly completes with no work, which
-            // reads as misleading rather than helpful.
+            // The step tracker is per pack type: vanilla packs omit MODPACK_CONTENT and the
+            // modloader rows; loaders without a post-install pipeline (Fabric) drop
+            // FORGE_PROCESSORS rather than show a row that instantly completes.
             java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId > stepList =
                     new java.util.ArrayList<>();
             if ( !gameModPack.isVanillaVersion() ) {
@@ -704,75 +734,41 @@ public class LauncherCore
                 stepList.add( com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.FORGE_PROCESSORS );
             }
             stepList.add( com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.SECURITY_SCAN );
-            com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId[] applicableSteps =
-                    stepList.toArray( new com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId[ 0 ] );
             com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker tracker =
-                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.forSteps( applicableSteps );
+                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.forSteps(
+                            stepList.toArray( new com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId[ 0 ] ) );
             com.micatechnologies.minecraft.launcher.game.modpack.LaunchTrackerProgressBridge progressBridge =
                     new com.micatechnologies.minecraft.launcher.game.modpack.LaunchTrackerProgressBridge( tracker );
+            session.setTracker( tracker );
 
-            if ( playProgressWindow != null ) {
-                playProgressWindow.setTitle( LocalizationManager.format( "window.launchProgress.title",
-                                                                          gameModPack.getPackName() ) );
-                playProgressWindow.attachToTracker( tracker );
-
-                // Wire the Cancel button to this launch's session. Clicking it interrupts
-                // the worker thread + flips the cancellation flag, which the catch / late-
-                // cancellation checks below pick up and route back to the main GUI.
-                final com.micatechnologies.minecraft.launcher.gui.MCLauncherLaunchProgressGui cancellable =
-                        playProgressWindow;
-                cancellable.setCancelHandler( () -> {
-                    session.cancel();
-                    // Clear the OS-level progress overlay IMMEDIATELY rather than waiting
-                    // for the worker thread's catch / finally to run. The worker might
-                    // still be wedged in a non-interruptible HTTP read for several seconds
-                    // after cancel; leaving the taskbar partial-progress sitting there
-                    // makes the cancelled launch look like it's still going.
-                    TaskbarProgressManager.endLaunchProgress( tracker );
-                    // Navigate back optimistically — even if the worker thread is wedged in
-                    // a non-interruptible HTTP read, the user gets their UI back NOW.
-                    SystemUtilities.spawnNewTask( () -> GUIUtilities.JFXPlatformRun( () -> {
-                        try {
-                            MCLauncherGuiController.goToMainGui();
-                        }
-                        catch ( IOException ioe ) {
-                            Logger.logErrorSilent( LocalizationManager.get( "log.launcherCore.returnMainGuiAfterCancelFailed" ) );
-                        }
-                    } ) );
+            final boolean gui = MCLauncherGuiController.shouldCreateGui();
+            if ( gui ) {
+                // The launch shows in its own tab of the Running Games window; the main window
+                // stays where the user left it, free to launch something else.
+                com.micatechnologies.minecraft.launcher.gui.RunningGamesWindow.showSession( session );
+                tracker.addListener( step -> {
+                    if ( !session.isCancelled() ) {
+                        TaskbarProgressManager.setLaunchProgress( tracker, tracker.overallFraction() );
+                    }
                 } );
             }
             else {
-                // Headless launch (server mode, or the GUI failed to build): nothing else
-                // consumes the tracker, which previously made the whole download/verify phase
-                // fully silent in the log — a large mod re-sync was indistinguishable from a
-                // hung launcher. Attach a Logger-backed listener so step transitions and
-                // (throttled) per-file download progress land in the server log/terminal.
+                // Headless launch (server mode): log step transitions and throttled download
+                // progress, so a long re-sync isn't indistinguishable from a hang.
                 attachHeadlessTrackerLogging( tracker );
             }
 
             try {
                 Logger.logDebug( LocalizationManager.LAUNCHING_MOD_PACK_TEXT + ": " + gameModPack.getFriendlyName() );
-                final com.micatechnologies.minecraft.launcher.gui.MCLauncherLaunchProgressGui finalPlayProgressWindow =
-                        playProgressWindow;
                 final long progressStartMs = System.currentTimeMillis();
-                // The "all rows green → fire the ready-to-play toast" handler is wired
-                // via the tracker listener rather than the old percent>=100 callback.
-                // One-shot latch (compareAndSet) keeps re-fires off — the listener fires
-                // once per individual step transition, but only the final transition
-                // (the one that flips the LAST pending row to DONE) should trigger the
-                // toast + GUI hide.
-                final java.util.concurrent.atomic.AtomicBoolean readyToastFired =
-                        new java.util.concurrent.atomic.AtomicBoolean( false );
+                // One-shot "ready" toast when the last step completes: after a long preparation,
+                // or when the launcher isn't focused, so a user who tabbed away is pulled back.
+                final AtomicBoolean readyToastFired = new AtomicBoolean( false );
                 tracker.addListener( step -> {
                     if ( session.isCancelled() ) return;
                     if ( !allStepsCompleted( tracker ) ) return;
                     if ( !readyToastFired.compareAndSet( false, true ) ) return;
-
                     TaskbarProgressManager.endLaunchProgress( tracker );
-                    // Toast that the pack is ready when it was a long prep (>10s) OR when the
-                    // launcher isn't focused — a user who tabbed away during the install/launch
-                    // gets pulled back even on a quick prep, while someone watching the progress
-                    // window on a fast prep isn't toasted redundantly.
                     long elapsedMs = System.currentTimeMillis() - progressStartMs;
                     if ( elapsedMs > 10_000L || !MCLauncherGuiController.isLauncherFocused() ) {
                         NotificationManager.success(
@@ -782,75 +778,48 @@ public class LauncherCore
                                                                       gameModPack.getFriendlyName() )
                                         : LocalizationManager.get( "notification.launch.ready.body" ) );
                     }
-                    if ( !ConfigManager.getInGameConsoleEnable() && finalPlayProgressWindow != null ) {
-                        SystemUtilities.spawnNewTask( () -> {
-                            try { Thread.sleep( 3000 ); }
-                            catch ( InterruptedException ignored ) {}
-                            finalPlayProgressWindow.hideStage();
-                        } );
-                    }
                 } );
                 gameModPack.setProgressProvider( progressBridge );
 
-                // Wire the network retry listener so silent NetworkUtilities retries
-                // surface as "Retrying (1/3) jna-4.4.0.jar"-style sub-text on whichever
-                // rows are currently RUNNING. A retry can fire on a thread spawned from
-                // parallelStream deep inside a sub-call, so the listener pushes to all
-                // running rows rather than trying to identify the specific row that
-                // owned the failed download.
-                final com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker
-                        retryTrackerRef = tracker;
+                // Download retries and live byte progress land as sub-text on whichever of
+                // this launch's rows are running. Each launch adds its own listeners and
+                // removes them below.
                 final Runnable removeRetryListener =
                         com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.addRetryNoticeListener(
-                        notice -> {
-                            if ( session.isCancelled() ) return;
-                            for ( var s : retryTrackerRef.runningSteps() ) {
-                                retryTrackerRef.setSubText( s.id(), notice );
-                            }
-                        } );
-                // Wire the live download-progress listener the same way: a large file's
-                // byte progress ("name — 45% · 12/27 MB · speed") lands on whichever rows
-                // are currently RUNNING, so a big resource pack / mod download shows movement
-                // instead of a frozen line. Same push-to-all-running-rows simplification as
-                // the retry listener (the download call has no step context to target one row).
+                                notice -> {
+                                    if ( session.isCancelled() ) return;
+                                    for ( var s : tracker.runningSteps() ) {
+                                        tracker.setSubText( s.id(), notice );
+                                    }
+                                } );
                 final Runnable removeProgressListener =
                         com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.addDownloadProgressListener(
-                        notice -> {
-                            if ( session.isCancelled() ) return;
-                            for ( var s : retryTrackerRef.runningSteps() ) {
-                                retryTrackerRef.setSubText( s.id(), notice );
-                            }
-                        } );
+                                notice -> {
+                                    if ( session.isCancelled() ) return;
+                                    for ( var s : tracker.runningSteps() ) {
+                                        tracker.setSubText( s.id(), notice );
+                                    }
+                                } );
                 Process spawned;
                 try {
                     spawned = gameModPack.startGame( launchUser, session::isCancelled );
                 }
                 finally {
-                    // Always clear the listeners so subsequent background activity
-                    // (manifest revalidates, the next launch attempt) doesn't push
-                    // notices into a torn-down GUI.
                     removeRetryListener.run();
                     removeProgressListener.run();
-                    // Release the launch progress provider (and the progress-window
-                    // labels it captures) now that progress reporting is done. Swap
-                    // rather than set(null) so the cached launcher — and its
-                    // lastLaunchedProcess, read below — survives.
+                    // Release the progress provider now that preparation is done. Swap rather
+                    // than set(null) so the cached launcher survives.
                     gameModPack.swapProgressProviderTransiently( null );
                 }
 
-                // Late cancellation: if the user clicked Cancel after the JVM was already
-                // spawned by startGame() (the worker thread was deep in process-spawn and
-                // didn't notice the interrupt), kill the freshly-spawned game process now
-                // so we don't end up with an orphaned Minecraft window and the launcher
-                // back on the main screen.
+                // Cancelled after the JVM was already spawned (the worker was deep in process
+                // spawn and missed the interrupt): kill it, so no orphaned game window remains.
                 if ( session.isCancelled() ) {
-                    Process orphan = spawned;
-                    if ( orphan != null && orphan.isAlive() ) {
-                        orphan.destroyForcibly();
+                    if ( spawned != null && spawned.isAlive() ) {
+                        spawned.destroyForcibly();
                     }
                     Logger.logStd( LocalizationManager.get( "log.launcherCore.launchCancelledAfterSpawn" ) );
                     TaskbarProgressManager.endLaunchProgress( tracker );
-                    returnToMainGuiOnError();
                     return;
                 }
 
@@ -858,136 +827,54 @@ public class LauncherCore
                 gameModPack.recordLaunchStart();
                 final long launchStartMs = System.currentTimeMillis();
 
-                // Refresh the OS-shell recent-modpacks surface (Windows jump
-                // list; Linux .desktop Actions=) so this pack rises to the
-                // top of the right-click recents next time. Fire-and-forget
-                // off a worker thread: the I/O is cheap on Linux (rewriting
-                // one .desktop file) but the path is short of the game-
-                // process spawn, and any failure is contained inside
-                // JumpListManager.refresh.
-                com.micatechnologies.minecraft.launcher.utilities.SystemUtilities.spawnNewTask(
-                        com.micatechnologies.minecraft.launcher.utilities.JumpListManager::refresh );
+                // Refresh the OS-shell recent-modpacks surface (jump list / .desktop actions).
+                SystemUtilities.spawnNewTask( com.micatechnologies.minecraft.launcher.utilities.JumpListManager::refresh );
 
-                Process gameProcess = spawned;
-                if ( gameProcess != null ) {
-                    // The session follows the game from here: RUNNING now, EXITED or CRASHED
-                    // when the process ends, however the UI below handles it.
-                    session.attachProcess( gameProcess );
-
-                    // Brief beat so the user sees the all-rows-green state on the launch
-                    // progress screen before it dissolves into the game console or the
-                    // launcher's main GUI. Without the pause the row layout transitions
-                    // in the same frame it filled out, which reads as a flicker rather
-                    // than a "ready, going" beat.
-                    try { Thread.sleep( 400 ); }
-                    catch ( InterruptedException ignored ) { Thread.currentThread().interrupt(); }
-
-                    if ( ConfigManager.getInGameConsoleEnable() ) {
-                        // Console enabled: show console and attach to process
-                        try {
-                            MCLauncherGameConsoleGui consoleGui = MCLauncherGuiController.goToGameConsoleGui();
-                            if ( consoleGui != null ) {
-                                consoleGui.attachToProcess( gameProcess, gameModPack.getPackName(),
-                                                             exitCode -> {
-                                    // Record session duration
-                                    gameModPack.recordSessionEnd(
-                                            System.currentTimeMillis() - launchStartMs );
-                                    // On crash, find and display crash report; also toast so a
-                                    // user who tabbed away mid-session notices.
-                                    if ( exitCode != 0 ) {
-                                        NotificationManager.error(
-                                                LocalizationManager.get( "notification.launch.gameCrashed.title" ),
-                                                LocalizationManager.format( "notification.launch.gameCrashed.body",
-                                                        gameModPack.getFriendlyName() != null
-                                                                ? gameModPack.getFriendlyName()
-                                                                : "Minecraft",
-                                                        exitCode ) );
-                                        String crashReport = gameModPack.getLatestCrashReport();
-                                        if ( crashReport != null ) {
-                                            // Pack-aware overload so CrashReportAnalyzer can build
-                                            // pack-specific suggestions (Open Mods Folder, etc.).
-                                            consoleGui.showCrashReport( crashReport, gameModPack, exitCode );
-                                        }
-                                    }
-                                } );
-                            }
-                        }
-                        catch ( IOException e ) {
-                            Logger.logError( LocalizationManager.get( "log.launcherCore.inGameConsoleGuiFailed" ) );
-                            Logger.logThrowable( e );
-                        }
+                if ( spawned != null ) {
+                    // Capture the game's output for its whole life, window or no window: an
+                    // unread pipe fills within moments and stalls the game. Server mode
+                    // inherits the terminal instead, and the TUI reads it itself.
+                    if ( gui ) {
+                        java.nio.file.Path logFile = com.micatechnologies.minecraft.launcher.game.session.GameLog.fileFor(
+                                java.nio.file.Path.of( LocalPathManager.getLauncherLogFolderPath() ),
+                                gameModPack.getPackName(),
+                                new java.text.SimpleDateFormat( "yyyy-MM-dd--HH-mm-ss" ).format( new java.util.Date() ) );
+                        com.micatechnologies.minecraft.launcher.game.session.GameLog log =
+                                new com.micatechnologies.minecraft.launcher.game.session.GameLog( logFile );
+                        log.attach( spawned );
+                        session.setLog( log );
                     }
-                    else {
-                        // Console disabled: stdout/stderr are routed to kernel-level DISCARD
-                        // at spawn time (see GameModPackLauncher.launch's launchCommand call),
-                        // so the JVM never stalls on an unread pipe. No drain threads needed
-                        // here. Wait for game to exit, then check for crash.
-                        try {
-                            int exitCode = gameProcess.waitFor();
-                            // Record session duration
-                            gameModPack.recordSessionEnd( System.currentTimeMillis() - launchStartMs );
-                            if ( exitCode != 0 ) {
-                                Logger.logError( LocalizationManager.format( "log.launcherCore.gameCrashedExitCode",
-                                                                             exitCode ) );
-                                NotificationManager.error(
-                                        LocalizationManager.get( "notification.launch.gameCrashed.title" ),
-                                        LocalizationManager.format( "notification.launch.gameCrashed.body",
-                                                gameModPack.getFriendlyName() != null
-                                                        ? gameModPack.getFriendlyName()
-                                                        : "Minecraft",
-                                                exitCode ) );
-                                // Show crash console even when console setting is off
-                                String crashReport = gameModPack.getLatestCrashReport();
-                                try {
-                                    MCLauncherGameConsoleGui crashGui =
-                                            MCLauncherGuiController.goToGameConsoleGui();
-                                    if ( crashGui != null ) {
-                                        // Pack-aware overload so CrashReportAnalyzer can build
-                                        // pack-specific suggestions (Open Mods Folder, etc.).
-                                        crashGui.showCrashOnly( gameModPack.getPackName(), exitCode,
-                                                                 crashReport, null, gameModPack );
-                                    }
-                                }
-                                catch ( IOException e ) {
-                                    Logger.logError( LocalizationManager.get( "log.launcherCore.crashReportGuiFailed" ) );
-                                }
-                            }
-                        }
-                        catch ( InterruptedException e ) {
-                            Logger.logError( LocalizationManager.get( "log.launcherCore.gameWaitInterrupted" ) );
-                        }
+                    // RUNNING now; EXITED or CRASHED when the process ends.
+                    session.attachProcess( spawned );
+                    spawned.onExit().thenAccept( p -> onGameExited( session, gameModPack, p, launchStartMs, gui ) );
+                    if ( gui && !ConfigManager.getInGameConsoleEnable() ) {
+                        // "Show console on launch" off: the window showed the preparation; once
+                        // the game is up it steps aside (a crash brings it back).
+                        com.micatechnologies.minecraft.launcher.gui.RunningGamesWindow.hideUnlessPreparing();
                     }
                 }
             }
             catch ( ModpackScanDetectionException e ) {
-                // Scan-blocked message is a deliberately multi-line bulleted listing;
-                // route through the structure-preserving error path so the popup doesn't
-                // collapse it into a one-line blob.
+                // Scan-blocked message is a deliberately multi-line bulleted listing; keep its
+                // structure in the popup.
                 Logger.logErrorMultiline( e.getMessage() );
                 Logger.logThrowable( e );
-                returnToMainGuiOnError();
+                TaskbarProgressManager.endLaunchProgress( tracker );
             }
             catch ( Exception e ) {
-                // Cancellation exits via thrown exception (interrupt → InterruptedException
-                // or downstream IOException) — distinguish from a real failure so the user
-                // doesn't see an error log for a deliberate cancel.
+                // Cancellation exits via a thrown exception too (interrupt, or the launcher's
+                // cancellation check); don't report a deliberate cancel as an error.
                 if ( session.isCancelled() ) {
                     Logger.logStd( LocalizationManager.get( "log.launcherCore.launchCancelled" ) );
-                    TaskbarProgressManager.endLaunchProgress( tracker );
-                    returnToMainGuiOnError();
                 }
                 else {
                     Logger.logError( LocalizationManager.UNABLE_START_GAME_EXCEPTION_TEXT );
                     Logger.logThrowable( e );
-                    returnToMainGuiOnError();
                 }
+                TaskbarProgressManager.endLaunchProgress( tracker );
             }
 
-            // If after runnable present, run it -- but NOT when the in-game console is managing
-            // the UI lifecycle (it will return to main GUI via its own Close button).
-            // Skipped on cancellation too — the after-callback usually navigates to the main
-            // GUI which is already where the cancel handler put the user.
-            if ( after != null && !ConfigManager.getInGameConsoleEnable() && !session.isCancelled() ) {
+            if ( after != null && !session.isCancelled() ) {
                 after.run();
             }
         }
@@ -1818,23 +1705,6 @@ public class LauncherCore
                                                            step.displayLabel(), sub ) );
             }
         } );
-    }
-
-    /**
-     * Attempts to return to the main GUI after a game launch error. If the main GUI cannot be loaded, the error is
-     * logged silently (the user can still close the app via the window X button).
-     *
-     * @since 2.0
-     */
-    private static void returnToMainGuiOnError() {
-        if ( MCLauncherGuiController.shouldCreateGui() ) {
-            try {
-                MCLauncherGuiController.goToMainGui();
-            }
-            catch ( IOException e ) {
-                Logger.logErrorSilent( LocalizationManager.get( "log.launcherCore.returnMainGuiAfterErrorFailed" ) );
-            }
-        }
     }
 
     /**

@@ -108,11 +108,9 @@ public class MCLauncherGuiController
     }
 
     /**
-     * Like {@link #mayNavigateAway()}, for an action that starts a game launch, which replaces
-     * the current screen with the launch-progress screen. Screens may word their prompt for a
-     * launch (see {@link MCLauncherAbstractGui#confirmNavigateAwayForDeepLink()}).
-     *
-     * <p>Must be called off the FX thread.</p>
+     * Whether a launch may start from the current screen. A launch no longer replaces the
+     * screen (it opens in the Running Games window), so there is no unsaved work to protect;
+     * only screens that lock navigation, the login screen above all, refuse.
      *
      * @return {@code true} when the caller may start the launch
      *
@@ -120,8 +118,7 @@ public class MCLauncherGuiController
      */
     public static boolean mayLeaveForLaunch() {
         MCLauncherAbstractGui current = getCurrentGuiOrNull();
-        return current == null
-                || ( current.allowsToolbarNavigation() && current.confirmNavigateAwayForDeepLink() );
+        return current == null || current.allowsToolbarNavigation();
     }
 
     /**
@@ -469,30 +466,6 @@ public class MCLauncherGuiController
     }
 
     /**
-     * Navigates to the in-game console screen, starting the GUI window if needed.
-     *
-     * @return the shown console controller, or {@code null} if the window
-     *         could not be started
-     *
-     * @throws IOException if the screen's FXML could not be loaded
-     * @since 1.0
-     */
-    @SuppressWarnings( "UnusedReturnValue" )
-    public static MCLauncherGameConsoleGui goToGameConsoleGui() throws IOException {
-        MCLauncherGameConsoleGui newGui = null;
-        boolean guiStarted = startGui();
-        if ( guiStarted ) {
-            newGui = new MCLauncherGameConsoleGui( guiWindow.getStage() );
-            guiWindow.setScene( newGui );
-            guiWindow.show();
-        }
-        else {
-            Logger.logError( LocalizationManager.get( "log.controller.consoleNotDisplayed" ) );
-        }
-        return newGui;
-    }
-
-    /**
      * Navigates to the Java runtime management screen, starting the GUI window
      * if needed.
      *
@@ -607,6 +580,7 @@ public class MCLauncherGuiController
         synchronized ( PREBUILD_LOCK ) {
             prebuiltMainGui = null;
         }
+        RunningGamesWindow.shutdown();
         if ( guiWindow != null ) {
             guiWindow.cleanup();
             if ( guiWindow.getStage() != null ) {

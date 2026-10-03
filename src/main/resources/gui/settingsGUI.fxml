@@ -328,7 +328,7 @@
                         <MFXToggleButton fx:id="debugCheckBox" text="%settings.fxml.debugMode" />
                         <MFXToggleButton fx:id="windowResizeCheckBox" text="%settings.fxml.windowResizing" />
                         <MFXToggleButton fx:id="enhancedLoggingCheckBox" text="%settings.fxml.enhancedLogging" />
-                        <MFXToggleButton fx:id="inGameConsoleCheckBox" text="%settings.fxml.inGameConsole" />
+                        <MFXToggleButton fx:id="inGameConsoleCheckBox" text="%settings.runningGames.keepOpen" />
                         <HBox alignment="CENTER_LEFT" spacing="8.0">
                             <Label text="%settings.fxml.consoleLogMaxLines" />
                             <MFXComboBox fx:id="consoleLogMaxLinesSelection" prefWidth="140.0" />

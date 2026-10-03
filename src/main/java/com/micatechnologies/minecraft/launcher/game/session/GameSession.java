@@ -89,6 +89,9 @@ public final class GameSession
     private volatile long                startedMs;
     private volatile long                endedMs;
     private volatile int                 exitCode;
+    private volatile com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker tracker;
+    private volatile GameLog             log;
+    private volatile String              crashReport;
 
     /**
      * Creates a session in {@link Phase#PREPARING}.
@@ -160,6 +163,50 @@ public final class GameSession
 
     /** @return when the session ended (epoch millis), or 0 while active */
     public long endedMs() { return endedMs; }
+
+    /** @return the launch's step tracker while preparing, or {@code null} */
+    public com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker tracker() { return tracker; }
+
+    /** @return the captured game output, or {@code null} before the game starts (or when not piped) */
+    public GameLog log() { return log; }
+
+    /** @return the crash report found after a crash, or {@code null} */
+    public String crashReport() { return crashReport; }
+
+    /**
+     * @param tracker the launch's step tracker, shown while preparing
+     *
+     * @since 2026.10
+     */
+    public void setTracker( com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker tracker )
+    {
+        this.tracker = tracker;
+        notifyListeners();
+    }
+
+    /**
+     * @param log the game's captured output
+     *
+     * @since 2026.10
+     */
+    public void setLog( GameLog log )
+    {
+        this.log = log;
+        notifyListeners();
+    }
+
+    /**
+     * Records the crash report found after the game crashed, for display.
+     *
+     * @param report the report text
+     *
+     * @since 2026.10
+     */
+    public void setCrashReport( String report )
+    {
+        this.crashReport = report;
+        notifyListeners();
+    }
 
     /** @return whether {@link #cancel()} has been called */
     public boolean isCancelled() { return cancelled.get(); }
@@ -259,7 +306,7 @@ public final class GameSession
     }
 
     /**
-     * Adds a listener for phase changes.
+     * Adds a listener for changes: phase, tracker, log, crash report.
      *
      * @param listener receives this session after each change
      *
@@ -270,9 +317,24 @@ public final class GameSession
         listeners.add( listener );
     }
 
+    /**
+     * @param listener a listener added with {@link #addListener}
+     *
+     * @since 2026.10
+     */
+    public void removeListener( Consumer< GameSession > listener )
+    {
+        listeners.remove( listener );
+    }
+
     private void setPhase( Phase next )
     {
         phase = next;
+        notifyListeners();
+    }
+
+    private void notifyListeners()
+    {
         for ( Consumer< GameSession > l : listeners ) {
             try {
                 l.accept( this );
