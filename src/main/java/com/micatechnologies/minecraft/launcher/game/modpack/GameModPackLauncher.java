@@ -31,7 +31,7 @@ import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
-import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
+import net.hycrafthd.minecraft_authenticator.login.User;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameAssetManifest;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameLibraryManifest;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameVersionManifest;
@@ -1191,14 +1191,56 @@ class GameModPackLauncher
     }
 
     /**
+     * The sign-in values a client launch passes to Minecraft.
+     *
+     * @param playerName  the player's username
+     * @param uuid        the player's profile id
+     * @param accessToken the Minecraft access token
+     * @param session     the legacy {@code token:<accessToken>:<uuid>} session string
+     *
+     * @since 2026.10
+     */
+    record AuthArguments( String playerName, String uuid, String accessToken, String session )
+    {
+        /** Server launches carry no sign-in. */
+        static final AuthArguments NONE = new AuthArguments( "", "", "", "" );
+
+        /**
+         * The arguments for a user. Pure, for testing.
+         *
+         * @param user the account to launch as
+         *
+         * @return its launch arguments
+         *
+         * @since 2026.10
+         */
+        static AuthArguments of( User user )
+        {
+            String name = user.name() == null ? "" : user.name();
+            String uuid = user.uuid() == null ? "" : user.uuid();
+            String token = user.accessToken() == null ? "" : user.accessToken();
+            return new AuthArguments( name, uuid, token, "token:" + token + ":" + uuid );
+        }
+    }
+
+    /**
      * Builds the full launch command, replaces all placeholders, and starts the game process.
      *
-     * @throws ModpackException if unable to launch the game
+     * @param user the account to launch as; ignored for a server, required for a client
+     *
+     * @throws ModpackException if unable to launch the game, or if a client launch has no account
      *
      * @since 3.0
      */
-    void launch() throws ModpackException
+    void launch( User user ) throws ModpackException
     {
+        // The account is chosen by the caller (a pack can launch as an account other than the
+        // default). A client launch with none would hand Minecraft empty credentials.
+        if ( GameModeManager.isClient() && user == null ) {
+            throw new ModpackException( LocalizationManager.get( "gameModPackLauncher.error.noAccount" ) );
+        }
+        AuthArguments auth = GameModeManager.isClient() ? AuthArguments.of( user ) : AuthArguments.NONE;
+
         // Get classpath, main class and Minecraft args
         String cp = buildClasspath();
 
@@ -1412,12 +1454,10 @@ class GameModPackLauncher
         // for OS-specific quoting around paths — each element crosses to the
         // child as one literal arg.
         String sharedAssetsRoot = GameAssetManifest.getSharedAssetsRoot();
-        String authPlayerName  = GameModeManager.isClient() ? MCLauncherAuthManager.getLoggedInUser().name() : "";
-        String authUuid        = GameModeManager.isClient() ? MCLauncherAuthManager.getLoggedInUser().uuid() : "";
-        String authAccessToken = GameModeManager.isClient() ? MCLauncherAuthManager.getLoggedInUser().accessToken() : "";
-        String authSession     = GameModeManager.isClient()
-                ? "token:" + authAccessToken + ":" + authUuid
-                : "";
+        String authPlayerName  = auth.playerName();
+        String authUuid        = auth.uuid();
+        String authAccessToken = auth.accessToken();
+        String authSession     = auth.session();
         String versionName = pack.isVanillaVersion() ? pack.getMinecraftVersion() : pack.getLoaderVersion();
         String gameAssetsPath;
         try {

@@ -1749,6 +1749,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
             // Button enable / disable state
             playBtn.setDisable( AnnouncementManager.getDisableGameplay() );
+            // Say so when Play launches as an account other than the default. Set every bind:
+            // cards are pooled, so a stale tooltip would follow the card to another pack.
+            String overrideUuid = ConfigManager.getAccountOverrideForPack( newPack.getSettingsKey() );
+            var overrideAccount = overrideUuid == null ? null
+                                  : MCLauncherAuthManager.accounts().account( overrideUuid );
+            playBtn.setTooltip( overrideUuid == null ? null : TooltipManager.create(
+                    overrideAccount == null ? LocalizationManager.get( "modal.chip.playsAsMissing" )
+                                            : LocalizationManager.format( "modal.chip.playsAs", overrideAccount.displayName() ) ) );
             websiteBtn.setDisable( newPack.getPackURL() == null || newPack.getPackURL().isBlank() );
 
             // Context menu — rebuilt per pack since it embeds pack-specific actions.

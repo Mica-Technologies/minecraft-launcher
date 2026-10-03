@@ -605,16 +605,20 @@ public class GameModPack extends GameModPackMetadata
     }
 
     /**
-     * Builds the full launch command, replaces all placeholders, and starts the game process. Delegates to
-     * {@link GameModPackLauncher#launch()}.
+     * Builds the full launch command, replaces all placeholders, and starts the game process as
+     * the given account. Delegates to {@link GameModPackLauncher#launch(net.hycrafthd.minecraft_authenticator.login.User)}.
+     *
+     * @param user the account to launch as (see
+     *             {@link com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager#userForLaunch});
+     *             ignored in server mode, where it may be {@code null}
      *
      * @throws ModpackException if unable to launch the game
      *
      * @since 1.0
      */
-    public void startGame() throws ModpackException
+    public void startGame( net.hycrafthd.minecraft_authenticator.login.User user ) throws ModpackException
     {
-        getLauncher().launch();
+        getLauncher().launch( user );
     }
 
     /**
@@ -928,6 +932,40 @@ public class GameModPack extends GameModPackMetadata
     public void prepareEnvironment()
     {
         getEnvironment().prepareEnvironment();
+    }
+
+    /**
+     * A stable key for this pack's per-pack settings: its manifest URL, or
+     * {@code vanilla:<version>} for a vanilla install, which has none. The pack name won't do:
+     * vanilla names are localized, so they change with the UI language.
+     *
+     * @return the key, or {@code null} for a pack with neither (a failed or placeholder pack)
+     *
+     * @since 2026.10
+     */
+    public String getSettingsKey() {
+        return settingsKey( manifestUrl, vanillaVersion, vanillaMinecraftVersion );
+    }
+
+    /**
+     * The settings key for the given identity. Pure, for testing.
+     *
+     * @param manifestUrl    the manifest URL, possibly blank
+     * @param vanilla        whether the pack is a vanilla install
+     * @param vanillaVersion the vanilla Minecraft version, for vanilla installs
+     *
+     * @return the key, or {@code null} when there is nothing stable to key on
+     *
+     * @since 2026.10
+     */
+    static String settingsKey( String manifestUrl, boolean vanilla, String vanillaVersion ) {
+        if ( manifestUrl != null && !manifestUrl.isBlank() ) {
+            return manifestUrl;
+        }
+        if ( vanilla && vanillaVersion != null && !vanillaVersion.isBlank() ) {
+            return "vanilla:" + vanillaVersion;
+        }
+        return null;
     }
 
     /** URL of the manifest JSON this pack was loaded from. Package-visible

@@ -548,48 +548,83 @@ public class LauncherCore
     }
 
     /**
-     * Blocks the caller until the cold-start-deferred auth token refresh has
-     * settled. No-op when no refresh is pending or the refresh has already
-     * completed.
+     * Resolves the account a pack launches as, and handles the cases that block the launch.
      *
-     * <p>Capped at 60 s so a hung MS auth server can't pin the calling thread
-     * forever — the underlying renewal already has its own timeout, but this
-     * defense-in-depth wrapper keeps Play responsive even if the refresh
-     * executor itself wedges.</p>
+     * <ul>
+     *   <li>The pack's override names an account that is no longer signed in: asks whether to
+     *       play as the default account instead, and if so clears the stale override.</li>
+     *   <li>The account's saved sign-in was rejected: offers to sign it in again.</li>
+     *   <li>No account at all: reports it.</li>
+     * </ul>
      *
-     * <p>Failure of the refresh is logged but not propagated: the launch
-     * proceeds with whatever access token is in memory (the cached one
-     * loaded by {@link MCLauncherAuthManager#loadCachedUserNow()}). If that
-     * token is stale enough to be rejected by Mojang's session servers, the
-     * launch will fail downstream with the same user-facing error the
-     * legacy sync-renewal path would have produced.</p>
+     * <p>Blocks; call off the FX thread.</p>
+     *
+     * @param pack the pack about to launch
+     *
+     * @return the user to launch as, or {@code null} when the launch shouldn't go ahead
      */
-    private static void awaitPendingAuthRefresh()
-    {
-        java.util.concurrent.CompletableFuture< MCLauncherAuthResult > pending =
-                MCLauncherAuthManager.getPendingRefreshFuture();
-        if ( pending == null || pending.isDone() ) {
-            return;
-        }
+    private static net.hycrafthd.minecraft_authenticator.login.User resolveLaunchUser( GameModPack pack ) {
+        String key = pack.getSettingsKey();
+        String override = ConfigManager.getAccountOverrideForPack( key );
         try {
-            Logger.logStd( LocalizationManager.get( "log.launcherCore.awaitingAuthRefresh" ) );
-            long startNs = System.nanoTime();
-            MCLauncherAuthResult result = pending.get( 60, java.util.concurrent.TimeUnit.SECONDS );
-            long waitMs = ( System.nanoTime() - startNs ) / 1_000_000L;
-            if ( AuthUtilities.checkAuthResponse( result ) ) {
-                Logger.logStd( LocalizationManager.format( "log.launcherCore.authRefreshSettled", waitMs ) );
-            }
-            else {
-                Logger.logWarningSilent( LocalizationManager.format(
-                        "log.launcherCore.authRefreshNonSuccess", waitMs ) );
-            }
+            return MCLauncherAuthManager.userForLaunch( override );
         }
-        catch ( java.util.concurrent.TimeoutException e ) {
-            Logger.logWarningSilent( LocalizationManager.get( "log.launcherCore.authRefreshTimedOut" ) );
-        }
-        catch ( Throwable t ) {
-            Logger.logWarningSilent( LocalizationManager.format( "log.launcherCore.authRefreshAwaitFailed",
-                                                                 t.getClass().getSimpleName() ) );
+        catch ( com.micatechnologies.minecraft.launcher.game.auth.LaunchAccountResolver.BlockedException blocked ) {
+            var resolution = blocked.resolution();
+            boolean gui = MCLauncherGuiController.shouldCreateGui();
+            switch ( resolution.problem() ) {
+                case OVERRIDE_MISSING -> {
+                    Logger.logStd( LocalizationManager.get( "log.launcherCore.overrideAccountMissing" ) );
+                    var fallback = MCLauncherAuthManager.getLoggedInUser();
+                    if ( !gui || fallback == null ) {
+                        return null;
+                    }
+                    int answer = GUIUtilities.showQuestionMessage(
+                            LocalizationManager.get( "launch.account.overrideMissing.title" ),
+                            LocalizationManager.get( "launch.account.overrideMissing.header" ),
+                            LocalizationManager.format( "launch.account.overrideMissing.body", pack.getFriendlyName() ),
+                            LocalizationManager.format( "launch.account.overrideMissing.useDefault", fallback.name() ),
+                            LocalizationManager.get( "dialog.button.cancel" ),
+                            MCLauncherGuiController.getTopStageOrNull() );
+                    if ( answer != 1 ) {
+                        return null;
+                    }
+                    // The account is gone, so the override can never apply again.
+                    ConfigManager.setAccountOverrideForPack( key, null );
+                    try {
+                        return MCLauncherAuthManager.userForLaunch( null );
+                    }
+                    catch ( com.micatechnologies.minecraft.launcher.game.auth.LaunchAccountResolver.BlockedException again ) {
+                        return null;
+                    }
+                }
+                case NEEDS_SIGN_IN -> {
+                    Logger.logStd( LocalizationManager.get( "log.launcherCore.launchAccountNeedsSignIn" ) );
+                    if ( gui ) {
+                        int answer = GUIUtilities.showQuestionMessage(
+                                LocalizationManager.get( "launch.account.needsSignIn.title" ),
+                                LocalizationManager.format( "launch.account.needsSignIn.header",
+                                                            resolution.accountName() == null ? "" : resolution.accountName() ),
+                                LocalizationManager.get( "launch.account.needsSignIn.body" ),
+                                LocalizationManager.get( "settings.accounts.signInAgain" ),
+                                LocalizationManager.get( "dialog.button.cancel" ),
+                                MCLauncherGuiController.getTopStageOrNull() );
+                        if ( answer == 1 ) {
+                            GUIUtilities.JFXPlatformRun( () -> com.micatechnologies.minecraft.launcher.gui.AddAccountDialog
+                                    .show( MCLauncherGuiController.getTopStageOrNull() ) );
+                        }
+                    }
+                    return null;
+                }
+                default -> {
+                    Logger.logError( LocalizationManager.get( "log.launcherCore.noLaunchAccount" ) );
+                    if ( gui ) {
+                        GUIUtilities.showErrorMessage( LocalizationManager.get( "launch.account.none" ),
+                                                       MCLauncherGuiController.getTopStageOrNull() );
+                    }
+                    return null;
+                }
+            }
         }
     }
 
@@ -622,17 +657,20 @@ public class LauncherCore
      * @since 2.0
      */
     public static void play( GameModPack gameModPack, Runnable after ) {
-        // Cold-start deferred the auth refresh; if the user clicked Play before
-        // it landed, await it here. We're on a background thread (callers spawn
-        // play() off the FX thread via SystemUtilities.spawnNewTask) so the
-        // block doesn't freeze the UI — the launch-progress window stays
-        // responsive, just sits on the first step a few hundred ms longer than
-        // it otherwise would. If the refresh fails or times out, the launch
-        // still proceeds with whatever access token is in memory: it may be
-        // stale but it's the same token the legacy sync-renewal path would
-        // have ended up using on a server-contact failure, and the worst case
-        // (server rejects launch) just routes the user back through login.
-        awaitPendingAuthRefresh();
+        // Pick the account this pack launches as (its override, else the default) and wait
+        // for that account's token refresh if one is due. We're on a background thread
+        // (callers spawn play() off the FX thread), so the wait doesn't freeze the UI.
+        // Server mode has no accounts.
+        final net.hycrafthd.minecraft_authenticator.login.User launchUser;
+        if ( GameModeManager.isClient() ) {
+            launchUser = resolveLaunchUser( gameModPack );
+            if ( launchUser == null ) {
+                return;  // blocked; the user has been told why
+            }
+        }
+        else {
+            launchUser = null;
+        }
 
         // Pre-launch mod-conflict scan. Returns the first known-bad combo
         // we recognise (OptiFine+Sodium, JEI+REI); the prompt lets the user
@@ -811,7 +849,7 @@ public class LauncherCore
                             }
                         } );
                 try {
-                    gameModPack.startGame();
+                    gameModPack.startGame( launchUser );
                 }
                 finally {
                     // Always clear the listeners so subsequent background activity

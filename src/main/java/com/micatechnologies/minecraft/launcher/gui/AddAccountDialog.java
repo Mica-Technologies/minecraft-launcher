@@ -44,7 +44,7 @@ import javafx.stage.Window;
  *
  * @since 2026.10
  */
-final class AddAccountDialog
+public final class AddAccountDialog
 {
     private AddAccountDialog() { }
 
@@ -55,7 +55,7 @@ final class AddAccountDialog
      *
      * @since 2026.10
      */
-    static void show( Window owner )
+    public static void show( Window owner )
     {
         Stage stage = new Stage();
         stage.initModality( Modality.WINDOW_MODAL );

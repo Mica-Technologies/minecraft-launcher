@@ -1063,6 +1063,15 @@ public class ConfigConstants
      */
     public static final String SCAN_FREQUENCY_BY_PACK_KEY = "scanFrequencyByPack";
 
+    /**
+     * Configuration key for per-pack account overrides: a JSON object mapping a pack's
+     * settings key ({@code GameModPack#getSettingsKey()}) to the uuid of the account that pack
+     * launches with. A pack with no entry launches with the default account.
+     *
+     * @since 2026.10
+     */
+    public static final String ACCOUNT_OVERRIDE_BY_PACK_KEY = "accountOverrideByPack";
+
     // endregion
 
     // region CurseForge API key

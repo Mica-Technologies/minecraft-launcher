@@ -431,7 +431,22 @@ public final class TuiApp
 
         Thread launcher = new Thread( () -> {
             try {
-                pack.startGame();
+                net.hycrafthd.minecraft_authenticator.login.User user;
+                try {
+                    user = MCLauncherAuthManager.userForLaunch(
+                            com.micatechnologies.minecraft.launcher.config.ConfigManager
+                                    .getAccountOverrideForPack( pack.getSettingsKey() ) );
+                }
+                catch ( com.micatechnologies.minecraft.launcher.game.auth.LaunchAccountResolver.BlockedException blocked ) {
+                    // The TUI can't run the Microsoft sign-in, so explain and send the user to the GUI.
+                    throw new IllegalStateException( switch ( blocked.resolution().problem() ) {
+                        case OVERRIDE_MISSING -> loc( "tui.launch.overrideAccountMissing" );
+                        case NEEDS_SIGN_IN -> locf( "tui.launch.accountNeedsSignIn",
+                                                    String.valueOf( blocked.resolution().accountName() ) );
+                        case NO_ACCOUNT -> loc( "tui.auth.noAccount" );
+                    } );
+                }
+                pack.startGame( user );
                 Process proc = pack.getLastLaunchedProcess();
                 if ( proc == null ) {
                     throw new IllegalStateException( loc( "tui.launch.noProcess" ) );

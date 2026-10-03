@@ -372,6 +372,57 @@ public final class ModPackConfig
         ConfigStore.scheduleWrite();
     }
 
+    /**
+     * The account a pack launches with instead of the default, or {@code null} when it uses
+     * the default.
+     *
+     * @param packKey the pack's settings key ({@code GameModPack#getSettingsKey()})
+     *
+     * @return the overriding account's uuid, or {@code null}
+     *
+     * @since 2026.10
+     */
+    public static synchronized String getAccountOverrideForPack( String packKey ) {
+        if ( packKey == null || packKey.isBlank() ) return null;
+        JsonObject json = ConfigStore.ensureLoaded();
+        try {
+            if ( !json.has( ConfigConstants.ACCOUNT_OVERRIDE_BY_PACK_KEY ) ) return null;
+            JsonObject map = json.get( ConfigConstants.ACCOUNT_OVERRIDE_BY_PACK_KEY ).getAsJsonObject();
+            if ( !map.has( packKey ) || map.get( packKey ).isJsonNull() ) return null;
+            String uuid = map.get( packKey ).getAsString();
+            return uuid == null || uuid.isBlank() ? null : uuid;
+        }
+        catch ( Exception e ) {
+            // A malformed entry means "no override": the pack falls back to the default account.
+            return null;
+        }
+    }
+
+    /**
+     * Sets or clears the account a pack launches with.
+     *
+     * @param packKey the pack's settings key; {@code null} or blank is ignored
+     * @param uuid    the account's uuid, or {@code null} to launch with the default again
+     *
+     * @since 2026.10
+     */
+    public static synchronized void setAccountOverrideForPack( String packKey, String uuid ) {
+        if ( packKey == null || packKey.isBlank() ) return;
+        JsonObject json = ConfigStore.ensureLoaded();
+        JsonObject map = json.has( ConfigConstants.ACCOUNT_OVERRIDE_BY_PACK_KEY )
+                         && json.get( ConfigConstants.ACCOUNT_OVERRIDE_BY_PACK_KEY ).isJsonObject()
+                         ? json.get( ConfigConstants.ACCOUNT_OVERRIDE_BY_PACK_KEY ).getAsJsonObject()
+                         : new JsonObject();
+        if ( uuid == null || uuid.isBlank() ) {
+            map.remove( packKey );
+        }
+        else {
+            map.addProperty( packKey, uuid );
+        }
+        json.add( ConfigConstants.ACCOUNT_OVERRIDE_BY_PACK_KEY, map );
+        ConfigStore.scheduleWrite();
+    }
+
     /** Resolves the effective scan frequency for a pack: per-pack override
      *  if set, else launcher-wide default. {@code ScanFrequency.shouldScan}
      *  consumers only need a single value, so this hides the override-

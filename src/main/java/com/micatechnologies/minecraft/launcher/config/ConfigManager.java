@@ -690,6 +690,10 @@ public class ConfigManager
     public synchronized static String  getDefaultAccountUuid()          { return AppConfig.getDefaultAccountUuid(); }
     /** Sets the default account's uuid. @param v the uuid, or "" for none. @see AppConfig#setDefaultAccountUuid(String) @since 2026.10 */
     public synchronized static void    setDefaultAccountUuid( String v ) { AppConfig.setDefaultAccountUuid( v ); }
+    /** @return the account uuid a pack launches with instead of the default, or null. @param packKey the pack's settings key. @see ModPackConfig#getAccountOverrideForPack(String) @since 2026.10 */
+    public synchronized static String  getAccountOverrideForPack( String packKey ) { return ModPackConfig.getAccountOverrideForPack( packKey ); }
+    /** Sets or clears a pack's account override. @param packKey the pack's settings key. @param uuid the account, or null for the default. @see ModPackConfig#setAccountOverrideForPack(String, String) @since 2026.10 */
+    public synchronized static void    setAccountOverrideForPack( String packKey, String uuid ) { ModPackConfig.setAccountOverrideForPack( packKey, uuid ); }
     /** @return whether the first-launch quick-start wizard has been completed. @see AppConfig#getQuickStartCompleted() @since 1.0 */
     public synchronized static boolean getQuickStartCompleted()         { return AppConfig.getQuickStartCompleted(); }
     /** Sets whether the first-launch quick-start wizard has been completed. @param v the new flag. @see AppConfig#setQuickStartCompleted(boolean) @since 1.0 */

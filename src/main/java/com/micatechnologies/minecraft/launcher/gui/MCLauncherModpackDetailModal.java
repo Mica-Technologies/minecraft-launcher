@@ -530,14 +530,16 @@ public class MCLauncherModpackDetailModal extends StackPane
         }
 
         // Which tabs apply: Overview always; Content/Activity need an install folder
-        // to browse / report on; Advanced needs a manifest to verify against.
+        // to browse / report on; Advanced needs a stable settings key (a manifest, or a vanilla
+        // version) for its per-pack settings, and shows the manifest-only ones only with a
+        // manifest.
         java.util.List< String > tabs = new java.util.ArrayList<>();
         tabs.add( TAB_OVERVIEW );
         if ( pack.getPackRootFolder() != null ) {
             tabs.add( TAB_CONTENT );
             tabs.add( TAB_ACTIVITY );
         }
-        if ( pack.getManifestUrl() != null && !pack.getManifestUrl().isBlank() ) {
+        if ( pack.getSettingsKey() != null ) {
             tabs.add( TAB_ADVANCED );
         }
         HBox tabBar = buildTabBar( pack, tabs, gen );
@@ -1141,6 +1143,17 @@ public class MCLauncherModpackDetailModal extends StackPane
         HBox chips = new HBox( 6 );
         chips.setAlignment( Pos.CENTER_LEFT );
 
+        // A pack that launches as an account other than the default says so up front.
+        String overrideUuid = ConfigManager.getAccountOverrideForPack( pack.getSettingsKey() );
+        if ( overrideUuid != null ) {
+            var account = com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.accounts()
+                                                                                                .account( overrideUuid );
+            chips.getChildren().add( buildChip( account == null
+                                                ? LocalizationManager.get( "modal.chip.playsAsMissing" )
+                                                : LocalizationManager.format( "modal.chip.playsAs", account.displayName() ),
+                                                "stat-chip" ) );
+        }
+
         if ( pack.isVanillaVersion() ) {
             chips.getChildren().add( buildChip( LocalizationManager.get( "modal.chip.vanilla" ), "stat-chip" ) );
         }
@@ -1728,6 +1741,77 @@ public class MCLauncherModpackDetailModal extends StackPane
         return section;
     }
 
+    /**
+     * The "Launch as" choice: which signed-in account this pack plays as. The first entry is
+     * the default account (no override); picking it clears the override. An override whose
+     * account has since been signed out shows as such, and launching then asks what to do
+     * (see {@code LauncherCore.resolveLaunchUser}).
+     *
+     * @param section the Advanced section to append to
+     * @param pack    the pack whose override this edits
+     */
+    private void buildAccountOverride( VBox section, GameModPack pack )
+    {
+        final String key = pack.getSettingsKey();
+        final String DEFAULT_ID = "";
+        var manager = com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.accounts();
+        java.util.List< AccountListModel.Row > rows = AccountListModel.rows( manager.accounts() );
+        String override = ConfigManager.getAccountOverrideForPack( key );
+
+        java.util.List< String > ids = new java.util.ArrayList<>();
+        ids.add( DEFAULT_ID );
+        java.util.Map< String, String > labels = new java.util.HashMap<>();
+        var defaultUser = com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.getLoggedInUser();
+        labels.put( DEFAULT_ID, LocalizationManager.format( "modal.advanced.account.default",
+                                                            defaultUser == null ? "" : defaultUser.name() ) );
+        for ( AccountListModel.Row row : rows ) {
+            ids.add( row.uuid() );
+            labels.put( row.uuid(), row.needsSignIn()
+                                    ? LocalizationManager.format( "account.switcher.needsSignIn", row.name() )
+                                    : row.name() );
+        }
+        if ( override != null && !labels.containsKey( override ) ) {
+            ids.add( override );
+            labels.put( override, LocalizationManager.get( "modal.advanced.account.missing" ) );
+        }
+
+        io.github.palexdev.materialfx.controls.MFXComboBox< String > combo =
+                new io.github.palexdev.materialfx.controls.MFXComboBox<>();
+        combo.setConverter( new javafx.util.StringConverter<>()
+        {
+            @Override
+            public String toString( String id )
+            {
+                return id == null ? "" : labels.getOrDefault( id, id );
+            }
+
+            @Override
+            public String fromString( String text )
+            {
+                return null;
+            }
+        } );
+        combo.setItems( javafx.collections.FXCollections.observableArrayList( ids ) );
+        combo.selectItem( override == null ? DEFAULT_ID : override );
+        combo.setMinHeight( 36 );
+        combo.setPrefHeight( 36 );
+        combo.setPrefWidth( 280 );
+        combo.setOnAction( e -> {
+            String selected = combo.getSelectedItem();
+            if ( selected != null ) {
+                ConfigManager.setAccountOverrideForPack( key, selected.isEmpty() ? null : selected );
+            }
+        } );
+
+        Label label = new Label( LocalizationManager.get( "modal.advanced.account.label" ) );
+        label.setStyle( "-fx-font-size: 12px;" );
+        Label accountHint = new Label( LocalizationManager.get( "modal.advanced.account.hint" ) );
+        accountHint.setWrapText( true );
+        accountHint.getStyleClass().add( "subtle" );
+        accountHint.setStyle( "-fx-font-size: 11px;" );
+        section.getChildren().addAll( label, combo, accountHint );
+    }
+
     /** Body of the Advanced section. Extracted so it can be deferred
      *  via {@link #registerOnFirstExpand} — the section header alone
      *  is what renders at modal open, content only loads if the user
@@ -1744,6 +1828,14 @@ public class MCLauncherModpackDetailModal extends StackPane
         hint.getStyleClass().add( "muted" );
         hint.setStyle( "-fx-font-size: 11px;" );
         section.getChildren().add( hint );
+
+        buildAccountOverride( section, pack );
+
+        // Everything below verifies against, or is keyed by, the pack's manifest; a vanilla
+        // install has none, so it gets the account choice only.
+        if ( pack.getManifestUrl() == null || pack.getManifestUrl().isBlank() ) {
+            return;
+        }
 
         // Toggle: always verify on launch.
         // Stored per-pack-URL via ConfigManager. Default OFF — fast-path
@@ -1767,7 +1859,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         // (== use global default); the rest map 1:1 to the enum values. Keyed
         // by display label so user-facing copy can be edited without shifting
         // indices in stored configs.
-        final String USE_GLOBAL = "Use global default";
+        final String USE_GLOBAL = LocalizationManager.get( "modal.advanced.scanFreq.useGlobal" );
         io.github.palexdev.materialfx.controls.MFXComboBox< String > scanFreqCombo =
                 new io.github.palexdev.materialfx.controls.MFXComboBox<>();
         com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency[] freqValues =

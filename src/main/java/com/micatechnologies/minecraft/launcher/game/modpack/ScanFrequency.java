@@ -79,7 +79,11 @@ public enum ScanFrequency
      *
      * @since 2026.3
      */
-    public String displayLabel() { return displayLabel; }
+    public String displayLabel() {
+        // Localized under scanFrequency.<NAME>; the English constructor label is the fallback.
+        return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                .getOr( "scanFrequency." + name(), displayLabel );
+    }
 
     /** Default value for a fresh install — see the design discussion above.
      *  DAILY balances catching real risk within a day against not slowing

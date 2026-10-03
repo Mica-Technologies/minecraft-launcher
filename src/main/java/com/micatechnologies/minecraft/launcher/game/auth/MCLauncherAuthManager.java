@@ -524,6 +524,52 @@ public class MCLauncherAuthManager
     }
 
     /**
+     * The user to launch a game as: the pack's override account if it has one, otherwise the
+     * default (see {@link LaunchAccountResolver}). When that account's token is due, waits for
+     * its refresh first. A refresh that fails or times out still launches on the current
+     * token, which outlives the refresh interval by hours; Minecraft rejects it outright only
+     * when it has truly expired.
+     *
+     * <p>Blocks; call off the FX thread.</p>
+     *
+     * @param overrideUuid the pack's account override, or {@code null} for the default
+     *
+     * @return the user, with the freshest access token available
+     *
+     * @throws LaunchAccountResolver.BlockedException when no usable account resolves
+     * @since 2026.10
+     */
+    public static User userForLaunch( String overrideUuid ) throws LaunchAccountResolver.BlockedException {
+        AccountManager manager = accounts();
+        LaunchAccountResolver.Resolution resolution =
+                LaunchAccountResolver.resolve( overrideUuid, manager.accounts() );
+        if ( !resolution.ok() ) {
+            throw new LaunchAccountResolver.BlockedException( resolution );
+        }
+        try {
+            User refreshed = manager.refresh( resolution.uuid(), false ).get( AUTH_TIMEOUT_SECONDS, TimeUnit.SECONDS );
+            if ( refreshed != null ) {
+                return refreshed;
+            }
+        }
+        catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( LocalizationManager.format( "log.authManager.launchRefreshFailed",
+                                                                 e.getClass().getSimpleName() ) );
+        }
+        User current = manager.user( resolution.uuid() );
+        if ( current == null ) {
+            // Never identified (no cached user) and the refresh failed: nothing to launch as.
+            throw new LaunchAccountResolver.BlockedException( new LaunchAccountResolver.Resolution(
+                    null, LaunchAccountResolver.Problem.NEEDS_SIGN_IN, resolution.accountName(),
+                    resolution.fromOverride() ) );
+        }
+        return current;
+    }
+
+    /**
      * Synchronously refreshes the default account's session when due.
      *
      * @return a successful {@link MCLauncherAuthResult} wrapping the default {@link User},
