@@ -687,11 +687,12 @@ public class GUIUtilities
      * null. setOnShowing fires after the Stage exists but before the user
      * sees the first frame, so the chrome lands at the right moment.
      *
-     * @param alert the JavaFX Alert to theme; null is a no-op
+     * @param alert the JavaFX dialog (an {@link Alert} or any other {@code Dialog}) to theme; null is a
+     *              no-op
      *
      * @since 3.5
      */
-    public static void themeAlertChrome( Alert alert )
+    public static void themeAlertChrome( javafx.scene.control.Dialog< ? > alert )
     {
         if ( alert == null ) return;
         alert.setOnShowing( ev -> {

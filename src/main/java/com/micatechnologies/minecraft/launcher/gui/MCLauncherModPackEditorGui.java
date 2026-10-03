@@ -832,7 +832,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     dialog.setTitle( LocalizationManager.get( "dialog.editor.pickNeoForge.title" ) );
                     dialog.setHeaderText( LocalizationManager.get( "dialog.editor.pickNeoForge.header" ) );
                     dialog.setContentText( LocalizationManager.get( "dialog.editor.pickNeoForge.contentLabel" ) );
-                    applyThemeToDialog( dialog );
+                    GUIUtilities.themeAlertChrome( dialog );
                     dialog.showAndWait().ifPresent( selected -> {
                         String url = entryToUrl.get( selected );
                         if ( url != null ) {
@@ -922,7 +922,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     dialog.setTitle( LocalizationManager.get( "dialog.editor.pickFabric.title" ) );
                     dialog.setHeaderText( LocalizationManager.get( "dialog.editor.pickFabric.header" ) );
                     dialog.setContentText( LocalizationManager.get( "dialog.editor.pickFabric.contentLabel" ) );
-                    applyThemeToDialog( dialog );
+                    GUIUtilities.themeAlertChrome( dialog );
                     dialog.showAndWait().ifPresent( selected -> {
                         String url = entryToUrl.get( selected );
                         if ( url != null ) {
@@ -1056,7 +1056,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     dialog.setTitle( LocalizationManager.get( "dialog.editor.pickForge.title" ) );
                     dialog.setHeaderText( LocalizationManager.get( "dialog.editor.pickForge.header" ) );
                     dialog.setContentText( LocalizationManager.get( "dialog.editor.pickForge.contentLabel" ) );
-                    applyThemeToDialog( dialog );
+                    GUIUtilities.themeAlertChrome( dialog );
                     dialog.showAndWait().ifPresent( selected -> {
                         String url = entryToForgeUrl.get( selected );
                         if ( url != null ) {
@@ -1152,12 +1152,6 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             HBox loaderBar = new HBox( 8, loaderFilterCheck, loaderFilterCombo );
             loaderBar.setAlignment( Pos.CENTER_LEFT );
 
-            // Capture theme colors for use inside the cell factory
-            String[] cellColors = getThemeColors();
-            String cellBg = cellColors[ 0 ];
-            String cellFg = cellColors[ 1 ];
-            String cellSurface = cellColors[ 4 ];
-
             // Results list with rich cells (icon + title + description)
             ListView< JsonObject > resultsList = new ListView<>();
             resultsList.setPrefHeight( 350 );
@@ -1175,8 +1169,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     icon.setFitWidth( 40 );
                     icon.setFitHeight( 40 );
                     icon.setPreserveRatio( true );
-                    titleLabel.setStyle( "-fx-font-weight: bold; -fx-font-size: 13; -fx-text-fill: " + cellFg + ";" );
-                    descLabel.setStyle( "-fx-font-size: 11; -fx-opacity: 0.8; -fx-text-fill: " + cellFg + ";" );
+                    titleLabel.getStyleClass().add( "modrinthResultTitle" );
+                    descLabel.getStyleClass().add( "modrinthResultDesc" );
                     descLabel.setWrapText( true );
                     descLabel.setMaxHeight( 32 );
                     cellBox.setAlignment( Pos.CENTER_LEFT );
@@ -1198,11 +1192,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     super.updateItem( project, empty );
                     if ( empty || project == null ) {
                         setGraphic( null );
-                        setStyle( "-fx-background-color: transparent;" );
                         return;
                     }
-                    setStyle( "-fx-background-color: " + cellSurface + "; -fx-background-radius: 8;" +
-                              "-fx-background-insets: 2;" );
                     String title = project.has( "title" ) ? project.get( "title" ).getAsString() : "?";
                     String author = project.has( "author" ) ? project.get( "author" ).getAsString() : "";
                     String desc = project.has( "description" ) ? project.get( "description" ).getAsString() : "";
@@ -1283,69 +1274,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                                                                               infoLabel, resultsList );
             content.setPrefWidth( 600 );
 
-            // Apply inline theme colors to every dialog element
-            String[] colors = getThemeColors();
-            String bg = colors[ 0 ];
-            String fg = colors[ 1 ];
-            String surfaceDark = colors[ 2 ];
-            String accent = colors[ 3 ];
-            String surfaceContainer = colors[ 4 ];
-
-            content.setStyle( "-fx-background-color: " + bg + ";" );
-            infoLabel.setStyle( "-fx-text-fill: " + fg + ";" );
-            resultsList.setStyle( "-fx-background-color: " + surfaceDark + ";" +
-                    "-fx-border-color: " + surfaceContainer + "; -fx-border-width: 1; -fx-border-radius: 8;" );
-            versionFilterCheck.setStyle( "-fx-text-fill: " + fg + "; -fx-mark-color: " + accent + ";" );
-            searchField.setStyle( "-fx-text-fill: " + fg + "; -fx-background-color: " + surfaceContainer + ";" +
-                    "-fx-border-color: " + surfaceContainer + "; -fx-border-radius: 8;" );
-            versionFilterField.setStyle( "-fx-text-fill: " + fg + "; -fx-background-color: " + surfaceContainer +
-                    "; -fx-border-color: " + surfaceContainer + "; -fx-border-radius: 8;" );
-            searchBtn.setStyle( "-fx-background-color: " + accent + "; -fx-text-fill: white;" +
-                    "-fx-background-radius: 20; -fx-padding: 6 16 6 16;" );
+            searchBtn.getStyleClass().add( "playBtn" );
 
             dialog.getDialogPane().setContent( content );
 
             // Apply theme to the dialog
-            applyThemeToDialog( dialog );
-
-            // Comprehensively style every dialog element after layout
-            dialog.setOnShown( e -> {
-                javafx.scene.Scene dialogScene = dialog.getDialogPane().getScene();
-                if ( dialogScene != null ) {
-                    dialogScene.getRoot().setStyle( "-fx-background-color: " + bg + ";" );
-                    if ( scene != null ) {
-                        dialogScene.getStylesheets().addAll( scene.getStylesheets() );
-                    }
-                }
-                // Header panel background
-                dialog.getDialogPane().lookupAll( ".header-panel" ).forEach( node ->
-                        node.setStyle( "-fx-background-color: " + surfaceContainer + ";" ) );
-                // Header text
-                dialog.getDialogPane().lookupAll( ".header-panel .label" ).forEach( node ->
-                        node.setStyle( "-fx-text-fill: " + fg + ";" ) );
-                // Button bar background
-                dialog.getDialogPane().lookupAll( ".button-bar" ).forEach( node ->
-                        node.setStyle( "-fx-background-color: " + bg + "; -fx-padding: 12;" ) );
-                // All buttons in the dialog
-                dialog.getDialogPane().lookupAll( ".button-bar .button" ).forEach( node ->
-                        node.setStyle( "-fx-background-color: " + accent + "; -fx-text-fill: white;" +
-                                "-fx-background-radius: 12; -fx-padding: 6 16 6 16; -fx-cursor: hand;" ) );
-                // Scrollbars
-                dialog.getDialogPane().lookupAll( ".scroll-bar" ).forEach( node ->
-                        node.setStyle( "-fx-background-color: transparent;" ) );
-                dialog.getDialogPane().lookupAll( ".scroll-bar .thumb" ).forEach( node ->
-                        node.setStyle( "-fx-background-color: rgba(200,200,200,0.35); -fx-background-radius: 5;" ) );
-                dialog.getDialogPane().lookupAll( ".scroll-bar .track" ).forEach( node ->
-                        node.setStyle( "-fx-background-color: transparent;" ) );
-                dialog.getDialogPane().lookupAll( ".scroll-bar .increment-button" ).forEach( node ->
-                        node.setStyle( "-fx-background-color: transparent; -fx-padding: 0;" ) );
-                dialog.getDialogPane().lookupAll( ".scroll-bar .decrement-button" ).forEach( node ->
-                        node.setStyle( "-fx-background-color: transparent; -fx-padding: 0;" ) );
-                dialog.getDialogPane().lookupAll( ".scroll-bar .increment-arrow" ).forEach( node ->
-                        node.setStyle( "-fx-shape: \"\"; -fx-padding: 0;" ) );
-                dialog.getDialogPane().lookupAll( ".scroll-bar .decrement-arrow" ).forEach( node ->
-                        node.setStyle( "-fx-shape: \"\"; -fx-padding: 0;" ) );
-            } );
+            GUIUtilities.themeAlertChrome( dialog );
 
             searchBtn.setOnAction( ev -> {
                 String query = searchField.getText();
@@ -1506,7 +1440,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 alert.setTitle( LocalizationManager.get( "dialog.editor.diff.title" ) );
                 alert.setHeaderText( LocalizationManager.get( "dialog.editor.diff.noChangesHeader" ) );
                 alert.setContentText( LocalizationManager.get( "dialog.editor.diff.noChangesBody" ) );
-                applyThemeToDialog( alert );
+                GUIUtilities.themeAlertChrome( alert );
                 alert.showAndWait();
             } );
             return;
@@ -1540,13 +1474,13 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             TextArea textArea = new TextArea( diffText );
             textArea.setEditable( false );
             textArea.setWrapText( false );
-            textArea.setStyle( "-fx-font-family: monospace;" );
+            textArea.getStyleClass().add( "text-mono" );
             textArea.setPrefHeight( 400 );
             textArea.setPrefWidth( 600 );
 
             alert.getDialogPane().setExpandableContent( textArea );
             alert.getDialogPane().setExpanded( true );
-            applyThemeToDialog( alert );
+            GUIUtilities.themeAlertChrome( alert );
             alert.showAndWait();
         } );
     }
@@ -1577,7 +1511,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         ? LocalizationManager.get( "dialog.editor.validate.headerValid" )
                         : LocalizationManager.get( "dialog.editor.validate.headerIssues" ) );
                 alert.setContentText( result );
-                applyThemeToDialog( alert );
+                GUIUtilities.themeAlertChrome( alert );
                 alert.showAndWait();
             } );
         } );
@@ -1814,13 +1748,14 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 super.updateItem( value, empty );
                 if ( empty || value == null || value.isBlank() ) {
                     setText( null );
-                    setStyle( "" );
+                    getStyleClass().removeAll( "urlStatusOk", "urlStatusFailed" );
                 }
                 else {
                     setText( value );
                     // Green when the URL is reachable, red otherwise.
                     boolean ok = LocalizationManager.get( "editor.urlStatus.ok" ).equals( value );
-                    setStyle( "-fx-text-fill: " + ( ok ? "#2e7d32" : "#c62828" ) + "; -fx-font-weight: bold;" );
+                    getStyleClass().removeAll( "urlStatusOk", "urlStatusFailed" );
+                    getStyleClass().add( ok ? "urlStatusOk" : "urlStatusFailed" );
                 }
             }
         } );
@@ -1869,7 +1804,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         }
                     } );
                 } );
-                btn.setStyle( "-fx-font-size: 10;" );
+                btn.getStyleClass().add( "editorInlineBtn" );
             }
 
             /**
@@ -2201,70 +2136,6 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         String newVersion = ModPackDocument.bumpVersion( packVersionField.getText(), position );
         packVersionField.setText( newVersion );
         updateStatus( LocalizationManager.format( "editor.status.versionBumped", newVersion ) );
-    }
-
-    /**
-     * Applies the current scene's theme stylesheet to a dialog so it matches the app's look. Stylesheets are applied
-     * both to the DialogPane and to the Dialog's own Scene (which is only available once the dialog is showing).
-     */
-    /**
-     * Determines the current theme's background and text colors based on ConfigManager.
-     */
-    /**
-     * Returns 5-element array [bg, fg, surfaceRecessed, accent, surfaceCard] for the current theme.
-     * Mirrors the {@code -color-bg}, {@code -color-text}, {@code -color-bg-soft}, {@code -color-primary},
-     * and {@code -color-surface} lookups defined in {@code ui-tokens-{theme}.css} so dynamic-styled
-     * dialogs/cells stay in sync with the static stylesheet.
-     */
-    private String[] getThemeColors()
-    {
-        String theme = com.micatechnologies.minecraft.launcher.config.ConfigManager.getTheme();
-        return switch ( theme.toLowerCase() )
-        {
-            case "light"         -> new String[]{ "#FFFFFF", "#151C28", "#F8F9FC", "#027AF2", "#F5F6FA" };
-            case "blue+gray"     -> new String[]{ "#121721", "#E7E9EE", "#191E2A", "#518DF6", "#1F2633" };
-            case "orange+purple" -> new String[]{ "#201221", "#F4EBF3", "#29192A", "#D257DB", "#342136" };
-            case "creeper"       -> new String[]{ "#0C130C", "#EEF0EA", "#121C12", "#43D22D", "#192419" };
-            default              -> new String[]{ "#0C1017", "#EDEFF2", "#10151E", "#3599FD", "#141924" };
-        };
-    }
-
-    /**
-     * Applies the current theme to a dialog using inline styles. JavaFX Dialog's CSS stylesheet inheritance is
-     * unreliable, so we apply colors directly to the dialog pane and its key children.
-     */
-    private void applyThemeToDialog( Dialog< ? > dialog )
-    {
-        String[] colors = getThemeColors();
-        String bg = colors[ 0 ];
-        String fg = colors[ 1 ];
-        String surfaceDark = colors[ 2 ];
-        String accent = colors[ 3 ];
-        String surfaceContainer = colors[ 4 ];
-
-        dialog.getDialogPane().setStyle(
-                "-fx-background-color: " + bg + ";" );
-
-        // Style the header panel
-        dialog.getDialogPane().lookupAll( ".header-panel" ).forEach( node ->
-                node.setStyle( "-fx-background-color: " + surfaceContainer + ";" ) );
-
-        // Apply stylesheets for any CSS-styled children (buttons, list cells, etc.)
-        if ( scene != null && !scene.getStylesheets().isEmpty() ) {
-            dialog.getDialogPane().getStylesheets().addAll( scene.getStylesheets() );
-        }
-        dialog.getDialogPane().getStyleClass().add( "rootPane" );
-
-        // Apply to the Dialog's Scene once available
-        dialog.setOnShown( e -> {
-            javafx.scene.Scene dialogScene = dialog.getDialogPane().getScene();
-            if ( dialogScene != null ) {
-                dialogScene.getRoot().setStyle( "-fx-background-color: " + bg + ";" );
-                if ( scene != null ) {
-                    dialogScene.getStylesheets().addAll( scene.getStylesheets() );
-                }
-            }
-        } );
     }
 
     /**

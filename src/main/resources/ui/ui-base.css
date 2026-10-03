@@ -2104,6 +2104,13 @@
 .contentViewerCard        { -fx-background-color: -color-surface; -fx-background-radius: 12; }
 .contentViewerDiagnosis   { -fx-background-color: -color-bg-soft; -fx-background-radius: 8; }
 
+/* Modpack editor: Modrinth search results, URL check column, per-row hash button. */
+.label.modrinthResultTitle   { -fx-font-weight: bold; -fx-font-size: 13px; }
+.label.modrinthResultDesc    { -fx-font-size: 11px; -fx-opacity: 0.8; }
+.table-cell.urlStatusOk      { -fx-text-fill: -color-success; -fx-font-weight: bold; }
+.table-cell.urlStatusFailed  { -fx-text-fill: -color-danger; -fx-font-weight: bold; }
+.editorInlineBtn             { -fx-font-size: 10px; }
+
 /* Scroll panes that let the surface behind them show through (viewport included). */
 .scroll-pane.transparentScroll {
     -fx-background-color: transparent;
