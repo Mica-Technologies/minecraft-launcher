@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import javafx.scene.Scene;
@@ -137,11 +138,14 @@ public final class KeyboardShortcutManager
     private static void navigate( IOThrowingRunnable target )
     {
         SystemUtilities.spawnNewTask( () -> {
+            if ( !MCLauncherGuiController.mayNavigateAway() ) {
+                return;
+            }
             try {
                 target.run();
             }
             catch ( IOException e ) {
-                Logger.logError( "Keyboard shortcut navigation failed." );
+                Logger.logError( LocalizationManager.get( "log.shortcuts.navigationFailed" ) );
                 Logger.logThrowable( e );
             }
         } );

@@ -2441,6 +2441,34 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     HelpTopic getHelpTopic() { return HelpTopic.SETTINGS; }
 
     /**
+     * Guards navigation from the menu bar, shortcuts, dock or toolbar against silently
+     * discarding unsaved settings edits, with the same Save / Return prompt as the screen's
+     * own return button. Closing the prompt keeps the user here.
+     *
+     * @return {@code true} to let the navigation proceed (after optionally saving)
+     *
+     * @since 2026.10
+     */
+    @Override
+    public boolean confirmNavigateAway() {
+        if ( !hasUnsavedChanges() ) {
+            return true;
+        }
+        int response = GUIUtilities.showQuestionMessage(
+                LocalizationManager.get( "dialog.settings.unsavedOnReturn.title" ),
+                LocalizationManager.get( "dialog.settings.unsavedOnReturn.header" ),
+                LocalizationManager.get( "dialog.settings.unsavedOnReturn.body" ),
+                LocalizationManager.get( "dialog.settings.unsavedOnReturn.button.save" ),
+                LocalizationManager.get( "dialog.settings.unsavedOnReturn.button.return" ),
+                stage );
+        if ( response == 1 ) {
+            GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
+            return true;
+        }
+        return response == 2;
+    }
+
+    /**
      * Guards an external navigation (a {@code mmcl://} deep-link launching a game) against
      * silently discarding unsaved settings edits. When there are pending changes, prompts
      * the user to save-and-continue, discard-and-continue, or cancel. Mirrors the

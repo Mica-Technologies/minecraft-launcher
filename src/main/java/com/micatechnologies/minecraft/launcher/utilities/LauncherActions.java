@@ -194,8 +194,11 @@ public final class LauncherActions
         if ( pack == null ) {
             return;
         }
-        ConfigManager.setLastModPackSelected( pack.getPackName() );
         SystemUtilities.spawnNewTask( () -> {
+            if ( !readyToLaunch() ) {
+                return;
+            }
+            ConfigManager.setLastModPackSelected( pack.getPackName() );
             Platform.setImplicitExit( false );
             SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence( pack ) );
             LauncherCore.play( pack, () -> GUIUtilities.JFXPlatformRun( () -> {
@@ -213,11 +216,36 @@ public final class LauncherActions
     }
 
     /**
+     * Whether a launch from the menu bar, dock or tray may start now. Refuses while a game is
+     * running or launching (a second launch would replace the first one's progress session)
+     * and lets the current screen protect unsaved work, since the launch replaces it.
+     *
+     * <p>Must be called off the FX thread.</p>
+     *
+     * @return {@code true} to go ahead with the launch
+     *
+     * @since 2026.10
+     */
+    public static boolean readyToLaunch()
+    {
+        if ( LauncherCore.isGameRunning() ) {
+            NotificationManager.warn( LocalizationManager.get( "notification.launch.gameRunning.title" ),
+                                      LocalizationManager.get( "notification.launch.gameRunning.body" ) );
+            GUIUtilities.JFXPlatformRun( MCLauncherGuiController::requestFocus );
+            return false;
+        }
+        return MCLauncherGuiController.mayLeaveForLaunch();
+    }
+
+    /**
      * Opens the Browse (install / manage) screen. Used by the dock menu.
      */
     public static void openBrowse()
     {
         SystemUtilities.spawnNewTask( () -> {
+            if ( !MCLauncherGuiController.mayNavigateAway() ) {
+                return;
+            }
             try {
                 MCLauncherGuiController.goToGameLibraryGui();
             }
@@ -234,6 +262,9 @@ public final class LauncherActions
     public static void openSettings()
     {
         SystemUtilities.spawnNewTask( () -> {
+            if ( !MCLauncherGuiController.mayNavigateAway() ) {
+                return;
+            }
             try {
                 MCLauncherGuiController.goToSettingsGui();
             }

@@ -25,6 +25,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.import_.MmcjsonImporter;
 import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
+import com.micatechnologies.minecraft.launcher.utilities.LauncherActions;
 import com.micatechnologies.minecraft.launcher.utilities.LauncherUriHandler;
 import com.micatechnologies.minecraft.launcher.utilities.NotificationManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
@@ -467,6 +468,9 @@ public final class SystemMenuBarManager
     private static void openSettings()
     {
         SystemUtilities.spawnNewTask( () -> {
+            if ( !MCLauncherGuiController.mayNavigateAway() ) {
+                return;
+            }
             try {
                 MCLauncherGuiController.goToSettingsGui();
             }
@@ -483,6 +487,9 @@ public final class SystemMenuBarManager
     private static void openLibrary()
     {
         SystemUtilities.spawnNewTask( () -> {
+            if ( !MCLauncherGuiController.mayNavigateAway() ) {
+                return;
+            }
             try {
                 MCLauncherGuiController.goToGameLibraryGui();
             }
@@ -499,6 +506,9 @@ public final class SystemMenuBarManager
     private static void openRuntime()
     {
         SystemUtilities.spawnNewTask( () -> {
+            if ( !MCLauncherGuiController.mayNavigateAway() ) {
+                return;
+            }
             try {
                 MCLauncherGuiController.goToRuntimeGui();
             }
@@ -515,6 +525,9 @@ public final class SystemMenuBarManager
     private static void refreshMain()
     {
         SystemUtilities.spawnNewTask( () -> {
+            if ( !MCLauncherGuiController.mayNavigateAway() ) {
+                return;
+            }
             AnnouncementManager.checkAnnouncements();
             GameModPackManager.fetchModPackInfo();
             try {
@@ -533,6 +546,9 @@ public final class SystemMenuBarManager
     private static void goHome()
     {
         SystemUtilities.spawnNewTask( () -> {
+            if ( !MCLauncherGuiController.mayNavigateAway() ) {
+                return;
+            }
             try {
                 MCLauncherGuiController.goToMainGui();
             }
@@ -549,6 +565,9 @@ public final class SystemMenuBarManager
     private static void openEditor()
     {
         SystemUtilities.spawnNewTask( () -> {
+            if ( !MCLauncherGuiController.mayNavigateAway() ) {
+                return;
+            }
             try {
                 MCLauncherGuiController.goToModPackEditorGui();
             }
@@ -568,6 +587,9 @@ public final class SystemMenuBarManager
             return;
         }
         SystemUtilities.spawnNewTask( () -> {
+            if ( !LauncherActions.readyToLaunch() ) {
+                return;
+            }
             try {
                 LauncherCore.play( pack );
             }
@@ -653,11 +675,16 @@ public final class SystemMenuBarManager
                     LocalizationManager.get( "notification.uri.modpackAdded.body" ) );
             // Refresh the main GUI so the new pack appears in the hero-card grid
             // immediately rather than after the user navigates away and back.
+            // Only when Home is already showing: re-navigating from anywhere else would
+            // pull the user off their screen (and past any unsaved work on it).
             GUIUtilities.JFXPlatformRun( () -> {
+                if ( !( MCLauncherGuiController.getCurrentGuiOrNull() instanceof MCLauncherMainGui ) ) {
+                    return;
+                }
                 try {
                     MCLauncherGuiController.goToMainGui();
                 }
-                catch ( Exception ignored ) { /* user may not be on main; that's fine */ }
+                catch ( Exception ignored ) { /* refresh is best-effort */ }
             } );
         }
         catch ( MmcjsonImporter.ImportException ie ) {

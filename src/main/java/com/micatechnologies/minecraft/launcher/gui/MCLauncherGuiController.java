@@ -91,6 +91,40 @@ public class MCLauncherGuiController
     }
 
     /**
+     * The gate every navigation from outside the current screen goes through: the menu bar,
+     * keyboard shortcuts, the dock and tray menus, and the macOS toolbar. Refuses while the
+     * current screen locks navigation (login, the progress screens), and otherwise lets the
+     * screen confirm, which is where unsaved edits are protected.
+     *
+     * <p>Must be called off the FX thread: the screen may show a blocking dialog.</p>
+     *
+     * @return {@code true} when the caller may switch screens
+     *
+     * @since 2026.10
+     */
+    public static boolean mayNavigateAway() {
+        MCLauncherAbstractGui current = getCurrentGuiOrNull();
+        return current == null || ( current.allowsToolbarNavigation() && current.confirmNavigateAway() );
+    }
+
+    /**
+     * Like {@link #mayNavigateAway()}, for an action that starts a game launch, which replaces
+     * the current screen with the launch-progress screen. Screens may word their prompt for a
+     * launch (see {@link MCLauncherAbstractGui#confirmNavigateAwayForDeepLink()}).
+     *
+     * <p>Must be called off the FX thread.</p>
+     *
+     * @return {@code true} when the caller may start the launch
+     *
+     * @since 2026.10
+     */
+    public static boolean mayLeaveForLaunch() {
+        MCLauncherAbstractGui current = getCurrentGuiOrNull();
+        return current == null
+                || ( current.allowsToolbarNavigation() && current.confirmNavigateAwayForDeepLink() );
+    }
+
+    /**
      * Brings the launcher window to the foreground and gives it input focus,
      * de-iconifying and showing it first if needed. Used when the user activates
      * the tray icon or follows an {@code mmcl://} deep link with the window

@@ -2111,6 +2111,29 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
      * @return {@code true} if the live state differs from the saved snapshot; {@code false} when
      *         clean or when there is no working document
      */
+    /**
+     * Guards navigation from the menu bar, shortcuts, dock or toolbar against silently
+     * discarding an unsaved modpack document, with the same prompt as the Return button.
+     *
+     * @return {@code true} when there is nothing to lose or the user chose to discard it
+     *
+     * @since 2026.10
+     */
+    @Override
+    public boolean confirmNavigateAway()
+    {
+        if ( !isDirty() ) {
+            return true;
+        }
+        int response = GUIUtilities.showQuestionMessage(
+                LocalizationManager.get( "dialog.editor.discardChanges.title" ),
+                LocalizationManager.get( "dialog.editor.discardChanges.header" ),
+                LocalizationManager.get( "dialog.editor.discardChanges.body" ),
+                LocalizationManager.get( "dialog.editor.discardChanges.button.discard" ),
+                LocalizationManager.get( "dialog.button.cancel" ), stage );
+        return response == 1;
+    }
+
     private boolean isDirty()
     {
         if ( workingDocument == null ) {

@@ -467,6 +467,26 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     }
 
     /**
+     * Refuses to leave the console while the game runs. This screen is what drains the game's
+     * output: leaving it would stop the log, and once the pipe filled the game itself would
+     * stall on its next write.
+     *
+     * @return {@code false} while the game is running
+     *
+     * @since 2026.10
+     */
+    @Override
+    public boolean confirmNavigateAway() {
+        if ( !processRunning ) {
+            return true;
+        }
+        com.micatechnologies.minecraft.launcher.utilities.NotificationManager.info(
+                LocalizationManager.get( "notification.console.stillRunning.title" ),
+                LocalizationManager.get( "notification.console.stillRunning.body" ) );
+        return false;
+    }
+
+    /**
      * {@inheritDoc}
      *
      * @return {@link HelpTopic#GAME_CONSOLE}, the help topic specific to the game console screen

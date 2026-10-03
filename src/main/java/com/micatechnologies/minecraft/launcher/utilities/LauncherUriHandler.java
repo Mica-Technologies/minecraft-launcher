@@ -423,8 +423,9 @@ public final class LauncherUriHandler
             GUIUtilities.JFXPlatformRun( MCLauncherGuiController::requestFocus );
             return false;
         }
-        MCLauncherAbstractGui current = MCLauncherGuiController.getCurrentGuiOrNull();
-        if ( current != null && !current.confirmNavigateAwayForDeepLink() ) {
+        // Also refuses on screens that lock navigation (login, mid-operation progress), so a
+        // link can't launch a game before anyone has signed in.
+        if ( !MCLauncherGuiController.mayLeaveForLaunch() ) {
             Logger.logStd( LocalizationManager.get( "log.uriHandler.launchCancelledUnsaved" ) );
             return false;
         }

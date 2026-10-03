@@ -214,6 +214,25 @@ public abstract class MCLauncherAbstractGui
      */
     public boolean confirmNavigateAwayForDeepLink()
     {
+        return confirmNavigateAway();
+    }
+
+    /**
+     * Asks this screen whether the user may leave it for another screen, from any navigation
+     * that doesn't go through the screen's own controls: the menu bar, keyboard shortcuts,
+     * the dock or tray menu, and the macOS toolbar. The default allows it.
+     *
+     * <p>Screens holding unsaved work, or something that must not be abandoned, override
+     * this to prompt or refuse. Called from a background worker thread, so an override that
+     * shows a dialog must use the blocking {@link GUIUtilities#showQuestionMessage}, which
+     * dispatches to the FX thread itself.</p>
+     *
+     * @return {@code true} to allow navigation, {@code false} to stay on this screen
+     *
+     * @since 2026.10
+     */
+    public boolean confirmNavigateAway()
+    {
         return true;
     }
 
