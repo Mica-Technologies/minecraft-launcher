@@ -32,6 +32,17 @@ npm run translate:force
 npm run translate:dry
 ```
 
+> **Don't run `translate:force` on the shipped bundles.** The user-facing strings (everything
+> outside `log.*`) were reviewed by hand, with context and a per-language glossary, after the
+> machine translation. `--force` replaces every one of them with a context-free machine
+> translation again. The incremental `npm run translate` only fills in keys that are missing, so
+> it never touches reviewed strings. New strings it adds are machine-translated and worth the same
+> review before a release.
+
+Write apostrophes normally in every bundle (`it's`, `l'outil`). `LocalizationManager.format`
+escapes them for `MessageFormat`; a doubled `''` would show up doubled wherever a string isn't
+formatted.
+
 ## How the script handles MessageFormat placeholders
 
 `{0}`, `{1, number}`, etc. would get mangled if translated literally. The
