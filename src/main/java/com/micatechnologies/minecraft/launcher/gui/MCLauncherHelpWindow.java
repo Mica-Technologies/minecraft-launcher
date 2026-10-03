@@ -205,6 +205,7 @@ public class MCLauncherHelpWindow
                 Logger.logWarningSilent( LocalizationManager.get( "log.help.cleanupWebEngineClear" ), t );
             }
             helpStage = null;
+            appliedThemeKey = null;
             webView = null;
             webEngine = null;
             topicList = null;
@@ -228,11 +229,27 @@ public class MCLauncherHelpWindow
         GUIUtilities.JFXPlatformRun( () -> {
             // One OS dark/light read for the whole pass (see refreshOsDarkCache).
             refreshOsDarkCache();
+            // The main window calls this on every screen switch. Re-render only when the
+            // theme actually changed: reloading the topic re-read its resources, re-rendered
+            // the WebView and reset the reader's scroll position each time.
+            if ( themeKey().equals( appliedThemeKey ) ) {
+                return;
+            }
             applyTheme();
             if ( currentTopic != null ) {
                 loadTopic( currentTopic );
             }
         } );
+    }
+
+    /** The theme the help window was last styled for; see {@link #themeKey()}. */
+    private static String appliedThemeKey = null;
+
+    /** Identifies the active look: the configured theme plus, for the OS-following themes,
+     *  whether the OS is dark. */
+    private static String themeKey()
+    {
+        return ConfigManager.getTheme() + ":" + isOsDark();
     }
 
     /**
@@ -427,10 +444,11 @@ public class MCLauncherHelpWindow
         try {
             URL contentUrl = MCLauncherHelpWindow.class.getClassLoader().getResource( topic.getResourcePath() );
             if ( contentUrl != null ) {
-                String html = new String(
-                        Objects.requireNonNull( MCLauncherHelpWindow.class.getClassLoader()
-                                                                          .getResourceAsStream( topic.getResourcePath() )
-                        ).readAllBytes(), StandardCharsets.UTF_8 );
+                String html;
+                try ( java.io.InputStream in = Objects.requireNonNull(
+                        MCLauncherHelpWindow.class.getClassLoader().getResourceAsStream( topic.getResourcePath() ) ) ) {
+                    html = new String( in.readAllBytes(), StandardCharsets.UTF_8 );
+                }
 
                 // Inline the CSS text rather than <link href="file:..."> them. A page loaded via
                 // loadContent() has a null / about:blank origin, and WebKit (JavaFX 26) blocks that
@@ -473,6 +491,7 @@ public class MCLauncherHelpWindow
     private static void applyTheme()
     {
         if ( root == null ) return;
+        appliedThemeKey = themeKey();
         root.getStylesheets().clear();
 
         // Legacy sheet (still defines some baseline selectors not yet ported)

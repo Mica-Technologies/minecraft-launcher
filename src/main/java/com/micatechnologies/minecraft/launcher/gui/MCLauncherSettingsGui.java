@@ -1712,10 +1712,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // blocks the JavaFX Application Thread on a network round-trip to
         // the avatar service (and hangs far longer on a slow/unreachable
         // network), freezing the Settings screen as it opens.
-        accountAvatar.setImage( new javafx.scene.image.Image(
-                com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS
-                        .replace( com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
-                                  user.uuid() ), true ) );
+        accountAvatar.setImage( AvatarImages.get( user.uuid() ) );
 
         // Helpful links
         minecraftNetBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
@@ -1797,10 +1794,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             av.setFitWidth( 32 );
             av.setFitHeight( 32 );
             av.setPreserveRatio( true );
-            String avatarUrl = com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS
-                    .replace( com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
-                              entry.uuid() );
-            av.setImage( new javafx.scene.image.Image( avatarUrl, true ) );
+            av.setImage( AvatarImages.get( entry.uuid() ) );
 
             javafx.scene.layout.VBox info = new javafx.scene.layout.VBox( 2 );
             Label nameLbl = new Label( entry.displayName() == null || entry.displayName().isBlank()

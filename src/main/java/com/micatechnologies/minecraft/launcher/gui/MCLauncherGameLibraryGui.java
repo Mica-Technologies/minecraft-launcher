@@ -1632,36 +1632,42 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  proxy ("if the pack doesn't have a real release date, treat last-updated
      *  as the release date"). Available manifest modpacks fall through both
      *  paths and sink to the bottom. */
-    /** Session cache of lowercased mod filenames per pack-root path,
-     *  for {@link #packModsMatch}. Populated lazily on first lookup
-     *  per pack so a Browse view that never gets searched doesn't pay
-     *  the filesystem read; never invalidated mid-session since the
-     *  cache is bounded by the user's modpack count (typically dozens
-     *  at most) and re-populates on the next launcher start. */
-    private static final java.util.Map< String, java.util.List< String > > MOD_FILENAME_CACHE =
+    /** Lowercased mod filenames for one pack, with the {@code mods/} folder's modification
+     *  time they were read at. */
+    private record ModNames( long modsDirModifiedMs, java.util.List< String > names ) { }
+
+    /** Session cache of lowercased mod filenames per pack-root path, for
+     *  {@link #packModsMatch}. Populated lazily on first lookup per pack so a Browse view
+     *  that never gets searched doesn't pay the filesystem read. An entry is re-read when
+     *  the {@code mods/} folder's modification time changes, which adding, removing or
+     *  renaming a mod does; before that check, search-by-mod stayed stale for the rest of
+     *  the session after any install, update or mod change. */
+    private static final java.util.Map< String, ModNames > MOD_FILENAME_CACHE =
             new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** Populates {@link #MOD_FILENAME_CACHE} for the given pack root —
-     *  the same {@code listFiles + lowercase} work {@link #packModsMatch}
-     *  does on first lookup. Extracted so it can run on a worker thread
-     *  during library setup, ahead of the first search keystroke; the
-     *  FX-thread search-filter path becomes a cache hit and avoids the
-     *  hitch a 100+ jar listFiles + iteration causes inline.
+    /** Populates {@link #MOD_FILENAME_CACHE} for the given pack root, re-reading it when the
+     *  {@code mods/} folder has changed since the cached read. Runs on a worker during
+     *  library setup, ahead of the first search keystroke, so the FX-thread search path is
+     *  normally a cache hit.
      *
      *  @param root the pack root folder path to scan; {@code null} is a no-op */
     private static void prewarmModFilenameCache( String root )
     {
         if ( root == null ) return;
-        MOD_FILENAME_CACHE.computeIfAbsent( root, key -> {
-            File mods = new File( key, "mods" );
-            if ( !mods.isDirectory() ) return java.util.List.of();
+        File mods = new File( root, "mods" );
+        long modified = mods.lastModified();
+        ModNames cached = MOD_FILENAME_CACHE.get( root );
+        if ( cached != null && cached.modsDirModifiedMs() == modified ) return;
+        java.util.List< String > out = java.util.List.of();
+        if ( mods.isDirectory() ) {
             File[] children = mods.listFiles( ( dir, name ) -> name.endsWith( ".jar" )
                                                                 || name.endsWith( ".disabled" ) );
-            if ( children == null ) return java.util.List.of();
-            java.util.List< String > out = new java.util.ArrayList<>( children.length );
-            for ( File c : children ) out.add( c.getName().toLowerCase( Locale.ROOT ) );
-            return out;
-        } );
+            if ( children != null ) {
+                out = new java.util.ArrayList<>( children.length );
+                for ( File c : children ) out.add( c.getName().toLowerCase( Locale.ROOT ) );
+            }
+        }
+        MOD_FILENAME_CACHE.put( root, new ModNames( modified, out ) );
     }
 
     /** True iff the pack's {@code mods/} folder contains any file
@@ -1677,9 +1683,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         String root = pack.getPackRootFolder();
         if ( root == null ) return false;
         prewarmModFilenameCache( root );
-        java.util.List< String > names = MOD_FILENAME_CACHE.get( root );
-        if ( names == null ) return false;
-        for ( String n : names ) {
+        ModNames cached = MOD_FILENAME_CACHE.get( root );
+        if ( cached == null ) return false;
+        for ( String n : cached.names() ) {
             if ( n.contains( lowerNeedle ) ) return true;
         }
         return false;

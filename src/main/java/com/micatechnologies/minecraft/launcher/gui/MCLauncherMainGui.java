@@ -19,7 +19,6 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
-import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
@@ -441,10 +440,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // node from its own image-loader thread. On a slow link this used to add
         // hundreds of ms to main-menu-painted because new Image(String) defaults
         // to synchronous loading.
-        userImage.setImage( new Image(
-                GUIConstants.URL_MINECRAFT_USER_ICONS.replace( GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
-                                                               MCLauncherAuthManager.getLoggedInUser().uuid() ),
-                true ) );
+        userImage.setImage( AvatarImages.get( MCLauncherAuthManager.getLoggedInUser().uuid() ) );
 
         // Keyboard shortcuts: ENTER plays the last-played pack; F5 refreshes pack metadata.
         scene.setOnKeyPressed( keyEvent -> {
@@ -1372,7 +1368,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 if ( newScene == null ) {
                     unsubscribeCycle();
                 }
-                else if ( cycleUnsub == null && pack != null ) {
+                else if ( cycleUnsub == null && pack != null
+                        && canCycle( pack, ConfigManager.getShowPackBackgrounds() ) ) {
+                    // Only packs that declare several images ever subscribe; for the rest
+                    // this would just decode the logo again on every scene attach.
                     refreshImageCycle();
                 }
             } );
@@ -1779,6 +1778,17 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 cycleUnsub = null;
             }
 
+            // A pack that declares at most one logo and one background has nothing to cycle.
+            // Skip the disk resolve, which decodes every cached logo again: the bound logo
+            // is already decoded, and rebinding 48 cards on each filter/sort/page change
+            // paid for those decodes up to three times per card.
+            if ( !canCycle( pack, showBg ) ) {
+                cycleLogos = primaryLogo == null ? java.util.List.of() : java.util.List.of( primaryLogo );
+                cycleBgUrls = java.util.List.of();
+                cycleIndex = 0;
+                return;
+            }
+
             java.util.List< Image > rawLogos = ModpackImageResolver.resolveLogosFromDisk( pack );
             java.util.List< String > rawBgs = showBg
                     ? ModpackImageResolver.resolveBackgroundUrlsFromDisk( pack )
@@ -1832,6 +1842,19 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
             if ( cycleLogos.size() > 1 || cycleBgUrls.size() > 1 ) {
                 cycleUnsub = ModpackImageCycleClock.getInstance().register( this::onCycleTick );
+            }
+        }
+
+        /** Whether a pack declares more than one logo, or (when backgrounds are shown) more
+         *  than one background, so its card could ever cycle. */
+        private boolean canCycle( GameModPack pack, boolean showBg )
+        {
+            try {
+                return ( pack.hasCustomLogo() && pack.getPackLogoUrlCount() > 1 )
+                        || ( showBg && pack.hasCustomBackground() && pack.getPackBackgroundUrlCount() > 1 );
+            }
+            catch ( RuntimeException e ) {
+                return false;
             }
         }
 

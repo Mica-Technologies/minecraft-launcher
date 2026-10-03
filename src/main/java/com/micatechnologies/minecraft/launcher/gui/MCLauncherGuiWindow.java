@@ -1049,30 +1049,39 @@ public class MCLauncherGuiWindow extends Application
             // setScene will install the right stylesheets via forceThemeChange.
             if ( gui == null || gui.rootPane == null ) return;
             java.util.List< String > stylesheets = gui.rootPane.getStylesheets();
+            java.util.List< String > wanted = java.util.List.of(
+                    cssUrl( legacySheet ), cssUrl( UI_BASE_SHEET ), cssUrl( tokenSheet ) );
+            boolean alreadyApplied = stylesheets.size() >= 3
+                    && stylesheets.subList( stylesheets.size() - 3, stylesheets.size() ).equals( wanted );
 
-            // Drop every legacy theme sheet. Whichever is "current" gets re-added below.
-            stylesheets.remove( cssUrl( LEGACY_DARK ) );
-            stylesheets.remove( cssUrl( LEGACY_LIGHT ) );
-            stylesheets.remove( cssUrl( LEGACY_BLUE_GRAY ) );
-            stylesheets.remove( cssUrl( LEGACY_ORANGE_PURPLE ) );
-            stylesheets.remove( cssUrl( LEGACY_CREEPER ) );
+            // Removing and re-adding identical sheets forces JavaFX to re-apply CSS to the
+            // whole scene, so skip the churn when this root already has exactly these sheets
+            // in place (an OS theme event that didn't change the outcome, a repeat call).
+            if ( !alreadyApplied ) {
+                // Drop every legacy theme sheet. Whichever is "current" gets re-added below.
+                stylesheets.remove( cssUrl( LEGACY_DARK ) );
+                stylesheets.remove( cssUrl( LEGACY_LIGHT ) );
+                stylesheets.remove( cssUrl( LEGACY_BLUE_GRAY ) );
+                stylesheets.remove( cssUrl( LEGACY_ORANGE_PURPLE ) );
+                stylesheets.remove( cssUrl( LEGACY_CREEPER ) );
 
-            // Drop every token sheet. Whichever is "current" gets re-added below.
-            stylesheets.remove( cssUrl( UI_TOKENS_DARK ) );
-            stylesheets.remove( cssUrl( UI_TOKENS_LIGHT ) );
-            stylesheets.remove( cssUrl( UI_TOKENS_BLUE_GRAY ) );
-            stylesheets.remove( cssUrl( UI_TOKENS_ORANGE_PURPLE ) );
-            stylesheets.remove( cssUrl( UI_TOKENS_CREEPER ) );
-            stylesheets.remove( cssUrl( UI_TOKENS_NATIVE ) );
-            stylesheets.remove( cssUrl( UI_TOKENS_NATIVE_LIGHT ) );
+                // Drop every token sheet. Whichever is "current" gets re-added below.
+                stylesheets.remove( cssUrl( UI_TOKENS_DARK ) );
+                stylesheets.remove( cssUrl( UI_TOKENS_LIGHT ) );
+                stylesheets.remove( cssUrl( UI_TOKENS_BLUE_GRAY ) );
+                stylesheets.remove( cssUrl( UI_TOKENS_ORANGE_PURPLE ) );
+                stylesheets.remove( cssUrl( UI_TOKENS_CREEPER ) );
+                stylesheets.remove( cssUrl( UI_TOKENS_NATIVE ) );
+                stylesheets.remove( cssUrl( UI_TOKENS_NATIVE_LIGHT ) );
 
-            // Drop the base sheet so we can re-install it in the correct order.
-            stylesheets.remove( cssUrl( UI_BASE_SHEET ) );
+                // Drop the base sheet so we can re-install it in the correct order.
+                stylesheets.remove( cssUrl( UI_BASE_SHEET ) );
 
-            // Add in the layered order: legacy → base → tokens.
-            stylesheets.add( cssUrl( legacySheet ) );
-            stylesheets.add( cssUrl( UI_BASE_SHEET ) );
-            stylesheets.add( cssUrl( tokenSheet ) );
+                // Add in the layered order: legacy → base → tokens.
+                stylesheets.add( cssUrl( legacySheet ) );
+                stylesheets.add( cssUrl( UI_BASE_SHEET ) );
+                stylesheets.add( cssUrl( tokenSheet ) );
+            }
 
             // Belt-and-suspenders: paint the rootPane and scene fill with the theme's bg color
             // directly, so even if a CSS lookup somewhere in the chain fails to resolve, the

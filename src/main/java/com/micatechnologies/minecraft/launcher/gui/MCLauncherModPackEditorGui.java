@@ -54,6 +54,7 @@ import javafx.stage.Stage;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
+import java.util.concurrent.CompletableFuture;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -90,6 +91,48 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                             return size() > MODRINTH_ICON_CACHE_MAX;
                         }
                     } );
+
+    /** In-flight icon loads by slug (or URL), so cells asking for the same icon share one fetch. */
+    private static final java.util.Map< String, CompletableFuture< Image > > MODRINTH_ICON_LOADS =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Fetches, caches and decodes one Modrinth project icon. Runs on a worker thread. When the
+     * search result carried no icon URL, the project's detail endpoint is asked for one.
+     *
+     * @param iconUrl the icon URL from the search result, possibly empty
+     * @param slug    the project slug, possibly {@code null}
+     *
+     * @return the decoded icon, or {@code null} when there is none or it failed to load
+     */
+    private static Image loadModrinthIcon( String iconUrl, String slug )
+    {
+        try {
+            String resolvedUrl = iconUrl;
+            if ( resolvedUrl.isEmpty() && slug != null ) {
+                String projectJson = NetworkUtilities.downloadFileFromURL( "https://api.modrinth.com/v2/project/" + slug );
+                JsonObject projDetail = JSONUtilities.getGson().fromJson( projectJson, JsonObject.class );
+                if ( projDetail.has( "icon_url" ) && !projDetail.get( "icon_url" ).isJsonNull() ) {
+                    resolvedUrl = projDetail.get( "icon_url" ).getAsString();
+                }
+            }
+            if ( resolvedUrl.isEmpty() ) {
+                return null;
+            }
+            File cachedIcon = CacheManager.downloadAndCache( resolvedUrl );
+            Image img = new Image( cachedIcon.toURI().toString(), 40, 40, true, true );
+            if ( img.isError() ) {
+                return null;
+            }
+            if ( slug != null && !slug.isEmpty() ) {
+                MODRINTH_ICON_CACHE.put( slug, img );
+            }
+            return img;
+        }
+        catch ( Exception ignored ) {
+            return null;  // icon load failure is non-critical
+        }
+    }
 
     // region FXML fields
 
@@ -1192,39 +1235,24 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         // the time the icon arrives this cell may have been rebound to another
                         // project — only paint if it's still showing the one we loaded.
                         final JsonObject cellItem = project;
-                        SystemUtilities.spawnNewTask( () -> {
-                            try {
-                                String resolvedUrl = finalIconUrl;
-                                // If search result didn't include icon_url, fetch from project detail
-                                if ( resolvedUrl.isEmpty() && finalSlug != null ) {
-                                    String projectJson = NetworkUtilities.downloadFileFromURL(
-                                            "https://api.modrinth.com/v2/project/" + finalSlug );
-                                    JsonObject projDetail = JSONUtilities.getGson().fromJson( projectJson,
-                                                                                              JsonObject.class );
-                                    if ( projDetail.has( "icon_url" ) &&
-                                            !projDetail.get( "icon_url" ).isJsonNull() ) {
-                                        resolvedUrl = projDetail.get( "icon_url" ).getAsString();
+                        // One load per icon, however many cells ask for it: scrolling used to
+                        // spawn a fetch per updateItem, so the same icon was fetched over and
+                        // over while the first request was still in flight.
+                        String loadKey = finalSlug != null && !finalSlug.isEmpty() ? finalSlug : finalIconUrl;
+                        CompletableFuture< Image > load = MODRINTH_ICON_LOADS.computeIfAbsent( loadKey, k -> {
+                            CompletableFuture< Image > f = CompletableFuture.supplyAsync(
+                                    () -> loadModrinthIcon( finalIconUrl, finalSlug ),
+                                    SystemUtilities::spawnNewTask );
+                            f.whenComplete( ( img, t ) -> MODRINTH_ICON_LOADS.remove( k, f ) );
+                            return f;
+                        } );
+                        load.thenAccept( img -> {
+                            if ( img != null ) {
+                                GUIUtilities.JFXPlatformRun( () -> {
+                                    if ( getItem() == cellItem ) {
+                                        icon.setImage( img );
                                     }
-                                }
-                                if ( !resolvedUrl.isEmpty() ) {
-                                    File cachedIcon = CacheManager.downloadAndCache( resolvedUrl );
-                                    Image img = new Image( cachedIcon.toURI().toString(), 40, 40, true, true );
-                                    if ( !img.isError() ) {
-                                        // Cache the decoded image (off the FX thread is fine — the map
-                                        // is synchronized) so a scroll-back is an instant hit.
-                                        if ( finalSlug != null && !finalSlug.isEmpty() ) {
-                                            MODRINTH_ICON_CACHE.put( finalSlug, img );
-                                        }
-                                        GUIUtilities.JFXPlatformRun( () -> {
-                                            if ( getItem() == cellItem ) {
-                                                icon.setImage( img );
-                                            }
-                                        } );
-                                    }
-                                }
-                            }
-                            catch ( Exception ignored ) {
-                                // Icon load failure is non-critical
+                                } );
                             }
                         } );
                     }
