@@ -1026,6 +1026,33 @@ public final class ModpackContentBrowser
         return row;
     }
 
+    /**
+     * Reads a crash report as text. Strict UTF-8 first; a report that isn't valid UTF-8 (the
+     * game JVM writes in the platform charset, which is cp1252 on many Windows installs of
+     * older Java) is decoded as windows-1252, which accepts any byte sequence, instead of
+     * failing with {@code MalformedInputException}.
+     *
+     * @param path the report file
+     *
+     * @return its text
+     *
+     * @throws java.io.IOException if the file can't be read
+     * @since 2026.10
+     */
+    static String readReportText( java.nio.file.Path path ) throws java.io.IOException
+    {
+        byte[] bytes = java.nio.file.Files.readAllBytes( path );
+        try {
+            return java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput( java.nio.charset.CodingErrorAction.REPORT )
+                    .onUnmappableCharacter( java.nio.charset.CodingErrorAction.REPORT )
+                    .decode( java.nio.ByteBuffer.wrap( bytes ) ).toString();
+        }
+        catch ( java.nio.charset.CharacterCodingException notUtf8 ) {
+            return new String( bytes, java.nio.charset.Charset.forName( "windows-1252" ) );
+        }
+    }
+
     /** Opens a centered scrollable overlay with the crash report's
      *  raw text + Copy / Close actions, plus a diagnosis card at the
      *  top that runs the {@link com.micatechnologies.minecraft.launcher.game.crash.CrashReportAnalyzer}
@@ -1036,14 +1063,9 @@ public final class ModpackContentBrowser
     private static void showCrashViewer( File report, StackPane host, GameModPack pack )
     {
         if ( host == null || report == null || !report.isFile() ) return;
-        String text;
-        try {
-            text = java.nio.file.Files.readString( report.toPath() );
-        }
-        catch ( Exception ex ) {
-            text = LocalizationManager.format( "detailModal.crash.viewer.readFailed", report.getName(), ex.getMessage() );
-        }
-        final String crashText = text;
+        // The report is read on the worker below, not here on the FX thread; until then the
+        // text area shows a placeholder and Copy copies nothing.
+        final String[] crashText = { "" };
 
         StackPane overlay = new StackPane();
         overlay.setStyle( "-fx-background-color: rgba(0,0,0,0.8);" );
@@ -1071,7 +1093,8 @@ public final class ModpackContentBrowser
         diagnosisLoading.getStyleClass().add( "muted" );
         diagnosisBox.getChildren().add( diagnosisLoading );
 
-        javafx.scene.control.TextArea area = new javafx.scene.control.TextArea( crashText );
+        javafx.scene.control.TextArea area = new javafx.scene.control.TextArea(
+                LocalizationManager.get( "detailModal.crash.viewer.loading" ) );
         area.setEditable( false );
         area.setWrapText( false );
         area.getStyleClass().add( "text-mono" );
@@ -1088,7 +1111,7 @@ public final class ModpackContentBrowser
         copyBtn.setPrefHeight( 32 );
         copyBtn.setOnAction( e -> {
             ClipboardContent content = new ClipboardContent();
-            content.putString( crashText );
+            content.putString( crashText[ 0 ] );
             Clipboard.getSystemClipboard().setContent( content );
             copyBtn.setText( LocalizationManager.get( "detailModal.crash.viewer.copied" ) );
             FxAsyncTask.run( () -> {
@@ -1123,10 +1146,24 @@ public final class ModpackContentBrowser
         // lands on the FX thread to swap the placeholder for the real
         // diagnosis card.
         SystemUtilities.spawnNewTask( () -> {
+            String text;
+            try {
+                text = readReportText( report.toPath() );
+            }
+            catch ( Exception ex ) {
+                text = LocalizationManager.format( "detailModal.crash.viewer.readFailed", report.getName(),
+                                                   ex.getMessage() );
+            }
+            final String loaded = text;
+            javafx.application.Platform.runLater( () -> {
+                crashText[ 0 ] = loaded;
+                area.setText( loaded );
+            } );
+
             com.micatechnologies.minecraft.launcher.game.crash.CrashDiagnosis diagnosis;
             try {
                 diagnosis = com.micatechnologies.minecraft.launcher.game.crash
-                        .CrashReportAnalyzer.analyze( crashText, pack, 0 );
+                        .CrashReportAnalyzer.analyze( loaded, pack, 0 );
             }
             catch ( Throwable t ) {
                 Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.crashAnalyzerThrew", t.getClass().getSimpleName() ) );
@@ -1393,22 +1430,38 @@ public final class ModpackContentBrowser
         return String.format( "%.2f GB", bytes / 1024.0 / 1024.0 / 1024.0 );
     }
 
-    /** Best-effort recursive byte count. Errors mid-walk (permission
-     *  denied, symlink loops) are silently skipped — the meta column
-     *  is informational, not load-bearing. */
-    private static long directorySize( File dir )
+    /** Best-effort byte count of a directory tree. Symbolic links are not followed, so a
+     *  link loop can't recurse forever (the old recursive walk ended in a
+     *  StackOverflowError, which its catch(Exception) never caught). Unreadable entries are
+     *  skipped; the meta column is informational, not load-bearing. */
+    static long directorySize( File dir )
     {
         if ( dir == null || !dir.isDirectory() ) return 0;
-        long total = 0;
-        File[] children = dir.listFiles();
-        if ( children == null ) return 0;
-        for ( File child : children ) {
-            try {
-                total += child.isDirectory() ? directorySize( child ) : child.length();
-            }
-            catch ( Exception ignored ) { /* skip unreadable nodes */ }
+        final long[] total = { 0 };
+        try {
+            java.nio.file.Files.walkFileTree( dir.toPath(), new java.nio.file.SimpleFileVisitor<>()
+            {
+                @Override
+                public java.nio.file.FileVisitResult visitFile( java.nio.file.Path file,
+                                                                java.nio.file.attribute.BasicFileAttributes attrs )
+                {
+                    if ( attrs.isRegularFile() ) {
+                        total[ 0 ] += attrs.size();
+                    }
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public java.nio.file.FileVisitResult visitFileFailed( java.nio.file.Path file, java.io.IOException e )
+                {
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+            } );
         }
-        return total;
+        catch ( java.io.IOException ignored ) {
+            // Partial total is still the best answer available.
+        }
+        return total[ 0 ];
     }
 
     // ====================================================================
@@ -1466,12 +1519,20 @@ public final class ModpackContentBrowser
         card.getStyleClass().add( "imageViewerCard" );
         card.setStyle( "-fx-background-color: -color-surface; -fx-background-radius: 12;" );
 
-        Image fullImage = new Image( imageFile.toURI().toString() );
-        ImageView fullView = new ImageView( fullImage );
-        fullView.setPreserveRatio( true );
-        // Cap displayed size at the viewport so big screenshots fit.
+        // Cap displayed size at the viewport so big screenshots fit, and decode at that size
+        // (times the display's scale, so it stays sharp on HiDPI) in the background. A
+        // full-resolution synchronous decode of a 4K screenshot blocked the FX thread for
+        // hundreds of milliseconds and held ~33 MB for an image shown at a fraction of that.
         double maxWidth  = host.getWidth() * 0.85;
         double maxHeight = host.getHeight() * 0.75;
+        double scale = host.getScene() != null && host.getScene().getWindow() != null
+                       ? Math.max( 1.0, host.getScene().getWindow().getOutputScaleX() ) : 2.0;
+        Image displayImage = maxWidth > 0 && maxHeight > 0
+                             ? new Image( imageFile.toURI().toString(), maxWidth * scale, maxHeight * scale,
+                                          true, true, true )
+                             : new Image( imageFile.toURI().toString(), true );
+        ImageView fullView = new ImageView( displayImage );
+        fullView.setPreserveRatio( true );
         if ( maxWidth  > 0 ) fullView.setFitWidth( maxWidth );
         if ( maxHeight > 0 ) fullView.setFitHeight( maxHeight );
 
@@ -1482,9 +1543,16 @@ public final class ModpackContentBrowser
         copyBtn.getStyleClass().add( "primary" );
         copyBtn.setPrefHeight( 32 );
         copyBtn.setOnAction( e -> {
-            ClipboardContent content = new ClipboardContent();
-            content.putImage( fullImage );
-            Clipboard.getSystemClipboard().setContent( content );
+            // Copy the original, not the downscaled preview. Decoded off the FX thread; the
+            // clipboard itself must be set on it.
+            FxAsyncTask.run( () -> {
+                Image original = new Image( imageFile.toURI().toString() );
+                javafx.application.Platform.runLater( () -> {
+                    ClipboardContent content = new ClipboardContent();
+                    content.putImage( original );
+                    Clipboard.getSystemClipboard().setContent( content );
+                } );
+            } );
             copyBtn.setText( LocalizationManager.get( "detailModal.imageViewer.copied" ) );
             FxAsyncTask.run( () -> {
                 Thread.sleep( 1500 );

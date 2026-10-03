@@ -321,8 +321,9 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
             refreshRuntimeList();
         } ) );
 
-        // Initial load
-        refreshRuntimeList();
+        // Initial load, off the FX thread: listing sizes every runtime's directory tree,
+        // thousands of files, which froze the screen as it opened.
+        SystemUtilities.spawnNewTask( this::refreshRuntimeList );
     }
 
     /**
@@ -389,13 +390,11 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
 
         ObservableList< String > items = FXCollections.observableArrayList();
         for ( Map< String, String > rt : currentRuntimes ) {
-            String display = rt.get( "component" );
             String version = rt.get( "version" );
-            if ( version != null && !version.equals( "Not verified" ) ) {
-                display += " (" + version + ")";
-            }
-            display += "  -  " + rt.get( "sizeMB" ) + " MB";
-            items.add( display );
+            items.add( version == null || version.isBlank()
+                       ? LocalizationManager.format( "runtime.list.entryNoVersion", rt.get( "component" ), rt.get( "sizeMB" ) )
+                       : LocalizationManager.format( "runtime.list.entry", rt.get( "component" ), version,
+                                                     rt.get( "sizeMB" ) ) );
         }
 
         GUIUtilities.JFXPlatformRun( () -> {

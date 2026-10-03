@@ -568,7 +568,9 @@ public class RuntimeManager
                 info.put( "version", org.apache.commons.io.FileUtils.readFileToString( versionFile, "UTF-8" ).trim() );
             }
             catch ( IOException e ) {
-                info.put( "version", "Unknown" );
+                // Empty, not a word: this map feeds UI text, and callers localize the
+                // "version unknown" case themselves.
+                info.put( "version", "" );
             }
             info.put( "path", child.getAbsolutePath() );
 
