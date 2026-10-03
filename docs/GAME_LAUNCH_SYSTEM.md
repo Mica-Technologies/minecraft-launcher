@@ -56,8 +56,49 @@ All paths are relative to `src/main/java/com/micatechnologies/minecraft/launcher
   └────────┬──────────┘
            │
            v
-  startGame() builds command line & launches ProcessBuilder
+  startGame(user, cancelled) builds the command line, spawns the game and returns its Process
 ```
+
+## Launch Sessions & Concurrent Games
+
+`LauncherCore.play(pack)` drives one launch. Several can run at once.
+
+1. **Account.** `MCLauncherAuthManager.userForLaunch(override)` picks the account: the pack's
+   *Launch as* override, else the default (see `AUTHENTICATION_SYSTEM.md`). A missing or
+   signed-out account blocks the launch with a prompt rather than playing on another account.
+   `LauncherCore.playAs(pack, uuid)` forces an account for one launch (used by MCP).
+2. **Session.** A `GameSession` (`game/session/`) is created for the pack and account and
+   registered with `GameSessionRegistry.tryRegister`, which checks `LaunchAdmission` atomically:
+
+   | Rule | Why |
+   |---|---|
+   | One active game per pack | A pack has one install folder (saves, `options.txt`, mods, natives), and Windows locks a running game's jars |
+   | One active game per account | Minecraft signs the older session out when an account logs in twice |
+
+   A refused launch explains why; asking for a pack that's already running just shows its tab.
+3. **Preparation.** The session carries the `LaunchProgressTracker`, which the Running Games window
+   (`GUI_SYSTEM.md`) shows as the launch's steps. Cancellation is per session: the launcher polls
+   the `BooleanSupplier` it was given (`session::isCancelled`), so cancelling one launch can't
+   cancel another. Download retry and progress notices go to per-launch listeners
+   (`NetworkUtilities.addRetryNoticeListener` / `addDownloadProgressListener`), and the taskbar
+   bar averages every launch still preparing (`TaskbarProgressManager.setLaunchProgress`).
+4. **Running.** `startGame` returns the `Process`. In the GUI the game's output is always piped
+   (`ChildIoMode.PIPE`) and captured by a `GameLog`: two reader threads drain stdout/stderr for the
+   game's whole life (an unread pipe stalls the game), redact tokens, keep a bounded buffer, and
+   write `logs/game-<pack>-<timestamp>.log`. `session.attachProcess` moves the session to
+   `RUNNING`, then to `EXITED` or `CRASHED` when the process ends. On a crash, `LauncherCore`
+   attaches the newest crash report and brings the game's tab forward. Server mode inherits the
+   terminal instead, and the TUI reads output itself (but registers sessions the same way).
+
+### Launcher-wide effects with several games
+
+| Effect | Behaviour |
+|---|---|
+| Keyboard RGB, Discord presence | `RunningGameFollower` shows the most recently started running game, and returns to the menu state only when the last game exits |
+| Shared downloads (assets) | each attempt writes its own temp file (`NetworkUtilities.uniqueTempFile`) and is moved into place atomically |
+| Java runtimes | a spawned game registers its runtime (`RuntimeManager.markInUse`); an update that would reinstall it waits, and deleting it is refused while in use |
+| Verify / uninstall | refused for a pack that is launching or running (`GameSessionRegistry.isPackActive`) |
+| Quitting the launcher | asks first: leave the games running (they keep going, but their logs stop being saved) or stop them |
 
 ## Manifest Resolution Chain
 
@@ -224,13 +265,13 @@ deduplicated via `LinkedHashSet`.
 
 | Placeholder | Replacement |
 |---|---|
-| `${auth_player_name}` | Logged-in username |
+| `${auth_player_name}` | The launching account's username (the `User` passed to `startGame`) |
 | `${version_name}` | MC version (vanilla) or Forge version |
 | `${game_directory}` | Modpack root folder (quoted on Windows) |
 | `${assets_root}` | Assets folder (quoted on Windows) |
 | `${assets_index_name}` | Asset index version from manifest |
-| `${auth_uuid}` | Player UUID |
-| `${auth_access_token}` | OAuth access token |
+| `${auth_uuid}` | The launching account's UUID |
+| `${auth_access_token}` | The launching account's access token, refreshed before launch if due |
 | `${user_type}` | `"mojang"` |
 | `${clientid}` | Empty string |
 | `${auth_xuid}` | Empty string |
@@ -267,3 +308,8 @@ Forge modernity detected by presence of both base and universal JARs.
 | `ManifestRuleUtilities` | `game/modpack/manifests/ManifestRuleUtilities.java` | Rule evaluation, argument flattening |
 | `ManagedGameFile` | `game/modpack/ManagedGameFile.java` | Base class for downloadable game files with SHA-1 |
 | `GameModPackProgressProvider` | `game/modpack/GameModPackProgressProvider.java` | Progress callback for multi-step operations |
+| `GameSession` | `game/session/GameSession.java` | One launch: pack, account, phase, process, tracker, log, crash report, cancellation |
+| `GameSessionRegistry` | `game/session/GameSessionRegistry.java` | Active and recently ended sessions; atomic admission |
+| `LaunchAdmission` | `game/session/LaunchAdmission.java` | Pure: one game per pack and per account |
+| `GameLog` | `game/session/GameLog.java` | Captures a game's output for its whole life; gap-free `subscribe` for late viewers |
+| `RunningGameFollower` | `game/session/RunningGameFollower.java` | Keeps RGB and Discord on the newest running game |

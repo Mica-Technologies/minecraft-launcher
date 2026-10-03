@@ -55,9 +55,9 @@ mvn test
 mvn clean
 ```
 
-Unit tests live under `src/test/java/` using JUnit Jupiter (6.1.0) — 32 test classes across 8 packages (12 in `game/modpack`, 8 in `utilities`, 5 in `gui`, 4 across `rgb`, and one each in `security`, `game/crash`, and `files`). They target the launcher's pure-logic seams — RGB backend resolver / circuit breaker, the `jar:` URL containment gate, machine-secret cipher fingerprinting, crash-report analysis, scan-exclusion policy — and avoid vendor SDKs and network I/O so they run in well under a second total.
+Unit tests live under `src/test/java/` using JUnit Jupiter (6.1.0): about 130 test classes, heaviest in `utilities`, `game/modpack`, `gui`, `files`, `mcp` and `game/auth`. They target the launcher's pure-logic seams (manifest rules, the `jar:` containment gate, the cipher, the account store and manager, launch admission and game sessions, MCP tools, crash analysis, localization bundle parity) and avoid vendor SDKs and network I/O. Seams take their dependencies as constructor arguments (a fake cipher, a scripted renewer, a manually drained executor, a `FakeProcess`) rather than mocks.
 
-JavaFX tests DO exist: TestFX (`testfx-core` + `testfx-junit5` 4.0.18) backs `TestFxSmokeTest` and `SettingsLanguageButtonFxTest`. Both are gated behind `@EnabledIfEnvironmentVariable( named = "MMCL_RUN_TESTFX", matches = "true" )`, so they are opt-in and do not run in the default build. Keep new GUI tests behind that same gate.
+JavaFX tests DO exist: TestFX (`testfx-core` + `testfx-junit5` 4.0.18) backs `TestFxSmokeTest`, `SettingsLanguageButtonFxTest`, and the snapshot tests `SignInPanelSnapshotFxTest` and `RunningGamesSnapshotFxTest`, which write PNGs to `build/target/snapshots/` for visual review. All are gated behind `@EnabledIfEnvironmentVariable( named = "MMCL_RUN_TESTFX", matches = "true" )`, so they are opt-in and do not run in the default build. Keep new GUI tests behind that same gate.
 
 Coverage is measured by JaCoCo 0.8.15 (`mvn test jacoco:report` → `build/target/site/jacoco/index.html`). Baseline at introduction: 7.03% instruction / 6.22% line coverage. **JaCoCo must stay at 0.8.15 or newer** — earlier releases abort report generation with `Unsupported class file major version 70` on this project's Java 26 bytecode; the agent still attaches and writes `jacoco.exec`, so the failure only appears at the report step. There is deliberately **no** coverage threshold: a gate set before a real baseline exists gets gamed or bypassed. The JaCoCo agent's JVM args land in `${jacocoArgLine}`, not the default `${argLine}`, because Surefire already carries an explicit `argLine` for the FXTaskbarProgressBar module export — using the default would silently overwrite it and report empty coverage. Surefire references that property with **late evaluation** (`@{jacocoArgLine}`, not `${jacocoArgLine}`): a `${}` reference is interpolated from the POM model before `prepare-agent` runs, resolves to the empty default, and leaves the agent silently unattached — tests still pass and no `jacoco.exec` is ever written.
 
@@ -81,7 +81,8 @@ Build outputs (note: the POM sets `<directory>${project.basedir}/build/target</d
 |---|---|
 | `game/modpack/` | Core game logic: `GameModPack` (modpack lifecycle, game launch command assembly), `GameModPackManager` (modpack list CRUD), `GameModLoaderForge` (Forge installer extraction, library resolution, classpath building) |
 | `game/modpack/manifests/` | Mojang/Forge manifest parsing: `GameVersionManifest` (resolves MC version to library manifest URL), `GameLibraryManifest` (native + Java libraries, platform rules), `GameAssetManifest` (game assets), `ManifestRuleUtilities` (shared rule evaluation) |
-| `game/auth/` | Microsoft/Minecraft authentication via `minecraft_authenticator` library; AES-256-GCM encrypted token caching with machine-derived key |
+| `game/auth/` | Microsoft/Minecraft sign-in via `minecraft_authenticator`. Several accounts signed in at once (`AccountManager`), each in its own encrypted folder (`AccountStore`, `profiles/<uuid>/`), one marked default; `LaunchAccountResolver` picks a launch's account (pack override, else default). See `docs/AUTHENTICATION_SYSTEM.md` |
+| `game/session/` | One `GameSession` per launch; `GameSessionRegistry` admits launches (one per pack, one per account) and tracks running games; `GameLog` captures each game's output; `RunningGameFollower` keeps RGB/Discord on the newest game |
 | `gui/` | JavaFX controllers for each screen. `MCLauncherGuiController` is the singleton that manages screen transitions. FXML files in `src/main/resources/gui/` |
 | `files/` | `SynchronizedFileManager` (thread-safe file access), `Logger`, `LocalPathManager`, `RuntimeManager` (multi-version Java runtime management) |
 | `config/` | JSON-based config persistence via GSON (`ConfigManager`) |
@@ -92,6 +93,7 @@ Build outputs (note: the POM sets `<directory>${project.basedir}/build/target</d
 ### Game Launch Flow
 
 1. User selects modpack in GUI (or specifies via CLI)
+1a. `MCLauncherAuthManager.userForLaunch` picks the account (pack override, else default) and a `GameSession` is admitted by `GameSessionRegistry`; the launch then shows in its own tab of the Running Games window rather than taking over the main window
 2. `GameModPack` downloads and verifies the modpack JSON definition
 3. `GameModLoaderForge` extracts the Forge installer JAR, reads its embedded `version.json` and `install_profile.json`
 4. `GameVersionManifest` resolves the Minecraft version to its client.json URL (piston-meta v2)
@@ -99,7 +101,7 @@ Build outputs (note: the POM sets `<directory>${project.basedir}/build/target</d
 6. `RuntimeManager` verifies the required Java runtime (on-demand per modpack, multi-version)
 7. `GameModLoaderForge.runForgeProcessors()` executes the Forge patching pipeline (modern Forge 1.13+)
 8. Security scan via jarscanner
-9. `GameModPack.startGame()` assembles the full JVM command line (classpath, game args, auth tokens) and launches via `ProcessBuilder`
+9. `GameModPack.startGame(user, cancelled)` assembles the full JVM command line (classpath, game args, the chosen account's tokens), launches via `ProcessBuilder` and returns the `Process`; the session's `GameLog` captures its output for the rest of its life
 
 ### Forge Library Resolution
 
@@ -119,8 +121,8 @@ Build outputs (note: the POM sets `<directory>${project.basedir}/build/target</d
 See `docs/` for detailed technical documentation on major subsystems:
 - `docs/GAME_LAUNCH_SYSTEM.md` -- Full launch pipeline: manifest chain, Forge integration, classpath assembly, argument construction
 - `docs/RUNTIME_MANAGEMENT.md` -- Multi-version Java runtime: Mojang/Liberica sources, platform detection, download flow
-- `docs/AUTHENTICATION_SYSTEM.md` -- Microsoft OAuth, AES-256-GCM token cache, machine key derivation
-- `docs/GUI_SYSTEM.md` -- JavaFX architecture, screen navigation, theming, game console
+- `docs/AUTHENTICATION_SYSTEM.md` -- Microsoft OAuth, multiple accounts and the default, per-account encrypted store, launch account resolution
+- `docs/GUI_SYSTEM.md` -- JavaFX architecture, screen navigation, the Running Games window, account and sign-in UI, theming
 - `docs/PLATFORM_INTEGRATION.md` -- Native OS integration (macOS title-bar toolbar / hidden-inset / dock / menu bar / vibrancy, Windows DWM Mica / taskbar / jump list, Linux), shared shell menus + notifications, and the platform-gated fallback pattern
 - `docs/MCP_SERVER_GUIDE.pdf` -- MCP server: setup for each client, architecture, the layered security/consent model, and a reference for every tool and resource. Generated from `docs/pdf-generation-assets/mcp-server-guide/` (`npm install && npm run build`); edit the HTML there, never the PDF
 
