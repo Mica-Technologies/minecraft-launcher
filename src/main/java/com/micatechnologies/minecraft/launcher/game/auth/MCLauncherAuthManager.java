@@ -593,6 +593,26 @@ public class MCLauncherAuthManager
      *         {@link MCLauncherAuthResult#ERROR_OTHER})
      */
     public static MCLauncherAuthResult loginWithMicrosoftAccount( String authCode, boolean save ) {
+        return signInWithMicrosoft( authCode, save, true );
+    }
+
+    /**
+     * Signs in one more account from a Microsoft OAuth authorization code, without changing
+     * which account is the default (unless there is none yet). Used by "Add account" and by
+     * "Sign in again" for an account whose saved credentials were rejected.
+     *
+     * @param authCode the Microsoft OAuth authorization code
+     * @param save     whether the account should survive a restart
+     *
+     * @return as {@link #loginWithMicrosoftAccount(String, boolean)}
+     *
+     * @since 2026.10
+     */
+    public static MCLauncherAuthResult addAccountWithMicrosoft( String authCode, boolean save ) {
+        return signInWithMicrosoft( authCode, save, false );
+    }
+
+    private static MCLauncherAuthResult signInWithMicrosoft( String authCode, boolean save, boolean makeDefault ) {
         enforceRateLimit();
         User user;
         byte[] authFile;
@@ -630,7 +650,7 @@ public class MCLauncherAuthManager
             return processAuthException( e );
         }
 
-        if ( user == null || authFile == null || !accounts().addSignedIn( user, authFile, save ) ) {
+        if ( user == null || authFile == null || !accounts().addSignedIn( user, authFile, save, makeDefault ) ) {
             recordAuthFailure();
             return MCLauncherAuthResult.ERROR_BAD_USERNAME_PASSWORD;
         }

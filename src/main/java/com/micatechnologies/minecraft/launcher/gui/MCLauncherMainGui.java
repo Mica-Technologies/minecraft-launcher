@@ -373,7 +373,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         playerLabel.setOnMouseClicked( showAccountMenu );
         playerLabel.setCursor( Cursor.HAND );
 
-        playerLabel.setText( MCLauncherAuthManager.getLoggedInUser().name() );
+        // The header follows the default account: switching it from the account menu or
+        // Settings repaints the name and avatar in place, with no restart.
+        bindAccountHeader();
+        MCLauncherAuthManager.accounts().addListener( accountListener );
         versionLabel.setText( LocalizationManager.format( "main.versionLabel",
                 LauncherConstants.LAUNCHER_APPLICATION_VERSION ) );
 
@@ -433,14 +436,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         if ( revalidateFuture != null && !revalidateFuture.isDone() ) {
             revalidateFuture.whenComplete( ( v, t ) -> GUIUtilities.JFXPlatformRun( this::rebuildCards ) );
         }
-
-        // Background-load the avatar so the FX thread doesn't sit on a network
-        // round-trip to minotar.net during first paint. With backgroundLoading=true
-        // the ImageView shows nothing until the bytes land, then JavaFX updates the
-        // node from its own image-loader thread. On a slow link this used to add
-        // hundreds of ms to main-menu-painted because new Image(String) defaults
-        // to synchronous loading.
-        userImage.setImage( AvatarImages.get( MCLauncherAuthManager.getLoggedInUser().uuid() ) );
 
         // Keyboard shortcuts: ENTER plays the last-played pack; F5 refreshes pack metadata.
         scene.setOnKeyPressed( keyEvent -> {
@@ -686,6 +681,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     @Override
     void cleanup() {
+        MCLauncherAuthManager.accounts().removeListener( accountListener );
         // Set first: async work that lands after this (manifest revalidate, image caching)
         // must not rebuild or re-subscribe cards on a torn-down screen. The old Scene object
         // outlives the transition, so getScene() != null is no guard on its own.
@@ -1290,6 +1286,20 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     // =========================================================================================
     //  Hero card view — one per modpack
     // =========================================================================================
+
+    /** Repaints the header when the accounts change; removed in {@link #cleanup()}. */
+    private final Runnable accountListener = () -> javafx.application.Platform.runLater( this::bindAccountHeader );
+
+    /** Shows the default account's name and avatar in the header. */
+    private void bindAccountHeader()
+    {
+        if ( disposed ) {
+            return;
+        }
+        var user = MCLauncherAuthManager.getLoggedInUser();
+        playerLabel.setText( user == null ? "" : user.name() );
+        userImage.setImage( user == null ? null : AvatarImages.get( user.uuid() ) );
+    }
 
     /** Set by {@link #cleanup()}; late async callbacks check it before touching cards. */
     private volatile boolean disposed = false;

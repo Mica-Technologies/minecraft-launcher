@@ -1974,3 +1974,73 @@
     -fx-text-transform: uppercase;
     -fx-padding: 14 14 8 14;
 }
+
+
+/* =====================================================================
+ * Sign-in card (SignInPanel): shared by the login screen and the
+ * "Add account" window. An information column beside Microsoft's page.
+ * ===================================================================== */
+.signInCard {
+    -fx-padding: 0;
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+}
+
+.signInAside {
+    -fx-background-color: -color-bg-soft;
+    -fx-background-radius: 16 0 0 16;
+}
+
+.signInEyebrow {
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-primary;
+}
+
+.signInPointIcon {
+    -fx-background-color: -color-primary-soft;
+    -fx-background-radius: 999;
+}
+
+.signInPointIconGlyph {
+    -fx-fill: -color-primary;
+    -fx-scale-x: 0.75;
+    -fx-scale-y: 0.75;
+}
+
+.signInPointTitle {
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text;
+}
+
+.signInStatus {
+    -fx-text-fill: -color-danger;
+    -fx-background-color: -color-danger-soft;
+    -fx-background-radius: 8;
+    -fx-padding: 8 10 8 10;
+}
+
+/* Frames Microsoft's page. The page paints its own background, so the frame takes the
+   theme surface: a hard white showed as a hairline around the page on dark themes. */
+.signInFrame {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 12;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 12;
+}
+
+.signInOverlay {
+    -fx-background-color: -color-surface;
+    -fx-padding: 24;
+}
+
+/* Settings → Account: one row per signed-in account. */
+.accountRow {
+    -fx-padding: 8 10 8 10;
+    -fx-background-color: -color-bg-soft;
+    -fx-background-radius: 8;
+}
+
+.accountStatusWarning {
+    -fx-text-fill: -color-warning;
+}

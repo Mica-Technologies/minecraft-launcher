@@ -482,6 +482,7 @@ public final class MacOsToolbarManager
                     // the person glyph; if the load fails the glyph just stays.
                     accountItemRef = item;
                     loadAccountAvatarAsync();
+                    followDefaultAccount();
                 }
                 return item.toPointer();
             }
@@ -563,6 +564,32 @@ public final class MacOsToolbarManager
         }
         catch ( Throwable ignored ) { /* fall through to the plain adaptive symbol */ }
         return image;
+    }
+
+    /** Set once the account item follows default-account changes. */
+    private static final java.util.concurrent.atomic.AtomicBoolean FOLLOWING_ACCOUNTS =
+            new java.util.concurrent.atomic.AtomicBoolean( false );
+
+    /**
+     * Keeps the toolbar's account item on the default account: switching accounts happens in
+     * place now, without the restart that used to rebuild the toolbar. Registers once.
+     */
+    private static void followDefaultAccount()
+    {
+        if ( !FOLLOWING_ACCOUNTS.compareAndSet( false, true ) ) {
+            return;
+        }
+        MCLauncherAuthManager.accounts().addListener( () -> Platform.runLater( () -> {
+            try {
+                ID item = accountItemRef;
+                if ( item == null || Foundation.isNil( item ) ) {
+                    return;
+                }
+                Foundation.invoke( item, "setLabel:", Foundation.nsString( currentUserName() ) );
+                loadAccountAvatarAsync();
+            }
+            catch ( Throwable ignored ) { /* keep what the item shows */ }
+        } ) );
     }
 
     /** The logged-in player's name for the account item label, or the generic "Player" string. */

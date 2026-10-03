@@ -518,9 +518,7 @@ public final class AccountManager
 
     /**
      * Adds or replaces an account after an interactive Microsoft sign-in, and makes it the
-     * default. When {@code remember} is {@code false} the account is held in memory only and
-     * any copy stored by an earlier "remember me" sign-in is deleted, so the account can't be
-     * silently resurrected on the next start.
+     * default. Equivalent to {@code addSignedIn(user, gzippedAuthFile, remember, true)}.
      *
      * @param user            the signed-in user
      * @param gzippedAuthFile the authentication file from the sign-in
@@ -531,6 +529,27 @@ public final class AccountManager
      * @since 2026.10
      */
     public boolean addSignedIn( User user, byte[] gzippedAuthFile, boolean remember )
+    {
+        return addSignedIn( user, gzippedAuthFile, remember, true );
+    }
+
+    /**
+     * Adds or replaces an account after an interactive Microsoft sign-in. When
+     * {@code remember} is {@code false} the account is held in memory only and
+     * any copy stored by an earlier "remember me" sign-in is deleted, so the account can't be
+     * silently resurrected on the next start.
+     *
+     * @param user            the signed-in user
+     * @param gzippedAuthFile the authentication file from the sign-in
+     * @param remember        whether the account should survive a restart
+     * @param makeDefault     whether it becomes the default; an account added while there is
+     *                        no default becomes the default regardless
+     *
+     * @return {@code true} on success; {@code false} when the user has no usable uuid
+     *
+     * @since 2026.10
+     */
+    public boolean addSignedIn( User user, byte[] gzippedAuthFile, boolean remember, boolean makeDefault )
     {
         if ( user == null || !AccountStore.isSafeUuid( user.uuid() ) ) {
             return false;
@@ -562,7 +581,9 @@ public final class AccountManager
                 session.memoryAuthFile = gzippedAuthFile;
                 store.remove( user.uuid() );
             }
-            defaultUuid = user.uuid();
+            if ( makeDefault || defaultUuid == null ) {
+                defaultUuid = user.uuid();
+            }
             persistDefault();
         }
         fireChanged();

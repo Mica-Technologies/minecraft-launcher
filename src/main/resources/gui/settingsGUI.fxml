@@ -166,18 +166,18 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="%settings.fxml.savedAccounts">
+                        <Label text="%settings.accounts.title">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="%settings.fxml.savedAccountsHint" wrapText="true">
+                        <Label text="%settings.accounts.hint" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
                         <VBox fx:id="savedAccountsList" spacing="6" />
-                        <MFXButton fx:id="addAccountBtn" prefHeight="30.0" prefWidth="180.0" text="%settings.fxml.addAccount">
+                        <MFXButton fx:id="addAccountBtn" prefHeight="30.0" prefWidth="180.0" text="%settings.accounts.add">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -193,12 +193,12 @@
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="%settings.fxml.signingOutWill" wrapText="true">
+                        <Label text="%settings.accounts.signOutHint" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
-                        <MFXButton fx:id="logoutBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.logOut" styleClass="dangerZone">
+                        <MFXButton fx:id="logoutBtn" prefHeight="30.0" prefWidth="160.0" text="%settings.accounts.signOutDefault" styleClass="dangerZone">
                             <font>
                                 <Font size="11.0" />
                             </font>

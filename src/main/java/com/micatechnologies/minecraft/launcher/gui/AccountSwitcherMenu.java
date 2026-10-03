@@ -17,29 +17,30 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
-import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
-import com.micatechnologies.minecraft.launcher.game.auth.AccountManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
+import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.stage.Stage;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
+import javafx.scene.shape.Circle;
 
 import java.util.List;
 
 /**
  * Quick account switcher surfaced from the navbar / title-bar account lockup. Clicking the avatar or
- * player name pops this menu so the user can switch between previously-signed-in Microsoft accounts,
- * add another, or jump to the full account-management screen — without digging into Settings first.
+ * player name pops this menu: every signed-in account with its avatar, the default one ticked.
  *
- * <p>Lists the accounts in {@link MCLauncherAuthManager#accounts()} and uses the same
- * {@link MCLauncherAuthManager#switchToArchivedProfile} / {@link MCLauncherAuthManager#archiveAndLogout}
- * flows Settings → Account uses, including the launcher restart they still trigger to propagate
- * the new identity across every screen.</p>
+ * <p>Picking another account makes it the default straight away: every account stays signed
+ * in, so there is nothing to swap and no restart. An account whose saved sign-in Microsoft
+ * rejected opens the "Add account" window to sign it in again. "Add account…" opens that
+ * window too, and "Manage accounts…" goes to Settings → Account.</p>
  *
  * @since 2026.6
  */
@@ -63,71 +64,27 @@ public final class AccountSwitcherMenu
         }
         ContextMenu menu = new ContextMenu();
 
-        var active = MCLauncherAuthManager.getLoggedInUser();
-        String activeName = active != null ? active.name() : null;
-        String activeUuid = active != null ? active.uuid() : null;
-
-        // Header — the currently-signed-in account (non-interactive).
-        MenuItem header = new MenuItem( LocalizationManager.format( "account.switcher.signedInAs",
-                                                                    activeName == null ? "?" : activeName ) );
+        MenuItem header = new MenuItem( LocalizationManager.get( "account.switcher.header" ) );
         header.setDisable( true );
         menu.getItems().add( header );
 
-        // One "Switch to X" item per other signed-in account.
-        List< AccountManager.AccountInfo > profiles;
+        List< AccountListModel.Row > rows;
         try {
-            profiles = MCLauncherAuthManager.accounts().accounts();
+            rows = AccountListModel.rows( MCLauncherAuthManager.accounts().accounts() );
         }
         catch ( Throwable t ) {
-            profiles = List.of();
+            rows = List.of();
         }
-        boolean addedSeparator = false;
-        for ( AccountManager.AccountInfo p : profiles ) {
-            if ( activeUuid != null && activeUuid.equals( p.uuid() ) ) {
-                continue;
-            }
-            if ( !addedSeparator ) {
-                menu.getItems().add( new SeparatorMenuItem() );
-                addedSeparator = true;
-            }
-            String name = ( p.displayName() == null || p.displayName().isBlank() )
-                    ? p.uuid() : p.displayName();
-            MenuItem switchItem = new MenuItem(
-                    LocalizationManager.format( "account.switcher.switchTo", name ) );
-            switchItem.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
-                boolean ok = MCLauncherAuthManager.switchToArchivedProfile( p.uuid() );
-                if ( ok ) {
-                    GUIUtilities.JFXPlatformRun( LauncherCore::restartApp );
-                }
-            } ) );
-            menu.getItems().add( switchItem );
+        for ( AccountListModel.Row row : rows ) {
+            menu.getItems().add( accountItem( row, anchor ) );
         }
 
         menu.getItems().add( new SeparatorMenuItem() );
 
-        // Add another account — archives the current session (recoverable from the list) and
-        // restarts to the login screen. Confirmed, since it interrupts the session.
         MenuItem addItem = new MenuItem( LocalizationManager.get( "account.switcher.addAccount" ) );
-        addItem.setOnAction( e -> {
-            Stage owner = anchor.getScene() != null && anchor.getScene().getWindow() instanceof Stage s
-                    ? s : null;
-            int response = GUIUtilities.showQuestionMessage(
-                    LocalizationManager.get( "settings.savedAccounts.confirmAdd.title" ),
-                    LocalizationManager.get( "settings.savedAccounts.confirmAdd.body" ),
-                    "",
-                    LocalizationManager.get( "settings.fxml.addAccount" ),
-                    LocalizationManager.get( "dialog.button.cancel" ), owner );
-            if ( response != 1 ) {
-                return;
-            }
-            SystemUtilities.spawnNewTask( () -> {
-                MCLauncherAuthManager.archiveAndLogout();
-                GUIUtilities.JFXPlatformRun( LauncherCore::restartApp );
-            } );
-        } );
+        addItem.setOnAction( e -> AddAccountDialog.show( anchor.getScene() == null ? null : anchor.getScene().getWindow() ) );
         menu.getItems().add( addItem );
 
-        // Manage accounts — the existing full Settings → Account screen.
         MenuItem manageItem = new MenuItem( LocalizationManager.get( "account.switcher.manage" ) );
         manageItem.setOnAction( e -> {
             if ( openAccountSettings != null ) {
@@ -137,5 +94,37 @@ public final class AccountSwitcherMenu
         menu.getItems().add( manageItem );
 
         menu.show( anchor, Side.BOTTOM, 0, 0 );
+    }
+
+    /** One account: avatar, name, a tick on the default, and a hint when it needs signing in. */
+    private static MenuItem accountItem( AccountListModel.Row row, Node anchor )
+    {
+        ImageView avatar = new ImageView( AvatarImages.get( row.uuid() ) );
+        avatar.setFitWidth( 20 );
+        avatar.setFitHeight( 20 );
+        avatar.setPreserveRatio( true );
+        avatar.setClip( new Circle( 10, 10, 10 ) );
+        Label tick = new Label( row.isDefault() ? "✓" : "" );
+        tick.setMinWidth( 14 );
+        HBox graphic = new HBox( 6, tick, avatar );
+        graphic.setAlignment( Pos.CENTER_LEFT );
+
+        String text = row.needsSignIn()
+                      ? LocalizationManager.format( "account.switcher.needsSignIn", row.name() )
+                      : row.name();
+        MenuItem item = new MenuItem( text, graphic );
+        if ( row.isDefault() ) {
+            return item;  // already the default: nothing to do
+        }
+        item.setOnAction( e -> {
+            if ( row.needsSignIn() ) {
+                AddAccountDialog.show( anchor.getScene() == null ? null : anchor.getScene().getWindow() );
+                return;
+            }
+            // Writes the config and the account's metadata, so off the FX thread. Listeners
+            // repaint the header and toolbar when it lands.
+            SystemUtilities.spawnNewTask( () -> MCLauncherAuthManager.accounts().setDefault( row.uuid() ) );
+        } );
+        return item;
     }
 }

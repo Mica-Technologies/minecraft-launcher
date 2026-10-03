@@ -1694,26 +1694,18 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Populates the Account settings tab: fills in the player's name, UUID, and avatar (fetched off
-     * the FX thread), wires the helpful external links, the confirmed logout, and the
-     * "Add Another Account" archive-and-relogin flow, then renders the saved-accounts list via
-     * {@link #rebuildSavedAccountsList()}.
+     * Populates the Account settings tab: the default account at the top, the helpful links,
+     * and the list of every signed-in account with its actions (make default, sign in again,
+     * sign out). Everything here takes effect immediately; nothing restarts the launcher unless
+     * the last account is signed out, which lands on the login screen.
+     *
+     * <p>The tab follows the account manager: a switch from the header menu, a finished
+     * refresh or a newly added account repaints it in place.</p>
      *
      * @since 3.0
      */
     private void setupAccountTab()
     {
-        // Player profile
-        var user = MCLauncherAuthManager.getLoggedInUser();
-        accountNameLabel.setText( user.name() );
-        accountUuidLabel.setText( LocalizationManager.format( "settings.accountUuidLabel", user.uuid() ) );
-        // backgroundLoading = true so the avatar fetch happens off the
-        // FX thread; otherwise the single-arg Image(url) constructor
-        // blocks the JavaFX Application Thread on a network round-trip to
-        // the avatar service (and hangs far longer on a slow/unreachable
-        // network), freezing the Settings screen as it opens.
-        accountAvatar.setImage( AvatarImages.get( user.uuid() ) );
-
         // Helpful links
         minecraftNetBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
             try {
@@ -1734,107 +1726,112 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             }
         } ) );
 
-        // Logout with confirmation
+        // "Sign out" signs the default account out; another account, if any, takes over.
         logoutBtn.setOnAction( e -> {
-            javafx.scene.control.Alert confirm = new javafx.scene.control.Alert(
-                    javafx.scene.control.Alert.AlertType.CONFIRMATION );
-            confirm.setTitle( LocalizationManager.get( "dialog.settings.logout.title" ) );
-            confirm.setHeaderText( LocalizationManager.get( "dialog.settings.logout.header" ) );
-            confirm.setContentText( LocalizationManager.get( "dialog.settings.logout.body" ) );
-            confirm.initOwner( stage );
-            confirm.showAndWait().ifPresent( response -> {
-                if ( response == javafx.scene.control.ButtonType.OK ) {
-                    MCLauncherAuthManager.logout();
-                    LauncherCore.restartApp();
-                }
-            } );
+            var user = MCLauncherAuthManager.getLoggedInUser();
+            if ( user != null ) {
+                confirmSignOut( user.uuid(), user.name() );
+            }
         } );
 
-        // "Add Another Account" — archives the current login so it can
-        // be re-activated later from the Saved Accounts list, then
-        // restarts the launcher to land back on the login screen.
-        addAccountBtn.setOnAction( e -> {
-            int response = GUIUtilities.showQuestionMessage(
-                    LocalizationManager.get( "settings.savedAccounts.confirmAdd.title" ),
-                    LocalizationManager.get( "settings.savedAccounts.confirmAdd.body" ),
-                    "",
-                    LocalizationManager.get( "settings.fxml.addAccount" ),
-                    LocalizationManager.get( "dialog.button.cancel" ), stage );
-            if ( response != 1 ) return;
-            com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.archiveAndLogout();
-            LauncherCore.restartApp();
-        } );
+        addAccountBtn.setOnAction( e -> AddAccountDialog.show( stage ) );
 
+        MCLauncherAuthManager.accounts().addListener( accountListener );
+        refreshAccountTab();
+    }
+
+    /** Repaints the Account tab when accounts change; removed in {@link #cleanup()}. */
+    private final Runnable accountListener = () -> javafx.application.Platform.runLater( this::refreshAccountTab );
+
+    /** Shows the default account in the profile card and rebuilds the accounts list. */
+    private void refreshAccountTab()
+    {
+        var user = MCLauncherAuthManager.getLoggedInUser();
+        accountNameLabel.setText( user == null ? "" : user.name() );
+        accountUuidLabel.setText( user == null ? "" : LocalizationManager.format( "settings.accountUuidLabel", user.uuid() ) );
+        accountAvatar.setImage( user == null ? null : AvatarImages.get( user.uuid() ) );
         rebuildSavedAccountsList();
     }
 
-    /** Renders the Saved Accounts container's rows from the signed-in
-     *  accounts. Skips the currently-active profile so we don't surface
-     *  a "Switch" button pointing at the user's own already-active
-     *  identity. */
+    /**
+     * Renders one row per signed-in account: avatar, name, status, and the actions the row
+     * offers (see {@link AccountListModel}).
+     */
     private void rebuildSavedAccountsList() {
         if ( savedAccountsList == null ) return;
         savedAccountsList.getChildren().clear();
-        var active = MCLauncherAuthManager.getLoggedInUser();
-        String activeUuid = active == null ? null : active.uuid();
+        for ( AccountListModel.Row row : AccountListModel.rows( MCLauncherAuthManager.accounts().accounts() ) ) {
+            javafx.scene.layout.HBox line = new javafx.scene.layout.HBox( 10 );
+            line.setAlignment( javafx.geometry.Pos.CENTER_LEFT );
+            line.getStyleClass().add( "accountRow" );
 
-        var profiles = MCLauncherAuthManager.accounts().accounts();
-        if ( profiles.isEmpty() ) {
-            return;  // empty state: nothing to render; hint label is in FXML
-        }
-        java.text.SimpleDateFormat fmt = new java.text.SimpleDateFormat( "yyyy-MM-dd HH:mm" );
-        for ( var entry : profiles ) {
-            if ( activeUuid != null && activeUuid.equals( entry.uuid() ) ) continue;
-
-            javafx.scene.layout.HBox row = new javafx.scene.layout.HBox( 8 );
-            row.setAlignment( javafx.geometry.Pos.CENTER_LEFT );
-
-            // Avatar — same Crafatar URL pattern the active player uses.
-            javafx.scene.image.ImageView av = new javafx.scene.image.ImageView();
+            javafx.scene.image.ImageView av = new javafx.scene.image.ImageView( AvatarImages.get( row.uuid() ) );
             av.setFitWidth( 32 );
             av.setFitHeight( 32 );
             av.setPreserveRatio( true );
-            av.setImage( AvatarImages.get( entry.uuid() ) );
+            av.setClip( new javafx.scene.shape.Circle( 16, 16, 16 ) );
 
-            javafx.scene.layout.VBox info = new javafx.scene.layout.VBox( 2 );
-            Label nameLbl = new Label( entry.displayName() == null || entry.displayName().isBlank()
-                                                ? entry.uuid() : entry.displayName() );
+            Label nameLbl = new Label( row.name() );
             nameLbl.setStyle( "-fx-font-weight: bold;" );
-            Label lastLbl = new Label( LocalizationManager.format( "settings.savedAccounts.lastUsed",
-                    fmt.format( new java.util.Date( entry.lastUsedMs() ) ) ) );
-            lastLbl.getStyleClass().add( "muted" );
-            info.getChildren().addAll( nameLbl, lastLbl );
+            String status = LocalizationManager.get( row.statusKey() );
+            if ( row.sessionOnly() ) {
+                status = LocalizationManager.format( "account.status.withSessionOnly", status );
+            }
+            Label statusLbl = new Label( status );
+            statusLbl.getStyleClass().add( row.needsSignIn() ? "accountStatusWarning" : "muted" );
+            javafx.scene.layout.VBox info = new javafx.scene.layout.VBox( 2, nameLbl, statusLbl );
             javafx.scene.layout.HBox.setHgrow( info, javafx.scene.layout.Priority.ALWAYS );
+            line.getChildren().addAll( av, info );
 
-            MFXButton switchBtn = new MFXButton( LocalizationManager.get( "settings.savedAccounts.switchBtn" ) );
-            switchBtn.setPrefHeight( 28 );
-            switchBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
-                boolean ok = MCLauncherAuthManager.switchToArchivedProfile( entry.uuid() );
-                if ( ok ) {
-                    GUIUtilities.JFXPlatformRun( LauncherCore::restartApp );
-                }
-            } ) );
+            if ( row.needsSignIn() ) {
+                MFXButton again = new MFXButton( LocalizationManager.get( "settings.accounts.signInAgain" ) );
+                again.setPrefHeight( 28 );
+                again.getStyleClass().add( "primary" );
+                again.setOnAction( e -> AddAccountDialog.show( stage ) );
+                line.getChildren().add( again );
+            }
+            if ( row.canMakeDefault() ) {
+                MFXButton makeDefault = new MFXButton( LocalizationManager.get( "settings.accounts.makeDefault" ) );
+                makeDefault.setPrefHeight( 28 );
+                makeDefault.setOnAction( e -> SystemUtilities.spawnNewTask(
+                        () -> MCLauncherAuthManager.accounts().setDefault( row.uuid() ) ) );
+                line.getChildren().add( makeDefault );
+            }
+            MFXButton signOut = new MFXButton( LocalizationManager.get( "settings.accounts.signOut" ) );
+            signOut.setPrefHeight( 28 );
+            signOut.getStyleClass().add( "dangerZone" );
+            signOut.setOnAction( e -> confirmSignOut( row.uuid(), row.name() ) );
+            line.getChildren().add( signOut );
 
-            MFXButton forgetBtn = new MFXButton( LocalizationManager.get( "settings.savedAccounts.forgetBtn" ) );
-            forgetBtn.setPrefHeight( 28 );
-            forgetBtn.getStyleClass().add( "dangerZone" );
-            forgetBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
-                int resp = GUIUtilities.showQuestionMessage(
-                        LocalizationManager.get( "settings.savedAccounts.confirmForget.title" ),
-                        LocalizationManager.format( "settings.savedAccounts.confirmForget.body",
-                                                     entry.displayName() == null
-                                                             ? entry.uuid() : entry.displayName() ),
-                        "",
-                        LocalizationManager.get( "settings.savedAccounts.forgetBtn" ),
-                        LocalizationManager.get( "dialog.button.cancel" ), stage );
-                if ( resp != 1 ) return;
-                MCLauncherAuthManager.accounts().remove( entry.uuid() );
-                GUIUtilities.JFXPlatformRun( this::rebuildSavedAccountsList );
-            } ) );
-
-            row.getChildren().addAll( av, info, switchBtn, forgetBtn );
-            savedAccountsList.getChildren().add( row );
+            savedAccountsList.getChildren().add( line );
         }
+    }
+
+    /**
+     * Asks before signing an account out, then forgets it. Signing out the only account
+     * restarts into the login screen; otherwise the next most recently used account takes
+     * over as the default and the screen updates in place.
+     *
+     * @param uuid the account to sign out
+     * @param name its display name, for the prompt
+     */
+    private void confirmSignOut( String uuid, String name )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            int response = GUIUtilities.showQuestionMessage(
+                    LocalizationManager.get( "settings.accounts.confirmSignOut.title" ),
+                    LocalizationManager.format( "settings.accounts.confirmSignOut.header", name ),
+                    LocalizationManager.get( "settings.accounts.confirmSignOut.body" ),
+                    LocalizationManager.get( "settings.accounts.signOut" ),
+                    LocalizationManager.get( "dialog.button.cancel" ), stage );
+            if ( response != 1 ) {
+                return;
+            }
+            MCLauncherAuthManager.accounts().remove( uuid );
+            if ( MCLauncherAuthManager.accounts().accounts().isEmpty() ) {
+                GUIUtilities.JFXPlatformRun( LauncherCore::restartApp );
+            }
+        } );
     }
 
     /**
@@ -2414,6 +2411,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      */
     @Override
     void cleanup() {
+        MCLauncherAuthManager.accounts().removeListener( accountListener );
         if ( minRamGb != null && minRamGb.getValueFactory() != null && minRamListener != null ) {
             minRamGb.getValueFactory().valueProperty().removeListener( minRamListener );
         }

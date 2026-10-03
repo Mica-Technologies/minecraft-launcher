@@ -1,16 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import io.github.palexdev.materialfx.controls.MFXButton?>
-<?import io.github.palexdev.materialfx.controls.MFXToggleButton?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.RowConstraints?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.web.WebView?>
+<?import javafx.scene.layout.StackPane?>
 
 <!--
   ~ Copyright (c) 2021 Mica Technologies
@@ -29,95 +24,28 @@
   ~ along with this program. If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<!-- maxHeight/maxWidth are intentionally NOT set to -Infinity (USE_PREF_SIZE)
-     here, unlike on most other screens. The login layout centers its content
-     (brand HBox + auth card) in the rootPane via GridPane.halignment=CENTER,
-     so pinning the rootPane to prefWidth=1000 made the GridPane stay 1000 px
-     wide even when the scene was wider. The rootPane sat at the scene's
-     top-left with the empty space on the right, and the "centered" content
-     ended up centered relative to the pinned rootPane rather than the
-     window, i.e. visibly shifted left. Letting max default to unbounded
-     lets the rootPane fill the scene, so the center alignment lands on the
-     window's actual center. -->
-<GridPane fx:id="rootPane" minHeight="990.0" minWidth="850.0" prefHeight="1010.0" prefWidth="1000.0" styleClass="rootPane hero-surface" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
+<!-- The sign-in card itself (information column + framed Microsoft page) is built in code
+     by SignInPanel, shared with the "Add account" window, and placed in signInHost by
+     MCLauncherLoginGui.setup().
+
+     maxHeight/maxWidth are intentionally NOT pinned to the pref size: letting the rootPane
+     fill the scene keeps the centered card on the window's real center rather than the
+     center of a pinned 1000 px pane. -->
+<GridPane fx:id="rootPane" minHeight="760.0" minWidth="900.0" prefHeight="860.0" prefWidth="1120.0" styleClass="rootPane hero-surface" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
-        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+        <ColumnConstraints hgrow="ALWAYS" />
     </columnConstraints>
     <rowConstraints>
         <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0" />
-        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+        <RowConstraints vgrow="ALWAYS" />
     </rowConstraints>
 
     <!-- Announcement banner -->
     <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement" text="--" wrapText="true" />
 
-    <!-- Branded login content: voxel wordmark + auth card -->
-    <VBox alignment="CENTER" spacing="20" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
-        <!-- Brand header: official Mica greenified logo + wordmark. The brand-logo
-             include is wrapped in a fixed-size Pane for the same reason documented in
-             mainGUI.fxml: Group.layoutBounds doesn't account for its own transforms,
-             so an unwrapped include would tell the HBox it's ~767 px wide and push the
-             wordmark off to the right. -->
-        <HBox alignment="CENTER" spacing="14">
-            <Pane prefWidth="80.0" prefHeight="84.0" minWidth="80.0" minHeight="84.0"
-                  maxWidth="80.0" maxHeight="84.0">
-                <fx:include source="components/micaBrandLogo.fxml"/>
-            </Pane>
-            <VBox alignment="CENTER_LEFT" spacing="2">
-                <Label styleClass="heading-display" text="%login.title" />
-                <Label styleClass="muted" text="%login.subtitle" />
-            </VBox>
-        </HBox>
-
-        <!-- Authentication card. Card maxWidth + WebView prefs sized so Microsoft's
-             sign-in flow fits without forcing the WebView's internal scrollbar at any
-             window size that meets the rootPane min. The MS flow has been ~750 px
-             tall in practice; WebView prefHeight is set above that with a small
-             buffer so the page lays out without scrolling even after MS tweaks
-             their dialog spacing. MCLauncherLoginGui.setup() also grows the stage
-             to rootPane.prefHeight on entry so the FXML's preferred size actually
-             takes effect — without that, the stage carries over the progress
-             screen's smaller starting height and the WebView gets clipped. -->
-        <GridPane fx:id="msAuthPane" maxWidth="780.0" minWidth="500.0" prefWidth="720.0" styleClass="card elevated">
-             <!-- Both columns use hgrow=ALWAYS so they split available card width
-                  symmetrically (50/50). The previous SOMETIMES + ALWAYS pair gave
-                  col 1 all the extra space, which made the WebView's columnSpan=2
-                  span asymmetric and offset its content within the card. The row 1
-                  controls (toggle + exit) still align inside their own cells via
-                  the GridPane.halignment values set on those controls themselves. -->
-             <columnConstraints>
-                 <ColumnConstraints halignment="LEFT" hgrow="ALWAYS" />
-                 <ColumnConstraints halignment="RIGHT" hgrow="ALWAYS" />
-             </columnConstraints>
-             <rowConstraints>
-                 <RowConstraints maxHeight="1.7976931348623157E308" minHeight="300.0" prefHeight="780.0" vgrow="ALWAYS" />
-                 <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="38.666636149088504" prefHeight="56.33332316080731" vgrow="SOMETIMES" />
-             </rowConstraints>
-             <!-- Explicit halignment=CENTER on the spanning WebView. Without it,
-                  JavaFX uses the FIRST spanned column's halignment for spanning
-                  children (LEFT here), which left-anchored the WebView in the
-                  span whenever the inner card width exceeded the WebView's
-                  prefWidth (e.g. when the card grew toward its maxWidth=780).
-                  maxWidth=Infinity makes the WebView fill the span when the
-                  card has extra room, so the inner padding is symmetric on
-                  both sides regardless of the card's current width. -->
-             <WebView fx:id="authWebView" prefHeight="780.0" prefWidth="720.0" maxWidth="1.7976931348623157E308" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.hgrow="ALWAYS" GridPane.vgrow="ALWAYS" />
-             <MFXToggleButton fx:id="msStayLoggedInCheckBox" text="%login.stayLoggedIn" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
-                <GridPane.margin>
-                    <Insets left="20.0" />
-                </GridPane.margin>
-             </MFXToggleButton>
-             <!-- prefHeight pulled up from the original 25 + min/max height pins
-                  dropped: MFXButton's CSS padding is 6/16/6/16, so at the default
-                  ~14 px font the text wants ~30 px of vertical space and the bare
-                  25 px constraint was clipping the bottom of the glyphs. Width
-                  stays pinned to 80 so the button doesn't snap to the row's full
-                  trailing width when "Exit" is the only character content. -->
-             <MFXButton fx:id="exitBtn" maxWidth="80.0" minWidth="80.0" prefHeight="32.0" prefWidth="80.0" text="%login.exitBtn" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.valignment="CENTER">
-                 <GridPane.margin>
-                     <Insets right="20.0" />
-                 </GridPane.margin>
-             </MFXButton>
-        </GridPane>
-    </VBox>
+    <StackPane fx:id="signInHost" GridPane.rowIndex="1">
+        <padding>
+            <Insets bottom="32.0" left="32.0" right="32.0" top="28.0" />
+        </padding>
+    </StackPane>
 </GridPane>
