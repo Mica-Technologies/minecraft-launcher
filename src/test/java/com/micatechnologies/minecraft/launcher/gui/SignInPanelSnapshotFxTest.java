@@ -63,11 +63,11 @@ class SignInPanelSnapshotFxTest
     @Test
     void rendersInDarkAndLightThemes( FxRobot robot ) throws Exception
     {
-        render( robot, "dark", "guiStyle-dark.css", "ui/ui-tokens-dark.css" );
-        render( robot, "light", "guiStyle-light.css", "ui/ui-tokens-light.css" );
+        render( robot, "dark", "ui/ui-tokens-dark.css" );
+        render( robot, "light", "ui/ui-tokens-light.css" );
     }
 
-    private void render( FxRobot robot, String name, String legacySheet, String tokenSheet ) throws Exception
+    private void render( FxRobot robot, String name, String tokenSheet ) throws Exception
     {
         AtomicReference< SignInPanel > panel = new AtomicReference<>();
         robot.interact( () -> {
@@ -76,10 +76,11 @@ class SignInPanelSnapshotFxTest
             StackPane root = new StackPane( signIn.root() );
             root.getStyleClass().addAll( "rootPane", "hero-surface" );
             root.setStyle( "-fx-padding: 28 32 32 32;" );
-            for ( String sheet : new String[]{ legacySheet, "ui/ui-base.css", tokenSheet } ) {
+            for ( String sheet : new String[]{ "ui/ui-base.css", tokenSheet } ) {
                 root.getStylesheets().add( getClass().getClassLoader().getResource( sheet ).toExternalForm() );
             }
             stage.setScene( new Scene( root, 1120, 860 ) );
+            stage.sizeToScene();
             stage.show();
             signIn.loadSignIn();
         } );

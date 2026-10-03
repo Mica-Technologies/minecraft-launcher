@@ -4,8 +4,287 @@
  * Mica Launcher — base component stylesheet (theme-agnostic).
  * All colors come from `-color-*` lookup variables defined in
  * `ui-tokens-{theme}.css`. MCLauncherGuiWindow.applyTheme installs it on each screen's root
- * between the legacy sheet and the token sheet, and leaves it alone when nothing changed.
+ * before the token sheet, and leaves both alone when nothing changed.
  */
+
+
+/* =====================================================================
+ * 0. Controls formerly styled by the per-theme legacy sheets
+ *
+ * Until 2026.10 each theme also loaded a guiStyle-<theme>.css sheet first,
+ * with its own hard-coded palette. These are the rules from those sheets
+ * that still had an effect, with each colour mapped to the token that
+ * plays the same role, so one rule set serves every theme. They sit at
+ * the top of this sheet to keep the legacy layer's precedence: any later
+ * rule here with the same specificity still wins.
+ * ===================================================================== */
+
+/* ---- MaterialFX buttons: ripple ---- */
+.mfx-button:armed .ripple-generator,
+.mfx-button:focused .ripple-generator { -mfx-ripple-color: -color-border-strong; }
+
+/* ---- Sign-out button (Settings › Account) ---- */
+.logoutBtn.mfx-button,
+.logoutBtn.mfx-button:armed,
+.logoutBtn.mfx-button:focused   { -fx-background-color: -color-primary; }
+.logoutBtn.mfx-button:hover     { -fx-background-color: -color-primary-hover; }
+.logoutBtn.mfx-button .ripple-generator,
+.logoutBtn.mfx-button:armed .ripple-generator,
+.logoutBtn.mfx-button:focused .ripple-generator { -mfx-ripple-color: -color-border-strong; }
+.logoutBtn.mfx-button .text,
+.logoutBtn.mfx-button:armed .text,
+.logoutBtn.mfx-button:focused .text { -fx-fill: -color-text-on-primary; }
+
+/* ---- MaterialFX toggles ---- */
+.mfx-toggle-button:selected .line { -fx-stroke-line-cap: round; }
+.mfx-toggle-button:disabled .line { -fx-stroke: -color-text-subtle; -fx-opacity: 0.4; }
+.mfx-toggle-button:disabled .circle { -fx-fill: -color-text-subtle; }
+.mfx-toggle-button .mfx-ripple-generator { -mfx-ripple-color: -color-border-strong; }
+.mfx-toggle-button:selected .mfx-ripple-generator { -mfx-ripple-color: -color-primary-soft; }
+
+/* ---- MaterialFX text fields ---- */
+.mfx-text-field { -mfx-line-color: -color-primary; }
+.mfx-text-field > * { -fx-background-color: transparent; }
+.mfx-text-field .text { -fx-fill: -color-text; }
+.mfx-text-field .floating-text .text,
+.mfx-text-field:floating .floating-text .text { -fx-fill: -color-text-muted; }
+.mfx-text-field:floating .floating-text { -fx-background-radius: 4; }
+.mfx-text-field:floating:focus-within .floating-text { -fx-background-color: -color-popup; -fx-background-radius: 4; }
+.mfx-text-field:floating:focus-within .floating-text .text { -fx-fill: -color-primary; }
+.mfx-text-field:focus-within { -fx-border-radius: 8; }
+
+.stripPane { -fx-background-radius: 0; }
+
+/* ---- MaterialFX combo boxes and their dropdown ---- */
+.mfx-combo-box > * { -fx-background-color: transparent; }
+.mfx-combo-box .combo-label,
+.mfx-combo-box .mfx-label,
+.mfx-combo-box .label {
+    -fx-text-fill: -color-text;
+    -mfx-text-fill: -color-text;
+    -fx-background-color: transparent;
+}
+.mfx-combo-box .mfx-text-field .text { -fx-fill: -color-text; }
+.mfx-combo-box .caret .mfx-font-icon { -mfx-color: -color-text !important; }
+.mfx-combo-box:focus-within .caret .mfx-font-icon { -mfx-color: -color-primary !important; }
+.mfx-combo-box .caret .mfx-ripple-generator { -mfx-ripple-color: -color-primary-soft !important; }
+.mfx-combo-box .caret { -fx-background-color: -color-surface-hover; -fx-background-radius: 0 8 8 0; }
+.mfx-combo-box:focus-within { -fx-border-radius: 8; }
+.mfx-combo-box:floating .floating-text { -fx-background-color: -color-popup; -fx-background-radius: 4; -fx-padding: 0 4 0 4; }
+.mfx-combo-box:floating .floating-text .text { -fx-fill: -color-text-muted; }
+.mfx-combo-box:floating:focus-within .floating-text .text { -fx-fill: -color-primary; }
+.mfx-combo-box-popup,
+.mfx-combo-box-popup .virtual-flow,
+.mfx-combo-box-popup .mfx-list-view { -fx-background-color: -color-popup; }
+.mfx-combo-box-cell {
+    -fx-background-color: -color-popup;
+    -mfx-hover: -color-primary-soft-hov;
+    -mfx-selected: -color-primary;
+    -fx-background-radius: 0 !important;
+}
+.mfx-combo-box-cell .data-label { -fx-text-fill: -color-text; }
+.mfx-combo-box-cell:hover .data-label { -fx-text-fill: -color-text; }
+.mfx-combo-box-cell:selected { -fx-background-color: -color-primary; }
+.mfx-combo-box-cell:selected .data-label { -fx-text-fill: -color-text-on-primary; }
+
+/* ---- Destructive buttons ---- */
+.dangerZone { -fx-background-color: -color-danger-soft; -fx-background-radius: 16; }
+.dangerZone.mfx-button:armed,
+.dangerZone.mfx-button:focused { -fx-background-color: -color-danger; }
+
+/* ---- MaterialFX progress bar ---- */
+.mfx-progress-bar .track { -fx-fill: -color-primary-soft; }
+.mfx-progress-bar .bar1,
+.mfx-progress-bar .bar2 { -fx-fill: -color-primary; }
+
+/* ---- List views (plain JavaFX) ---- */
+.list-view .virtual-flow .clipped-container .sheet .list-cell {
+    -fx-background-color: -color-surface-hover;
+    -fx-text-fill: -color-text;
+    -fx-padding: 4 12 4 12;
+    -fx-background-radius: 12;
+    -fx-background-insets: 2;
+}
+.list-view .virtual-flow .clipped-container .sheet .list-cell:hover { -fx-background-color: -color-primary-soft; }
+.list-view .virtual-flow .clipped-container .sheet .list-cell:selected { -fx-background-color: -color-primary-soft-hov; }
+.list-view .virtual-flow .clipped-container .sheet .list-cell:empty { -fx-background-color: transparent; }
+.list-cell .packName,
+.mfx-list-cell .packName { -fx-text-fill: -color-text; -fx-font-size: 15; -fx-font-weight: bold; -fx-padding: 0 0 0 8; }
+.list-cell .packVersion,
+.mfx-list-cell .packVersion { -fx-text-fill: -color-text; -fx-font-size: 11; -fx-font-style: italic; -fx-padding: 0 0 0 8; }
+
+/* ---- MaterialFX list views ---- */
+.mfx-list-view {
+    -mfx-track-color: -color-border;
+    -mfx-thumb-color: -color-border-strong;
+    -mfx-thumb-hover-color: -color-text-subtle;
+    -mfx-border-width: 0;
+}
+.mfx-list-cell { -fx-border-width: 0; }
+.mfx-list-cell .data-label,
+.mfx-list-cell:selected .data-label { -fx-text-fill: -color-text; }
+.mfx-list-cell:selected { -fx-border-color: transparent; }
+.mfx-list-cell:empty { -fx-background-color: transparent; }
+.mfx-list-cell .mfx-ripple-generator { -mfx-ripple-color: -color-primary-soft; }
+
+/* ---- Scroll bars and panes ---- */
+.scroll-bar { -fx-pref-width: 10; }
+.scroll-bar .thumb { -fx-background-insets: 1; }
+.scroll-pane,
+.scroll-pane .viewport { -fx-background-color: transparent; }
+
+/* ---- Spinners ---- */
+.spinner {
+    -fx-background-color: -color-surface-hover;
+    -fx-border-color: -color-border-strong;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-border-width: 1;
+}
+.spinner .text-field { -fx-text-fill: -color-text; -fx-background-color: transparent; -fx-background-radius: 8 0 0 8; }
+.spinner .increment-arrow-button,
+.spinner .decrement-arrow-button {
+    -fx-background-color: -color-surface-elevated;
+    -fx-border-color: -color-border-strong;
+    -fx-border-width: 0 0 0 1;
+}
+.spinner .increment-arrow-button:hover,
+.spinner .decrement-arrow-button:hover { -fx-background-color: -color-primary-soft-hov; }
+.spinner .increment-arrow-button .increment-arrow,
+.spinner .decrement-arrow-button .decrement-arrow { -fx-background-color: -color-text; }
+
+/* ---- Context menus ---- */
+.context-menu { -fx-border-width: 1; -fx-padding: 4; }
+.context-menu .menu-item { -fx-background-color: transparent; -fx-background-radius: 6; -fx-padding: 6 12 6 12; }
+.context-menu .menu-item .label { -fx-text-fill: -color-text; }
+.context-menu .menu-item:hover,
+.context-menu .menu-item:focused { -fx-background-color: -color-primary-soft; }
+.context-menu .separator .line { -fx-border-color: -color-border; -fx-border-width: 0.5 0 0 0; }
+
+/* ---- Dialogs (JavaFX Alert / Dialog panes) ---- */
+.dialog-pane,
+.dialog-pane > *,
+.dialog-pane .content,
+.dialog-pane .expandable-content,
+.dialog-pane .button-bar { -fx-background-color: -color-popup; }
+.dialog-pane .header-panel { -fx-background-color: -color-surface-hover; }
+.dialog-pane .header-panel .label,
+.dialog-pane .content.label,
+.dialog-pane .check-box { -fx-text-fill: -color-text; }
+.dialog-pane .button-bar .button {
+    -fx-background-color: -color-primary;
+    -fx-text-fill: -color-text-on-primary;
+    -fx-background-radius: 12;
+    -fx-padding: 6 16 6 16;
+}
+.dialog-pane .button-bar .button:hover { -fx-background-color: -color-primary-hover; }
+.dialog-pane .list-view { -fx-background-color: -color-bg-soft; }
+.dialog-pane .list-view .virtual-flow .clipped-container .sheet .list-cell {
+    -fx-background-color: -color-surface-hover;
+    -fx-text-fill: -color-text;
+    -fx-background-radius: 8;
+    -fx-background-insets: 2;
+}
+.dialog-pane .list-view .virtual-flow .clipped-container .sheet .list-cell:hover { -fx-background-color: -color-primary-soft; }
+.dialog-pane .list-view .virtual-flow .clipped-container .sheet .list-cell:selected { -fx-background-color: -color-primary-soft-hov; }
+.dialog-pane .list-view .virtual-flow .clipped-container .sheet .list-cell:empty { -fx-background-color: transparent; }
+.dialog-pane .combo-box .list-cell { -fx-text-fill: -color-text; -fx-background-color: transparent; }
+.dialog-pane .combo-box-popup .list-view,
+.dialog-pane .combo-box-popup .list-cell { -fx-background-color: -color-popup; }
+.dialog-pane .combo-box-popup .list-cell { -fx-text-fill: -color-text; }
+.dialog-pane .combo-box-popup .list-cell:hover { -fx-background-color: -color-primary-soft; }
+
+/* ---- Tab panes (modpack editor) ---- */
+.tab-pane .tab-header-area .tab-header-background { -fx-background-color: transparent; }
+.tab-pane .tab { -fx-background-insets: 2 2 0 2; }
+.tab-pane .tab-content-area { -fx-background-color: -color-surface; }
+
+/* ---- Tables (modpack editor) ---- */
+.table-view { -fx-border-width: 0; -fx-padding: 0; }
+/* Only the cells: a row is a .cell too, and clearing it hid the selection highlight. */
+.table-view .virtual-flow .clipped-container .sheet .table-cell { -fx-background-color: transparent; }
+.table-view .column-header-background { -fx-background-color: -color-surface-elevated; }
+.table-view .column-header .label { -fx-font-size: 11; }
+.table-view .table-row-cell {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -color-divider transparent;
+    -fx-border-width: 0 0 1 0;
+}
+.table-view .table-row-cell:odd { -fx-background-color: -color-divider; }
+.table-view .table-row-cell:hover { -fx-background-color: -color-primary-soft; }
+.table-view .table-row-cell:selected { -fx-background-color: -color-primary-soft-hov; }
+.table-view .table-row-cell:selected .table-cell { -fx-text-fill: -color-text; }
+.table-view .table-cell .text-field { -fx-text-fill: -color-text; -fx-background-color: -color-surface-hover; -fx-background-radius: 4; }
+.table-view .table-row-cell:empty { -fx-background-color: transparent; -fx-border-color: transparent; }
+.table-view .placeholder .label { -fx-text-fill: -color-text-subtle; }
+.table-view .column-resize-line { -fx-background-color: -color-primary; }
+.table-view .button {
+    -fx-background-color: -color-surface-hover;
+    -fx-text-fill: -color-text;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-padding: 2 8 2 8;
+    -fx-cursor: hand;
+}
+.table-view .button:hover { -fx-background-color: -color-primary-soft-hov; }
+.table-view .button:armed { -fx-background-color: -color-primary; -fx-text-fill: -color-text-on-primary; }
+
+/* ---- Plain JavaFX check boxes ---- */
+.check-box { -fx-text-fill: -color-text; }
+.check-box .box {
+    -fx-background-color: -color-surface-hover;
+    -fx-border-color: -color-border-strong;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+.check-box:selected .box { -fx-background-color: -color-primary; -fx-border-color: -color-primary; }
+.check-box:selected .mark { -fx-background-color: -color-text-on-primary; }
+
+/* ---- Help (?) button ---- */
+.helpButton.mfx-button {
+    -fx-background-color: -color-surface-hover;
+    -fx-background-radius: 50;
+    -fx-min-width: 28;
+    -fx-min-height: 28;
+    -fx-max-width: 28;
+    -fx-max-height: 28;
+    -fx-padding: 0;
+}
+.helpButton.mfx-button:hover { -fx-background-color: -color-primary-soft-hov; }
+.helpButton.mfx-button .text { -fx-fill: -color-text; -fx-font-weight: bold; -fx-font-size: 14; }
+
+/* ---- Launcher tooltips ---- */
+.mcl-tooltip {
+    -fx-background-color: -color-popup;
+    -fx-text-fill: -color-text;
+    -fx-background-radius: 6;
+    -fx-border-color: -color-popup-border;
+    -fx-border-radius: 6;
+    -fx-padding: 6 10 6 10;
+    -fx-font-size: 12;
+}
+
+/* ---- Top navigation bar and bottom bar ---- */
+.navBar .label,
+.bottomBar .label { -fx-text-fill: -color-text; -fx-font-size: 14; }
+.navBar .mfx-button,
+.bottomBar .mfx-button {
+    -fx-background-color: -color-surface-hover;
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 12;
+    -fx-padding: 4 12 4 12;
+    -fx-background-radius: 8;
+}
+.navBar .mfx-button:hover { -fx-background-color: -color-primary-soft; -fx-text-fill: -color-text; }
+.bottomBar .mfx-button:hover { -fx-background-color: -color-primary-soft; }
+
+/* ---- Settings navigation ---- */
+.settingsNavBtn.mfx-button { -fx-font-size: 13; }
+.settingsNavBtn.mfx-button.selected {
+    -fx-border-width: 0 0 0 3;
+    -fx-border-radius: 0 8 8 0;
+    -fx-background-radius: 0 8 8 0;
+}
 
 
 /* =====================================================================
@@ -898,11 +1177,11 @@
     -fx-fill: -color-text;
 }
 
-/* Pseudo-state .text rules at specificity (0,3,0) so they tie with — and
- * therefore beat on cascade order — the legacy theme sheets' equivalent rules
- * (e.g. `guiStyle-dark.css`'s `.mfx-button:focused .text { -fx-fill: #0C1017 }`)
- * that paint the inner Text node with colors picked for the OLD green-on-green
- * Material 3 button look. Without these, a focused or armed default button on
+/* Pseudo-state .text rules at specificity (0,3,0), so they tie with, and
+ * beat on cascade order, the equivalent rules the per-theme legacy sheets
+ * used to carry (e.g. `.mfx-button:focused .text { -fx-fill: #0C1017 }`),
+ * which painted the inner Text node with colors picked for the OLD
+ * green-on-green Material 3 button look. Without these, a focused or armed default button on
  * the new dark surface ends up with near-black text — visible right after a
  * click or tab-navigation as "the button text turned dark and unreadable."
  *
@@ -1402,9 +1681,9 @@
 }
 
 /* Toggle knob (.circle) and track (.line) — both must be token-driven so dark / light
- * / blue-gray / creeper themes share one source of truth. The legacy guiStyle-*.css
- * files still ship :selected .line strokes hardcoded to a Material green (#2E7D32);
- * those rules apply because the new sheets previously only set -fx-fill on the .line,
+ * / blue-gray / creeper themes share one source of truth. The per-theme legacy sheets
+ * (removed in 2026.10) shipped :selected .line strokes hardcoded to a Material green
+ * (#2E7D32); those rules applied because the new sheets previously only set -fx-fill on the .line,
  * but .line is a javafx.scene.shape.Line where fill is meaningless — stroke is what
  * paints. We now set stroke explicitly so the track follows -color-primary and the
  * knob+track read as one accent color. */
@@ -1573,8 +1852,8 @@
     -fx-background-color: transparent;
 }
 
-/* The legacy guiStyle-{theme}.css sheets paint .tab-content-area with an
- * opaque dark color (~90%), which blocks the Native theme's Mica backdrop
+/* The per-theme legacy sheets (removed in 2026.10) painted .tab-content-area
+ * with an opaque dark color (~90%), which blocked the Native theme's Mica backdrop
  * across the entire form area of the Modpack Editor. Force the content area
  * to use the theme bg token so it inherits whatever the active theme decides
  * — transparent on Native (Mica shines through), solid on every other dark
@@ -1783,48 +2062,37 @@
 /* =====================================================================
  * 12. Tooltip / context menu
  *
- * JavaFX gotcha: tooltips and context menus are rendered into separate
- * popup windows whose scene root is the popup content — NOT the launcher
- * window's rootPane. Lookup variables defined on `:root` (which is what
- * the ui-tokens-*.css sheets do) DO NOT propagate down into popup-window
- * scenes, so referencing `-color-*` inside a rule that matches a popup
- * node produces a runtime String→Paint ClassCastException and the rule
- * silently drops on the floor.
- *
- * Workaround: use literal hex values in these rules instead of lookup
- * variables. The defaults below are tuned for dark themes (matching
- * ui-tokens-dark.css surface / border / text); light-themed token sheets
- * (ui-tokens-light.css, ui-tokens-native-light.css) override these with
- * their own literal-hex versions for proper contrast.
- *
- * The native (Mica) token sheet has its own override too — see the
- * popup-surfaces section in ui-tokens-native.css.
+ * Tooltips and context menus render in their own popup windows. They
+ * resolve `-color-*` lookups through their owner node, so they pick up
+ * the theme as long as they are attached to a node inside a themed scene
+ * (Tooltip.install, setTooltip, ContextMenu.show(anchor, ...)), which is
+ * how the launcher shows all of them. A popup shown with only a Window
+ * as owner would have no lookups and fall back to modena's defaults.
+ * They use -color-popup, which every theme keeps opaque: there is no
+ * launcher surface or OS backdrop behind a popup window.
  * ===================================================================== */
 
 .tooltip {
-    -fx-background-color: #1E2533;
-    -fx-border-color: rgba(220, 224, 240, 0.12);
+    -fx-background-color: -color-popup;
+    -fx-border-color: -color-popup-border;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
-    -fx-text-fill: #EDEFF2;
+    -fx-text-fill: -color-text;
     -fx-font-size: 12px;
     -fx-padding: 6 10 6 10;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 12, 0.20, 0, 6);
+    -fx-effect: dropshadow(gaussian, -color-shadow, 12, 0.20, 0, 6);
 }
 
 .context-menu {
-    -fx-background-color: #1E2533;
-    -fx-border-color: rgba(220, 224, 240, 0.12);
+    -fx-background-color: -color-popup;
+    -fx-border-color: -color-popup-border;
     -fx-background-radius: 8;
     -fx-border-radius: 8;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 18, 0.20, 0, 8);
+    -fx-effect: dropshadow(gaussian, -color-shadow, 18, 0.20, 0, 8);
 }
 
-.menu-item .label  { -fx-text-fill: #EDEFF2; }
-/* Focus tint uses the dark-theme primary (#6FCF3D grass green) at moderate
- * alpha. Bluegray theme overrides this in its own token sheet because that
- * theme's primary is corporate blue rather than wordmark green. */
-.menu-item:focused { -fx-background-color: rgba(111, 207, 61, 0.20); }
+.menu-item .label  { -fx-text-fill: -color-text; }
+.menu-item:focused { -fx-background-color: -color-primary-soft; }
 
 
 /* =====================================================================

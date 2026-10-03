@@ -131,7 +131,7 @@ class RunningGamesSnapshotFxTest
             }
             StackPane root = new StackPane( tabs );
             root.getStyleClass().add( "rootPane" );
-            for ( String sheet : new String[]{ "guiStyle-dark.css", "ui/ui-base.css", "ui/ui-tokens-dark.css" } ) {
+            for ( String sheet : new String[]{ "ui/ui-base.css", "ui/ui-tokens-dark.css" } ) {
                 root.getStylesheets().add( getClass().getClassLoader().getResource( sheet ).toExternalForm() );
             }
             stage.setScene( new Scene( root, 1000, 680 ) );

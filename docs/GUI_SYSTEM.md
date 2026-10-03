@@ -17,7 +17,7 @@ Games window, and the library stays usable for launching more games.
 Code (paths relative to `src/main/java/com/micatechnologies/minecraft/launcher/`):
 - `gui/` -- screen controllers, windows, dialogs and the pure view models behind them
 - `src/main/resources/gui/` -- FXML layouts (`components/` holds the brand-logo fragments)
-- `src/main/resources/guiStyle-*.css` and `src/main/resources/ui/` -- theme stylesheets
+- `src/main/resources/ui/` -- theme stylesheets
 - `game/session/` -- `GameSession`, `GameSessionRegistry`, `GameLog` (what the Running Games window shows)
 
 ## Architecture
@@ -284,28 +284,40 @@ Vanilla versions get only this control. Packs with a manifest also get the verif
 
 ## Theming
 
-Each screen root gets three stylesheets, from lowest to highest precedence:
+Each screen root gets two stylesheets, from lowest to highest precedence:
 
-1. **Legacy theme sheet** (`guiStyle-{dark,light,bluegray,orangepurple,creeper}.css`): selectors not yet ported to the newer system.
-2. **`ui/ui-base.css`**: theme-agnostic component styling (font stack, cards, chips, buttons). It uses only `-color-*` lookup variables.
-3. **Token sheet** (`ui/ui-tokens-{dark,light,bluegray,orangepurple,creeper,native,native-light}.css`): defines the `-color-*` palette.
+1. **`ui/ui-base.css`**: theme-agnostic component styling (font stack, cards, chips, buttons, dialogs, tables, popups). It uses only `-color-*` lookup variables, never literal colours.
+2. **Token sheet** (`ui/ui-tokens-{dark,light,bluegray,orangepurple,creeper,native,native-light}.css`): defines the `-color-*` palette. Every token sheet defines the same set of tokens. `-color-popup` and `-color-popup-border` stay opaque in every theme, because popups and dialogs are separate windows with nothing behind them.
 
-`MCLauncherGuiWindow.forceThemeChange()` maps `ConfigManager.getTheme()` to a pair of sheets:
+Until 2026.10 a per-theme legacy sheet (`guiStyle-<theme>.css`) loaded underneath, with its own hard-coded palette. Its still-live rules now sit, mapped to tokens, in section 0 of `ui-base.css`.
 
-| Theme | Legacy + tokens |
+`MCLauncherGuiWindow.forceThemeChange()` maps `ConfigManager.getTheme()` to a token sheet (`themeStylesheetPaths` gives the full list, and is what the snapshot test renders):
+
+| Theme | Token sheet |
 |---|---|
-| Dark / Light / Blue Gray / Orange Purple / Creeper | the matching legacy sheet + token sheet |
+| Dark / Light / Blue Gray / Orange Purple / Creeper | the matching token sheet |
 | Automatic | Dark or Light, following `OsThemeUtilities.isOsDark()` |
-| Native | macOS and Windows: legacy dark/light + `ui-tokens-native` / `-native-light` (transparent surfaces over Mica or vibrancy). Linux: plain Dark/Light. |
+| Native | macOS and Windows: `ui-tokens-native` / `-native-light` (transparent surfaces over Mica or vibrancy). Linux: plain Dark/Light. |
 
-`applyTheme( legacy, tokens )` swaps the sheets only when they differ. It always paints the root
+**Inline styles.** `setStyle(...)` is only for values computed at runtime: background images, the
+hero gradient, window transparency, title-bar insets, theme swatches. Fixed sizes, weights and
+colours belong in a CSS class (`type-body-small`, `type-label-small`, `type-weight-bold` and so on),
+because the theme can't reach inline styles. Popups resolve tokens through their owner node, so
+attach tooltips and context menus to a node (`Tooltip.install`, `ContextMenu.show( anchor, ... )`).
+
+**Snapshots.** `ThemeSnapshotFxTest` (`MMCL_RUN_TESTFX=true`) renders every screen, two control
+galleries, a dialog and the popups in all seven theme variants to `build/target/snapshots/themes/`.
+`tools/ui-snapshots/diff_snapshots.py BEFORE AFTER` reports changed pixels per image and writes
+highlighted diffs. Every Maven run wipes `build/` (except `build/jdk`), so keep a baseline outside it.
+
+`applyTheme( tokens )` swaps the sheets only when they differ. It always paints the root
 background and scene fill (`themeBgHex`) as a fallback. On a real theme change it also updates the
 native chrome: DWM backdrop, caption and border colour, dark title bar, full repaint. Plain
 navigations skip that step to avoid flicker. `applyNativeThemeFill` goes transparent only where a
 backdrop really exists. The OS theme listener re-applies the theme only for Automatic and Native.
 
 Secondary windows (Running Games, Add account, help, wizard) call the static
-`MCLauncherGuiWindow.installCurrentThemeStylesheets( root )`. That gives them the same three sheets
+`MCLauncherGuiWindow.installCurrentThemeStylesheets( root )`. That gives them the same sheets
 with a solid background (no Mica). `GUIUtilities.isLightChrome( theme )` picks their title-bar mode.
 `MCLauncherHelpWindow.refreshTheme()` is the only secondary window refreshed by `forceThemeChange()`.
 

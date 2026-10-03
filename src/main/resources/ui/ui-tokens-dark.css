@@ -71,4 +71,11 @@
     -color-hero-stop-1:       rgba(111, 207, 61, 0.16);
     -color-hero-stop-2:       rgba(122, 92, 54, 0.10);
     -color-hero-stop-3:       rgba(0, 0, 0, 0);
+
+    /* === Popups (context menus, tooltips, dropdowns, dialogs) ===
+     * Always opaque: popups are separate windows with no launcher surface or
+     * OS backdrop behind them, so a translucent surface token would let the
+     * desktop show through. */
+    -color-popup:             #1E2533;
+    -color-popup-border:      rgba(220, 224, 240, 0.12);
 }

@@ -57,7 +57,7 @@ import java.util.Objects;
  *         isn't OS-default white while the session thread bootstraps — see {@link #attachPlaceholderVoxelsAsync()}.</li>
  *     <li>Persisting and restoring the window's bounds + maximized state across launches
  *         (debounced) — see {@link #installBoundsPersistence()} and {@link #restoreSavedBounds()}.</li>
- *     <li>Theme application: layering legacy + ui-base + token stylesheets and driving the matching native chrome
+ *     <li>Theme application: layering the ui-base and token stylesheets and driving the matching native chrome
  *         (Windows DWM Mica / caption color, macOS vibrancy / hidden-inset title bar) — see {@link #applyTheme}.</li>
  *     <li>OS-theme-change tracking via {@link OsThemeDetector} so Automatic / Native themes follow the OS.</li>
  *     <li>Platform integration shims that are no-ops off their target OS (Windows monitor-change taskbar nudge,
@@ -894,25 +894,6 @@ public class MCLauncherGuiWindow extends Application
         // rootPane's background through it), so a theme switch updates it automatically.
     }
 
-    /** Resource paths for the legacy per-theme stylesheets. Loaded first so the new
-     *  base + token sheets layered on top win where they declare the same selectors.
-     *
-     *  <p>Creeper has its own legacy sheet (rather than sharing legacy-dark with the
-     *  Dark + Native(dark) themes) because the dark/native legacy was retuned from
-     *  Material green to a brand-blue palette to match the modern token-sheet primary.
-     *  Creeper's brand is green, so it keeps a green-accented legacy sheet — the
-     *  sheet is a snapshot of legacy-dark from before the blue retune.</p> */
-    /** Legacy single-theme stylesheet for the Dark theme (also shared by the Native dark variant). */
-    private static final String LEGACY_DARK         = "guiStyle-dark.css";
-    /** Legacy single-theme stylesheet for the Light theme (also shared by the Native light variant). */
-    private static final String LEGACY_LIGHT        = "guiStyle-light.css";
-    /** Legacy single-theme stylesheet for the Blue/Gray theme. */
-    private static final String LEGACY_BLUE_GRAY    = "guiStyle-bluegray.css";
-    /** Legacy single-theme stylesheet for the Orange/Purple theme. */
-    private static final String LEGACY_ORANGE_PURPLE = "guiStyle-orangepurple.css";
-    /** Legacy single-theme stylesheet for the Creeper theme (green-accented snapshot of legacy-dark). */
-    private static final String LEGACY_CREEPER       = "guiStyle-creeper.css";
-
     /** Path to the brand-new theme-agnostic base sheet (font stack + component shell). */
     private static final String UI_BASE_SHEET       = "ui/ui-base.css";
 
@@ -932,33 +913,29 @@ public class MCLauncherGuiWindow extends Application
     /** Token sheet for the Native light variant — translucent surfaces over a light OS backdrop. */
     private static final String UI_TOKENS_NATIVE_LIGHT  = "ui/ui-tokens-native-light.css";
 
-    /** Applies the opaque Light theme (legacy-light + ui-tokens-light). */
+    /** Applies the opaque Light theme. */
     private void switchToLightTheme() {
-        applyTheme( LEGACY_LIGHT, UI_TOKENS_LIGHT );
+        applyTheme( UI_TOKENS_LIGHT );
     }
 
-    /** Applies the opaque Dark theme (legacy-dark + ui-tokens-dark). */
+    /** Applies the opaque Dark theme. */
     private void switchToDarkTheme() {
-        applyTheme( LEGACY_DARK, UI_TOKENS_DARK );
+        applyTheme( UI_TOKENS_DARK );
     }
 
-    /** Applies the opaque Blue/Gray theme (legacy-bluegray + ui-tokens-bluegray). */
+    /** Applies the opaque Blue/Gray theme. */
     private void switchToBlueGrayTheme() {
-        applyTheme( LEGACY_BLUE_GRAY, UI_TOKENS_BLUE_GRAY );
+        applyTheme( UI_TOKENS_BLUE_GRAY );
     }
 
-    /** Applies the opaque Orange/Purple theme (legacy-orangepurple + ui-tokens-orangepurple). */
+    /** Applies the opaque Orange/Purple theme. */
     private void switchToOrangePurpleTheme() {
-        applyTheme( LEGACY_ORANGE_PURPLE, UI_TOKENS_ORANGE_PURPLE );
+        applyTheme( UI_TOKENS_ORANGE_PURPLE );
     }
 
-    /** Creeper theme has its own legacy sheet so the green Minecraft-grass accent
-     *  carries through to selectors that still live in legacy (combo-box selected
-     *  state, settings nav, etc.). Dark + Native themes share legacy-dark, which
-     *  was retuned to brand blue — Creeper would otherwise pick up blue selections
-     *  with green modern tokens, an obvious inconsistency. */
+    /** Applies the opaque Creeper theme. */
     private void switchToCreeperTheme() {
-        applyTheme( LEGACY_CREEPER, UI_TOKENS_CREEPER );
+        applyTheme( UI_TOKENS_CREEPER );
     }
 
     /** Native theme — translucent surface palette with a real OS backdrop showing
@@ -982,10 +959,10 @@ public class MCLauncherGuiWindow extends Application
             // surfaces are loaded, THEN install the vibrancy via FXThemes so the JFX
             // content composites over the real desktop-tinted backdrop.
             if ( osDark ) {
-                applyTheme( LEGACY_DARK, UI_TOKENS_NATIVE );
+                applyTheme( UI_TOKENS_NATIVE );
             }
             else {
-                applyTheme( LEGACY_LIGHT, UI_TOKENS_NATIVE_LIGHT );
+                applyTheme( UI_TOKENS_NATIVE_LIGHT );
             }
             com.micatechnologies.minecraft.launcher.utilities.MacOsVibrancyManager
                     .apply( stage, osDark );
@@ -995,53 +972,41 @@ public class MCLauncherGuiWindow extends Application
         if ( !org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
             // Linux: no system vibrancy. Opaque palettes following OS dark/light.
             if ( osDark ) {
-                applyTheme( LEGACY_DARK, UI_TOKENS_DARK );
+                applyTheme( UI_TOKENS_DARK );
             }
             else {
-                applyTheme( LEGACY_LIGHT, UI_TOKENS_LIGHT );
+                applyTheme( UI_TOKENS_LIGHT );
             }
             return;
         }
 
         if ( osDark ) {
-            applyTheme( LEGACY_DARK, UI_TOKENS_NATIVE );
+            applyTheme( UI_TOKENS_NATIVE );
         }
         else {
-            applyTheme( LEGACY_LIGHT, UI_TOKENS_NATIVE_LIGHT );
+            applyTheme( UI_TOKENS_NATIVE_LIGHT );
         }
     }
 
-    /**
-     * Installs the chosen theme onto the active GUI's root pane. Layering, lowest precedence first:
-     * <ol>
-     *     <li>Legacy single-theme sheet (still defines selectors that the new system has not yet ported)</li>
-     *     <li>{@link #UI_BASE_SHEET} (component shell built on lookup variables)</li>
-     *     <li>The selected token sheet (defines the `-color-*` lookup palette)</li>
-     * </ol>
-     * Any previously-installed theme/token sheets are removed first so we never accumulate stylesheets across
-     * theme switches or scene transitions.
-     */
-    /** The (legacy, token) stylesheet pair whose native chrome (DWM backdrop,
+    /** The token sheet whose native chrome (DWM backdrop,
      *  caption/border, title-bar mode) is currently established on the window.
      *  Lets {@link #applyTheme} skip the chrome pipeline — and its synchronous
      *  RedrawWindow + Mica backdrop toggle, which flickered on every screen
      *  change — when a plain navigation re-applies the same theme. Null until
      *  the first applyTheme. */
-    private String appliedLegacySheet;
     private String appliedTokenSheet;
 
     /**
-     * Installs the given (legacy, token) stylesheet pair onto the active screen's root pane in layered order
-     * (legacy → {@link #UI_BASE_SHEET} → token), painting a matching inline background fall-back, and — only on an
+     * Installs {@link #UI_BASE_SHEET} and the given token sheet (last, so its {@code -color-*} palette wins)
+     * onto the active screen's root pane, painting a matching inline background fall-back, and — only on an
      * actual theme change to an already-showing window — driving the native chrome pipeline (Windows DWM backdrop,
      * caption/border color, title-bar dark mode, full repaint; macOS vibrancy teardown for opaque themes). A no-op
      * if no real screen is installed yet (the cold-start placeholder has no controller). Plain navigations that
      * re-apply the same theme skip the chrome pipeline to avoid a visible composition flicker.
      *
-     * @param legacySheet classpath path of the legacy single-theme stylesheet to install
-     * @param tokenSheet  classpath path of the {@code ui-tokens-*.css} sheet defining the {@code -color-*} palette
+     * @param tokenSheet classpath path of the {@code ui-tokens-*.css} sheet defining the {@code -color-*} palette
      */
-    private void applyTheme( String legacySheet, String tokenSheet ) {
+    private void applyTheme( String tokenSheet ) {
         GUIUtilities.JFXPlatformRun( () -> {
             // Cold-start window: the initial placeholder scene installed in start()
             // has no controller, so this.gui is null until the session thread's
@@ -1051,22 +1016,14 @@ public class MCLauncherGuiWindow extends Application
             // setScene will install the right stylesheets via forceThemeChange.
             if ( gui == null || gui.rootPane == null ) return;
             java.util.List< String > stylesheets = gui.rootPane.getStylesheets();
-            java.util.List< String > wanted = java.util.List.of(
-                    cssUrl( legacySheet ), cssUrl( UI_BASE_SHEET ), cssUrl( tokenSheet ) );
-            boolean alreadyApplied = stylesheets.size() >= 3
-                    && stylesheets.subList( stylesheets.size() - 3, stylesheets.size() ).equals( wanted );
+            java.util.List< String > wanted = java.util.List.of( cssUrl( UI_BASE_SHEET ), cssUrl( tokenSheet ) );
+            boolean alreadyApplied = stylesheets.size() >= 2
+                    && stylesheets.subList( stylesheets.size() - 2, stylesheets.size() ).equals( wanted );
 
             // Removing and re-adding identical sheets forces JavaFX to re-apply CSS to the
             // whole scene, so skip the churn when this root already has exactly these sheets
             // in place (an OS theme event that didn't change the outcome, a repeat call).
             if ( !alreadyApplied ) {
-                // Drop every legacy theme sheet. Whichever is "current" gets re-added below.
-                stylesheets.remove( cssUrl( LEGACY_DARK ) );
-                stylesheets.remove( cssUrl( LEGACY_LIGHT ) );
-                stylesheets.remove( cssUrl( LEGACY_BLUE_GRAY ) );
-                stylesheets.remove( cssUrl( LEGACY_ORANGE_PURPLE ) );
-                stylesheets.remove( cssUrl( LEGACY_CREEPER ) );
-
                 // Drop every token sheet. Whichever is "current" gets re-added below.
                 stylesheets.remove( cssUrl( UI_TOKENS_DARK ) );
                 stylesheets.remove( cssUrl( UI_TOKENS_LIGHT ) );
@@ -1079,8 +1036,7 @@ public class MCLauncherGuiWindow extends Application
                 // Drop the base sheet so we can re-install it in the correct order.
                 stylesheets.remove( cssUrl( UI_BASE_SHEET ) );
 
-                // Add in the layered order: legacy → base → tokens.
-                stylesheets.add( cssUrl( legacySheet ) );
+                // Add in the layered order: base → tokens.
                 stylesheets.add( cssUrl( UI_BASE_SHEET ) );
                 stylesheets.add( cssUrl( tokenSheet ) );
             }
@@ -1136,10 +1092,7 @@ public class MCLauncherGuiWindow extends Application
             // forced a synchronous RedrawWindow, causing a visible composition flicker.
             // Skip it when this is a plain navigation re-applying the same theme to an
             // already-showing window.
-            boolean themeUnchanged = legacySheet.equals( appliedLegacySheet )
-                                  && tokenSheet.equals( appliedTokenSheet )
-                                  && stage.isShowing();
-            appliedLegacySheet = legacySheet;
+            boolean themeUnchanged = tokenSheet.equals( appliedTokenSheet ) && stage.isShowing();
             appliedTokenSheet = tokenSheet;
             if ( themeUnchanged ) {
                 return;
@@ -1286,9 +1239,9 @@ public class MCLauncherGuiWindow extends Application
     }
 
     /**
-     * Resolves the classpath stylesheets for a theme, in the order they are installed: the legacy
-     * per-theme sheet, then the theme-agnostic base sheet, then the theme's token sheet (last, so its
-     * lookup variables win). Package-private so snapshot tests render exactly what the app loads.
+     * Resolves the classpath stylesheets for a theme, in the order they are installed: the
+     * theme-agnostic base sheet, then the theme's token sheet (last, so its lookup variables win).
+     * Package-private so snapshot tests render exactly what the app loads.
      *
      * @param theme  the configured theme name ({@code ConfigConstants.THEME_*})
      * @param osDark whether the OS is in dark mode; consulted for the Native and Automatic themes
@@ -1299,44 +1252,20 @@ public class MCLauncherGuiWindow extends Application
      */
     static java.util.List< String > themeStylesheetPaths( String theme, boolean osDark )
     {
-        final String legacy;
-        final String tokens;
-        switch ( theme ) {
-            case ConfigConstants.THEME_LIGHT -> {
-                legacy = LEGACY_LIGHT;
-                tokens = UI_TOKENS_LIGHT;
-            }
-            case ConfigConstants.THEME_BLUE_GRAY -> {
-                legacy = LEGACY_BLUE_GRAY;
-                tokens = UI_TOKENS_BLUE_GRAY;
-            }
-            case ConfigConstants.THEME_ORANGE_PURPLE -> {
-                legacy = LEGACY_ORANGE_PURPLE;
-                tokens = UI_TOKENS_ORANGE_PURPLE;
-            }
-            case ConfigConstants.THEME_CREEPER -> {
-                legacy = LEGACY_CREEPER;
-                tokens = UI_TOKENS_CREEPER;
-            }
-            case ConfigConstants.THEME_NATIVE -> {
-                legacy = osDark ? LEGACY_DARK : LEGACY_LIGHT;
-                tokens = osDark ? UI_TOKENS_NATIVE : UI_TOKENS_NATIVE_LIGHT;
-            }
-            case ConfigConstants.THEME_AUTOMATIC -> {
-                legacy = osDark ? LEGACY_DARK : LEGACY_LIGHT;
-                tokens = osDark ? UI_TOKENS_DARK : UI_TOKENS_LIGHT;
-            }
-            default -> {
-                legacy = LEGACY_DARK;
-                tokens = UI_TOKENS_DARK;
-            }
-        }
-
-        return java.util.List.of( legacy, UI_BASE_SHEET, tokens );
+        String tokens = switch ( theme ) {
+            case ConfigConstants.THEME_LIGHT -> UI_TOKENS_LIGHT;
+            case ConfigConstants.THEME_BLUE_GRAY -> UI_TOKENS_BLUE_GRAY;
+            case ConfigConstants.THEME_ORANGE_PURPLE -> UI_TOKENS_ORANGE_PURPLE;
+            case ConfigConstants.THEME_CREEPER -> UI_TOKENS_CREEPER;
+            case ConfigConstants.THEME_NATIVE -> osDark ? UI_TOKENS_NATIVE : UI_TOKENS_NATIVE_LIGHT;
+            case ConfigConstants.THEME_AUTOMATIC -> osDark ? UI_TOKENS_DARK : UI_TOKENS_LIGHT;
+            default -> UI_TOKENS_DARK;
+        };
+        return java.util.List.of( UI_BASE_SHEET, tokens );
     }
 
     /**
-     * Installs the launcher's current theme stylesheets (legacy + ui-base + tokens)
+     * Installs the launcher's current theme stylesheets (ui-base + tokens)
      * onto the given JavaFX {@link javafx.scene.Parent}. Used by auxiliary
      * windows (quick-start wizard, help, etc.) that want to render in the same
      * theme as the main launcher.
@@ -1368,7 +1297,6 @@ public class MCLauncherGuiWindow extends Application
 
         // Remove every known sheet variant first so this method is idempotent.
         for ( String path : new String[] {
-                LEGACY_DARK, LEGACY_LIGHT, LEGACY_BLUE_GRAY, LEGACY_ORANGE_PURPLE, LEGACY_CREEPER,
                 UI_TOKENS_DARK, UI_TOKENS_LIGHT, UI_TOKENS_BLUE_GRAY, UI_TOKENS_ORANGE_PURPLE,
                 UI_TOKENS_CREEPER, UI_TOKENS_NATIVE, UI_TOKENS_NATIVE_LIGHT, UI_BASE_SHEET
         } ) {

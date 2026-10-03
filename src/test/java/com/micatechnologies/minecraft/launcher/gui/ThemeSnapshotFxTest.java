@@ -262,7 +262,7 @@ class ThemeSnapshotFxTest
         return root;
     }
 
-    /** Controls that are styled mainly by the legacy sheets: tables, spinners, plain checkboxes,
+    /** Controls the per-theme legacy sheets used to style: tables, spinners, plain checkboxes,
      *  list views, dialog content, the danger and navigation button variants. */
     private static Parent secondGallery()
     {
@@ -398,8 +398,9 @@ class ThemeSnapshotFxTest
             }
             Scene scene = root.getScene() != null ? root.getScene() : new Scene( root, width, height );
             stage.setScene( scene );
-            stage.setWidth( width );
-            stage.setHeight( height );
+            // Fit the stage to the scene rather than setting its size: an explicit size sticks to
+            // the stage TestFX shares between test classes and would shrink the next class's scene.
+            stage.sizeToScene();
             stage.show();
         } );
         WaitForAsyncUtils.sleep( 300, TimeUnit.MILLISECONDS );

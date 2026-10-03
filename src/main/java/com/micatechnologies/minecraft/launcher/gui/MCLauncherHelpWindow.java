@@ -479,9 +479,8 @@ public class MCLauncherHelpWindow
     }
 
     /**
-     * Applies the current launcher theme CSS to the help window's JavaFX sidebar. Loads
-     * the legacy theme sheet first (for compatibility selectors), then the modern UI
-     * base + tokens sheets so the sidebar styling reads as part of the same app shell
+     * Applies the current launcher theme CSS to the help window's JavaFX sidebar: the
+     * UI base + tokens sheets, so the sidebar styling reads as part of the same app shell
      * as the main launcher window. Also reconciles the Native-theme surface (transparent over macOS
      * vibrancy / solid over Windows DWM), installs or clears the macOS {@code NSVisualEffectView}
      * vibrancy, and matches the OS title-bar chrome and Mica backdrop to the active theme.
@@ -494,12 +493,7 @@ public class MCLauncherHelpWindow
         appliedThemeKey = themeKey();
         root.getStylesheets().clear();
 
-        // Legacy sheet (still defines some baseline selectors not yet ported)
-        String legacy = resolveActiveThemeCss();
-        if ( legacy != null ) {
-            root.getStylesheets().add( legacy );
-        }
-        // Modern base sheet
+        // Base sheet
         String base = resolveResourceUrl( "ui/ui-base.css" );
         if ( base != null && !base.isEmpty() ) {
             root.getStylesheets().add( base );
@@ -517,7 +511,7 @@ public class MCLauncherHelpWindow
         // dark surface (the "black text on dark" the user hit). Give it a SOLID surface matching
         // the native light/dark state (and the help content CSS's own --color-bg) so the text reads
         // correctly, exactly like every non-native theme. Other themes get their solid bg via the
-        // theme stylesheets (no inline override needed — the legacy / token rules win their cascade).
+        // theme stylesheets (no inline override needed — the token rules win their cascade).
         String activeTheme = ConfigManager.getTheme();
         boolean isNative = ConfigConstants.THEME_NATIVE.equals( activeTheme );
         if ( isNative ) {
@@ -690,36 +684,6 @@ public class MCLauncherHelpWindow
             case ConfigConstants.THEME_CREEPER       -> "help/help-creeper.css";
             default                                  -> "help/help-dark.css";
         };
-    }
-
-    /**
-     * Returns the launcher's main theme CSS URL for the JavaFX sidebar styling.
-     *
-     * @return the external-form URL of the legacy theme sheet for the active theme, or {@code null}
-     *         if the resource cannot be located
-     * @since 2.0
-     */
-    private static String resolveActiveThemeCss()
-    {
-        String theme = ConfigManager.getTheme();
-        String cssName;
-        if ( ConfigConstants.THEME_NATIVE.equals( theme ) ) {
-            // Native follows OS dark/light: pair the matching legacy sheet so list-cell /
-            // scroll-bar / etc. baseline rules carry the right palette.
-            cssName = isOsDark() ? "guiStyle-dark.css" : "guiStyle-light.css";
-        }
-        else {
-            cssName = switch ( theme ) {
-                case ConfigConstants.THEME_LIGHT         -> "guiStyle-light.css";
-                case ConfigConstants.THEME_BLUE_GRAY     -> "guiStyle-bluegray.css";
-                case ConfigConstants.THEME_ORANGE_PURPLE -> "guiStyle-orangepurple.css";
-                // Creeper has no legacy companion; fall back to dark.
-                case ConfigConstants.THEME_CREEPER       -> "guiStyle-dark.css";
-                default                                  -> "guiStyle-dark.css";
-            };
-        }
-        URL url = MCLauncherHelpWindow.class.getClassLoader().getResource( cssName );
-        return url != null ? url.toExternalForm() : null;
     }
 
     /**

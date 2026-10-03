@@ -82,13 +82,12 @@
     -color-hero-stop-1:       rgba(6, 104, 225, 0.18);
     -color-hero-stop-2:       rgba(153, 204, 255, 0.10);
     -color-hero-stop-3:       rgba(0, 0, 0, 0);
+
+    /* === Popups (context menus, tooltips, dropdowns, dialogs) ===
+     * Always opaque: popups are separate windows with no launcher surface or
+     * OS backdrop behind them, so a translucent surface token would let the
+     * desktop show through. */
+    -color-popup:             #1E2533;
+    -color-popup-border:      rgba(220, 224, 240, 0.12);
 }
 
-/* ----- Popup-menu focus tint: Bluegray override -----
- *
- * ui-base.css's .menu-item:focused uses a green tint that matches the other
- * themes' grass-green primary; this theme uses corporate Mica blue so its
- * focused menu items need to be tinted with the blue at low alpha instead.
- * See ui-base.css §12 (Tooltip / context menu) for the rationale on hex-only
- * popup rules. */
-.menu-item:focused { -fx-background-color: rgba(6, 104, 225, 0.22); }

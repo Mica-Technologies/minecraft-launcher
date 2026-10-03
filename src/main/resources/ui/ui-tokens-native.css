@@ -101,6 +101,13 @@
     -color-hero-stop-1:       rgba(111, 207, 61, 0.18);
     -color-hero-stop-2:       rgba(122, 92, 54, 0.10);
     -color-hero-stop-3:       rgba(0, 0, 0, 0);
+
+    /* === Popups (context menus, tooltips, dropdowns, dialogs) ===
+     * Always opaque: popups are separate windows with no launcher surface or
+     * OS backdrop behind them, so a translucent surface token would let the
+     * desktop show through. */
+    -color-popup:             #1C2230;
+    -color-popup-border:      rgba(220, 224, 240, 0.12);
 }
 
 /* ----- Native rootPane: transparent so DWM Mica composites through -----
@@ -125,21 +132,14 @@
     -fx-background-color: transparent;
 }
 
-/* ----- Popup surfaces: force a solid background in the Native theme -----
+/* ----- Dropdown list: opaque in the Native theme -----
  *
- * `-color-surface-elevated` is intentionally translucent (8% white) so
- * in-window cards let the Mica backdrop bleed through. That trick only
- * works for content painted INSIDE the launcher window — popup nodes
- * (context menus, tooltips, combo-box dropdowns) live in their own
- * top-level popup windows that have NO Mica backdrop and NO underlying
- * launcher surface. At 8% white over the bare desktop they read as
- * nearly invisible. Override with an opaque, cool-toned dark so the
- * popup carries its own visual weight independent of whatever the user
- * has behind the launcher. */
-.context-menu,
-.tooltip,
+ * A MaterialFX combo's dropdown list is painted with the translucent
+ * surface token, which reads as nearly invisible over the bare desktop in
+ * its popup window. Tooltips and context menus already use the opaque
+ * -color-popup in ui-base.css. */
 .mfx-combo-box .mfx-list-view {
-    -fx-background-color: #1C2230;
+    -fx-background-color: -color-popup;
 }
 
 /* ----- Modpack-detail modal: force opaque surfaces in the Native theme -----
