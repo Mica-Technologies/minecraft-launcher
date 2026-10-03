@@ -343,4 +343,30 @@ class DisplayStringsBundleParityTest
         assertTrue( problemsByLocale.isEmpty(),
                 "Locales with broken escapes (locale -> problems): " + problemsByLocale );
     }
+
+    /**
+     * Bundle text uses ordinary apostrophes; {@code LocalizationManager.format} escapes them.
+     * A doubled {@code ''} would show up doubled wherever a string is used without formatting
+     * (FXML, {@code get}).
+     */
+    @Test
+    void noBundleUsesDoubledApostrophes()
+            throws IOException
+    {
+        java.util.List< String > doubled = new ArrayList<>();
+        for ( String key : english.stringPropertyNames() ) {
+            if ( english.getProperty( key ).contains( "''" ) ) {
+                doubled.add( "en:" + key );
+            }
+        }
+        for ( SupportedLocales.Entry entry : SupportedLocales.ENTRIES ) {
+            Properties locale = loadShippedLocaleFile( entry );
+            for ( String key : locale.stringPropertyNames() ) {
+                if ( locale.getProperty( key ).contains( "''" ) ) {
+                    doubled.add( entry.tag() + ":" + key );
+                }
+            }
+        }
+        assertTrue( doubled.isEmpty(), "Doubled apostrophes: " + doubled );
+    }
 }

@@ -149,7 +149,7 @@ public class LocalizationManager
         String template = get( key );
         if ( args == null || args.length == 0 ) return template;
         try {
-            return MessageFormat.format( template, args );
+            return MessageFormat.format( escapeApostrophes( template ), args );
         }
         catch ( IllegalArgumentException ex ) {
             // Template had bad / mismatched placeholders. Surface a debug
@@ -162,6 +162,25 @@ public class LocalizationManager
             }
             return sb.append( ']' ).toString();
         }
+    }
+
+    /**
+     * Makes every apostrophe in a bundle string literal for {@link MessageFormat}, which
+     * otherwise treats a single quote as the start of a quoted section: the apostrophe vanished
+     * and every {@code {0}} after it was printed as-is ("l'outil {0}" rendered "loutil {0}"). The
+     * old rule was to double apostrophes in the data, but machine translation never did, which
+     * broke hundreds of French, Italian and Turkish strings. Bundle text is now plain text with
+     * ordinary apostrophes everywhere, and this does the escaping. Package-private for tests.
+     *
+     * @param template the bundle string
+     *
+     * @return the template with each {@code '} doubled
+     *
+     * @since 2026.10
+     */
+    static String escapeApostrophes( String template )
+    {
+        return template.indexOf( '\'' ) < 0 ? template : template.replace( "'", "''" );
     }
 
     /** Returns the currently active resource bundle. Pass to

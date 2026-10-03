@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
@@ -235,5 +236,20 @@ class LocalizationManagerTest
         assertNotNull( LocalizationManager.currentBundle() );
         assertEquals( english.getProperty( "COMPLETED_TEXT" ),
                 LocalizationManager.currentBundle().getString( "COMPLETED_TEXT" ) );
+    }
+
+    @Test
+    void apostrophesInTemplatesSurviveFormatting()
+    {
+        // MessageFormat treats ' as a quote: "l'outil {0}" used to render "loutil {0}".
+        String template = LocalizationManager.escapeApostrophes( "l'outil {0} n'a pas démarré" );
+        assertEquals( "l'outil X n'a pas démarré", java.text.MessageFormat.format( template, "X" ) );
+    }
+
+    @Test
+    void templatesWithoutApostrophesAreUntouched()
+    {
+        String template = "Page {0} of {1}";
+        assertSame( template, LocalizationManager.escapeApostrophes( template ) );
     }
 }
