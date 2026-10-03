@@ -1595,6 +1595,8 @@ class GameModPackLauncher
                                      com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor
                                                 .redact( String.join( " ", argv ) ) ) );
             lastLaunchedProcess = ProcessUtilities.launchCommand( argv, pack.getPackRootFolder(), ioMode );
+            // While this game runs, nothing may update or delete the runtime it runs on.
+            RuntimeManager.markInUse( runtimeComponent, lastLaunchedProcess );
             return lastLaunchedProcess;
         }
         catch ( IOException e ) {

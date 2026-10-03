@@ -175,6 +175,21 @@ public final class GameSessionRegistry
     }
 
     /**
+     * Whether a pack is launching or running. Anything that rewrites a pack's files (verify,
+     * uninstall) must check this first.
+     *
+     * @param pack the pack
+     *
+     * @return {@code true} while it has an active session
+     *
+     * @since 2026.10
+     */
+    public boolean isPackActive( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack )
+    {
+        return pack != null && activeForPack( GameSession.keyFor( pack ) ) != null;
+    }
+
+    /**
      * Forgets an ended session. Active sessions can't be dismissed.
      *
      * @param id the session id

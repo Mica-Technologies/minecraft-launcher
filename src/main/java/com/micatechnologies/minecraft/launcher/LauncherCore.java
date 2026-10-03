@@ -655,8 +655,7 @@ public class LauncherCore
         // most one active game per pack and per account (and, until the GUI can show more
         // than one game, one in total). The session owns this launch's cancellation, bound
         // to this worker thread so cancel() can interrupt blocking downloads.
-        final String packKey = gameModPack.getSettingsKey() != null ? gameModPack.getSettingsKey()
-                                                                     : "name:" + gameModPack.getPackName();
+        final String packKey = com.micatechnologies.minecraft.launcher.game.session.GameSession.keyFor( gameModPack );
         final com.micatechnologies.minecraft.launcher.game.session.GameSession session =
                 new com.micatechnologies.minecraft.launcher.game.session.GameSession(
                         gameModPack, packKey, gameModPack.getFriendlyName(),

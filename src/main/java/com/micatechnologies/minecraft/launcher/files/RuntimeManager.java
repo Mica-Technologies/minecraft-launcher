@@ -226,6 +226,19 @@ public class RuntimeManager
             return;
         }
 
+        // A pending update (the background check drops the version marker) installs into
+        // this same folder. While a running game uses this runtime that would overwrite the
+        // files under it (and fail outright on Windows, which locks them), so keep using the
+        // installed runtime and leave the update for a launch when it is free.
+        if ( isInUse( component ) && installedJavaExec.exists() ) {
+            Logger.logStd( LocalizationManager.format( "log.runtimeManager.inUseDeferUpdate", component ) );
+            verifiedPaths.put( component, installedJavaExec.getAbsolutePath() );
+            verifiedVersions.put( component, "" );
+            reportProgress( progressWindow, progressCallback, label,
+                            LocalizationManager.get( "runtime.status.alreadyInstalled" ), 100 );
+            return;
+        }
+
         try {
             // Get the Mojang runtime index
             reportProgress( progressWindow, progressCallback, label,
@@ -498,6 +511,47 @@ public class RuntimeManager
         return verifiedVersions.get( component );
     }
 
+    /** Running game processes per runtime component, so nothing replaces a runtime in use. */
+    private static final Map< String, java.util.Set< Process > > inUse = new ConcurrentHashMap<>();
+
+    /**
+     * Records that a game process runs on a runtime. The record drops itself when the process
+     * exits.
+     *
+     * @param component the runtime component
+     * @param process   the game process
+     *
+     * @since 2026.10
+     */
+    public static void markInUse( String component, Process process )
+    {
+        if ( component == null || process == null ) {
+            return;
+        }
+        java.util.Set< Process > set = inUse.computeIfAbsent( component, k -> ConcurrentHashMap.newKeySet() );
+        set.add( process );
+        process.onExit().thenRun( () -> set.remove( process ) );
+    }
+
+    /**
+     * Whether a running game uses a runtime.
+     *
+     * @param component the runtime component
+     *
+     * @return {@code true} while any game process on it is alive
+     *
+     * @since 2026.10
+     */
+    public static boolean isInUse( String component )
+    {
+        java.util.Set< Process > set = component == null ? null : inUse.get( component );
+        if ( set == null ) {
+            return false;
+        }
+        set.removeIf( p -> !p.isAlive() );
+        return !set.isEmpty();
+    }
+
     /**
      * Deletes the runtime installation for the specified component.
      *
@@ -508,6 +562,9 @@ public class RuntimeManager
      * @since 3.0
      */
     public static void clearRuntime( String component ) throws IOException {
+        if ( isInUse( component ) ) {
+            throw new IOException( LocalizationManager.format( "runtime.error.inUse", component ) );
+        }
         String folderPath = getComponentRuntimeFolderPath( component );
         File folder = SynchronizedFileManager.getSynchronizedFile( folderPath );
         if ( folder.exists() ) {

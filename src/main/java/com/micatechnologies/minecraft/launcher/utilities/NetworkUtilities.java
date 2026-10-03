@@ -565,7 +565,7 @@ public class NetworkUtilities
             // the user as a stuck download.
             boolean registered = false;
             for ( int attempt = 1; attempt <= MAX_RETRIES; attempt++ ) {
-                File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
+                File tempFile = uniqueTempFile( destination );
                 URLConnection connection = null;
                 long attemptBytes = 0;   // bytes this attempt reported to the tracker, rolled back on failure
                 try {
@@ -629,7 +629,7 @@ public class NetworkUtilities
                             PowerStateManager.maybeThrottle( bytesRead );
                         }
                     }
-                    Files.move( tempFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING );
+                    moveIntoPlace( tempFile.toPath(), destination.toPath() );
                     if ( tracker != null ) {
                         tracker.completeDownload();
                     }
@@ -677,6 +677,38 @@ public class NetworkUtilities
                 }
             }
             throw lastException;
+        }
+    }
+
+    /**
+     * A temp file for one download attempt, unique to that attempt. Shared folders (the
+     * assets every pack uses) can be downloaded into by two launches at once; with the old
+     * fixed {@code <dest>.tmp} both wrote the same file, and one's move could publish the
+     * other's half-written bytes. Pure apart from reading the destination's path.
+     *
+     * @param destination the final file
+     *
+     * @return a sibling temp file name no other attempt uses
+     *
+     * @since 2026.10
+     */
+    static File uniqueTempFile( File destination )
+    {
+        return new File( destination.getAbsolutePath() + "." + java.util.UUID.randomUUID() + ".tmp" );
+    }
+
+    /**
+     * Publishes a finished download atomically where the file system allows, so a reader
+     * (another launch verifying the same asset) sees the old file or the complete new one,
+     * never a partial one.
+     */
+    private static void moveIntoPlace( java.nio.file.Path temp, java.nio.file.Path destination ) throws IOException
+    {
+        try {
+            Files.move( temp, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE );
+        }
+        catch ( java.nio.file.AtomicMoveNotSupportedException e ) {
+            Files.move( temp, destination, StandardCopyOption.REPLACE_EXISTING );
         }
     }
 

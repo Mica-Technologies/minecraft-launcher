@@ -278,8 +278,10 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
             catch ( IOException e ) {
                 Logger.logError( LocalizationManager.format( "log.runtime.deleteFailed", component ) );
                 Logger.logThrowable( e );
-                GUIUtilities.JFXPlatformRun(
-                        () -> statusLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "runtime.status.deleteFailed" ) ) );
+                String reason = RuntimeManager.isInUse( component )
+                                ? LocalizationManager.format( "runtime.error.inUse", component )
+                                : LocalizationManager.get( "runtime.status.deleteFailed" );
+                GUIUtilities.JFXPlatformRun( () -> statusLabel.setText( reason ) );
             }
 
             refreshRuntimeList();

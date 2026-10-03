@@ -1005,6 +1005,17 @@ public class GameModPackManager
      * @since 1.0
      */
     public synchronized static void uninstallModPack( GameModPack gameModPack ) {
+        // Deleting the folder of a pack that is launching or running pulls files out from under
+        // the game (and fails partway on Windows, which locks them). Refuse; the caller's UI
+        // already shows the pack as running.
+        if ( com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().isPackActive( gameModPack ) ) {
+            Logger.logWarningSilent( LocalizationManager.format( "log.modPackManager.uninstallRefusedRunning",
+                                                                 gameModPack.getPackName() ) );
+            com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
+                    LocalizationManager.get( "notification.pack.running.title" ),
+                    LocalizationManager.format( "notification.pack.running.uninstall", gameModPack.getFriendlyName() ) );
+            return;
+        }
         // Populate lists if not already done
         if ( installedGameModPacks == null ) {
             fetchModPackInfo();

@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
  * A {@link Process} the test ends on demand, so session lifecycles are deterministic and no
  * real JVM is spawned.
  */
-final class FakeProcess extends Process
+public final class FakeProcess extends Process
 {
     private final CompletableFuture< Process > exit = new CompletableFuture<>();
     private volatile int     code = -1;
@@ -34,7 +34,7 @@ final class FakeProcess extends Process
     volatile boolean destroyedForcibly;
 
     /** Ends the "game" with the given exit code. */
-    void finish( int exitCode )
+    public void finish( int exitCode )
     {
         code = exitCode;
         exit.complete( this );

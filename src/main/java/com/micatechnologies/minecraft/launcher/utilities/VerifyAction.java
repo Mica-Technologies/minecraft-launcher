@@ -99,6 +99,28 @@ public final class VerifyAction
      */
     public static void runForPacks( List< GameModPack > packs, Runnable onAllSucceeded )
     {
+        // Verifying rewrites a pack's files; a pack that is launching or running is skipped
+        // (and the user told) rather than repaired under the running game.
+        if ( packs != null ) {
+            List< GameModPack > running = new java.util.ArrayList<>();
+            for ( GameModPack p : packs ) {
+                if ( com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().isPackActive( p ) ) {
+                    running.add( p );
+                }
+            }
+            if ( !running.isEmpty() ) {
+                for ( GameModPack p : running ) {
+                    NotificationManager.warn( LocalizationManager.get( "notification.pack.running.title" ),
+                                              LocalizationManager.format( "notification.pack.running.verify",
+                                                                          p.getFriendlyName() ) );
+                }
+                packs = new java.util.ArrayList<>( packs );
+                packs.removeAll( running );
+                if ( packs.isEmpty() ) {
+                    return;  // nothing left to verify; don't run the continuation either
+                }
+            }
+        }
         if ( packs == null || packs.isEmpty() ) {
             if ( onAllSucceeded != null ) {
                 SystemUtilities.spawnNewTask( () -> {
@@ -111,7 +133,8 @@ public final class VerifyAction
             }
             return;
         }
-        SystemUtilities.spawnNewTask( () -> runForPacksOnWorker( packs, onAllSucceeded ) );
+        final List< GameModPack > toVerify = packs;
+        SystemUtilities.spawnNewTask( () -> runForPacksOnWorker( toVerify, onAllSucceeded ) );
     }
 
     /**

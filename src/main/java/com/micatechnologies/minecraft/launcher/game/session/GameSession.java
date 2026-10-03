@@ -113,6 +113,21 @@ public final class GameSession
         this.clock = clock;
     }
 
+    /**
+     * The identity sessions use for a pack: its settings key, or its name when it has none.
+     *
+     * @param pack the pack
+     *
+     * @return the key
+     *
+     * @since 2026.10
+     */
+    public static String keyFor( GameModPack pack )
+    {
+        String key = pack.getSettingsKey();
+        return key != null ? key : "name:" + pack.getPackName();
+    }
+
     /** @return a process-unique id */
     public long id() { return id; }
 
