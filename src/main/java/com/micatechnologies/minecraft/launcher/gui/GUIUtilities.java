@@ -77,7 +77,7 @@ public class GUIUtilities
         // Create a question dialog with the specified and created information/messages
         CountDownLatch waitForResponse = new CountDownLatch( 1 );
         AtomicInteger index = new AtomicInteger( 0 );
-        JFXPlatformRun( () -> {
+        runDialog( waitForResponse, () -> {
             Alert questionAlert = new Alert( Alert.AlertType.CONFIRMATION );
             questionAlert.setTitle( title );
             questionAlert.setHeaderText( headerText );
@@ -120,8 +120,6 @@ public class GUIUtilities
                 index.set( 2 );
             }
 
-            // Release code from waiting
-            waitForResponse.countDown();
         } );
 
         // Wait for question to be acknowledged
@@ -180,7 +178,7 @@ public class GUIUtilities
     {
         CountDownLatch waitForResponse = new CountDownLatch( 1 );
         AtomicInteger index = new AtomicInteger( 0 );
-        JFXPlatformRun( () -> {
+        runDialog( waitForResponse, () -> {
             Alert questionAlert = new Alert( Alert.AlertType.CONFIRMATION );
             questionAlert.setTitle( title );
             questionAlert.setHeaderText( headerText );
@@ -229,7 +227,6 @@ public class GUIUtilities
             else if ( opt.isPresent() && opt.get() == btn2 ) {
                 index.set( 2 );
             }
-            waitForResponse.countDown();
         } );
 
         try {
@@ -252,7 +249,7 @@ public class GUIUtilities
     public static void showErrorMessage( String contentText, Stage owner ) {
         // Create an error with the specified and created information/messages
         CountDownLatch waitForError = new CountDownLatch( 1 );
-        JFXPlatformRun( () -> {
+        runDialog( waitForError, () -> {
             Alert errorAlert = new Alert( Alert.AlertType.ERROR );
             errorAlert.setTitle( LocalizationManager.get( "dialog.alert.error.title" ) );
             errorAlert.setHeaderText( LocalizationManager.get( "dialog.alert.error.header" ) );
@@ -265,8 +262,6 @@ public class GUIUtilities
             themeAlertChrome( errorAlert );
             errorAlert.showAndWait();
 
-            // Release code from waiting
-            waitForError.countDown();
         } );
 
         // Wait for error to be acknowledged
@@ -315,7 +310,7 @@ public class GUIUtilities
      */
     public static void showErrorMessageMultiline( String contentText, Stage owner ) {
         CountDownLatch waitForError = new CountDownLatch( 1 );
-        JFXPlatformRun( () -> {
+        runDialog( waitForError, () -> {
             Alert errorAlert = new Alert( Alert.AlertType.ERROR );
             errorAlert.setTitle( LocalizationManager.get( "dialog.alert.error.title" ) );
             errorAlert.setHeaderText( LocalizationManager.get( "dialog.alert.error.header" ) );
@@ -340,7 +335,6 @@ public class GUIUtilities
 
             themeAlertChrome( errorAlert );
             errorAlert.showAndWait();
-            waitForError.countDown();
         } );
 
         try {
@@ -442,7 +436,7 @@ public class GUIUtilities
         // Create an error with the specified and created information/messages
         CountDownLatch waitForError = new CountDownLatch( 1 );
         AtomicBoolean retry = new AtomicBoolean( false );
-        JFXPlatformRun( () -> {
+        runDialog( waitForError, () -> {
             Alert errorAlert = new Alert( Alert.AlertType.ERROR );
             errorAlert.setTitle( LocalizationManager.get( "dialog.alert.error.title" ) );
             errorAlert.setHeaderText( LocalizationManager.get( "dialog.alert.error.header" ) );
@@ -470,8 +464,6 @@ public class GUIUtilities
                 retry.set( true );
             }
 
-            // Release code from waiting
-            waitForError.countDown();
         } );
 
         // Wait for error to be acknowledged
@@ -511,7 +503,7 @@ public class GUIUtilities
     public static void showWarningMessage( String contentText, Stage owner ) {
         // Create a warning with the specified and created information/messages
         CountDownLatch waitForWarning = new CountDownLatch( 1 );
-        JFXPlatformRun( () -> {
+        runDialog( waitForWarning, () -> {
             Alert warningAlert = new Alert( Alert.AlertType.WARNING );
             warningAlert.setTitle( LocalizationManager.get( "dialog.alert.warning.title" ) );
             warningAlert.setHeaderText( LocalizationManager.get( "dialog.alert.warning.header" ) );
@@ -524,8 +516,6 @@ public class GUIUtilities
             themeAlertChrome( warningAlert );
             warningAlert.showAndWait();
 
-            // Release code from waiting
-            waitForWarning.countDown();
         } );
 
         // Wait for error to be acknowledged
@@ -560,6 +550,33 @@ public class GUIUtilities
      *
      * @since 1.1
      */
+    /**
+     * Runs a dialog's body on the FX thread and releases its latch however the body ends, so
+     * the calling worker's {@code await()} can't hang. Before this, a dialog body that threw
+     * never reached its {@code countDown()}, and in a session with no JavaFX toolkit (server,
+     * TUI) {@link #JFXPlatformRun} skips the body entirely, which left the latch at one
+     * forever. When the body never started, the latch is released straight away and the
+     * caller sees its "no answer" default.
+     *
+     * @param latch the latch the caller awaits
+     * @param body  the dialog to show
+     */
+    private static void runDialog( CountDownLatch latch, Runnable body ) {
+        java.util.concurrent.atomic.AtomicBoolean started = new java.util.concurrent.atomic.AtomicBoolean();
+        JFXPlatformRun( () -> {
+            started.set( true );
+            try {
+                body.run();
+            }
+            finally {
+                latch.countDown();
+            }
+        } );
+        if ( !started.get() ) {
+            latch.countDown();
+        }
+    }
+
     public static void JFXPlatformRun( Runnable r ) {
         // If currently on JavaFX thread, run the runnable
         if ( Platform.isFxApplicationThread() ) {

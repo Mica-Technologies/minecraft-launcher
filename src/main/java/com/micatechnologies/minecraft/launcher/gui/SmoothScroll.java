@@ -157,6 +157,18 @@ public final class SmoothScroll
             Node content = scrollPane.getContent();
             if ( content == null ) return;
 
+            // Purely horizontal gestures (trackpad side-swipes) aren't ours to animate:
+            // leave them to whatever scrolls horizontally underneath.
+            if ( event.getDeltaY() == 0 ) return;
+
+            // This is a capture-phase filter, so it sees the wheel before any nested
+            // scrollable does. Consuming unconditionally made the editor's text areas, the
+            // MCP setup snippet and every nested list impossible to wheel-scroll: the page
+            // scrolled instead. Let a nested scrollable under the pointer have the event.
+            if ( event.getTarget() instanceof Node aimedAt && isInsideNestedScrollable( aimedAt, scrollPane ) ) {
+                return;
+            }
+
             double contentHeight  = content.getLayoutBounds().getHeight();
             double viewportHeight = scrollPane.getViewportBounds().getHeight();
             double scrollable     = contentHeight - viewportHeight;
@@ -179,6 +191,32 @@ public final class SmoothScroll
             // chasing the freshly-updated target.
             ticker.start();
         } );
+    }
+
+    /**
+     * Whether a node sits inside a scrollable control nested within {@code outer}: a text
+     * area, list, table, tree, web view or another scroll pane. Walks the parent chain from
+     * the event target up to {@code outer}.
+     *
+     * @param target the node the wheel event is aimed at
+     * @param outer  the smooth-scrolled pane
+     *
+     * @return {@code true} when something between them should get the wheel first
+     */
+    private static boolean isInsideNestedScrollable( Node target, ScrollPane outer )
+    {
+        for ( Node n = target; n != null && n != outer; n = n.getParent() ) {
+            if ( n instanceof javafx.scene.control.TextArea
+                    || n instanceof javafx.scene.control.ListView
+                    || n instanceof javafx.scene.control.TableView
+                    || n instanceof javafx.scene.control.TreeView
+                    || n instanceof javafx.scene.control.TreeTableView
+                    || n instanceof javafx.scene.web.WebView
+                    || ( n instanceof ScrollPane && n != outer ) ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

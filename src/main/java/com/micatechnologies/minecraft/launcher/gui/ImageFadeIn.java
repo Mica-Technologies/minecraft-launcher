@@ -65,17 +65,29 @@ final class ImageFadeIn
      *
      * @param view the image view to install the fade on; null-safe (no-op)
      */
+    /** Key under which a view's in-flight fade keeps its detach hook. */
+    private static final Object PENDING_KEY = new Object();
+
     static void apply( ImageView view )
     {
         if ( view == null ) {
             return;
         }
+        // A pooled card can rebind while its previous image is still loading. Drop that
+        // earlier fade's listeners first, or they'd later fade in (or keep hiding) an image
+        // the view no longer shows.
+        if ( view.getProperties().remove( PENDING_KEY ) instanceof Runnable previous ) {
+            previous.run();
+        }
         Image image = view.getImage();
         if ( image == null ) {
+            view.setOpacity( 1.0 );
             return;
         }
-        // Already loaded (cache hit, classpath URL, etc.) — no fade needed.
+        // Already loaded (cache hit, classpath URL, etc.) — no fade needed. Restore full
+        // opacity: an earlier fade on this view may have left it at 0.
         if ( image.getProgress() >= 1.0 && !image.isError() ) {
+            view.setOpacity( 1.0 );
             return;
         }
         view.setOpacity( 0.0 );
@@ -87,6 +99,7 @@ final class ImageFadeIn
         final ChangeListener< Number >[] progressListener = new ChangeListener[ 1 ];
         final ChangeListener< Boolean >[] errorListener = new ChangeListener[ 1 ];
         final Runnable detach = () -> {
+            view.getProperties().remove( PENDING_KEY );
             if ( progressListener[ 0 ] != null ) {
                 image.progressProperty().removeListener( progressListener[ 0 ] );
             }
@@ -115,5 +128,6 @@ final class ImageFadeIn
         };
         image.progressProperty().addListener( progressListener[ 0 ] );
         image.errorProperty().addListener( errorListener[ 0 ] );
+        view.getProperties().put( PENDING_KEY, detach );
     }
 }
