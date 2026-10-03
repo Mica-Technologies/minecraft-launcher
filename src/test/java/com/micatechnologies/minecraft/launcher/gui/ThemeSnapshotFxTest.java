@@ -146,6 +146,9 @@ class ThemeSnapshotFxTest
             AtomicReference< Parent > gallery = new AtomicReference<>();
             robot.interact( () -> gallery.set( gallery() ) );
             render( robot, theme, gallery.get(), "gallery", 1000, 980 );
+            robot.interact( () -> gallery.set( secondGallery() ) );
+            render( robot, theme, gallery.get(), "gallery-2", 1000, 980 );
+            renderPopups( robot, theme );
         }
     }
 
@@ -256,6 +259,99 @@ class ThemeSnapshotFxTest
         StackPane root = new StackPane( column );
         root.getStyleClass().add( "rootPane" );
         return root;
+    }
+
+    /** Controls that are styled mainly by the legacy sheets: tables, spinners, plain checkboxes,
+     *  list views, dialog content, the danger and navigation button variants. */
+    private static Parent secondGallery()
+    {
+        VBox column = new VBox( 14 );
+        column.setPadding( new Insets( 20 ) );
+
+        FlowPane buttons = new FlowPane( 10, 10 );
+        MFXButton danger = new MFXButton( "dangerZone" );
+        danger.getStyleClass().add( "dangerZone" );
+        MFXButton nav = new MFXButton( "settingsNavBtn" );
+        nav.getStyleClass().add( "settingsNavBtn" );
+        MFXButton navSelected = new MFXButton( "settingsNavBtn selected" );
+        navSelected.getStyleClass().addAll( "settingsNavBtn", "selected" );
+        MFXButton logout = new MFXButton( "logoutBtn" );
+        logout.getStyleClass().add( "logoutBtn" );
+        MFXButton help = new MFXButton( "?" );
+        help.getStyleClass().add( "helpButton" );
+        MFXToggleButton disabledToggle = new MFXToggleButton( "Disabled toggle" );
+        disabledToggle.setDisable( true );
+        buttons.getChildren().addAll( danger, nav, navSelected, logout, help, disabledToggle );
+        column.getChildren().add( buttons );
+
+        javafx.scene.control.CheckBox checked = new javafx.scene.control.CheckBox( "Plain checkbox" );
+        checked.setSelected( true );
+        javafx.scene.control.Spinner< Integer > spinner = new javafx.scene.control.Spinner<>( 1, 64, 8 );
+        spinner.setEditable( true );
+        column.getChildren().add( new HBox( 16, checked, new javafx.scene.control.CheckBox( "Unchecked" ),
+                                            spinner ) );
+
+        javafx.scene.control.TableView< String[] > table = new javafx.scene.control.TableView<>();
+        for ( int c = 0; c < 3; c++ ) {
+            final int col = c;
+            javafx.scene.control.TableColumn< String[], String > column1 =
+                    new javafx.scene.control.TableColumn<>( "Column " + ( c + 1 ) );
+            column1.setCellValueFactory( d -> new javafx.beans.property.SimpleStringProperty( d.getValue()[ col ] ) );
+            column1.setPrefWidth( 160 );
+            table.getColumns().add( column1 );
+        }
+        for ( int r = 0; r < 4; r++ ) {
+            table.getItems().add( new String[]{ "mods/example-" + r + ".jar", "1.2." + r, r % 2 == 0 ? "OK" : "" } );
+        }
+        table.getSelectionModel().select( 1 );
+        table.setPrefHeight( 170 );
+        io.github.palexdev.materialfx.controls.MFXListView< String > mfxList =
+                new io.github.palexdev.materialfx.controls.MFXListView<>(
+                        FXCollections.observableArrayList( "MFX list one", "MFX list two", "MFX list three" ) );
+        mfxList.setPrefSize( 240, 170 );
+        column.getChildren().add( new HBox( 12, table, mfxList ) );
+
+        DialogPane dialog = new DialogPane();
+        dialog.setHeaderText( "Dialog with a list" );
+        ListView< String > dialogList = new ListView<>( FXCollections.observableArrayList( "Dialog row one",
+                                                                                           "Dialog row two" ) );
+        dialogList.getSelectionModel().select( 0 );
+        dialogList.setPrefHeight( 90 );
+        javafx.scene.control.CheckBox dialogCheck = new javafx.scene.control.CheckBox( "Dialog checkbox" );
+        dialog.setContent( new VBox( 8, dialogList, dialogCheck ) );
+        dialog.getButtonTypes().addAll( ButtonType.OK, ButtonType.CANCEL );
+        dialog.setMaxWidth( 480 );
+        column.getChildren().add( dialog );
+
+        StackPane root = new StackPane( column );
+        root.getStyleClass().add( "rootPane" );
+        return root;
+    }
+
+    /** A context menu and a launcher tooltip, each captured from its own popup window. */
+    private void renderPopups( FxRobot robot, ThemeCase theme ) throws Exception
+    {
+        Label anchor = new Label( "Popup anchor" );
+        StackPane root = new StackPane( anchor );
+        root.getStyleClass().add( "rootPane" );
+        render( robot, theme, root, "popup-anchor", 400, 300 );
+
+        javafx.scene.control.ContextMenu menu = new javafx.scene.control.ContextMenu(
+                new javafx.scene.control.MenuItem( "Open folder" ), new javafx.scene.control.MenuItem( "Copy link" ),
+                new javafx.scene.control.SeparatorMenuItem(), new javafx.scene.control.MenuItem( "Delete" ) );
+        javafx.scene.control.Tooltip tip = new javafx.scene.control.Tooltip( "A launcher tooltip" );
+        tip.getStyleClass().add( "mcl-tooltip" );
+        for ( javafx.stage.PopupWindow popup : new javafx.stage.PopupWindow[]{ menu, tip } ) {
+            robot.interact( () -> popup.show( anchor, stage.getX() + 40, stage.getY() + 40 ) );
+            WaitForAsyncUtils.sleep( 300, TimeUnit.MILLISECONDS );
+            WaitForAsyncUtils.waitForFxEvents();
+            AtomicReference< WritableImage > shot = new AtomicReference<>();
+            robot.interact( () -> shot.set( popup.getScene().snapshot( null ) ) );
+            robot.interact( popup::hide );
+            String name = popup == menu ? "popup-context-menu" : "popup-tooltip";
+            File out = new File( "build/target/snapshots/themes/" + theme.dir() + "/" + name + ".png" );
+            ImageIO.write( toBuffered( shot.get() ), "png", out );
+        }
     }
 
     private void render( FxRobot robot, ThemeCase theme, Parent root, String name, double width, double height )
