@@ -266,7 +266,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             exitBtn.fire();
         } );
 
-        SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Selecting a Mod Pack" ) );
+        SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( LocalizationManager.get( "discordRpc.screen.selectingPack" ) ) );
 
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
 
@@ -324,7 +324,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         settingsBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToSettingsGui();
-                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Settings" ) );
+                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( LocalizationManager.get( "discordRpc.screen.settings" ) ) );
             }
             catch ( IOException e ) {
                 Logger.logError( LocalizationManager.get( "log.mainGui.loadSettingsFailed" ) );
@@ -336,7 +336,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         libraryBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToGameLibraryGui();
-                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Browsing modpacks" ) );
+                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( LocalizationManager.get( "discordRpc.screen.browsing" ) ) );
             }
             catch ( IOException e ) {
                 Logger.logError( LocalizationManager.get( "log.mainGui.loadLibraryFailed" ) );
@@ -356,7 +356,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 if ( settingsGui != null ) {
                     GUIUtilities.JFXPlatformRun( () -> settingsGui.showCategory( 0 ) );
                 }
-                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Settings" ) );
+                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( LocalizationManager.get( "discordRpc.screen.settings" ) ) );
             }
             catch ( IOException ex ) {
                 Logger.logError( LocalizationManager.get( "log.mainGui.loadSettingsAccountFailed" ) );

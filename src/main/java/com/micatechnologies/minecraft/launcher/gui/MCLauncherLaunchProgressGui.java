@@ -188,8 +188,9 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
     {
         // Drop the tracker subscription so the listener doesn't keep
         // a reference to this GUI alive past scene transition.
+        Object tracker = attachedTracker;
         detachFromTracker();
-        GUIUtilities.JFXPlatformRun( TaskbarProgressManager::stop );
+        GUIUtilities.JFXPlatformRun( () -> TaskbarProgressManager.endLaunchProgress( tracker ) );
     }
 
     /**
@@ -537,7 +538,7 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
             }
         }
         if ( total > 0 ) {
-            TaskbarProgressManager.setProgress( accumulated / total );
+            TaskbarProgressManager.setLaunchProgress( attachedTracker, accumulated / total );
         }
     }
 }

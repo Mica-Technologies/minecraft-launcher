@@ -235,6 +235,13 @@ public class DiscordRpcUtility
      */
     public static void setMenuPresence( String screenName )
     {
+        // While a game runs, presence shows that game (see RunningGameFollower); browsing the
+        // launcher's screens meanwhile mustn't flip it back to "In menus".
+        for ( var session : com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().active() ) {
+            if ( session.phase() == com.micatechnologies.minecraft.launcher.game.session.GameSession.Phase.RUNNING ) {
+                return;
+            }
+        }
         clearJoinParty();
         setRichPresence( LocalizationManager.get( "discordRpc.state.inMenus" ), screenName, OffsetDateTime.now(),
                           "mica_minecraft_launcher", LocalizationManager.get( "discordRpc.image.launcher" ),

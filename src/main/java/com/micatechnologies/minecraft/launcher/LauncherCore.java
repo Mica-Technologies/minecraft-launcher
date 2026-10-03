@@ -436,6 +436,45 @@ public class LauncherCore
         return false; // Cancel
     }
 
+    /** Set once the keyboard RGB and Discord presence follow the running games. */
+    private static final AtomicBoolean followerInstalled = new AtomicBoolean( false );
+
+    /**
+     * Makes keyboard RGB and Discord presence follow the running games: they show the most
+     * recently started game and return to the menu state only when the last game exits.
+     * Installed on the first launch; idempotent.
+     */
+    private static void ensureRunningGameFollower() {
+        if ( !followerInstalled.compareAndSet( false, true ) ) {
+            return;
+        }
+        var registry = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get();
+        var follower = new com.micatechnologies.minecraft.launcher.game.session.RunningGameFollower(
+                new com.micatechnologies.minecraft.launcher.game.session.RunningGameFollower.Sink()
+                {
+                    @Override
+                    public void showGame( com.micatechnologies.minecraft.launcher.game.session.GameSession s )
+                    {
+                        // RgbIntegration and Discord each bail when switched off, and contain
+                        // their own failures.
+                        SystemUtilities.spawnNewTask( () -> {
+                            com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onPlayStarted( s.pack() );
+                            DiscordRpcUtility.setGamePresence( s.pack() );
+                        } );
+                    }
+
+                    @Override
+                    public void showNoGame()
+                    {
+                        SystemUtilities.spawnNewTask( () -> {
+                            com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onPlayEnded();
+                            DiscordRpcUtility.setMenuPresence( LocalizationManager.get( "discordRpc.screen.selectingPack" ) );
+                        } );
+                    }
+                } );
+        registry.addListener( () -> follower.update( registry.sessions() ) );
+    }
+
     /**
      * Tells the user why a launch was refused: the pack is already running, its account is
      * already playing something else, or (while the GUI can follow only one game) another game
@@ -625,6 +664,7 @@ public class LauncherCore
                         launchUser == null ? null : launchUser.name(),
                         System::currentTimeMillis );
         session.bindWorker( Thread.currentThread() );
+        ensureRunningGameFollower();
         com.micatechnologies.minecraft.launcher.game.session.LaunchAdmission.Decision admission =
                 com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().tryRegister( session );
         if ( !admission.ok() ) {
@@ -689,7 +729,7 @@ public class LauncherCore
                     // still be wedged in a non-interruptible HTTP read for several seconds
                     // after cancel; leaving the taskbar partial-progress sitting there
                     // makes the cancelled launch look like it's still going.
-                    TaskbarProgressManager.stop();
+                    TaskbarProgressManager.endLaunchProgress( tracker );
                     // Navigate back optimistically — even if the worker thread is wedged in
                     // a non-interruptible HTTP read, the user gets their UI back NOW.
                     SystemUtilities.spawnNewTask( () -> GUIUtilities.JFXPlatformRun( () -> {
@@ -729,7 +769,7 @@ public class LauncherCore
                     if ( !allStepsCompleted( tracker ) ) return;
                     if ( !readyToastFired.compareAndSet( false, true ) ) return;
 
-                    TaskbarProgressManager.stop();
+                    TaskbarProgressManager.endLaunchProgress( tracker );
                     // Toast that the pack is ready when it was a long prep (>10s) OR when the
                     // launcher isn't focused — a user who tabbed away during the install/launch
                     // gets pulled back even on a quick prep, while someone watching the progress
@@ -761,7 +801,8 @@ public class LauncherCore
                 // owned the failed download.
                 final com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker
                         retryTrackerRef = tracker;
-                com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.setRetryNoticeListener(
+                final Runnable removeRetryListener =
+                        com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.addRetryNoticeListener(
                         notice -> {
                             if ( session.isCancelled() ) return;
                             for ( var s : retryTrackerRef.runningSteps() ) {
@@ -773,7 +814,8 @@ public class LauncherCore
                 // are currently RUNNING, so a big resource pack / mod download shows movement
                 // instead of a frozen line. Same push-to-all-running-rows simplification as
                 // the retry listener (the download call has no step context to target one row).
-                com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.setDownloadProgressListener(
+                final Runnable removeProgressListener =
+                        com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.addDownloadProgressListener(
                         notice -> {
                             if ( session.isCancelled() ) return;
                             for ( var s : retryTrackerRef.runningSteps() ) {
@@ -788,10 +830,8 @@ public class LauncherCore
                     // Always clear the listeners so subsequent background activity
                     // (manifest revalidates, the next launch attempt) doesn't push
                     // notices into a torn-down GUI.
-                    com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities
-                            .setRetryNoticeListener( null );
-                    com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities
-                            .setDownloadProgressListener( null );
+                    removeRetryListener.run();
+                    removeProgressListener.run();
                     // Release the launch progress provider (and the progress-window
                     // labels it captures) now that progress reporting is done. Swap
                     // rather than set(null) so the cached launcher — and its
@@ -810,7 +850,7 @@ public class LauncherCore
                         orphan.destroyForcibly();
                     }
                     Logger.logStd( LocalizationManager.get( "log.launcherCore.launchCancelledAfterSpawn" ) );
-                    TaskbarProgressManager.stop();
+                    TaskbarProgressManager.endLaunchProgress( tracker );
                     returnToMainGuiOnError();
                     return;
                 }
@@ -834,12 +874,6 @@ public class LauncherCore
                     // The session follows the game from here: RUNNING now, EXITED or CRASHED
                     // when the process ends, however the UI below handles it.
                     session.attachProcess( gameProcess );
-                    // RGB: now that the JVM is spawned and we know which pack is
-                    // running, swap the keyboard to the in-game effect (pack-color
-                    // gradient + Minecraft-key highlights). Safe to call
-                    // unconditionally — RgbIntegration internally bails when
-                    // the master toggle is off, and any failure is contained.
-                    com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onPlayStarted( gameModPack );
 
                     // Brief beat so the user sees the all-rows-green state on the launch
                     // progress screen before it dissolves into the game console or the
@@ -859,8 +893,6 @@ public class LauncherCore
                                     // Record session duration
                                     gameModPack.recordSessionEnd(
                                             System.currentTimeMillis() - launchStartMs );
-                                    // RGB: game exited — drop the in-game effect.
-                                    com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onPlayEnded();
                                     // On crash, find and display crash report; also toast so a
                                     // user who tabbed away mid-session notices.
                                     if ( exitCode != 0 ) {
@@ -895,8 +927,6 @@ public class LauncherCore
                             int exitCode = gameProcess.waitFor();
                             // Record session duration
                             gameModPack.recordSessionEnd( System.currentTimeMillis() - launchStartMs );
-                            // RGB: game exited — drop the in-game effect.
-                            com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onPlayEnded();
                             if ( exitCode != 0 ) {
                                 Logger.logError( LocalizationManager.format( "log.launcherCore.gameCrashedExitCode",
                                                                              exitCode ) );
@@ -944,7 +974,7 @@ public class LauncherCore
                 // doesn't see an error log for a deliberate cancel.
                 if ( session.isCancelled() ) {
                     Logger.logStd( LocalizationManager.get( "log.launcherCore.launchCancelled" ) );
-                    TaskbarProgressManager.stop();
+                    TaskbarProgressManager.endLaunchProgress( tracker );
                     returnToMainGuiOnError();
                 }
                 else {

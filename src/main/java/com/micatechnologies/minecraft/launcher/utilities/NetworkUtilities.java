@@ -85,18 +85,27 @@ public class NetworkUtilities
      * on each other's messages, but the symptom is just "the user sees
      * whichever retry was most recent" which still beats invisible retries.</p>
      *
+     * <p>A list, not a single slot: each launch in flight adds its own listener and removes
+     * it when done. With one slot, a second launch replaced the first one's listener and the
+     * first launch's cleanup then cleared the second's.</p>
+     *
      * @since 2026.3
      */
-    private static volatile java.util.function.Consumer< String > retryNoticeListener = null;
+    private static final java.util.List< java.util.function.Consumer< String > > retryNoticeListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /**
-     * Installs a listener that fires when a download retry occurs. Set to
-     * {@code null} to clear. See {@link #retryNoticeListener} for the
-     * single-listener / cross-thread semantics.
+     * Adds a listener that fires when a download retry occurs. See
+     * {@link #retryNoticeListeners} for the cross-thread semantics.
+     *
+     * @param listener the notice consumer
+     *
+     * @return removes the listener again
      */
-    public static void setRetryNoticeListener( java.util.function.Consumer< String > listener )
+    public static Runnable addRetryNoticeListener( java.util.function.Consumer< String > listener )
     {
-        retryNoticeListener = listener;
+        retryNoticeListeners.add( listener );
+        return () -> retryNoticeListeners.remove( listener );
     }
 
     /**
@@ -104,22 +113,26 @@ public class NetworkUtilities
      * (alongside {@link #retryNoticeListener}) so a large file's byte progress surfaces
      * as row sub-text — "Faithful-64x.zip — 45% · 12.3 / 27.1 MB · 2.4 MB/s" — instead of
      * a frozen "Downloading X..." line that just sits there while a big resource pack or
-     * mod streams. Same volatile / cross-thread, best-effort, single-listener semantics as
-     * {@link #retryNoticeListener}; cleared after launch.
+     * mod streams. Same cross-thread, best-effort, one-listener-per-launch semantics as
+     * {@link #retryNoticeListeners}.
      *
      * @since 2026.7
      */
-    private static volatile java.util.function.Consumer< String > downloadProgressListener = null;
+    private static final java.util.List< java.util.function.Consumer< String > > downloadProgressListeners =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /**
-     * Installs a listener that fires (throttled) with a formatted live progress line for
-     * the file currently downloading. Set to {@code null} to clear.
+     * Adds a listener that fires (throttled) with a formatted live progress line for the
+     * file currently downloading.
      *
-     * @param listener the progress-line consumer, or {@code null} to clear
+     * @param listener the progress-line consumer
+     *
+     * @return removes the listener again
      */
-    public static void setDownloadProgressListener( java.util.function.Consumer< String > listener )
+    public static Runnable addDownloadProgressListener( java.util.function.Consumer< String > listener )
     {
-        downloadProgressListener = listener;
+        downloadProgressListeners.add( listener );
+        return () -> downloadProgressListeners.remove( listener );
     }
 
     /** Minimum interval between download-progress listener fires (ms). Shared across all
@@ -145,8 +158,7 @@ public class NetworkUtilities
     private static void notifyDownloadProgress( File destination, long bytesSoFar, long contentLength,
                                                 DownloadTracker tracker )
     {
-        java.util.function.Consumer< String > l = downloadProgressListener;
-        if ( l == null ) {
+        if ( downloadProgressListeners.isEmpty() ) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -159,11 +171,14 @@ public class NetworkUtilities
         if ( !lastDownloadProgressFireMs.compareAndSet( last, now ) ) {
             return;
         }
-        try {
-            l.accept( formatDownloadProgress( destination, bytesSoFar, contentLength, tracker ) );
-        }
-        catch ( Throwable ignored ) {
-            // A listener fault must never poison the download path.
+        String line = formatDownloadProgress( destination, bytesSoFar, contentLength, tracker );
+        for ( java.util.function.Consumer< String > l : downloadProgressListeners ) {
+            try {
+                l.accept( line );
+            }
+            catch ( Throwable ignored ) {
+                // A listener fault must never poison the download path.
+            }
         }
     }
 
@@ -234,13 +249,15 @@ public class NetworkUtilities
      *  any thread; null-checks the listener atomically via the volatile read. */
     private static void notifyRetry( URL source, int attempt, int maxRetries )
     {
-        java.util.function.Consumer< String > l = retryNoticeListener;
-        if ( l == null ) return;
-        try {
-            l.accept( LocalizationManager.format( "network.download.retrying", attempt, maxRetries,
-                                                  urlFileName( source ) ) );
+        if ( retryNoticeListeners.isEmpty() ) return;
+        String notice = LocalizationManager.format( "network.download.retrying", attempt, maxRetries,
+                                                    urlFileName( source ) );
+        for ( java.util.function.Consumer< String > l : retryNoticeListeners ) {
+            try {
+                l.accept( notice );
+            }
+            catch ( Throwable ignored ) { /* listener faults shouldn't poison the retry path */ }
         }
-        catch ( Throwable ignored ) { /* listener faults shouldn't poison the retry path */ }
     }
 
     /**

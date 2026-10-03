@@ -155,6 +155,75 @@ public final class TaskbarProgressManager
         MacOsDockManager.setProgress( fraction );
     }
 
+    /** Progress of each launch still preparing, keyed by its owner (the launch's tracker). */
+    private static final java.util.Map< Object, Double > launchProgress =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Reports one launch's progress. With several launches preparing at once the overlay shows
+     * their combined progress, instead of each launch overwriting the others' bar and the
+     * first one to finish clearing it for everyone.
+     *
+     * @param owner    identifies the launch (its progress tracker)
+     * @param fraction its progress, 0..1, or {@link MFXProgressBar#INDETERMINATE_PROGRESS}
+     *
+     * @since 2026.10
+     */
+    public static void setLaunchProgress( Object owner, double fraction )
+    {
+        if ( owner == null ) {
+            return;
+        }
+        launchProgress.put( owner, fraction );
+        setProgress( combine( launchProgress.values() ) );
+    }
+
+    /**
+     * Removes a launch from the overlay: it finished, failed or was cancelled. Clears the
+     * overlay once no launch is left.
+     *
+     * @param owner the launch passed to {@link #setLaunchProgress}
+     *
+     * @since 2026.10
+     */
+    public static void endLaunchProgress( Object owner )
+    {
+        if ( owner == null || launchProgress.remove( owner ) == null ) {
+            return;
+        }
+        if ( launchProgress.isEmpty() ) {
+            stop();
+        }
+        else {
+            setProgress( combine( launchProgress.values() ) );
+        }
+    }
+
+    /**
+     * Combines launches' progress into one bar: their average, or indeterminate while any of
+     * them is. Pure, for testing.
+     *
+     * @param fractions each launch's progress
+     *
+     * @return the combined fraction
+     *
+     * @since 2026.10
+     */
+    static double combine( java.util.Collection< Double > fractions )
+    {
+        if ( fractions.isEmpty() ) {
+            return 0;
+        }
+        double sum = 0;
+        for ( double f : fractions ) {
+            if ( f == MFXProgressBar.INDETERMINATE_PROGRESS || f < 0 ) {
+                return MFXProgressBar.INDETERMINATE_PROGRESS;
+            }
+            sum += Math.min( 1.0, f );
+        }
+        return sum / fractions.size();
+    }
+
     /**
      * Clears the taskbar overlay. Called by every GUI when it's about to be
      * replaced — guarantees the bar doesn't carry state across scene
