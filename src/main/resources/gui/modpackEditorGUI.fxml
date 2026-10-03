@@ -91,14 +91,14 @@
     <!-- Row 3: TabPane -->
     <TabPane fx:id="editorTabPane" tabClosingPolicy="UNAVAILABLE" GridPane.rowIndex="3">
         <Tab text="%editor.tab.metadata" closable="false">
-            <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
-                <VBox fx:id="metadataVBox" spacing="12.0" style="-fx-background-color: transparent;">
+            <ScrollPane fitToWidth="true" styleClass="transparentBg">
+                <VBox fx:id="metadataVBox" spacing="12.0" styleClass="transparentBg">
                     <padding>
                         <Insets bottom="16.0" left="24.0" right="24.0" top="16.0"/>
                     </padding>
 
                     <!-- Pack Identity -->
-                    <Label text="%editor.section.packIdentity" style="-fx-font-weight: bold;">
+                    <Label text="%editor.section.packIdentity" styleClass="type-weight-bold">
                         <font><Font size="14.0"/></font>
                     </Label>
                     <MFXTextField fx:id="packNameField" floatingText="Pack Name" maxWidth="500.0"
@@ -116,7 +116,7 @@
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
 
                     <!-- Flags -->
-                    <Label text="%editor.section.flags" style="-fx-font-weight: bold;">
+                    <Label text="%editor.section.flags" styleClass="type-weight-bold">
                         <padding><Insets top="8.0"/></padding>
                         <font><Font size="14.0"/></font>
                     </Label>
@@ -125,7 +125,7 @@
 
                     <!-- Modloader -->
                     <HBox spacing="8.0" alignment="CENTER_LEFT">
-                        <Label text="%editor.section.modloader" style="-fx-font-weight: bold;">
+                        <Label text="%editor.section.modloader" styleClass="type-weight-bold">
                             <font><Font size="14.0"/></font>
                         </Label>
                         <MFXComboBox fx:id="packModLoaderTypeCombo" prefWidth="160.0" minHeight="32.0"/>
@@ -141,7 +141,7 @@
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
 
                     <!-- Images -->
-                    <Label text="%editor.section.images" style="-fx-font-weight: bold;">
+                    <Label text="%editor.section.images" styleClass="type-weight-bold">
                         <padding><Insets top="8.0"/></padding>
                         <font><Font size="14.0"/></font>
                     </Label>
@@ -169,7 +169,7 @@
                     </HBox>
 
                     <!-- Scan Exclusions -->
-                    <Label text="%editor.section.scanExclusions" style="-fx-font-weight: bold;">
+                    <Label text="%editor.section.scanExclusions" styleClass="type-weight-bold">
                         <padding><Insets top="8.0"/></padding>
                         <font><Font size="14.0"/></font>
                     </Label>

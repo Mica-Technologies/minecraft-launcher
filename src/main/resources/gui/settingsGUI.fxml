@@ -104,7 +104,7 @@
         <StackPane fx:id="settingsContent" HBox.hgrow="ALWAYS">
 
             <!-- Category 0: Account -->
-            <ScrollPane fx:id="accountPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;">
+            <ScrollPane fx:id="accountPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="transparentScroll">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
@@ -208,7 +208,7 @@
             </ScrollPane>
 
             <!-- Category 1: Game -->
-            <ScrollPane fx:id="gamePane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+            <ScrollPane fx:id="gamePane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="transparentScroll" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
@@ -251,7 +251,7 @@
             </ScrollPane>
 
             <!-- Category 1: Appearance -->
-            <ScrollPane fx:id="appearancePane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+            <ScrollPane fx:id="appearancePane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="transparentScroll" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
@@ -311,7 +311,7 @@
             </ScrollPane>
 
             <!-- Category 2: Advanced -->
-            <ScrollPane fx:id="advancedPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+            <ScrollPane fx:id="advancedPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="transparentScroll" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
@@ -449,7 +449,7 @@
             </ScrollPane>
 
             <!-- Category 3: Network -->
-            <ScrollPane fx:id="networkPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+            <ScrollPane fx:id="networkPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="transparentScroll" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
@@ -475,7 +475,7 @@
             </ScrollPane>
 
             <!-- Category 4: Security -->
-            <ScrollPane fx:id="securityPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+            <ScrollPane fx:id="securityPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="transparentScroll" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
@@ -642,7 +642,7 @@
             </ScrollPane>
 
             <!-- Category 5: System -->
-            <ScrollPane fx:id="systemPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+            <ScrollPane fx:id="systemPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="transparentScroll" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
@@ -716,7 +716,7 @@
             </ScrollPane>
 
             <!-- Category 7: Discord -->
-            <ScrollPane fx:id="discordPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+            <ScrollPane fx:id="discordPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="transparentScroll" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
@@ -772,7 +772,7 @@
             </ScrollPane>
 
             <!-- Category 8: RGB Integration -->
-            <ScrollPane fx:id="rgbPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+            <ScrollPane fx:id="rgbPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="transparentScroll" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
@@ -905,7 +905,7 @@
             </ScrollPane>
 
             <!-- Category 9: About / Attributions -->
-            <ScrollPane fx:id="aboutPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+            <ScrollPane fx:id="aboutPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="transparentScroll" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />

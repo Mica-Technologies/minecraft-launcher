@@ -1772,7 +1772,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             av.setClip( new javafx.scene.shape.Circle( 16, 16, 16 ) );
 
             Label nameLbl = new Label( row.name() );
-            nameLbl.setStyle( "-fx-font-weight: bold;" );
+            nameLbl.getStyleClass().add( "type-weight-bold" );
             String status = LocalizationManager.get( row.statusKey() );
             if ( row.sessionOnly() ) {
                 status = LocalizationManager.format( "account.status.withSessionOnly", status );

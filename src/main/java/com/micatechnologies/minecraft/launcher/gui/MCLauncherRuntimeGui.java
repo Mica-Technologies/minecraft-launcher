@@ -428,7 +428,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
         body.getStyleClass().add( "muted" );
         body.setWrapText( true );
         body.setMaxWidth( 420 );
-        body.setStyle( "-fx-text-alignment: center;" );
+        body.setTextAlignment( javafx.scene.text.TextAlignment.CENTER );
         javafx.scene.layout.VBox box = new javafx.scene.layout.VBox( 8, heading, body );
         box.setAlignment( javafx.geometry.Pos.CENTER );
         box.setPadding( new javafx.geometry.Insets( 24 ) );

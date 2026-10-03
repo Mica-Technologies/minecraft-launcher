@@ -373,7 +373,7 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
         // Keep the layout slot fixed; toggle only the rendered visibility.
         Label subText = new Label( step.subText() );
         subText.getStyleClass().add( "subtle" );
-        subText.setStyle( "-fx-font-size: 11px;" );
+        subText.getStyleClass().add( "type-label-small" );
         subText.setVisible( !step.subText().isEmpty() );
 
         MFXProgressBar bar = new MFXProgressBar();

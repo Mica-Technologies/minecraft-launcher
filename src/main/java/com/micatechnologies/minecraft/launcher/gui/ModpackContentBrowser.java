@@ -1054,13 +1054,13 @@ public final class ModpackContentBrowser
         final String[] crashText = { "" };
 
         StackPane overlay = new StackPane();
-        overlay.setStyle( "-fx-background-color: rgba(0,0,0,0.8);" );
+        overlay.getStyleClass().add( "contentViewerScrim" );
         overlay.setPickOnBounds( true );
 
         VBox card = new VBox( 12 );
         card.setAlignment( Pos.TOP_LEFT );
         card.setPadding( new Insets( 16 ) );
-        card.setStyle( "-fx-background-color: -color-surface; -fx-background-radius: 12;" );
+        card.getStyleClass().add( "contentViewerCard" );
         card.setMaxWidth( host.getWidth() * 0.85 );
         card.setMaxHeight( host.getHeight() * 0.85 );
 
@@ -1073,7 +1073,7 @@ public final class ModpackContentBrowser
         VBox diagnosisBox = new VBox( 6 );
         diagnosisBox.getStyleClass().add( "modpackDetailContentRow" );
         diagnosisBox.setPadding( new Insets( 10, 12, 10, 12 ) );
-        diagnosisBox.setStyle( "-fx-background-color: -color-bg-soft; -fx-background-radius: 8;" );
+        diagnosisBox.getStyleClass().add( "contentViewerDiagnosis" );
         Label diagnosisLoading = new Label(
                 LocalizationManager.get( "detailModal.crash.viewer.analyzing" ) );
         diagnosisLoading.getStyleClass().add( "muted" );
@@ -1084,7 +1084,7 @@ public final class ModpackContentBrowser
         area.setEditable( false );
         area.setWrapText( false );
         area.getStyleClass().add( "text-mono" );
-        area.setStyle( "-fx-font-size: 12px;" );
+        area.getStyleClass().add( "type-body-small" );
         area.setPrefWidth( host.getWidth() * 0.8 );
         area.setPrefHeight( host.getHeight() * 0.55 );
         VBox.setVgrow( area, Priority.ALWAYS );
@@ -1166,7 +1166,7 @@ public final class ModpackContentBrowser
                 }
                 Label diagTitle = new Label( finalDiag.title() );
                 diagTitle.getStyleClass().add( "modpackDetailContentName" );
-                diagTitle.setStyle( "-fx-font-weight: 700;" );
+                diagTitle.getStyleClass().add( "type-weight-bold" );
 
                 Label diagSummary = new Label( finalDiag.summary() );
                 diagSummary.setWrapText( true );
@@ -1494,7 +1494,7 @@ public final class ModpackContentBrowser
     {
         StackPane overlay = new StackPane();
         overlay.getStyleClass().add( "imageViewerOverlay" );
-        overlay.setStyle( "-fx-background-color: rgba(0,0,0,0.8);" );
+        overlay.getStyleClass().add( "contentViewerScrim" );
         overlay.setPickOnBounds( true );
 
         VBox card = new VBox( 12 );
@@ -1503,7 +1503,7 @@ public final class ModpackContentBrowser
         card.setMaxHeight( Region.USE_PREF_SIZE );
         card.setPadding( new Insets( 16 ) );
         card.getStyleClass().add( "imageViewerCard" );
-        card.setStyle( "-fx-background-color: -color-surface; -fx-background-radius: 12;" );
+        card.getStyleClass().add( "contentViewerCard" );
 
         // Cap displayed size at the viewport so big screenshots fit, and decode at that size
         // (times the display's scale, so it stays sharp on HiDPI) in the background. A

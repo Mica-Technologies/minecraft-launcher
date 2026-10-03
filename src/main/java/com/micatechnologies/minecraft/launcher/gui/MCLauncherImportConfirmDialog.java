@@ -129,7 +129,7 @@ public final class MCLauncherImportConfirmDialog
         }
 
         Label totals = new Label( buildTotalsText( modCount, configCount, rpCount, spCount, otherCount, totalBytes ) );
-        totals.setStyle( "-fx-font-size: 12px;" );
+        totals.getStyleClass().add( "type-body-small" );
 
         // ----- Mod list (scrollable) -----
         VBox modListContent = new VBox( 2 );
@@ -143,7 +143,7 @@ public final class MCLauncherImportConfirmDialog
                 String filename = fileBasename( f.path );
                 String size = formatBytes( f.fileSize );
                 Label row = new Label( ( size == null ? "" : "[" + size + "]  " ) + filename );
-                row.setStyle( "-fx-font-size: 11px; -fx-font-family: monospace;" );
+                row.getStyleClass().addAll( "type-label-small", "text-mono" );
                 modListContent.getChildren().add( row );
                 anyShown = true;
             }
@@ -151,7 +151,7 @@ public final class MCLauncherImportConfirmDialog
         if ( !anyShown ) {
             Label empty = new Label( LocalizationManager.get( "importConfirm.empty" ) );
             empty.getStyleClass().add( "subtle" );
-            empty.setStyle( "-fx-font-size: 11px;" );
+            empty.getStyleClass().add( "type-label-small" );
             modListContent.getChildren().add( empty );
         }
 
@@ -184,7 +184,7 @@ public final class MCLauncherImportConfirmDialog
         Label note = new Label( LocalizationManager.get( "importConfirm.note" ) );
         note.setWrapText( true );
         note.getStyleClass().add( "subtle" );
-        note.setStyle( "-fx-font-size: 11px;" );
+        note.getStyleClass().add( "type-label-small" );
 
         VBox root = new VBox( 8, title, subtitle, totals, modListScroll, note, footer );
         root.setPadding( new Insets( 16 ) );

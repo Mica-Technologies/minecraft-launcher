@@ -1332,7 +1332,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             statusLabel.setWrapText( true );
             statusLabel.setAlignment( Pos.CENTER );
             statusLabel.setMaxWidth( Double.MAX_VALUE );
-            statusLabel.setStyle( "-fx-font-size: 11px;" );
+            statusLabel.getStyleClass().add( "type-label-small" );
 
             info.getChildren().addAll( nameLabel, statusLabel );
 

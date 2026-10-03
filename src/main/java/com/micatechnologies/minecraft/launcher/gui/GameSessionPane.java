@@ -171,7 +171,7 @@ final class GameSessionPane
         logArea.setEditable( false );
         logArea.setWrapText( true );
         logArea.getStyleClass().add( "text-mono" );
-        logArea.setStyle( "-fx-font-size: 12px;" );
+        logArea.getStyleClass().add( "type-body-small" );
         VBox.setVgrow( logArea, Priority.ALWAYS );
 
         truncated.getStyleClass().add( "subtle" );

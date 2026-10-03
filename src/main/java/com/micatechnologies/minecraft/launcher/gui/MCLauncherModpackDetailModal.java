@@ -1805,11 +1805,11 @@ public class MCLauncherModpackDetailModal extends StackPane
         } );
 
         Label label = new Label( LocalizationManager.get( "modal.advanced.account.label" ) );
-        label.setStyle( "-fx-font-size: 12px;" );
+        label.getStyleClass().add( "type-body-small" );
         Label accountHint = new Label( LocalizationManager.get( "modal.advanced.account.hint" ) );
         accountHint.setWrapText( true );
         accountHint.getStyleClass().add( "subtle" );
-        accountHint.setStyle( "-fx-font-size: 11px;" );
+        accountHint.getStyleClass().add( "type-label-small" );
         section.getChildren().addAll( label, combo, accountHint );
     }
 
@@ -1827,7 +1827,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         Label hint = new Label( LocalizationManager.get( "modal.advanced.hint" ) );
         hint.setWrapText( true );
         hint.getStyleClass().add( "muted" );
-        hint.setStyle( "-fx-font-size: 11px;" );
+        hint.getStyleClass().add( "type-label-small" );
         section.getChildren().add( hint );
 
         buildAccountOverride( section, pack );
@@ -1852,7 +1852,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         Label toggleHint = new Label( LocalizationManager.get( "modal.advanced.alwaysVerify.hint" ) );
         toggleHint.setWrapText( true );
         toggleHint.getStyleClass().add( "subtle" );
-        toggleHint.setStyle( "-fx-font-size: 11px;" );
+        toggleHint.getStyleClass().add( "type-label-small" );
         section.getChildren().add( alwaysVerifyToggle );
         section.getChildren().add( toggleHint );
 
@@ -1890,11 +1890,11 @@ public class MCLauncherModpackDetailModal extends StackPane
             }
         } );
         Label scanFreqLabel = new Label( LocalizationManager.get( "modal.advanced.scanFreq.label" ) );
-        scanFreqLabel.setStyle( "-fx-font-size: 12px;" );
+        scanFreqLabel.getStyleClass().add( "type-body-small" );
         Label scanFreqHint = new Label( LocalizationManager.get( "modal.advanced.scanFreq.hint" ) );
         scanFreqHint.setWrapText( true );
         scanFreqHint.getStyleClass().add( "subtle" );
-        scanFreqHint.setStyle( "-fx-font-size: 11px;" );
+        scanFreqHint.getStyleClass().add( "type-label-small" );
         section.getChildren().add( scanFreqLabel );
         section.getChildren().add( scanFreqCombo );
         section.getChildren().add( scanFreqHint );
@@ -1925,7 +1925,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         Label verifyHint = new Label( LocalizationManager.get( "modal.advanced.verifyNow.hint" ) );
         verifyHint.setWrapText( true );
         verifyHint.getStyleClass().add( "subtle" );
-        verifyHint.setStyle( "-fx-font-size: 11px;" );
+        verifyHint.getStyleClass().add( "type-label-small" );
         HBox verifyRow = new HBox( 8, verifyNowBtn );
         verifyRow.setAlignment( Pos.CENTER_LEFT );
         section.getChildren().add( verifyRow );
@@ -1960,7 +1960,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                         LocalizationManager.get( "modal.advanced.removeOfficial.hint" ) );
                 removeHint.setWrapText( true );
                 removeHint.getStyleClass().add( "subtle" );
-                removeHint.setStyle( "-fx-font-size: 11px;" );
+                removeHint.getStyleClass().add( "type-label-small" );
                 HBox removeRow = new HBox( 8, removeBtn );
                 removeRow.setAlignment( Pos.CENTER_LEFT );
                 section.getChildren().add( removeRow );
@@ -1981,7 +1981,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                         LocalizationManager.get( "modal.advanced.addOfficial.hint" ) );
                 addToOfficialHint.setWrapText( true );
                 addToOfficialHint.getStyleClass().add( "subtle" );
-                addToOfficialHint.setStyle( "-fx-font-size: 11px;" );
+                addToOfficialHint.getStyleClass().add( "type-label-small" );
                 HBox addToOfficialRow = new HBox( 8, addToOfficialBtn );
                 addToOfficialRow.setAlignment( Pos.CENTER_LEFT );
                 section.getChildren().add( addToOfficialRow );
@@ -2008,17 +2008,17 @@ public class MCLauncherModpackDetailModal extends StackPane
         VBox container = new VBox( 6 );
 
         Label heading = new Label( LocalizationManager.get( "modal.ack.heading" ) );
-        heading.setStyle( "-fx-font-size: 12px; -fx-font-weight: bold;" );
+        heading.getStyleClass().addAll( "type-body-small", "type-weight-bold" );
         container.getChildren().add( heading );
 
         Label intro = new Label( LocalizationManager.get( "modal.ack.intro" ) );
         intro.setWrapText( true );
         intro.getStyleClass().add( "subtle" );
-        intro.setStyle( "-fx-font-size: 11px;" );
+        intro.getStyleClass().add( "type-label-small" );
         container.getChildren().add( intro );
 
         VBox list = new VBox( 4 );
-        list.setStyle( "-fx-padding: 6 0 0 0;" );
+        list.setPadding( new Insets( 6, 0, 0, 0 ) );
         for ( com.micatechnologies.minecraft.launcher.game.modpack.ScanAcknowledgement a : acks ) {
             if ( a == null ) continue;
             list.getChildren().add( buildAcknowledgementRow( a ) );
@@ -2044,9 +2044,7 @@ public class MCLauncherModpackDetailModal extends StackPane
             com.micatechnologies.minecraft.launcher.game.modpack.ScanAcknowledgement a )
     {
         VBox row = new VBox( 2 );
-        row.setStyle( "-fx-background-color: -color-surface-hover;"
-                              + " -fx-background-radius: 6;"
-                              + " -fx-padding: 6 10 6 10;" );
+        row.getStyleClass().add( "scanAckRow" );
 
         // Header: kind + locator. Kind in bold so the reader can scan the
         // column at a glance; locator dimmed since it's a debugger-style
@@ -2054,15 +2052,15 @@ public class MCLauncherModpackDetailModal extends StackPane
         HBox header = new HBox( 8 );
         header.setAlignment( Pos.CENTER_LEFT );
         Label kindLabel = new Label( a.kind != null ? a.kind : LocalizationManager.get( "modal.ack.unknownRule" ) );
-        kindLabel.setStyle( "-fx-font-weight: bold; -fx-font-size: 11px;" );
+        kindLabel.getStyleClass().addAll( "type-label-small", "type-weight-bold" );
         header.getChildren().add( kindLabel );
         if ( a.locator != null && !a.locator.isBlank() ) {
             Label sep = new Label( "·" );
             sep.getStyleClass().add( "subtle" );
-            sep.setStyle( "-fx-font-size: 11px;" );
+            sep.getStyleClass().add( "type-label-small" );
             Label locatorLabel = new Label( a.locator );
             locatorLabel.getStyleClass().add( "subtle" );
-            locatorLabel.setStyle( "-fx-font-size: 11px;" );
+            locatorLabel.getStyleClass().add( "type-label-small" );
             header.getChildren().addAll( sep, locatorLabel );
         }
         row.getChildren().add( header );
@@ -2073,13 +2071,13 @@ public class MCLauncherModpackDetailModal extends StackPane
         if ( a.reason != null && !a.reason.isBlank() ) {
             Label reasonLabel = new Label( a.reason );
             reasonLabel.setWrapText( true );
-            reasonLabel.setStyle( "-fx-font-size: 11px;" );
+            reasonLabel.getStyleClass().add( "type-label-small" );
             row.getChildren().add( reasonLabel );
         }
         else {
             Label noReason = new Label( LocalizationManager.get( "modal.ack.noReason" ) );
             noReason.getStyleClass().add( "subtle" );
-            noReason.setStyle( "-fx-font-size: 11px; -fx-font-style: italic;" );
+            noReason.getStyleClass().addAll( "type-label-small", "type-italic" );
             row.getChildren().add( noReason );
         }
 
@@ -2152,7 +2150,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         if ( displayDate != null ) {
             Label date = new Label( displayDate );
             date.getStyleClass().add( "muted" );
-            date.setStyle( "-fx-font-size: 11px;" );
+            date.getStyleClass().add( "type-label-small" );
             card.getChildren().add( date );
         }
 
@@ -2217,7 +2215,7 @@ public class MCLauncherModpackDetailModal extends StackPane
             Label desc = new Label( description );
             desc.setWrapText( true );
             desc.getStyleClass().add( "muted" );
-            desc.setStyle( "-fx-font-size: 11px;" );
+            desc.getStyleClass().add( "type-label-small" );
             card.getChildren().add( desc );
         }
 
@@ -2372,7 +2370,7 @@ public class MCLauncherModpackDetailModal extends StackPane
             Label head = new Label( LocalizationManager.format( "detailModal.problems.redownload",
                                                                 p.file(), p.consecutiveLaunches() ) );
             head.getStyleClass().add( "modpackDetailProblemTitle" );
-            head.setStyle( "-fx-font-weight: bold;" );
+            head.getStyleClass().add( "type-weight-bold" );
             head.setWrapText( true );
 
             Label detail = new Label( LocalizationManager.get(

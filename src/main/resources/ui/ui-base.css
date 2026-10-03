@@ -2070,3 +2070,44 @@
 .gameSessionPane .progress-bar > .track {
     -fx-background-color: -color-border;
 }
+
+
+/* =====================================================================
+ * Type and surface utility classes
+ *
+ * Text and surface styles that Java code used to set inline. They sit at
+ * the end of the sheet and use compound selectors so they keep winning
+ * over the container rules the inline styles used to beat. Sizes match
+ * the old inline values; the Material 3 type scale will retune them.
+ * ===================================================================== */
+
+.label.type-body-small,
+.text-area.type-body-small     { -fx-font-size: 12px; }
+.label.type-label-small        { -fx-font-size: 11px; }
+.label.type-weight-bold        { -fx-font-weight: bold; }
+.label.type-italic             { -fx-font-style: italic; }
+
+.label.text-mono {
+    -fx-font-family: "JetBrains Mono", "Cascadia Code", "Cascadia Mono",
+                     "Consolas", "Menlo", monospace;
+}
+
+/* One scan acknowledgement in the detail modal's Advanced section. */
+.scanAckRow {
+    -fx-background-color: -color-surface-hover;
+    -fx-background-radius: 6;
+    -fx-padding: 6 10 6 10;
+}
+
+/* Crash-report and image viewers laid over the detail modal. */
+.contentViewerScrim       { -fx-background-color: rgba(0, 0, 0, 0.8); }
+.contentViewerCard        { -fx-background-color: -color-surface; -fx-background-radius: 12; }
+.contentViewerDiagnosis   { -fx-background-color: -color-bg-soft; -fx-background-radius: 8; }
+
+/* Scroll panes that let the surface behind them show through (viewport included). */
+.scroll-pane.transparentScroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-border-width: 0;
+}
+.transparentBg { -fx-background-color: transparent; }
