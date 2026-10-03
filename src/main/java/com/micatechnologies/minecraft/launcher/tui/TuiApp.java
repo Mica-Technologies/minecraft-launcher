@@ -446,8 +446,7 @@ public final class TuiApp
                         case NO_ACCOUNT -> loc( "tui.auth.noAccount" );
                     } );
                 }
-                pack.startGame( user );
-                Process proc = pack.getLastLaunchedProcess();
+                Process proc = pack.startGame( user, null );
                 if ( proc == null ) {
                     throw new IllegalStateException( loc( "tui.launch.noProcess" ) );
                 }

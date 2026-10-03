@@ -57,17 +57,11 @@ class GameModPackLauncher
      */
     private final GameModPackProgressProvider progressProvider;
 
-    /** Periodically-checked cancellation flag. Set when
-     *  {@code LauncherCore.LaunchSession.cancel()} fires for the
-     *  current launch — branches poll this between major steps so an
-     *  in-flight cancel doesn't have to wait for the entire branch
-     *  to complete before honouring the user's click. */
-    private final java.util.function.BooleanSupplier cancellationCheck =
-            () -> {
-                com.micatechnologies.minecraft.launcher.LauncherCore.LaunchSession s =
-                        com.micatechnologies.minecraft.launcher.LauncherCore.getCurrentLaunch();
-                return s != null && s.isCancelled();
-            };
+    /** Periodically-checked cancellation flag for <em>this</em> launch, set by
+     *  {@link #launch}. Branches poll it between major steps so an in-flight cancel doesn't
+     *  have to wait for the entire branch to complete. It used to read a single global
+     *  "current launch", so with two launches in flight, cancelling one cancelled both. */
+    private volatile java.util.function.BooleanSupplier cancellationCheck = () -> false;
 
     /**
      * Throws if the current launch has been cancelled. Branches call
@@ -1226,14 +1220,18 @@ class GameModPackLauncher
     /**
      * Builds the full launch command, replaces all placeholders, and starts the game process.
      *
-     * @param user the account to launch as; ignored for a server, required for a client
+     * @param user      the account to launch as; ignored for a server, required for a client
+     * @param cancelled reports whether this launch has been cancelled; polled between steps
+     *
+     * @return the spawned game process
      *
      * @throws ModpackException if unable to launch the game, or if a client launch has no account
      *
      * @since 3.0
      */
-    void launch( User user ) throws ModpackException
+    Process launch( User user, java.util.function.BooleanSupplier cancelled ) throws ModpackException
     {
+        this.cancellationCheck = cancelled == null ? () -> false : cancelled;
         // The account is chosen by the caller (a pack can launch as an account other than the
         // default). A client launch with none would hand Minecraft empty credentials.
         if ( GameModeManager.isClient() && user == null ) {
@@ -1597,6 +1595,7 @@ class GameModPackLauncher
                                      com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor
                                                 .redact( String.join( " ", argv ) ) ) );
             lastLaunchedProcess = ProcessUtilities.launchCommand( argv, pack.getPackRootFolder(), ioMode );
+            return lastLaunchedProcess;
         }
         catch ( IOException e ) {
             throw new ModpackException( "Unable to execute mod pack game.", e );

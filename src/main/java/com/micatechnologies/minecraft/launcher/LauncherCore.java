@@ -344,127 +344,16 @@ public class LauncherCore
     }
 
     /**
-     * Tracks the currently-running launch so the progress GUI's Cancel button can ask
-     * for it to abort. Volatile because cancel() is invoked from the JavaFX thread
-     * while {@link #play(GameModPack, Runnable)} runs on a background worker; null
-     * whenever no launch is in flight.
-     */
-    private static volatile LaunchSession currentLaunch = null;
-
-    /**
-     * Per-launch cancellation token. Holds a reference to the worker thread that's
-     * running {@link #play(GameModPack, Runnable)} so {@link #cancel()} can interrupt
-     * blocking downloads + flips a flag that {@code play()} checks at its exit points
-     * to short-circuit the rest of the launch pipeline.
+     * Indicates whether any game is launching or running.
      *
-     * @since 3.4
-     */
-    public static final class LaunchSession
-    {
-        /**
-         * The worker thread running {@link LauncherCore#play(GameModPack, Runnable)} for this
-         * launch. Interrupted by {@link #cancel()} to break out of blocking downloads. May be
-         * {@code null} only in degenerate cases; normally captured as the calling thread at
-         * construction time.
-         */
-        private final Thread thread;
-
-        /**
-         * Cancellation flag for this launch. Flipped to {@code true} (once) by {@link #cancel()};
-         * polled by the {@code play()} pipeline at its checkpoints to abort early.
-         */
-        private final AtomicBoolean cancelled = new AtomicBoolean( false );
-
-        /**
-         * Constructs a launch session bound to the given worker thread.
-         *
-         * @param thread the thread executing the launch pipeline, captured so {@link #cancel()}
-         *               can interrupt it
-         */
-        private LaunchSession( Thread thread )
-        {
-            this.thread = thread;
-        }
-
-        /**
-         * Marks this launch as cancelled and interrupts the worker thread. Interrupt
-         * is best-effort — some HTTP reads / native calls won't respond to it, but the
-         * flag is enough for the play() pipeline to abort at its next checkpoint
-         * regardless of whether the in-flight blocking call broke. Idempotent: a
-         * second cancel() call is a no-op.
-         */
-        public void cancel()
-        {
-            if ( cancelled.compareAndSet( false, true ) && thread != null ) {
-                thread.interrupt();
-            }
-        }
-
-        /** @return true once {@link #cancel()} has been called for this session. */
-        public boolean isCancelled()
-        {
-            return cancelled.get();
-        }
-    }
-
-    /**
-     * Returns the in-flight launch session, or {@code null} if no launch is currently
-     * running. Used by the progress GUI's Cancel button to request abort.
-     */
-    public static LaunchSession getCurrentLaunch()
-    {
-        return currentLaunch;
-    }
-
-    /**
-     * Game JVMs spawned by {@link #play(GameModPack, Runnable)} that may still be alive.
-     * Tracked separately from {@link #currentLaunch} because the in-game-console path
-     * clears {@code currentLaunch} as soon as it hands the freshly-spawned process off to
-     * the console window — the JVM keeps running well past that point. The console-disabled
-     * path, by contrast, blocks on {@code waitFor()} so {@code currentLaunch} alone already
-     * covers it. Pruned lazily on each {@link #isGameRunning()} query. A {@link java.util.Set}
-     * keyed on identity is fine — a handful of entries at most.
-     *
-     * @since 3.5
-     */
-    private static final java.util.Set< Process > liveGameProcesses =
-            java.util.concurrent.ConcurrentHashMap.newKeySet();
-
-    /**
-     * Registers a freshly-spawned game process so {@link #isGameRunning()} continues to
-     * report {@code true} for the lifetime of the JVM even after {@code currentLaunch} is
-     * cleared (in-game-console path). No-op for a null / already-dead process.
-     *
-     * @param process the spawned game process
-     *
-     * @since 3.5
-     */
-    private static void trackGameProcess( Process process )
-    {
-        if ( process != null && process.isAlive() ) {
-            liveGameProcesses.add( process );
-        }
-    }
-
-    /**
-     * Indicates whether a game is currently launching or running. True when a launch
-     * pipeline is in flight ({@link #currentLaunch} non-null) OR a previously-spawned
-     * game JVM is still alive. Used by the {@code mmcl://} deep-link handler to refuse a
-     * second launch while one is already going — the launcher only drives a single game
-     * session at a time and silently stacking a second launch on top would clobber the
-     * progress GUI and risk two JVMs fighting over the same install directory.
-     *
-     * @return {@code true} if a launch is in progress or a game JVM is alive
+     * @return {@code true} while any {@link com.micatechnologies.minecraft.launcher.game.session.GameSession}
+     *         is preparing or running
      *
      * @since 3.5
      */
     public static boolean isGameRunning()
     {
-        if ( currentLaunch != null ) {
-            return true;
-        }
-        liveGameProcesses.removeIf( p -> !p.isAlive() );
-        return !liveGameProcesses.isEmpty();
+        return com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().hasActive();
     }
 
     /**
@@ -545,6 +434,36 @@ public class LauncherCore
             return true;
         }
         return false; // Cancel
+    }
+
+    /**
+     * Tells the user why a launch was refused: the pack is already running, its account is
+     * already playing something else, or (while the GUI can follow only one game) another game
+     * is active.
+     *
+     * @param decision the refusal
+     * @param pack     the pack that was refused
+     */
+    private static void reportLaunchRefused( com.micatechnologies.minecraft.launcher.game.session.LaunchAdmission.Decision decision,
+                                             GameModPack pack ) {
+        var other = decision.conflicting();
+        String otherPack = other == null ? "" : String.valueOf( other.packName() );
+        String message = switch ( decision.outcome() ) {
+            case PACK_ALREADY_RUNNING -> LocalizationManager.format( "launch.refused.packRunning", pack.getFriendlyName() );
+            case ACCOUNT_BUSY -> LocalizationManager.format( "launch.refused.accountBusy",
+                                                             other == null ? "" : String.valueOf( other.accountName() ),
+                                                             otherPack );
+            case ANOTHER_GAME_RUNNING -> LocalizationManager.format( "launch.refused.anotherGame", otherPack );
+            case OK -> "";
+        };
+        Logger.logStd( LocalizationManager.format( "log.launcherCore.launchRefused", decision.outcome() ) );
+        if ( MCLauncherGuiController.shouldCreateGui() ) {
+            NotificationManager.warn( LocalizationManager.get( "launch.refused.title" ), message );
+            GUIUtilities.JFXPlatformRun( MCLauncherGuiController::requestFocus );
+        }
+        else {
+            Logger.logError( message );
+        }
     }
 
     /**
@@ -687,18 +606,31 @@ public class LauncherCore
                 if ( !promptForConflicts( gameModPack, conflicts ) ) {
                     // User cancelled the launch (or chose "Open Mods Folder"
                     // and is going to manage it manually). Just return —
-                    // currentLaunch wasn't set yet, no cleanup to do.
+                    // no session was registered yet, so there is nothing to clean up.
                     return;
                 }
             }
         }
 
-        // Register this launch as the cancellable one. Captures the calling thread so
-        // cancel() can interrupt blocking downloads. The session is cleared in the
-        // finally below — even if play() throws, currentLaunch never leaks past the
-        // pipeline boundary.
-        final LaunchSession session = new LaunchSession( Thread.currentThread() );
-        currentLaunch = session;
+        // Register this launch as its own session. Admission happens here, atomically: at
+        // most one active game per pack and per account (and, until the GUI can show more
+        // than one game, one in total). The session owns this launch's cancellation, bound
+        // to this worker thread so cancel() can interrupt blocking downloads.
+        final String packKey = gameModPack.getSettingsKey() != null ? gameModPack.getSettingsKey()
+                                                                     : "name:" + gameModPack.getPackName();
+        final com.micatechnologies.minecraft.launcher.game.session.GameSession session =
+                new com.micatechnologies.minecraft.launcher.game.session.GameSession(
+                        gameModPack, packKey, gameModPack.getFriendlyName(),
+                        launchUser == null ? null : launchUser.uuid(),
+                        launchUser == null ? null : launchUser.name(),
+                        System::currentTimeMillis );
+        session.bindWorker( Thread.currentThread() );
+        com.micatechnologies.minecraft.launcher.game.session.LaunchAdmission.Decision admission =
+                com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().tryRegister( session );
+        if ( !admission.ok() ) {
+            reportLaunchRefused( admission, gameModPack );
+            return;
+        }
         try {
         if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
             // Build the step-list launch progress GUI + tracker + bridge. The tracker's
@@ -848,8 +780,9 @@ public class LauncherCore
                                 retryTrackerRef.setSubText( s.id(), notice );
                             }
                         } );
+                Process spawned;
                 try {
-                    gameModPack.startGame( launchUser );
+                    spawned = gameModPack.startGame( launchUser, session::isCancelled );
                 }
                 finally {
                     // Always clear the listeners so subsequent background activity
@@ -872,7 +805,7 @@ public class LauncherCore
                 // so we don't end up with an orphaned Minecraft window and the launcher
                 // back on the main screen.
                 if ( session.isCancelled() ) {
-                    Process orphan = gameModPack.getLastLaunchedProcess();
+                    Process orphan = spawned;
                     if ( orphan != null && orphan.isAlive() ) {
                         orphan.destroyForcibly();
                     }
@@ -896,12 +829,11 @@ public class LauncherCore
                 com.micatechnologies.minecraft.launcher.utilities.SystemUtilities.spawnNewTask(
                         com.micatechnologies.minecraft.launcher.utilities.JumpListManager::refresh );
 
-                Process gameProcess = gameModPack.getLastLaunchedProcess();
+                Process gameProcess = spawned;
                 if ( gameProcess != null ) {
-                    // Track the live JVM so isGameRunning() stays accurate even after the
-                    // in-game-console path clears currentLaunch (it hands the process off to
-                    // the console and returns, but the game is still up).
-                    trackGameProcess( gameProcess );
+                    // The session follows the game from here: RUNNING now, EXITED or CRASHED
+                    // when the process ends, however the UI below handles it.
+                    session.attachProcess( gameProcess );
                     // RGB: now that the JVM is spawned and we know which pack is
                     // running, swap the keyboard to the in-game effect (pack-color
                     // gradient + Minecraft-key highlights). Safe to call
@@ -1047,11 +979,11 @@ public class LauncherCore
             // Clear the interrupt flag in case cancellation set it but no blocking call
             // consumed it. Leaving the flag dirty on a worker thread that gets reused for
             // a later spawnNewTask() would cause that next task to misbehave (e.g. throw
-            // InterruptedException out of an innocuous sleep call). currentLaunch is
-            // cleared too so the progress GUI's Cancel button no-ops once the launch
-            // exits, no matter how it exited.
+            // InterruptedException out of an innocuous sleep call). A launch that never got
+            // its game running ends here (cancelled or failed), releasing its pack and
+            // account; a running game's session ends when its process exits.
             Thread.interrupted();
-            currentLaunch = null;
+            session.endWithoutGame();
         }
     }
 

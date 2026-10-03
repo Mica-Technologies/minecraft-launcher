@@ -608,17 +608,21 @@ public class GameModPack extends GameModPackMetadata
      * Builds the full launch command, replaces all placeholders, and starts the game process as
      * the given account. Delegates to {@link GameModPackLauncher#launch(net.hycrafthd.minecraft_authenticator.login.User)}.
      *
-     * @param user the account to launch as (see
-     *             {@link com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager#userForLaunch});
-     *             ignored in server mode, where it may be {@code null}
+     * @param user      the account to launch as (see
+     *                  {@link com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager#userForLaunch});
+     *                  ignored in server mode, where it may be {@code null}
+     * @param cancelled reports whether this launch has been cancelled, or {@code null} for never
+     *
+     * @return the spawned game process
      *
      * @throws ModpackException if unable to launch the game
      *
      * @since 1.0
      */
-    public void startGame( net.hycrafthd.minecraft_authenticator.login.User user ) throws ModpackException
+    public Process startGame( net.hycrafthd.minecraft_authenticator.login.User user,
+                              java.util.function.BooleanSupplier cancelled ) throws ModpackException
     {
-        getLauncher().launch( user );
+        return getLauncher().launch( user, cancelled );
     }
 
     /**
