@@ -369,4 +369,58 @@ class DisplayStringsBundleParityTest
         }
         assertTrue( doubled.isEmpty(), "Doubled apostrophes: " + doubled );
     }
+
+    /**
+     * Suffix strings such as {@code " (+{0} more)"} are appended to another sentence, so their
+     * leading space matters. Java's {@code Properties} drops an unescaped one ({@code key= text}),
+     * which glued the suffix to the previous word. It must be escaped ({@code key=\\ text}), and
+     * every locale must keep it, except Japanese and Chinese, which join phrases without spaces.
+     */
+    @Test
+    void leadingSpacesSurviveLoadingInEveryLocale()
+            throws IOException
+    {
+        java.util.List< String > lost = new ArrayList<>();
+        java.util.Set< String > joinWithoutSpaces = java.util.Set.of( "ja", "zh-CN", "zh-TW" );
+        for ( SupportedLocales.Entry entry : SupportedLocales.ENTRIES ) {
+            if ( joinWithoutSpaces.contains( entry.tag() ) ) {
+                continue;
+            }
+            Properties locale = loadShippedLocaleFile( entry );
+            for ( String key : english.stringPropertyNames() ) {
+                String translated = locale.getProperty( key );
+                if ( english.getProperty( key ).startsWith( " " ) && translated != null
+                        && !translated.startsWith( " " ) ) {
+                    lost.add( entry.tag() + ":" + key );
+                }
+            }
+        }
+        assertTrue( lost.isEmpty(), "Leading space lost: " + lost );
+    }
+
+    /**
+     * FXML's {@code %key} inserts bundle text as-is, so an XML entity copied out of an FXML file
+     * ({@code &quot;}, {@code &amp;}) shows up literally in the UI.
+     */
+    @Test
+    void noBundleContainsXmlEntities()
+            throws IOException
+    {
+        java.util.regex.Pattern entity = java.util.regex.Pattern.compile( "&(quot|amp|lt|gt|apos|#\\d+);" );
+        java.util.List< String > found = new ArrayList<>();
+        for ( String key : english.stringPropertyNames() ) {
+            if ( entity.matcher( english.getProperty( key ) ).find() ) {
+                found.add( "en:" + key );
+            }
+        }
+        for ( SupportedLocales.Entry entry : SupportedLocales.ENTRIES ) {
+            Properties locale = loadShippedLocaleFile( entry );
+            for ( String key : locale.stringPropertyNames() ) {
+                if ( entity.matcher( locale.getProperty( key ) ).find() ) {
+                    found.add( entry.tag() + ":" + key );
+                }
+            }
+        }
+        assertTrue( found.isEmpty(), "XML entities: " + found );
+    }
 }
