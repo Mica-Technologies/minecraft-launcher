@@ -687,6 +687,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     @Override
     void cleanup() {
+        // Set first: async work that lands after this (manifest revalidate, image caching)
+        // must not rebuild or re-subscribe cards on a torn-down screen. The old Scene object
+        // outlives the transition, so getScene() != null is no guard on its own.
+        disposed = true;
         // Defensive: if the update-check fired showFullError() to flag an
         // available update, clear it on transition out so the next screen
         // (e.g. progressGUI for a game launch) isn't competing with a stale
@@ -886,6 +890,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     private void rebuildCards()
     {
+        if ( disposed ) {
+            return;
+        }
         List< GameModPack > all = buildFilteredSortedPacks();
 
         // Paginate + render
@@ -1284,6 +1291,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     // =========================================================================================
     //  Hero card view — one per modpack
     // =========================================================================================
+
+    /** Set by {@link #cleanup()}; late async callbacks check it before touching cards. */
+    private volatile boolean disposed = false;
 
     /**
      * Tile-shaped modpack hero card — image-on-top design (closer to micatechnologies.com/projects):
@@ -1754,6 +1764,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
          */
         private void setupImageCycle( GameModPack pack, Image primaryLogo, boolean showBg )
         {
+            if ( disposed ) {
+                // Subscribing now would hand the app-wide clock a card from a screen that's
+                // already gone, pinning its scene graph and keeping the Timeline ticking.
+                return;
+            }
             // Drop any prior subscription before recomputing — a rebind may switch to a
             // pack with a different image count (or none).
             if ( cycleUnsub != null ) {

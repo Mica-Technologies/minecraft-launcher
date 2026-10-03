@@ -78,7 +78,7 @@ public class MCLauncherGuiWindow extends Application
     /** The single primary stage this window owns, captured in {@link #start(Stage)}. */
     private              Stage                 stage;
     /** The screen currently displayed in the stage's scene, or {@code null} before the first {@link #setScene}. */
-    private              MCLauncherAbstractGui gui;
+    private volatile     MCLauncherAbstractGui gui;
 
     /** OS theme detector used to follow light/dark OS changes for the Automatic / Native themes; {@code null} if the
      *  detector could not be created. */
@@ -517,14 +517,23 @@ public class MCLauncherGuiWindow extends Application
      * @param gui the screen to display; its {@code scene} and {@code rootPane} must already be built
      */
     void setScene( MCLauncherAbstractGui gui ) {
-        // Cleanup previous GUI, if present
-        if ( this.gui != null ) {
-            this.gui.cleanup();
-        }
-
-        // Store new GUI and set it up
-        this.gui = gui;
         GUIUtilities.JFXPlatformRun( () -> {
+            // The swap happens on the FX thread so two navigations racing each other (a
+            // double menu click, a shortcut plus a callback) are serialized: each one cleans
+            // up exactly the screen it replaces, never a screen whose setup hasn't run yet.
+            MCLauncherAbstractGui previous = this.gui;
+            if ( previous != null && previous != gui ) {
+                try {
+                    previous.cleanup();
+                }
+                catch ( RuntimeException e ) {
+                    // A screen that fails to clean up must not keep the next one from showing.
+                    Logger.logWarningSilent( LocalizationManager.format( "log.guiWindow.cleanupFailed",
+                                                                         e.getClass().getSimpleName() ) );
+                }
+            }
+            this.gui = gui;
+
             // First real-scene swap: stop the cold-start placeholder's
             // bounce animations so the timelines don't keep ticking on a
             // now-orphaned node tree. Must run on the FX thread because
@@ -1432,6 +1441,20 @@ public class MCLauncherGuiWindow extends Application
      */
     public void cleanup()
     {
+        // Let the current screen release what it holds (clock subscriptions, timers, log
+        // writers). Without this, every in-JVM restart leaked the screen shown at exit.
+        MCLauncherAbstractGui current = gui;
+        gui = null;
+        if ( current != null ) {
+            try {
+                current.cleanup();
+            }
+            catch ( RuntimeException e ) {
+                Logger.logWarningSilent( LocalizationManager.format( "log.guiWindow.cleanupFailed",
+                                                                     e.getClass().getSimpleName() ) );
+            }
+        }
+
         // Flush any pending bounds change synchronously so it isn't lost if the user closes during the debounce window.
         if ( boundsSaveDebouncer != null ) {
             boundsSaveDebouncer.stop();

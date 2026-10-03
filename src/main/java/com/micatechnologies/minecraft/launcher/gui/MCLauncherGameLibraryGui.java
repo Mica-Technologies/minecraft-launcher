@@ -666,6 +666,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      */
     @Override
     void cleanup() {
+        // Late async work (the available-packs fetch, a slow gather) checks this before
+        // rebuilding cards on a torn-down screen.
+        disposed = true;
         // Filter listeners die with the scene, but the VM's search-debounce timer
         // doesn't — dispose it so a last-instant keystroke can't fire a rebuild on
         // this torn-down controller.
@@ -1091,6 +1094,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     /** Rebuilds the FlowPane's card list from current filter + search + pagination state.
      *  Called on filter changes, search-text changes, page changes, and after install /
      *  uninstall actions complete. Must run on the FX thread. */
+    /** Set by {@link #cleanup()}; late async callbacks check it before rebuilding. */
+    private volatile boolean disposed = false;
+
     /**
      * Rebuilds the card grid for the current filter / search / sort selection.
      *
@@ -1114,6 +1120,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      */
     private void rebuildCards()
     {
+        if ( disposed ) {
+            return;
+        }
         final int gen = ++rebuildGeneration;
         final String type    = vm.getStringFilter( FILTER_TYPE,   TYPE_ALL );
         final String status  = vm.getStringFilter( FILTER_STATUS, STATUS_INSTALLED );
@@ -1151,8 +1160,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             // ---- FX thread: render the slice. ----
             GUIUtilities.JFXPlatformRun( () -> {
                 spinnerReveal.stop();
-                if ( gen != rebuildGeneration ) {
-                    return; // a newer rebuild superseded this result — drop it
+                if ( gen != rebuildGeneration || disposed ) {
+                    return; // superseded by a newer rebuild, or the screen is gone
                 }
                 renderEntries( entries, type, status, search );
                 setRebuildLoadingVisible( false );

@@ -415,6 +415,9 @@ public class MCLauncherModpackDetailModal extends StackPane
      *  animation and ignores {@code visibleState}. */
     public void dispose()
     {
+        // In-flight content loads check visibleState before painting; clearing it makes a
+        // late result for a disposed modal a no-op.
+        visibleState = false;
         if ( heroCycleUnsub != null ) {
             heroCycleUnsub.run();
             heroCycleUnsub = null;
