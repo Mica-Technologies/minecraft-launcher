@@ -149,6 +149,7 @@ class ThemeSnapshotFxTest
             robot.interact( () -> gallery.set( secondGallery() ) );
             render( robot, theme, gallery.get(), "gallery-2", 1000, 980 );
             renderPopups( robot, theme );
+            renderDialog( robot, theme );
         }
     }
 
@@ -311,21 +312,49 @@ class ThemeSnapshotFxTest
         mfxList.setPrefSize( 240, 170 );
         column.getChildren().add( new HBox( 12, table, mfxList ) );
 
-        DialogPane dialog = new DialogPane();
-        dialog.setHeaderText( "Dialog with a list" );
-        ListView< String > dialogList = new ListView<>( FXCollections.observableArrayList( "Dialog row one",
-                                                                                           "Dialog row two" ) );
-        dialogList.getSelectionModel().select( 0 );
-        dialogList.setPrefHeight( 90 );
-        javafx.scene.control.CheckBox dialogCheck = new javafx.scene.control.CheckBox( "Dialog checkbox" );
-        dialog.setContent( new VBox( 8, dialogList, dialogCheck ) );
-        dialog.getButtonTypes().addAll( ButtonType.OK, ButtonType.CANCEL );
-        dialog.setMaxWidth( 480 );
-        column.getChildren().add( dialog );
-
         StackPane root = new StackPane( column );
         root.getStyleClass().add( "rootPane" );
         return root;
+    }
+
+    /**
+     * A real dialog window with a list and a checkbox, themed the way {@code GUIUtilities.themeAlertChrome}
+     * themes one. Rendered as its own window because a bare {@code DialogPane} embedded in a page can lay its
+     * content out at zero height, which no screen in the launcher does.
+     */
+    private void renderDialog( FxRobot robot, ThemeCase theme ) throws Exception
+    {
+        List< String > sheets = MCLauncherGuiWindow.themeStylesheetPaths( theme.theme(), theme.osDark() );
+        String bg = MCLauncherGuiWindow.themeBgHexStatic( sheets.get( sheets.size() - 1 ) );
+        AtomicReference< javafx.scene.control.Dialog< ButtonType > > ref = new AtomicReference<>();
+        robot.interact( () -> {
+            javafx.scene.control.Dialog< ButtonType > dlg = new javafx.scene.control.Dialog<>();
+            DialogPane pane = dlg.getDialogPane();
+            pane.setHeaderText( "Dialog with a list" );
+            ListView< String > list = new ListView<>( FXCollections.observableArrayList( "Dialog row one",
+                                                                                     "Dialog row two" ) );
+            list.getSelectionModel().select( 0 );
+            list.setPrefHeight( 90 );
+            javafx.scene.control.CheckBox check = new javafx.scene.control.CheckBox( "Dialog checkbox" );
+            pane.setContent( new VBox( 8, list, check ) );
+            pane.getButtonTypes().addAll( ButtonType.OK, ButtonType.CANCEL );
+            for ( String sheet : sheets ) {
+                pane.getStylesheets().add( resource( sheet ).toExternalForm() );
+            }
+            pane.setStyle( "-fx-background-color: " + bg + ";" );
+            dlg.initOwner( stage );
+            dlg.show();
+            ref.set( dlg );
+        } );
+        WaitForAsyncUtils.sleep( 300, TimeUnit.MILLISECONDS );
+        WaitForAsyncUtils.waitForFxEvents();
+        AtomicReference< WritableImage > shot = new AtomicReference<>();
+        robot.interact( () -> {
+            shot.set( ref.get().getDialogPane().getScene().snapshot( null ) );
+            ref.get().getDialogPane().getScene().getWindow().hide();
+        } );
+        File out = new File( "build/target/snapshots/themes/" + theme.dir() + "/dialog-list.png" );
+        ImageIO.write( toBuffered( shot.get() ), "png", out );
     }
 
     /** A context menu and a launcher tooltip, each captured from its own popup window. */
