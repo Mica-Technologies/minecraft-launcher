@@ -1286,28 +1286,19 @@ public class MCLauncherGuiWindow extends Application
     }
 
     /**
-     * Installs the launcher's current theme stylesheets (legacy + ui-base + tokens)
-     * onto the given JavaFX {@link javafx.scene.Parent}. Used by auxiliary
-     * windows (quick-start wizard, help, etc.) that want to render in the same
-     * theme as the main launcher.
+     * Resolves the classpath stylesheets for a theme, in the order they are installed: the legacy
+     * per-theme sheet, then the theme-agnostic base sheet, then the theme's token sheet (last, so its
+     * lookup variables win). Package-private so snapshot tests render exactly what the app loads.
      *
-     * <p>Idempotent — pre-existing sheet entries are cleared before re-installing,
-     * so calling this from a "the theme changed, re-apply" handler works.
+     * @param theme  the configured theme name ({@code ConfigConstants.THEME_*})
+     * @param osDark whether the OS is in dark mode; consulted for the Native and Automatic themes
      *
-     * @param root the parent to attach stylesheets to (typically the auxiliary
-     *             scene's root)
+     * @return the stylesheet resource paths, in installation order
+     *
+     * @since 2026.10
      */
-    public static void installCurrentThemeStylesheets( javafx.scene.Parent root )
+    static java.util.List< String > themeStylesheetPaths( String theme, boolean osDark )
     {
-        if ( root == null ) return;
-
-        String theme = ConfigManager.getTheme();
-        boolean osDark = true;
-        if ( ConfigConstants.THEME_AUTOMATIC.equals( theme )
-                || ConfigConstants.THEME_NATIVE.equals( theme ) ) {
-            osDark = com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
-        }
-
         final String legacy;
         final String tokens;
         switch ( theme ) {
@@ -1341,6 +1332,34 @@ public class MCLauncherGuiWindow extends Application
             }
         }
 
+        return java.util.List.of( legacy, UI_BASE_SHEET, tokens );
+    }
+
+    /**
+     * Installs the launcher's current theme stylesheets (legacy + ui-base + tokens)
+     * onto the given JavaFX {@link javafx.scene.Parent}. Used by auxiliary
+     * windows (quick-start wizard, help, etc.) that want to render in the same
+     * theme as the main launcher.
+     *
+     * <p>Idempotent — pre-existing sheet entries are cleared before re-installing,
+     * so calling this from a "the theme changed, re-apply" handler works.
+     *
+     * @param root the parent to attach stylesheets to (typically the auxiliary
+     *             scene's root)
+     */
+    public static void installCurrentThemeStylesheets( javafx.scene.Parent root )
+    {
+        if ( root == null ) return;
+
+        String theme = ConfigManager.getTheme();
+        boolean osDark = true;
+        if ( ConfigConstants.THEME_AUTOMATIC.equals( theme )
+                || ConfigConstants.THEME_NATIVE.equals( theme ) ) {
+            osDark = com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
+        }
+        java.util.List< String > sheets = themeStylesheetPaths( theme, osDark );
+        String tokens = sheets.get( sheets.size() - 1 );
+
         java.util.List< String > stylesheets = root.getStylesheets();
         java.util.function.Function< String, String > resolver = path ->
                 Objects.requireNonNull( MCLauncherGuiWindow.class.getClassLoader()
@@ -1355,9 +1374,9 @@ public class MCLauncherGuiWindow extends Application
         } ) {
             stylesheets.remove( resolver.apply( path ) );
         }
-        stylesheets.add( resolver.apply( legacy ) );
-        stylesheets.add( resolver.apply( UI_BASE_SHEET ) );
-        stylesheets.add( resolver.apply( tokens ) );
+        for ( String path : sheets ) {
+            stylesheets.add( resolver.apply( path ) );
+        }
 
         // Belt-and-suspenders: paint the root's inline bg color and (if the
         // root is attached to a Scene) the scene fill directly. Without this
@@ -1389,7 +1408,7 @@ public class MCLauncherGuiWindow extends Application
      *
      *  @param tokenSheet the active token sheet's path
      *  @return the solid hex background color string for that theme, or the dark default when unrecognized */
-    private static String themeBgHexStatic( String tokenSheet ) {
+    static String themeBgHexStatic( String tokenSheet ) {
         if ( tokenSheet.endsWith( "ui-tokens-light.css" ) )         return "#FFFFFF";
         if ( tokenSheet.endsWith( "ui-tokens-blue-gray.css" )
                 || tokenSheet.endsWith( "ui-tokens-bluegray.css" ) ) return "#0E141D";
