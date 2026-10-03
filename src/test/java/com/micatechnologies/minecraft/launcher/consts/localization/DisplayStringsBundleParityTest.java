@@ -18,7 +18,6 @@
 package com.micatechnologies.minecraft.launcher.consts.localization;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -203,19 +202,7 @@ class DisplayStringsBundleParityTest
      * source — a missing key means {@code LocalizationManager.get} falls
      * back to raw English for that one string, a partial-translation
      * inconsistency inside an otherwise-translated screen.
-     *
-     * <p><b>Disabled — real bug found.</b> All 16 shipped locale files are
-     * missing the exact same key, {@code log.windowChrome.extendFrameFailed}
-     * (English value: {@code "DwmExtendFrameIntoClientArea failed: {0}"}).
-     * It sits among other {@code log.windowChrome.*} keys in
-     * {@code DisplayStrings.properties} that ARE translated in every
-     * locale, so this reads as a key added after the last
-     * {@code npm run translate} pass rather than a systemic problem. Fix
-     * is to run the translator, not to touch this test.</p>
      */
-    @Disabled( "Real bug: log.windowChrome.extendFrameFailed exists in DisplayStrings.properties "
-            + "but is missing from all 16 locale files — added to English after the last "
-            + "`npm run translate` pass. Re-run the translator; do not weaken this assertion." )
     @Test
     void noShippedLocaleIsMissingKeysPresentInEnglish()
             throws IOException
@@ -311,5 +298,49 @@ class DisplayStringsBundleParityTest
         assertTrue( mismatchesByLocale.isEmpty(),
                 "Locales with MessageFormat slot mismatches (locale -> [key englishSlots=.. translatedSlots=..]): "
                         + mismatchesByLocale );
+    }
+
+    /**
+     * Every translation must keep its English source's line structure and must
+     * not carry a backslash the English value doesn't have. A stray backslash in
+     * a <em>loaded</em> value is never intentional: it is an escape that was
+     * written twice, so the user sees a literal {@code \n} or {@code \"}.
+     *
+     * <p>Added after exactly that shipped: {@code translate-locales.js} read
+     * {@code \n} as a backslash plus {@code n} and then doubled the backslash
+     * on write, so 14 multi-line dialogs showed a literal {@code \n} in all 16
+     * locales, and the translation service sometimes "translated" it further
+     * into {@code \ N}.</p>
+     */
+    @Test
+    void translationsKeepEnglishLineBreaksAndAddNoBackslashes()
+            throws IOException
+    {
+        Map< String, java.util.List< String > > problemsByLocale = new TreeMap<>();
+        for ( SupportedLocales.Entry entry : SupportedLocales.ENTRIES ) {
+            Properties locale = loadShippedLocaleFile( entry );
+            java.util.List< String > problems = new ArrayList<>();
+            for ( String key : new TreeSet<>( english.stringPropertyNames() ) ) {
+                String englishValue = english.getProperty( key );
+                String translatedValue = locale.getProperty( key );
+                if ( translatedValue == null ) {
+                    // Covered by noShippedLocaleIsMissingKeysPresentInEnglish; don't double-report.
+                    continue;
+                }
+                if ( translatedValue.indexOf( '\\' ) >= 0 && englishValue.indexOf( '\\' ) < 0 ) {
+                    problems.add( key + " has a stray backslash" );
+                }
+                long englishBreaks = englishValue.chars().filter( c -> c == '\n' ).count();
+                long translatedBreaks = translatedValue.chars().filter( c -> c == '\n' ).count();
+                if ( englishBreaks != translatedBreaks ) {
+                    problems.add( key + " has " + translatedBreaks + " line breaks, English has " + englishBreaks );
+                }
+            }
+            if ( !problems.isEmpty() ) {
+                problemsByLocale.put( entry.tag(), problems );
+            }
+        }
+        assertTrue( problemsByLocale.isEmpty(),
+                "Locales with broken escapes (locale -> problems): " + problemsByLocale );
     }
 }

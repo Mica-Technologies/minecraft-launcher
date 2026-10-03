@@ -65,6 +65,8 @@ const DELAY_MS = 250;   // be polite to Google's free endpoint — 120ms trigger
                         // "Partial Translation Request Fail" rate-limit responses; 250ms keeps
                         // the rate well below where Google starts pushing back
 
+const CONTROL_ESCAPES = { '\n': '\\n', '\t': '\\t', '\r': '\\r', '\f': '\\f' };
+
 /**
  * Encodes non-ASCII characters as Java {@code \\uXXXX} escapes so the resulting
  * .properties file is portable across Java versions (pre-Java 9 defaults to
@@ -75,13 +77,24 @@ const DELAY_MS = 250;   // be polite to Google's free endpoint — 120ms trigger
  */
 function escapeNonAscii(str) {
     let out = '';
+    let first = true;
     for (const ch of str) {
         const code = ch.codePointAt(0);
         if (code < 0x80) {
-            // Plain ASCII — escape literal backslashes so the result stays
-            // round-trippable through java.util.Properties.
+            // Plain ASCII — escape literal backslashes and the control characters
+            // java.util.Properties decodes (\n, \t, ...) so the value round-trips.
+            // Writing a decoded newline raw would end the entry mid-value; writing
+            // it as a backslash plus 'n' after doubling the backslash is how 14
+            // multi-line strings shipped showing a literal "\n" in every locale.
             if (ch === '\\') {
                 out += '\\\\';
+            }
+            else if (ch in CONTROL_ESCAPES) {
+                out += CONTROL_ESCAPES[ch];
+            }
+            else if (ch === ' ' && first) {
+                // Java strips leading whitespace from a value unless it is escaped.
+                out += '\\ ';
             }
             else {
                 out += ch;
@@ -98,6 +111,7 @@ function escapeNonAscii(str) {
             out += '\\u' + hi.toString(16).padStart(4, '0').toUpperCase();
             out += '\\u' + lo.toString(16).padStart(4, '0').toUpperCase();
         }
+        first = false;
     }
     return out;
 }
@@ -170,10 +184,10 @@ function parseProperties(text) {
     return { keysInOrder, values, leadingComments };
 }
 
-/** Reverse of escapeNonAscii — turns \uXXXX sequences back into their
- *  character form so the script's in-memory state matches what Java sees
- *  when loading the bundle. Also collapses the doubled backslashes that
- *  escapeNonAscii produces for literal '\\' chars. */
+/** Reverse of escapeNonAscii — decodes a raw value exactly as
+ *  java.util.Properties does, so the script's in-memory state matches what
+ *  Java sees when loading the bundle: \uXXXX becomes its character, \n \t
+ *  \r \f become control characters, and any other backslash-x becomes x. */
 function decodeUnicodeEscapes(text) {
     if (!text.includes('\\')) return text;
     let out = '';
@@ -190,15 +204,10 @@ function decodeUnicodeEscapes(text) {
                     continue;
                 }
             }
-            if (next === '\\') {
-                out += '\\';
-                i += 2;
-                continue;
-            }
-            // Other backslash-x escapes (\\n, \\t, etc.) pass through
-            // literally — the original .properties format does decode
-            // these, but our translated values don't contain them so
-            // we don't bother handling them.
+            const control = { n: '\n', t: '\t', r: '\r', f: '\f' }[next];
+            out += control !== undefined ? control : next;
+            i += 2;
+            continue;
         }
         out += c;
         i++;
@@ -272,7 +281,28 @@ function verifyPlaceholders(englishValue, translatedValue) {
     return placeholderSignature(englishValue) === placeholderSignature(translatedValue);
 }
 
+// Values that must ship exactly as written in English -- product names the
+// translation API otherwise renders as common nouns ("Codex" -> "Kodex",
+// "Cursor" -> the Japanese word for a pointer).
+const VERBATIM_KEYS = new Set([
+    'settings.mcp.connect.client.claudeCode',
+    'settings.mcp.connect.client.cursor',
+    'settings.mcp.connect.client.codex',
+]);
+
+// Multi-line values are translated one line at a time. Sent whole, the API is
+// free to merge, drop or re-space the line breaks, and the dialogs built from
+// these strings depend on them.
 async function translateString(text, targetCode) {
+    if (!text.includes('\n')) return translateLine(text, targetCode);
+    const lines = [];
+    for (const line of text.split('\n')) {
+        lines.push(await translateLine(line, targetCode));
+    }
+    return lines.join('\n');
+}
+
+async function translateLine(text, targetCode) {
     if (text === '' || text.trim() === '') return text;
     const { protectedText, placeholders } = protectPlaceholders(text);
     const result = await translate(protectedText, { from: 'en', to: targetCode });
@@ -344,6 +374,12 @@ async function main() {
         for (const key of source.keysInOrder) {
             const englishValue = source.values[key];
             const existingValue = existing.values[key];
+            if (VERBATIM_KEYS.has(key)) {
+                merged.values[key] = englishValue;
+                skipped++;
+                totalSkipped++;
+                continue;
+            }
             if (!FORCE && existingValue !== undefined && existingValue !== '') {
                 merged.values[key] = existingValue;
                 skipped++;
@@ -402,4 +438,4 @@ if (invokedDirectly) {
 }
 
 export { protectPlaceholders, restorePlaceholders, placeholderSignature, verifyPlaceholders,
-         parseProperties, endsWithContinuation };
+         parseProperties, endsWithContinuation, escapeNonAscii };
