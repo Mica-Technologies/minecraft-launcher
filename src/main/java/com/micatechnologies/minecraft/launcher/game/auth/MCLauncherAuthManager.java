@@ -526,9 +526,11 @@ public class MCLauncherAuthManager
     /**
      * The user to launch a game as: the pack's override account if it has one, otherwise the
      * default (see {@link LaunchAccountResolver}). When that account's token is due, waits for
-     * its refresh first. A refresh that fails or times out still launches on the current
-     * token, which outlives the refresh interval by hours; Minecraft rejects it outright only
-     * when it has truly expired.
+     * its refresh first. A refresh that times out or fails for a network reason still
+     * launches on the current token, which outlives the refresh interval by hours; Minecraft
+     * rejects it outright only when it has truly expired. A refresh Microsoft refused (the
+     * saved credentials were rejected) blocks the launch with
+     * {@link LaunchAccountResolver.Problem#NEEDS_SIGN_IN} instead: that token is dead.
      *
      * <p>Blocks; call off the FX thread.</p>
      *
@@ -536,24 +538,52 @@ public class MCLauncherAuthManager
      *
      * @return the user, with the freshest access token available
      *
-     * @throws LaunchAccountResolver.BlockedException when no usable account resolves
+     * @throws LaunchAccountResolver.BlockedException when no usable account resolves, or its
+     *                                                credentials were rejected
      * @since 2026.10
      */
     public static User userForLaunch( String overrideUuid ) throws LaunchAccountResolver.BlockedException {
-        AccountManager manager = accounts();
+        return userForLaunch( overrideUuid, accounts(), AUTH_TIMEOUT_SECONDS );
+    }
+
+    /**
+     * {@link #userForLaunch(String)} against a given account manager and timeout, for tests.
+     *
+     * @param overrideUuid   the pack's account override, or {@code null} for the default
+     * @param manager        the accounts
+     * @param timeoutSeconds how long to wait for a due refresh
+     *
+     * @return the user, with the freshest access token available
+     *
+     * @throws LaunchAccountResolver.BlockedException as {@link #userForLaunch(String)}
+     */
+    static User userForLaunch( String overrideUuid, AccountManager manager, long timeoutSeconds )
+            throws LaunchAccountResolver.BlockedException
+    {
         LaunchAccountResolver.Resolution resolution =
                 LaunchAccountResolver.resolve( overrideUuid, manager.accounts() );
         if ( !resolution.ok() ) {
             throw new LaunchAccountResolver.BlockedException( resolution );
         }
         try {
-            User refreshed = manager.refresh( resolution.uuid(), false ).get( AUTH_TIMEOUT_SECONDS, TimeUnit.SECONDS );
+            User refreshed = manager.refresh( resolution.uuid(), false ).get( timeoutSeconds, TimeUnit.SECONDS );
             if ( refreshed != null ) {
                 return refreshed;
             }
         }
         catch ( InterruptedException e ) {
             Thread.currentThread().interrupt();
+        }
+        catch ( ExecutionException e ) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            if ( cause instanceof AccountManager.RenewalFailedException rf && rf.credentialsRejected() ) {
+                // Microsoft refused the saved credentials (the account is now marked as
+                // needing sign-in). The cached token is no good either; offer sign-in.
+                Logger.logWarningSilent( LocalizationManager.get( "log.authManager.launchCredentialsRejected" ) );
+                throw needsSignIn( resolution );
+            }
+            Logger.logWarningSilent( LocalizationManager.format( "log.authManager.launchRefreshFailed",
+                                                                 cause.getClass().getSimpleName() ) );
         }
         catch ( Exception e ) {
             Logger.logWarningSilent( LocalizationManager.format( "log.authManager.launchRefreshFailed",
@@ -562,11 +592,17 @@ public class MCLauncherAuthManager
         User current = manager.user( resolution.uuid() );
         if ( current == null ) {
             // Never identified (no cached user) and the refresh failed: nothing to launch as.
-            throw new LaunchAccountResolver.BlockedException( new LaunchAccountResolver.Resolution(
-                    null, LaunchAccountResolver.Problem.NEEDS_SIGN_IN, resolution.accountName(),
-                    resolution.fromOverride() ) );
+            throw needsSignIn( resolution );
         }
         return current;
+    }
+
+    /** A launch blocked because the resolved account must sign in again. */
+    private static LaunchAccountResolver.BlockedException needsSignIn( LaunchAccountResolver.Resolution resolution )
+    {
+        return new LaunchAccountResolver.BlockedException( new LaunchAccountResolver.Resolution(
+                null, LaunchAccountResolver.Problem.NEEDS_SIGN_IN, resolution.accountName(),
+                resolution.fromOverride() ) );
     }
 
     /**

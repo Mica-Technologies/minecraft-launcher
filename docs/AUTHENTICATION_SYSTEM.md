@@ -190,6 +190,10 @@ otherwise the default. It then waits for that account's refresh if one is due. T
 | `NEEDS_SIGN_IN` | "Sign in again", which opens the add-account window |
 | `NO_ACCOUNT` | an error; sign in first |
 
+`NEEDS_SIGN_IN` also blocks a launch whose due refresh Microsoft refused (credentials rejected):
+the cached token is just as dead, so launching on it would only fail inside Minecraft. A refresh
+that times out or fails for a transient reason still launches on the cached token.
+
 The chosen `User` is passed explicitly to `GameModPack.startGame(user, cancelled)`; the launcher
 builds Minecraft's sign-in arguments from it (`GameModPackLauncher.AuthArguments`). One account can
 play one game at a time (see `GAME_LAUNCH_SYSTEM.md`, *Concurrent games*).
