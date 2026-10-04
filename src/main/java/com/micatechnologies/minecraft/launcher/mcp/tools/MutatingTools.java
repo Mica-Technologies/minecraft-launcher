@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.mcp.tools;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.game.modpack.ModPackDocument;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpRiskClass;
 import com.micatechnologies.minecraft.launcher.utilities.LauncherUriHandler;
 
@@ -159,6 +160,38 @@ public final class MutatingTools
             return "No modpack named \"" + friendlyName + "\". Call list_modpacks to see the "
                     + "available friendly names.";
         }
+
+        /**
+         * Checks that a name is usable for a new pack.
+         * <p>
+         * A new pack's manifest file is named from the letters and digits of its name,
+         * lower-cased, so "my-pack" and "My Pack" would write the same file. An exact-name
+         * comparison would let the second silently replace the first's manifest; comparing
+         * the sanitized form refuses it before the user is ever asked.
+         *
+         * @param name the requested name
+         *
+         * @return why the name is refused, or {@code null} when it is free
+         */
+        protected String newPackNameRejection( String name )
+        {
+            String key = ModPackDocument.localManifestKeyOf( name );
+            if ( key.isEmpty() ) {
+                return "The name \"" + name + "\" has no letters or digits. Pick a name with at "
+                        + "least one.";
+            }
+            for ( McpLauncherView.PackSummary pack : view.packs() ) {
+                if ( key.equals( ModPackDocument.localManifestKeyOf( pack.friendlyName() ) ) ) {
+                    return pack.friendlyName().equals( name )
+                           ? "A modpack named \"" + name + "\" already exists. Pick a different name."
+                           : "\"" + name + "\" is too close to the existing modpack \""
+                                   + pack.friendlyName() + "\": names that differ only in case, "
+                                   + "spacing or punctuation would share a manifest file. Pick a "
+                                   + "more distinct name.";
+                }
+            }
+            return null;
+        }
     }
 
     /** Installs a modpack from a manifest URL. */
@@ -266,10 +299,7 @@ public final class MutatingTools
             if ( name.isEmpty() ) {
                 return "A name argument is required.";
             }
-            if ( view.pack( name ) != null ) {
-                return "A modpack named \"" + name + "\" already exists. Pick a different name.";
-            }
-            return null;
+            return newPackNameRejection( name );
         }
 
         @Override
@@ -321,10 +351,7 @@ public final class MutatingTools
             if ( view.pack( source ) == null ) {
                 return unknownPack( source );
             }
-            if ( view.pack( newName ) != null ) {
-                return "A modpack named \"" + newName + "\" already exists. Pick a different name.";
-            }
-            return null;
+            return newPackNameRejection( newName );
         }
 
         @Override

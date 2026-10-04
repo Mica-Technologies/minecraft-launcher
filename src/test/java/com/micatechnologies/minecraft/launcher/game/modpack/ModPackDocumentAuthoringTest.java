@@ -310,6 +310,35 @@ class ModPackDocumentAuthoringTest
         assertThrows( IllegalArgumentException.class, () -> doc.writeLocalManifest( null ) );
     }
 
+    /**
+     * Names that differ only in case, spacing or punctuation share a file. Creating a new pack
+     * must therefore refuse to write over an existing one rather than silently replace another
+     * pack's manifest.
+     */
+    @Test
+    void aNearDuplicateNameCannotOverwriteWhenOverwritingIsRefused( @TempDir Path tempDir ) throws IOException
+    {
+        String first = packNamed( "My Pack", "1.0.0" ).writeLocalManifest( tempDir, false );
+
+        assertThrows( java.nio.file.FileAlreadyExistsException.class,
+                      () -> packNamed( "my-pack", "9.9.9" ).writeLocalManifest( tempDir, false ) );
+        assertEquals( "My Pack",
+                      ModPackDocument.fromJson( Files.readString( Path.of( java.net.URI.create( first ) ),
+                                                                  StandardCharsets.UTF_8 ) )
+                              .getString( ModPackDocument.KEY_PACK_NAME ),
+                      "the original manifest must be untouched" );
+    }
+
+    @Test
+    void theLocalManifestPathIsDerivedFromTheSanitizedLowerCasedName( @TempDir Path tempDir )
+    {
+        assertEquals( tempDir.resolve( ModPackDocument.LOCAL_MANIFEST_PREFIX + "mypack.json" ),
+                      packNamed( "My Pack!", "1.0.0" ).localManifestPathIn( tempDir ) );
+        assertEquals( "mypack", ModPackDocument.localManifestKeyOf( "my-PACK" ) );
+        assertEquals( "", ModPackDocument.localManifestKeyOf( "!!! ---" ) );
+        assertEquals( "", ModPackDocument.localManifestKeyOf( null ) );
+    }
+
     /** Rewriting the same pack overwrites rather than accumulating stale manifests. */
     @Test
     void rewritingTheSamePackReusesTheSameFile( @TempDir Path tempDir ) throws IOException

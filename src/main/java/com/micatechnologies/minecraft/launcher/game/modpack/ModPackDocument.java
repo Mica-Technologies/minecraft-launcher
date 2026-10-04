@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -723,19 +724,85 @@ public class ModPackDocument
      */
     public String writeLocalManifest( Path directory ) throws IOException
     {
+        return writeLocalManifest( directory, true );
+    }
+
+    /**
+     * Writes this manifest into a directory, optionally refusing to replace an existing file,
+     * and returns a URL that {@code GameModPackManager.installModPackByURL} accepts.
+     * <p>
+     * The filename keeps only the letters and digits of the pack name, lower-cased, so
+     * different names can share one file: "My Pack" and "my-pack" both write
+     * {@code created-mypack.json}. A caller creating a <em>new</em> pack passes
+     * {@code overwrite = false}, so a near-duplicate name fails instead of silently replacing
+     * another pack's manifest.
+     *
+     * @param directory where to write
+     * @param overwrite whether an existing file at the target path may be replaced
+     *
+     * @return the manifest's {@code file:} URL
+     *
+     * @throws java.nio.file.FileAlreadyExistsException if {@code overwrite} is {@code false}
+     *                                                  and the target file already exists
+     * @throws IOException                              if the manifest cannot be written
+     * @throws IllegalArgumentException                 if {@code directory} is {@code null},
+     *                                                  or the pack name sanitizes to nothing
+     * @since 2026.10
+     */
+    public String writeLocalManifest( Path directory, boolean overwrite ) throws IOException
+    {
+        Path manifestPath = localManifestPathIn( directory );
+        Files.createDirectories( directory );
+        if ( overwrite ) {
+            Files.writeString( manifestPath, toPrettyJson(), StandardCharsets.UTF_8 );
+        }
+        else {
+            Files.writeString( manifestPath, toPrettyJson(), StandardCharsets.UTF_8,
+                               StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE );
+        }
+        return manifestPath.toUri().toString();
+    }
+
+    /**
+     * Returns where {@link #writeLocalManifest} would write this manifest inside a directory,
+     * without touching the filesystem.
+     *
+     * @param directory the target directory
+     *
+     * @return the manifest path
+     *
+     * @throws IllegalArgumentException if {@code directory} is {@code null}, or the pack name
+     *                                  sanitizes to nothing
+     * @since 2026.10
+     */
+    public Path localManifestPathIn( Path directory )
+    {
         if ( directory == null ) {
             throw new IllegalArgumentException( "A target directory is required" );
         }
-        String baseName = sanitizedFileBaseName();
-        if ( baseName.isEmpty() ) {
+        String key = localManifestKeyOf( getString( KEY_PACK_NAME ) );
+        if ( key.isEmpty() ) {
             throw new IllegalArgumentException(
                     "The pack name has no characters usable in a filename" );
         }
-        Files.createDirectories( directory );
-        Path manifestPath = directory.resolve( LOCAL_MANIFEST_PREFIX
-                                                       + baseName.toLowerCase( Locale.ROOT ) + ".json" );
-        Files.writeString( manifestPath, toPrettyJson(), StandardCharsets.UTF_8 );
-        return manifestPath.toUri().toString();
+        return directory.resolve( LOCAL_MANIFEST_PREFIX + key + ".json" );
+    }
+
+    /**
+     * Returns the part of a pack name that survives into its local manifest's filename: its
+     * letters and digits, lower-cased. Two names with the same key would write the same file,
+     * so this is what a "does that name already exist?" check has to compare.
+     *
+     * @param packName the pack name; {@code null} is treated as empty
+     *
+     * @return the key; {@code ""} when the name has no letters or digits
+     *
+     * @since 2026.10
+     */
+    public static String localManifestKeyOf( String packName )
+    {
+        return packName == null ? ""
+                                : packName.replaceAll( "[^a-zA-Z0-9]", "" ).toLowerCase( Locale.ROOT );
     }
 
     /**

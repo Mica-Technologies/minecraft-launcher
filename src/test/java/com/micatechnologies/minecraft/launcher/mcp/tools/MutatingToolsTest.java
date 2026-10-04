@@ -343,6 +343,31 @@ class MutatingToolsTest
         assertNull( validate( "create_modpack", args( "name", "Brand New" ) ) );
     }
 
+    /**
+     * The manifest file is named from the letters and digits of the name, lower-cased, so a
+     * name differing only in case, spacing or punctuation would overwrite another pack's
+     * manifest. It is refused before the user is asked.
+     */
+    @Test
+    void aNameThatSanitizesLikeAnExistingPackIsRefused()
+    {
+        for ( String nearDuplicate : new String[]{ "installed pack", "Installed-Pack", "INSTALLEDPACK",
+                                                   "installed_pack!", "not installed" } ) {
+            assertNotNull( validate( "create_modpack", args( "name", nearDuplicate ) ), nearDuplicate );
+
+            JsonObject fork = new JsonObject();
+            fork.addProperty( "friendlyName", "Installed Pack" );
+            fork.addProperty( "newName", nearDuplicate );
+            assertNotNull( validate( "fork_modpack", fork ), nearDuplicate );
+        }
+    }
+
+    @Test
+    void aNameWithNoLettersOrDigitsIsRefused()
+    {
+        assertNotNull( validate( "create_modpack", args( "name", "!!! ---" ) ) );
+    }
+
     @Test
     void optionalCreateArgumentsAreForwardedAsNullWhenAbsent()
     {

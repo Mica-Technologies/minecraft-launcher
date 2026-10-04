@@ -30,6 +30,7 @@ import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -343,6 +344,12 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
 
     /**
      * Writes an authored manifest and installs it.
+     * <p>
+     * The write never replaces another installed pack's manifest. Pack names that differ only
+     * in case, spacing or punctuation map to the same file, and the tools' own name check can
+     * be raced, so the file is created with {@code CREATE_NEW}. A file no installed pack points
+     * at — left behind when an authored pack was uninstalled — is stale and is cleared first,
+     * so uninstalling a pack does not block re-creating it under the same name.
      *
      * @param document the manifest to publish
      * @param verb     how to describe what happened, e.g. {@code "Created"}
@@ -355,11 +362,51 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
     {
         Path directory = Path.of( LocalPathManager.getLauncherConfigFolderPath(),
                                   AUTHORED_MANIFESTS_DIR );
-        String url = document.writeLocalManifest( directory );
+        Path target = document.localManifestPathIn( directory );
+        if ( Files.exists( target ) && !isManifestOfAnInstalledPack( target, directory ) ) {
+            Files.delete( target );
+        }
+        String url;
+        try {
+            url = document.writeLocalManifest( directory, false );
+        }
+        catch ( FileAlreadyExistsException e ) {
+            return Outcome.failed( "Another installed modpack already uses the manifest file "
+                                           + "that \"" + document.getString( ModPackDocument.KEY_PACK_NAME )
+                                           + "\" would be written to; its name differs only in "
+                                           + "case, spacing or punctuation. Pick a more distinct name." );
+        }
         GameModPackManager.installModPackByURL( url );
         refreshPackList();
         return Outcome.ok( verb + " \"" + document.getString( ModPackDocument.KEY_PACK_NAME )
                                    + "\" and installed it." );
+    }
+
+    /**
+     * Reports whether an installed pack's manifest URL resolves to a given authored file.
+     *
+     * @param manifestPath the authored manifest file
+     * @param authoredDir  the directory holding manifests this launcher wrote
+     *
+     * @return {@code true} when some installed pack is installed from that file
+     */
+    private static boolean isManifestOfAnInstalledPack( Path manifestPath, Path authoredDir )
+    {
+        Path wanted = manifestPath.toAbsolutePath().normalize();
+        for ( GameModPack pack : installedPacks() ) {
+            try {
+                Path resolved = resolveAuthoredManifest( pack.getManifestUrl(), authoredDir );
+                if ( wanted.equals( resolved ) ) {
+                    return true;
+                }
+            }
+            catch ( Exception e ) {
+                // A pack whose metadata will not load might be the owner; assume it is, so the
+                // file is kept and the create fails rather than clobbering it.
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
