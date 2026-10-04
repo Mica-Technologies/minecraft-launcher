@@ -83,9 +83,18 @@ class LauncherMcpAuthorizerTest
         LauncherMcpAuthorizer.Answer answer = LauncherMcpAuthorizer.Answer.DENY;
         RuntimeException failure;
         int askCount;
+        Boolean lastOfferedSessionGrant;
 
         @Override
         public boolean isAvailable() { return available; }
+
+        @Override
+        public LauncherMcpAuthorizer.Answer ask( McpTool tool, McpCallContext context,
+                                                 JsonObject arguments, boolean offerSessionGrant )
+        {
+            lastOfferedSessionGrant = offerSessionGrant;
+            return ask( tool, context, arguments );
+        }
 
         @Override
         public LauncherMcpAuthorizer.Answer ask( McpTool tool, McpCallContext context,
@@ -300,6 +309,38 @@ class LauncherMcpAuthorizerTest
 
         settings.policy = McpApprovalPolicy.DISABLED;
         assertFalse( authorize( mutatingTool() ) );
+    }
+
+    /**
+     * "Always ask" means every call: the prompt must not offer a session grant for it, and a
+     * prompt that answers "for this session" anyway must not leave a grant behind.
+     */
+    @Test
+    void anAlwaysAskToolIsNeverOfferedOrGrantedASessionGrant()
+    {
+        settings.policy = McpApprovalPolicy.ASK;
+        prompt.answer = LauncherMcpAuthorizer.Answer.ALLOW_FOR_SESSION;
+
+        assertTrue( authorize( mutatingTool() ) );
+        assertEquals( Boolean.FALSE, prompt.lastOfferedSessionGrant );
+        assertEquals( 0, grants.size(), "no grant may be recorded for an always-ask tool" );
+
+        assertTrue( authorize( mutatingTool() ) );
+        assertEquals( 2, prompt.askCount, "an always-ask tool must ask on every call" );
+    }
+
+    /** A grant held from before the user switched the tool to "Always ask" does not apply. */
+    @Test
+    void switchingToAlwaysAskOverridesAnExistingSessionGrant()
+    {
+        prompt.answer = LauncherMcpAuthorizer.Answer.ALLOW_FOR_SESSION;
+        assertTrue( authorize( mutatingTool() ) );
+        assertEquals( Boolean.TRUE, prompt.lastOfferedSessionGrant );
+
+        settings.policy = McpApprovalPolicy.ASK;
+        prompt.answer = LauncherMcpAuthorizer.Answer.DENY;
+        assertFalse( authorize( mutatingTool() ) );
+        assertEquals( 2, prompt.askCount );
     }
 
     // endregion

@@ -29,7 +29,10 @@ public enum McpApprovalPolicy
     /** Run without asking. */
     ALWAYS_ALLOW,
 
-    /** Prompt for consent on every call, unless an unexpired session grant covers it. */
+    /**
+     * Prompt for consent on every call. Not satisfied by a session grant: the consent dialog
+     * does not offer "Allow for this session" for a tool with this policy.
+     */
     ASK,
 
     /** Refuse unconditionally. Not overridable by a session grant. */

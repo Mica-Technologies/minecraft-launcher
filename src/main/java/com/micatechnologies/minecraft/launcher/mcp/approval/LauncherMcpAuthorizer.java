@@ -111,6 +111,30 @@ public final class LauncherMcpAuthorizer implements McpAuthorizer
          * @since 3.0
          */
         Answer ask( McpTool tool, McpCallContext context, JsonObject arguments );
+
+        /**
+         * Shows the consent dialog, optionally without the "Allow for this session" choice,
+         * and waits for an answer.
+         * <p>
+         * A tool the user set to "Always ask" must be asked about on every call, so offering a
+         * session grant for it would be offering something the approval engine will not honour.
+         * The default delegates to {@link #ask(McpTool, McpCallContext, JsonObject)}; the
+         * authorizer ignores an {@link Answer#ALLOW_FOR_SESSION} it did not offer either way.
+         *
+         * @param tool              the tool being called
+         * @param context           who is calling
+         * @param arguments         the call arguments, so the prompt can describe the call
+         * @param offerSessionGrant whether "Allow for this session" may be offered
+         *
+         * @return the user's answer
+         *
+         * @since 2026.10
+         */
+        default Answer ask( McpTool tool, McpCallContext context, JsonObject arguments,
+                            boolean offerSessionGrant )
+        {
+            return ask( tool, context, arguments );
+        }
     }
 
     /**
@@ -173,12 +197,14 @@ public final class LauncherMcpAuthorizer implements McpAuthorizer
         }
 
         long now;
+        McpApprovalPolicy explicitPolicy;
         McpApprovalEngine.Request request;
         try {
             now = clock.getAsLong();
+            explicitPolicy = settings.policyFor( tool.name() );
             request = new McpApprovalEngine.Request(
                     tool.riskClass(),
-                    settings.policyFor( tool.name() ),
+                    explicitPolicy,
                     settings.serverEnabled(),
                     settings.autoApproveReadOnly(),
                     prompt.isAvailable(),
@@ -201,9 +227,11 @@ public final class LauncherMcpAuthorizer implements McpAuthorizer
             return false;
         }
 
+        // "Always ask" is not satisfiable by a grant, so the dialog must not offer one.
+        boolean offerSessionGrant = explicitPolicy != McpApprovalPolicy.ASK;
         Answer answer;
         try {
-            answer = prompt.ask( tool, context, arguments );
+            answer = prompt.ask( tool, context, arguments, offerSessionGrant );
         }
         catch ( Exception e ) {
             Logger.logError( "MCP consent prompt failed for tool " + tool.name() + "; denying" );
@@ -214,7 +242,7 @@ public final class LauncherMcpAuthorizer implements McpAuthorizer
             return false;
         }
 
-        if ( answer == Answer.ALLOW_FOR_SESSION ) {
+        if ( answer == Answer.ALLOW_FOR_SESSION && offerSessionGrant ) {
             grants.grant( context.clientName(), tool.name(),
                           now + McpApprovalEngine.DEFAULT_GRANT_TTL_MS );
         }

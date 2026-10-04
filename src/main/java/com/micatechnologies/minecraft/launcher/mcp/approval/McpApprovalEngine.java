@@ -79,10 +79,13 @@ public final class McpApprovalEngine
      * <ol>
      *   <li>Master switch off — deny. The server should not be reachable at all in this state;
      *       denying here is defence in depth.</li>
-     *   <li>An explicit per-tool policy of {@code DISABLED} or {@code ALWAYS_ALLOW} wins
-     *       outright. <b>A session grant cannot override {@code DISABLED}</b> — a user who
-     *       turns a tool off has overruled any consent they gave earlier.</li>
-     *   <li>An unexpired session grant allows the call.</li>
+     *   <li>An explicit per-tool policy wins outright, in both directions: {@code DISABLED}
+     *       denies, {@code ALWAYS_ALLOW} allows, and {@code ASK} prompts (or denies, with no
+     *       GUI). <b>A session grant overrides none of them</b> — a user who turns a tool off,
+     *       or sets it to "Always ask", has overruled any "allow for this session" consent they
+     *       gave earlier.</li>
+     *   <li>An unexpired session grant allows the call. Grants therefore only decide calls to
+     *       tools with no explicit policy.</li>
      *   <li>Otherwise the risk-class default applies. {@code READ_ONLY} allows only while the
      *       auto-approve toggle is on, which is how a cautious user forces prompts on
      *       everything.</li>
@@ -118,12 +121,17 @@ public final class McpApprovalEngine
         if ( explicit == McpApprovalPolicy.ALWAYS_ALLOW ) {
             return McpApprovalDecision.ALLOW;
         }
+        if ( explicit == McpApprovalPolicy.ASK ) {
+            // "Always ask" means every call. A grant from an earlier "Allow for this session"
+            // must not quietly turn it into "ask once".
+            return request.guiAvailable() ? McpApprovalDecision.PROMPT : McpApprovalDecision.DENY;
+        }
 
         if ( hasUnexpiredGrant( request ) ) {
             return McpApprovalDecision.ALLOW;
         }
 
-        if ( explicit == null && request.riskClass() == McpRiskClass.READ_ONLY
+        if ( request.riskClass() == McpRiskClass.READ_ONLY
                 && request.autoApproveReadOnly() ) {
             return McpApprovalDecision.ALLOW;
         }

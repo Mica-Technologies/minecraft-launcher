@@ -92,6 +92,27 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
     public LauncherMcpAuthorizer.Answer ask( McpTool tool, McpCallContext context,
                                              JsonObject arguments )
     {
+        return ask( tool, context, arguments, true );
+    }
+
+    /**
+     * Shows the consent dialog. When {@code offerSessionGrant} is {@code false} — the tool is
+     * set to "Always ask" — the second button is the dialog's own Cancel rather than "Allow for
+     * this session", so the only ways out are allowing this one call or refusing it.
+     *
+     * @param tool              the tool being called
+     * @param context           who is calling
+     * @param arguments         the call arguments
+     * @param offerSessionGrant whether "Allow for this session" may be offered
+     *
+     * @return the user's answer
+     *
+     * @since 2026.10
+     */
+    @Override
+    public LauncherMcpAuthorizer.Answer ask( McpTool tool, McpCallContext context,
+                                             JsonObject arguments, boolean offerSessionGrant )
+    {
         if ( tool == null || context == null || !isAvailable() ) {
             return LauncherMcpAuthorizer.Answer.DENY;
         }
@@ -106,7 +127,11 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
                                                     tool.description(),
                                                     detailedArguments( tool, arguments ) ),
                         LocalizationManager.get( "dialog.mcp.consent.button.allowOnce" ),
-                        LocalizationManager.get( "dialog.mcp.consent.button.allowSession" ),
+                        // The question helper folds a second label equal to its own Cancel
+                        // into the dialog's cancel button, so this yields Allow once / Cancel.
+                        LocalizationManager.get( offerSessionGrant
+                                                 ? "dialog.mcp.consent.button.allowSession"
+                                                 : "dialog.button.cancel" ),
                         MCLauncherGuiController.getTopStageOrNull() ), runnable -> {
             Thread thread = new Thread( runnable, "mcp-consent" );
             thread.setDaemon( true );
@@ -120,7 +145,8 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
             int chosen = answer.get( CONSENT_TIMEOUT_SECONDS, TimeUnit.SECONDS );
             return switch ( chosen ) {
                 case 1 -> LauncherMcpAuthorizer.Answer.ALLOW_ONCE;
-                case 2 -> LauncherMcpAuthorizer.Answer.ALLOW_FOR_SESSION;
+                case 2 -> offerSessionGrant ? LauncherMcpAuthorizer.Answer.ALLOW_FOR_SESSION
+                                            : LauncherMcpAuthorizer.Answer.DENY;
                 default -> LauncherMcpAuthorizer.Answer.DENY;
             };
         }

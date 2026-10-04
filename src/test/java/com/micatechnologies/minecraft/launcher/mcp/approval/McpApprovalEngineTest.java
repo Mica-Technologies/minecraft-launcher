@@ -110,6 +110,23 @@ class McpApprovalEngineTest
     }
 
     /**
+     * Explicit policy beats grants in both directions: "Always ask" means every call, so an
+     * "Allow for this session" given earlier must not silence it.
+     */
+    @Test
+    void aSessionGrantCannotOverrideAnExplicitAsk()
+    {
+        for ( McpRiskClass risk : McpRiskClass.values() ) {
+            assertEquals( McpApprovalDecision.PROMPT,
+                          resolve( risk, McpApprovalPolicy.ASK, true, true, LIVE_GRANT ),
+                          "a grant silenced always-ask for " + risk );
+            assertEquals( McpApprovalDecision.DENY,
+                          resolve( risk, McpApprovalPolicy.ASK, true, false, LIVE_GRANT ),
+                          "a grant allowed always-ask headlessly for " + risk );
+        }
+    }
+
+    /**
      * The auto-approve toggle gates the risk-class <em>default</em>. A per-tool
      * {@code ALWAYS_ALLOW} the user chose deliberately is more specific and survives the
      * toggle being switched off.
