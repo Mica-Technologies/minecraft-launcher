@@ -129,6 +129,9 @@ public class MCLauncherGuiWindow extends Application
      */
     @Override
     public void start( Stage stage ) throws Exception {
+        // Register the bundled fonts before any stylesheet resolves a font family.
+        BundledFonts.ensureLoaded();
+
         // Save stage
         this.stage = stage;
 
@@ -1279,6 +1282,7 @@ public class MCLauncherGuiWindow extends Application
     public static void installCurrentThemeStylesheets( javafx.scene.Parent root )
     {
         if ( root == null ) return;
+        BundledFonts.ensureLoaded();
 
         String theme = ConfigManager.getTheme();
         boolean osDark = true;

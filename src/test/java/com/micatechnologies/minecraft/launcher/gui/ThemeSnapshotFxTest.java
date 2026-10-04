@@ -102,6 +102,7 @@ class ThemeSnapshotFxTest
     @Start
     private void start( Stage stage )
     {
+        BundledFonts.ensureLoaded();
         this.stage = stage;
     }
 

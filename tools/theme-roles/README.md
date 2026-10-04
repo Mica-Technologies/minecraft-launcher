@@ -27,6 +27,7 @@ tones they don't have.
 | `tertiary` group | the primary's hue turned 60°, chroma 24 (Material's tonal-spot rule) |
 | `surface` | the theme's `-color-bg` |
 | `surface-container-lowest` … `-highest` | the hue and tint of `-color-surface`, stepped from the background's tone the way Material's schemes step (dark −2/+4/+6/+11/+16, light +2/−2/−4/−6/−8). The Native themes use translucent white or black overlays instead, so the OS backdrop still shows through |
+| `text-primary` | the primary itself if it reads at 4.5:1 on every surface level, else the nearest tone of its palette that does: primary used as text (section titles) |
 | `on-surface`, `on-surface-variant` | `-color-text`, `-color-text-muted` |
 | `outline`, `outline-variant` | the surface palette at tone 60 / 30 (dark) or 50 / 80 (light) |
 | `active-indicator`, `on-active-indicator` | the primary's hue at chroma 24, tone 30 / 90 (dark) or 90 / 10 (light): Material's selected-navigation colour |

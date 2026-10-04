@@ -90,6 +90,11 @@ class ThemeTokensTest
             }
             check( failures, sheet, t, "-md-inverse-on-surface", "-md-inverse-surface", backdrop, TEXT );
             check( failures, sheet, t, "-md-on-active-indicator", "-md-active-indicator", backdrop, TEXT );
+            // Primary as text (settings section titles): on the surface and every card level.
+            check( failures, sheet, t, "-md-text-primary", "-md-surface", backdrop, TEXT );
+            for ( String level : new String[]{ "-lowest", "-low", "", "-high", "-highest" } ) {
+                check( failures, sheet, t, "-md-text-primary", "-md-surface-container" + level, backdrop, TEXT );
+            }
             // The live tokens the current stylesheets use for text on primary buttons.
             check( failures, sheet, t, "-color-text-on-primary", "-color-primary", backdrop, TEXT );
             check( failures, sheet, t, "-color-text", "-color-popup", backdrop, TEXT );

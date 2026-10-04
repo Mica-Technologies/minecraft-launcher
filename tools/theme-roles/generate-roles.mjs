@@ -87,6 +87,17 @@ export function contrast(a, b) {
     return (hi + 0.05) / (lo + 0.05);
 }
 
+/** A translucent colour composited over an opaque backdrop (the popup stands in for the OS backdrop). */
+function composite({ argb, alpha }, backdrop) {
+    if (alpha >= 1) {
+        return argb;
+    }
+    const [r, g, b] = channels(argb);
+    const [br, bg, bb] = channels(backdrop);
+    const mix = (c, u) => Math.round(c * alpha + u * (1 - alpha));
+    return (0xff << 24 | mix(r, br) << 16 | mix(g, bg) << 8 | mix(b, bb)) >>> 0;
+}
+
 /** Of the candidates, the one with the highest contrast against the background. */
 const bestOn = (background, ...candidates) =>
     candidates.reduce((best, c) => (contrast(c, background) > contrast(best, background) ? c : best));
@@ -144,7 +155,8 @@ export function deriveRoles(tokens, { dark, translucent = false }) {
                   accentGroup('warning', tokens['-color-warning'], dark));
 
     // Tertiary: Material's tonal-spot rule, the primary's hue turned 60 degrees at low chroma.
-    const primaryHct = Hct.fromInt(parseColour(tokens['-color-primary']).argb);
+    const primary0 = parseColour(tokens['-color-primary']).argb;
+    const primaryHct = Hct.fromInt(primary0);
     const tertiary = TonalPalette.fromHueAndChroma((primaryHct.hue + 60) % 360, 24);
     Object.assign(roles, {
         '-md-tertiary': hex(tertiary.tone(dark ? 80 : 40)),
@@ -170,6 +182,25 @@ export function deriveRoles(tokens, { dark, translucent = false }) {
             const tone = Math.min(100, Math.max(0, surfaceTone + offset));
             roles[`-md-surface-container${levels[i] ? '-' + levels[i] : ''}`] = hex(neutral.tone(tone));
         });
+    }
+    // Primary as text (section titles, links): the primary's palette moved lighter on dark themes
+    // and darker on light ones, just far enough to read at 4.5:1 on every surface level. The theme's
+    // primary is tuned as a fill and doesn't always read as text (Blue+gray's blue on its dark
+    // background is 3.6:1).
+    {
+        const palette = TonalPalette.fromHueAndChroma(primaryHct.hue, Math.max(primaryHct.chroma, 16));
+        const popup = tokens['-color-popup'];
+        const backdrop = parseColour(popup.startsWith('-') ? roles[popup] : popup).argb;
+        const surfaces = levels.map(l => roles[`-md-surface-container${l ? '-' + l : ''}`])
+            .concat(roles['-md-surface'])
+            .map(v => composite(parseColour(v), backdrop));
+        let tone = Math.round(primaryHct.tone);
+        const step = dark ? 1 : -1;
+        const ok = t => surfaces.every(bg => contrast(palette.tone(t), bg) >= 4.5);
+        while (!ok(tone) && tone > 0 && tone < 100) {
+            tone += step;
+        }
+        roles['-md-text-primary'] = ok(Math.round(primaryHct.tone)) ? hex(primary0) : hex(palette.tone(tone));
     }
     roles['-md-on-surface'] = hex(text);
     roles['-md-on-surface-variant'] = hex(parseColour(tokens['-color-text-muted']).argb);

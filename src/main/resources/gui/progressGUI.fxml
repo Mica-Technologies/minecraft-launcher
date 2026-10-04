@@ -10,7 +10,6 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.shape.SVGPath?>
-<?import javafx.scene.text.Font?>
 
 <!--
   ~ Copyright (c) 2021 Mica Technologies
@@ -118,11 +117,8 @@
 
             <!-- Row 2: Section label (current step heading) -->
             <Label fx:id="sectionLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="400.0"
-                   prefWidth="390.0" styleClass="muted" text="" textAlignment="CENTER" wrapText="true"
+                   prefWidth="390.0" styleClass="muted, type-body-medium" text="" textAlignment="CENTER" wrapText="true"
                    GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
-                <font>
-                    <Font size="13.0" />
-                </font>
             </Label>
 
             <!-- Row 3: Progress bar -->
@@ -132,20 +128,14 @@
 
             <!-- Row 4: Detail label (file-level details below progress bar) -->
             <Label fx:id="detailLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="400.0"
-                   prefWidth="390.0" styleClass="subtle" text="" textAlignment="CENTER" wrapText="true"
+                   prefWidth="390.0" styleClass="subtle, type-body-small" text="" textAlignment="CENTER" wrapText="true"
                    GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER">
-                <font>
-                    <Font size="11.0" />
-                </font>
             </Label>
 
             <!-- Row 5: Speed/ETA info below detail label -->
             <Label fx:id="speedLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="400.0"
-                   prefWidth="390.0" styleClass="subtle" text="" textAlignment="CENTER" wrapText="true"
+                   prefWidth="390.0" styleClass="subtle, type-body-small" text="" textAlignment="CENTER" wrapText="true"
                    GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
-                <font>
-                    <Font size="10.0" />
-                </font>
             </Label>
 
             <!-- Row 6: Cancel button. Hidden by default (no managed slot when not shown);

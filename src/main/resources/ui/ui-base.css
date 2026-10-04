@@ -104,7 +104,7 @@
 .list-view .virtual-flow .clipped-container .sheet .list-cell:selected { -fx-background-color: -color-primary-soft-hov; }
 .list-view .virtual-flow .clipped-container .sheet .list-cell:empty { -fx-background-color: transparent; }
 .list-cell .packName,
-.mfx-list-cell .packName { -fx-text-fill: -color-text; -fx-font-size: 15; -fx-font-weight: bold; -fx-padding: 0 0 0 8; }
+.mfx-list-cell .packName { -fx-text-fill: -color-text; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 0 0 0 8; }
 .list-cell .packVersion,
 .mfx-list-cell .packVersion { -fx-text-fill: -color-text; -fx-font-size: 11; -fx-font-style: italic; -fx-padding: 0 0 0 8; }
 
@@ -314,17 +314,45 @@
     -fx-font-family: "JetBrains Mono", "Cascadia Code", "Cascadia Mono",
                      "Consolas", "Menlo", "Courier New", monospace;
     -fx-font-weight: 700;
-    -fx-font-size: 26px;
+    -fx-font-size: 24px;
     -fx-text-fill: -color-text;
 }
 
-.heading-h1 { -fx-font-weight: 600; -fx-font-size: 28px; -fx-text-fill: -color-text; }
-.heading-h2 { -fx-font-weight: 600; -fx-font-size: 20px; -fx-text-fill: -color-text; }
-.heading-h3 { -fx-font-weight: 600; -fx-font-size: 16px; -fx-text-fill: -color-text; }
+.heading-h1 { -fx-font-weight: 600; -fx-font-size: 28px; -fx-text-fill: -color-text; -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif; }
+.heading-h2 { -fx-font-weight: 600; -fx-font-size: 22px; -fx-text-fill: -color-text; -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif; }
+.heading-h3 { -fx-font-weight: 600; -fx-font-size: 16px; -fx-text-fill: -color-text; -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif; }
 
 .text-mono {
     -fx-font-family: "JetBrains Mono", "Cascadia Code", "Cascadia Mono",
                      "Consolas", "Menlo", monospace;
+}
+
+/* ---- Type scale ----
+ * Material 3's type roles. CSS can't declare size variables, so the sizes are
+ * literal here and TypeScaleTest keeps every font size in the stylesheets on
+ * this scale: 11, 12, 14, 16, 22, 24 and 28 px. Prefer these classes (or a
+ * component class built on the same values) to setting a size anywhere else. */
+.type-headline-medium { -fx-font-size: 28px; -fx-font-weight: 600; -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif; }
+.type-headline-small  { -fx-font-size: 24px; -fx-font-weight: 600; -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif; }
+.type-title-large     { -fx-font-size: 22px; -fx-font-weight: 600; -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif; }
+.type-title-medium    { -fx-font-size: 16px; -fx-font-weight: 600; -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif; }
+.type-title-small     { -fx-font-size: 14px; -fx-font-weight: 600; -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif; }
+.type-body-large      { -fx-font-size: 16px; }
+.type-body-medium     { -fx-font-size: 14px; }
+.type-label-large     { -fx-font-size: 14px; -fx-font-weight: 600; -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif; }
+.type-label-medium    { -fx-font-size: 12px; -fx-font-weight: 600; -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif; }
+
+/* Settings section titles and hints (title-small in the primary colour, as
+ * Android's settings label its groups; body-small in the muted text colour). */
+.label.settingsSectionTitle {
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -md-text-primary;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
+}
+.label.settingsHint {
+    -fx-font-size: 12px;
+    -fx-text-fill: -md-on-surface-variant;
 }
 
 /* ---- launch-progress step rows (MCLauncherLaunchProgressGui) ---- */
@@ -332,7 +360,7 @@
     -fx-padding: 4 0 4 0;
 }
 .launchStepIcon {
-    -fx-font-size: 18px;
+    -fx-font-size: 16px;
     -fx-font-weight: 700;
     -fx-text-fill: -color-text-subtle;
 }
@@ -505,7 +533,7 @@
 
 .crashDiagnosisSummary {
     -fx-text-fill: -color-text;
-    -fx-font-size: 13px;
+    -fx-font-size: 14px;
 }
 
 /* Severity tints. Critical is the default we expect 99% of the time
@@ -601,7 +629,7 @@
 
 .heroCardTitle {
     -fx-text-fill: -color-text;
-    -fx-font-size: 18px;
+    -fx-font-size: 16px;
     -fx-padding: 0 0 4 0;
 }
 
@@ -837,6 +865,7 @@
     -fx-padding: 2 12 2 12;
     -fx-font-size: 11px;
     -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 .stat-chip-warn {
@@ -906,7 +935,7 @@
  * drop shadow so it reads against any background. */
 .modpackDetailTitle {
     -fx-text-fill: white;
-    -fx-font-size: 26px;
+    -fx-font-size: 24px;
     -fx-font-weight: 700;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.75), 10, 0.30, 0, 2);
 }
@@ -957,7 +986,7 @@
 .modpackDetailHeroNav {
     -fx-background-color: rgba(0, 0, 0, 0.40);
     -fx-text-fill: white;
-    -fx-font-size: 26px;
+    -fx-font-size: 24px;
     -fx-font-weight: 700;
     -fx-min-width: 40;
     -fx-min-height: 40;
@@ -1003,10 +1032,11 @@
 
 .modpackDetailTab {
     -fx-text-fill: -color-text-muted;
-    -fx-font-size: 13px;
+    -fx-font-size: 14px;
     -fx-font-weight: 600;
     -fx-padding: 7 14 7 14;
     -fx-background-radius: 8;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 .modpackDetailTab:hover {
@@ -1035,7 +1065,7 @@
 
 .modpackDetailSectionHeading {
     -fx-text-fill: -color-text;
-    -fx-font-size: 13px;
+    -fx-font-size: 14px;
     -fx-font-weight: 700;
     -fx-padding: 0 0 4 0;
 }
@@ -1090,6 +1120,7 @@
     -fx-text-fill: -color-text;
     -fx-font-size: 12px;
     -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 /* Sticky action row at the bottom of the modal. Slightly elevated surface +
@@ -1334,8 +1365,8 @@
     -fx-background-radius: 999;
     -fx-border-radius: 999;
     -fx-padding: 0;
-    -fx-font-weight: 800;
-    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-font-size: 16px;
     -fx-alignment: CENTER;
     -fx-content-display: TEXT_ONLY;
     -fx-background-color: -color-surface-hover;
@@ -1346,8 +1377,8 @@
 
 .helpButton .text {
     -fx-fill: -color-text;
-    -fx-font-weight: 800;
-    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-font-size: 16px;
 }
 
 .helpButton:hover,
@@ -1379,6 +1410,7 @@
     -fx-padding: 0;
     -fx-alignment: CENTER;
     -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
     -fx-font-size: 14px;
     /* Match the resting shade of the native OS caption glyphs (slightly muted), brightening
        on hover the way the system buttons do. */
@@ -1781,6 +1813,7 @@
     -fx-font-weight: 600;
     -fx-font-size: 14px;
     -fx-text-fill: -color-text;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 .packVersion {
@@ -1812,6 +1845,7 @@
     -fx-text-fill: -color-text-muted;
     -fx-font-weight: 600;
     -fx-alignment: CENTER_LEFT;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 .table-row-cell {
@@ -1868,7 +1902,8 @@
 
 .tab-pane .tab .tab-label {
     -fx-text-fill: -color-text-muted;
-    -fx-font-weight: 500;
+    -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 .tab-pane .tab:hover {
@@ -1884,6 +1919,7 @@
 .tab-pane .tab:selected .tab-label {
     -fx-text-fill: -color-text;
     -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 
@@ -2004,12 +2040,12 @@
 
 .wizardSubtitle {
     -fx-text-fill: -color-text-muted;
-    -fx-font-size: 13px;
+    -fx-font-size: 14px;
 }
 
 .wizardBody {
     -fx-text-fill: -color-text;
-    -fx-font-size: 13px;
+    -fx-font-size: 14px;
 }
 
 .wizardHint {
@@ -2124,6 +2160,7 @@
     -fx-font-weight: 600;
     -fx-text-fill: -color-text;
     -fx-padding: 0 0 8 0;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 .settingsContainer {
@@ -2180,6 +2217,7 @@
     -fx-font-size: 14px;
     -fx-font-weight: 600;
     -fx-text-fill: -md-on-surface;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 .settingsNavSummary {
     -fx-font-size: 12px;
@@ -2225,7 +2263,8 @@
     -fx-background-color: -color-warning;
     -fx-text-fill: -color-text-inverse;
     -fx-padding: 4 12 4 12;
-    -fx-font-weight: 500;
+    -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 /* When the banner is structured as an HBox container (mainGUI's announcement
@@ -2234,7 +2273,8 @@
  * colour as the Label-only variant above. */
 .banner-announcement > .label {
     -fx-text-fill: -color-text-inverse;
-    -fx-font-weight: 500;
+    -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 /* ✕ close button on the announcement banner — a Label with the same inverse
@@ -2280,6 +2320,7 @@
     -fx-padding: 2 10 2 10;
     -fx-font-size: 11px;
     -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 
@@ -2302,6 +2343,7 @@
     -fx-font-weight: 600;
     -fx-text-transform: uppercase;
     -fx-padding: 14 14 8 14;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 
@@ -2340,6 +2382,7 @@
 .signInPointTitle {
     -fx-font-weight: 600;
     -fx-text-fill: -color-text;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 .signInStatus {
@@ -2425,11 +2468,11 @@
 .contentViewerDiagnosis   { -fx-background-color: -color-bg-soft; -fx-background-radius: 8; }
 
 /* Modpack editor: Modrinth search results, URL check column, per-row hash button. */
-.label.modrinthResultTitle   { -fx-font-weight: bold; -fx-font-size: 13px; }
+.label.modrinthResultTitle   { -fx-font-weight: bold; -fx-font-size: 14px; }
 .label.modrinthResultDesc    { -fx-font-size: 11px; -fx-opacity: 0.8; }
 .table-cell.urlStatusOk      { -fx-text-fill: -color-success; -fx-font-weight: bold; }
 .table-cell.urlStatusFailed  { -fx-text-fill: -color-danger; -fx-font-weight: bold; }
-.editorInlineBtn             { -fx-font-size: 10px; }
+.editorInlineBtn             { -fx-font-size: 11px; }
 
 /* Scroll panes that let the surface behind them show through (viewport included). */
 .scroll-pane.transparentScroll {

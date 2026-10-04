@@ -17,7 +17,6 @@
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
 
 <!--
   ~ Copyright (c) 2026 Mica Technologies
@@ -99,7 +98,6 @@
 
                     <!-- Pack Identity -->
                     <Label text="%editor.section.packIdentity" styleClass="type-weight-bold">
-                        <font><Font size="14.0"/></font>
                     </Label>
                     <MFXTextField fx:id="packNameField" floatingText="Pack Name" maxWidth="500.0"
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
@@ -118,7 +116,6 @@
                     <!-- Flags -->
                     <Label text="%editor.section.flags" styleClass="type-weight-bold">
                         <padding><Insets top="8.0"/></padding>
-                        <font><Font size="14.0"/></font>
                     </Label>
                     <MFXToggleButton fx:id="packUnstableToggle" text="%editor.toggle.unstable"/>
                     <MFXToggleButton fx:id="packCustomDiscordRpcToggle" text="%editor.toggle.customDiscordRpc"/>
@@ -126,7 +123,6 @@
                     <!-- Modloader -->
                     <HBox spacing="8.0" alignment="CENTER_LEFT">
                         <Label text="%editor.section.modloader" styleClass="type-weight-bold">
-                            <font><Font size="14.0"/></font>
                         </Label>
                         <MFXComboBox fx:id="packModLoaderTypeCombo" prefWidth="160.0" minHeight="32.0"/>
                         <MFXButton fx:id="forgePickerBtn" text="%editor.pickerBtn.forge" prefHeight="28.0"/>
@@ -143,7 +139,6 @@
                     <!-- Images -->
                     <Label text="%editor.section.images" styleClass="type-weight-bold">
                         <padding><Insets top="8.0"/></padding>
-                        <font><Font size="14.0"/></font>
                     </Label>
                     <HBox spacing="16.0" alignment="CENTER_LEFT">
                         <VBox spacing="4.0">
@@ -171,7 +166,6 @@
                     <!-- Scan Exclusions -->
                     <Label text="%editor.section.scanExclusions" styleClass="type-weight-bold">
                         <padding><Insets top="8.0"/></padding>
-                        <font><Font size="14.0"/></font>
                     </Label>
                     <TextArea fx:id="scanExclusionsArea" prefHeight="80.0" maxWidth="500.0" prefWidth="500.0"
                               promptText="%editor.filePath.prompt"/>
