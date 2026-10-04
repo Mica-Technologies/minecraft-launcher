@@ -187,6 +187,19 @@ public final class PackColorScheme
         node.setStyle( style.toString().trim() );
     }
 
+    /**
+     * Whether a surface is dark, so the accents built for it should be light: its Oklab
+     * lightness is below the middle.
+     *
+     * @param surface the surface colour, as RGB
+     *
+     * @return {@code true} for a dark surface
+     */
+    public static boolean isDark( int surface )
+    {
+        return oklab( surface )[ 0 ] < 0.6;
+    }
+
     /** A colour at lightness L, chroma C and hue h (Oklch). */
     static int tone( double l, double c, double h )
     {
@@ -207,6 +220,21 @@ public final class PackColorScheme
      */
     static int readable( double l, double c, double h, int against, boolean lighter )
     {
+        int found = search( l, c, h, against, lighter );
+        if ( found >= 0 ) {
+            return found;
+        }
+        // Nothing that way reads (the surface is on the wrong side): try the other way, so a
+        // mismatched surface still gets a readable, hued colour rather than black or white.
+        found = search( l, c, h, against, !lighter );
+        if ( found >= 0 ) {
+            return found;
+        }
+        return contrast( 0xFFFFFF, against ) >= contrast( 0x000000, against ) ? 0xFFFFFF : 0x000000;
+    }
+
+    private static int search( double l, double c, double h, int against, boolean lighter )
+    {
         double step = lighter ? 0.01 : -0.01;
         for ( double ll = l; ll >= 0 && ll <= 1; ll += step ) {
             int candidate = tone( ll, c, h );
@@ -214,7 +242,7 @@ public final class PackColorScheme
                 return candidate;
             }
         }
-        return lighter ? 0xFFFFFF : 0x000000;
+        return -1;
     }
 
     // ------------------------------------------------------------------ colour maths

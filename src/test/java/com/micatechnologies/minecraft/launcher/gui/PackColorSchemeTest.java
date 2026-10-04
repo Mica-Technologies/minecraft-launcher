@@ -77,6 +77,26 @@ class PackColorSchemeTest
     }
 
     @Test
+    void darknessComesFromTheSurface()
+    {
+        assertTrue( PackColorScheme.isDark( 0x1A2231 ), "Blue+gray card" );
+        assertTrue( PackColorScheme.isDark( 0x222732 ), "Dark card" );
+        assertFalse( PackColorScheme.isDark( 0xEDEEF2 ), "Light card" );
+        assertFalse( PackColorScheme.isDark( 0xFFFFFF ) );
+    }
+
+    @Test
+    void aMismatchedSurfaceStillGetsReadableHuedText()
+    {
+        // A light scheme asked to sit on a dark surface (the bug: the theme changed under an
+        // open window). The primary text must still read, and not collapse to black.
+        int surface = 0x1A2231;
+        Map< String, String > r = PackColorScheme.roles( 0x1D87E6, false, surface );
+        assertReads( r.get( "-md-text-primary" ), String.format( "#%06X", surface ), "mismatched text-primary" );
+        assertFalse( "#000000".equals( r.get( "-md-text-primary" ) ), "not black" );
+    }
+
+    @Test
     void oklabRoundTrips()
     {
         for ( int rgb : new int[]{ 0x000000, 0xFFFFFF, 0x6FCF3D, 0x0668E1, 0xD257DB } ) {

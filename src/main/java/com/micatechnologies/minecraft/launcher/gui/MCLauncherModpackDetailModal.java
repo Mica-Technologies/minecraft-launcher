@@ -269,6 +269,8 @@ public class MCLauncherModpackDetailModal extends StackPane
         // overlay can be reused across packs without dragging stale views around.
         modalCard = new VBox();
         modalCard.getStyleClass().add( "modpackDetailCard" );
+        // The surface changes on a theme switch: rebuild the pack colours against it.
+        modalCard.backgroundProperty().addListener( ( o, was, now ) -> applyPackColors() );
         modalCard.setMinWidth( MODAL_MIN_WIDTH );
         modalCard.setMinHeight( MODAL_MIN_HEIGHT );
         modalCard.setPickOnBounds( true );
@@ -524,6 +526,8 @@ public class MCLauncherModpackDetailModal extends StackPane
     {
         modalCard.getChildren().clear();
         // Back to the theme's colours until this pack's art has been read.
+        packSeed = java.util.OptionalInt.empty();
+        appliedSurface = -1;
         PackColorScheme.apply( modalCard, null );
         tabBodies.clear();
         tabButtons.clear();
@@ -851,7 +855,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         // (custom bg → file URL; vanilla → sky gradient; modded w/ logo → derived
         // gradient; modded w/o logo → Forge default).
         Image logoImage = resolveLogoImage( pack );
-        colorFromArt( logoImage, packGeneration );
+        colorFromArt( hasOwnLogo( pack ) ? logoImage : null, packGeneration );
         Region bgLayer = new Region();
         bgLayer.getStyleClass().add( "heroBackground" );
         // Always paint the dynamic gradient as the placeholder behind the bg-image so
@@ -2657,21 +2661,16 @@ public class MCLauncherModpackDetailModal extends StackPane
      */
     private void colorFromArt( Image logo, int gen )
     {
-        if ( logo == null || !com.micatechnologies.minecraft.launcher.config.ConfigManager.getPackColors()
-                || ModPackConstants.MODPACK_DEFAULT_LOGO_URL.equals( logo.getUrl() ) ) {
+        if ( logo == null || !com.micatechnologies.minecraft.launcher.config.ConfigManager.getPackColors() ) {
             return;
         }
         Runnable read = () -> {
             if ( gen != packGeneration || logo.isError() ) {
                 return;
             }
-            java.util.OptionalInt seed = PackColorScheme.seedFrom( logo );
-            if ( seed.isEmpty() ) {
-                return;
-            }
-            boolean dark = !GUIUtilities.isLightChrome(
-                    com.micatechnologies.minecraft.launcher.config.ConfigManager.getTheme() );
-            PackColorScheme.apply( modalCard, PackColorScheme.roles( seed.getAsInt(), dark, cardSurface( dark ) ) );
+            packSeed = PackColorScheme.seedFrom( logo );
+            appliedSurface = -1;
+            applyPackColors();
         };
         if ( logo.getProgress() >= 1.0 ) {
             read.run();
@@ -2685,8 +2684,35 @@ public class MCLauncherModpackDetailModal extends StackPane
         }
     }
 
-    /** The card's resolved background colour, for checking text contrast against it. */
-    private int cardSurface( boolean dark )
+    /** The seed read from the shown pack's logo; empty for none (default or grey logo). */
+    private java.util.OptionalInt packSeed = java.util.OptionalInt.empty();
+    /** The surface colour the current pack scheme was built against, or -1 for none. */
+    private int appliedSurface = -1;
+
+    /**
+     * Builds the pack scheme against the card's current surface and sets it on the card. Dark or
+     * light comes from that surface's own lightness, not the theme's name, and the card's
+     * background listener calls this again when the surface changes (a theme switch while the
+     * window is open), so the scheme always matches what it's drawn on. Rebuilds only when the
+     * surface colour actually changed: setting the scheme restyles the card, which hands it a new
+     * (equal) Background, and reacting to that would loop.
+     */
+    private void applyPackColors()
+    {
+        if ( packSeed.isEmpty() ) {
+            return;
+        }
+        int surface = cardSurface();
+        if ( surface < 0 || surface == appliedSurface ) {
+            return;
+        }
+        appliedSurface = surface;
+        boolean dark = PackColorScheme.isDark( surface );
+        PackColorScheme.apply( modalCard, PackColorScheme.roles( packSeed.getAsInt(), dark, surface ) );
+    }
+
+    /** The card's resolved, opaque background colour as RGB, or -1 when it has none yet. */
+    private int cardSurface()
     {
         javafx.scene.layout.Background bg = modalCard.getBackground();
         if ( bg != null && !bg.getFills().isEmpty()
@@ -2694,7 +2720,24 @@ public class MCLauncherModpackDetailModal extends StackPane
             return ( (int) Math.round( c.getRed() * 255 ) << 16 ) | ( (int) Math.round( c.getGreen() * 255 ) << 8 )
                    | (int) Math.round( c.getBlue() * 255 );
         }
-        return dark ? 0x222732 : 0xEDEEF2;
+        return -1;
+    }
+
+    /**
+     * Whether the pack shows its own logo (a cached logo file on disk) rather than the launcher's
+     * default. Only its own logo seeds pack colours: the default is the launcher's green mark, and
+     * colouring from it turned every logo-less pack green whatever the theme. (Comparing the
+     * image's URL to the default's didn't work: {@code Image.getUrl()} normalises the URL.)
+     */
+    private static boolean hasOwnLogo( GameModPack pack )
+    {
+        try {
+            String path = pack.getPackLogoFilepath();
+            return path != null && new File( path ).exists();
+        }
+        catch ( Exception e ) {
+            return false;
+        }
     }
 
     /**
