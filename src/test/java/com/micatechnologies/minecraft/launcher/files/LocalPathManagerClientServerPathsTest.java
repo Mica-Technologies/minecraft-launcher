@@ -94,9 +94,10 @@ class LocalPathManagerClientServerPathsTest
     {
         Map< String, String > paths = runHarness( cwd, "server" );
 
-        // Server mode anchors the root at the child process's working directory.
-        String expectedRoot = cwd.toRealPath().toString();
-        assertEquals( expectedRoot, paths.get( "LOCAL" ) );
+        // Server mode anchors the root at the child process's working directory. Compare real
+        // paths: the child reports its working directory as it was given, which on Windows can be
+        // an 8.3 short form (C:\Users\RUNNER~1\...) of the same folder toRealPath() spells out.
+        assertEquals( cwd.toRealPath(), Path.of( paths.get( "LOCAL" ) ).toRealPath() );
 
         String root = paths.get( "LOCAL" );
         assertEquals( root + File.separator + "config", paths.get( "CONFIG" ) );
