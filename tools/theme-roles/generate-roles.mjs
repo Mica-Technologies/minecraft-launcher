@@ -26,7 +26,7 @@
 //   npm run check      exit 1 if any sheet's block is out of date (no writes)
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { argbFromHex, hexFromArgb, Hct, TonalPalette } from '@material/material-color-utilities';
+import { argbFromHex, Blend, hexFromArgb, Hct, TonalPalette } from '@material/material-color-utilities';
 
 const UI = new URL('../../src/main/resources/ui/', import.meta.url).pathname;
 
@@ -40,6 +40,12 @@ export const THEMES = [
     { sheet: 'ui-tokens-native.css', dark: true, translucent: true },
     { sheet: 'ui-tokens-native-light.css', dark: false, translucent: true },
 ];
+
+/** Source hues for icon colours (Google's category colours); grey uses the theme's neutral. */
+export const ICON_HUES = {
+    blue: '#4285F4', cyan: '#12B5CB', green: '#34A853', yellow: '#FBBC04',
+    orange: '#FA7B17', pink: '#F538A0', purple: '#A142F4', grey: null,
+};
 
 const START = '/* ==== GENERATED: Material 3 colour roles (tools/theme-roles) — do not edit by hand ==== */';
 const END = '/* ==== END GENERATED ==== */';
@@ -177,6 +183,13 @@ export function deriveRoles(tokens, { dark, translucent = false }) {
     roles['-md-inverse-primary'] = hex(primaryPalette.tone(dark ? 40 : 80));
     roles['-md-scrim'] = '#000000';
 
+    // Navigation active indicator (Material's selected item in a nav rail or drawer): the
+    // primary's hue at low chroma, the role Material's tonal-spot scheme calls secondary
+    // container. Calmer than the primary container for a large selected surface.
+    const indicator = TonalPalette.fromHueAndChroma(primaryHct.hue, 24);
+    roles['-md-active-indicator'] = hex(indicator.tone(dark ? 30 : 90));
+    roles['-md-on-active-indicator'] = hex(indicator.tone(dark ? 90 : 10));
+
     // State layers: Material overlays the content colour at 8% (hover) and 10% (focus, pressed).
     // CSS can't apply an alpha to a lookup, so they are spelled out per content colour.
     const primary = parseColour(tokens['-color-primary']).argb;
@@ -184,6 +197,21 @@ export function deriveRoles(tokens, { dark, translucent = false }) {
     for (const [name, argb] of [['on-surface', text], ['primary', primary], ['on-primary', onPrimary]]) {
         roles[`-md-state-hover-${name}`] = rgba(argb, 0.08);
         roles[`-md-state-pressed-${name}`] = rgba(argb, 0.10);
+    }
+
+    // Icon colours: the category hues Android's settings use for its round icon backgrounds,
+    // each nudged toward the theme's primary (Material's harmonize) so they sit in every theme.
+    // Pastel circle with a dark glyph, as Android draws them (light themes a touch deeper, so the
+    // circle still stands out on a light tile).
+    for (const [name, source] of Object.entries(ICON_HUES)) {
+        const palette = name === 'grey'
+            ? neutral
+            : (() => {
+                const h = Hct.fromInt(Blend.harmonize(argbFromHex(source), primary));
+                return TonalPalette.fromHueAndChroma(h.hue, Math.max(h.chroma, 36));
+            })();
+        roles[`-md-icon-${name}`] = hex(palette.tone(dark ? 80 : 85));
+        roles[`-md-on-icon-${name}`] = hex(palette.tone(dark ? 20 : 25));
     }
     return roles;
 }

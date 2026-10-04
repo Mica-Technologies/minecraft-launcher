@@ -29,8 +29,10 @@ tones they don't have.
 | `surface-container-lowest` … `-highest` | the hue and tint of `-color-surface`, stepped from the background's tone the way Material's schemes step (dark −2/+4/+6/+11/+16, light +2/−2/−4/−6/−8). The Native themes use translucent white or black overlays instead, so the OS backdrop still shows through |
 | `on-surface`, `on-surface-variant` | `-color-text`, `-color-text-muted` |
 | `outline`, `outline-variant` | the surface palette at tone 60 / 30 (dark) or 50 / 80 (light) |
+| `active-indicator`, `on-active-indicator` | the primary's hue at chroma 24, tone 30 / 90 (dark) or 90 / 10 (light): Material's selected-navigation colour |
 | `inverse-*`, `scrim` | Material's inverse tones; black |
 | `state-hover-*`, `state-pressed-*` | the content colour at 8% and 10%, Material's state-layer opacities |
+| `icon-<hue>`, `on-icon-<hue>` | Google's category hues (blue, cyan, green, yellow, orange, pink, purple; grey from the surface palette), harmonized toward the primary; tone 80 circle / 20 glyph (dark) or 85 / 25 (light), like Android's settings icons |
 
 Version 0.4.0 of the library can't be imported under Node (an extensionless relative import), so it
 is pinned to 0.3.0.

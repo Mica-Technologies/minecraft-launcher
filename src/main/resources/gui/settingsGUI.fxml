@@ -79,26 +79,41 @@
 
     <!-- Row 2: Sidebar + Content -->
     <HBox GridPane.rowIndex="2" HBox.hgrow="ALWAYS">
-        <!-- Left sidebar navigation -->
-        <VBox minWidth="180.0" maxWidth="180.0" prefWidth="180.0" styleClass="stripPane" spacing="2">
-            <padding>
-                <Insets top="8.0" bottom="8.0" left="4.0" right="4.0" />
-            </padding>
-            <MFXButton fx:id="navAccount" text="%settings.fxml.account" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navGame" text="%settings.fxml.game" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navAppearance" text="%settings.fxml.appearance" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navAdvanced" text="%settings.fxml.advanced" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navNetwork" text="%settings.fxml.network" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navSecurity" text="%settings.fxml.security" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navSystem" text="%settings.fxml.system" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navDiscord" text="%settings.fxml.discord" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navRgb" text="%settings.fxml.rgb" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <!-- About pinned to the bottom of the sidebar via a flex spacer — it's
-                 a destination users rarely visit, so we get it out of the primary
-                 settings rhythm without hiding it entirely. -->
-            <Pane VBox.vgrow="ALWAYS" />
-            <MFXButton fx:id="navAbout" text="%settings.fxml.about" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-        </VBox>
+        <!-- Left sidebar navigation, laid out like Android's settings list: related
+             categories form a group of tiles (rounded at the group's outer corners,
+             2 px apart), each tile an icon, a title and a summary. MCLauncherSettingsGui
+             adds the icon and summary (SettingsNavTile). The scroll pane only scrolls
+             when the window is too short for every tile. About stays pinned at the
+             bottom: a destination users rarely visit. -->
+        <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
+                    minWidth="276.0" maxWidth="276.0" prefWidth="276.0" styleClass="transparentScroll, settingsNavScroll">
+            <VBox styleClass="settingsNav" spacing="12" minHeight="-Infinity">
+                <padding>
+                    <Insets top="12.0" bottom="12.0" left="12.0" right="12.0" />
+                </padding>
+                <VBox styleClass="settingsNavGroup" spacing="2">
+                    <MFXButton fx:id="navAccount" text="%settings.fxml.account" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" />
+                </VBox>
+                <VBox styleClass="settingsNavGroup" spacing="2">
+                    <MFXButton fx:id="navGame" text="%settings.fxml.game" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" />
+                    <MFXButton fx:id="navAppearance" text="%settings.fxml.appearance" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" />
+                    <MFXButton fx:id="navAdvanced" text="%settings.fxml.advanced" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" />
+                </VBox>
+                <VBox styleClass="settingsNavGroup" spacing="2">
+                    <MFXButton fx:id="navNetwork" text="%settings.fxml.network" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" />
+                    <MFXButton fx:id="navSecurity" text="%settings.fxml.security" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" />
+                    <MFXButton fx:id="navSystem" text="%settings.fxml.system" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" />
+                </VBox>
+                <VBox styleClass="settingsNavGroup" spacing="2">
+                    <MFXButton fx:id="navDiscord" text="%settings.fxml.discord" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" />
+                    <MFXButton fx:id="navRgb" text="%settings.fxml.rgb" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" />
+                </VBox>
+                <Pane VBox.vgrow="ALWAYS" />
+                <VBox styleClass="settingsNavGroup" spacing="2">
+                    <MFXButton fx:id="navAbout" text="%settings.fxml.about" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" />
+                </VBox>
+            </VBox>
+        </ScrollPane>
 
         <!-- Right content area: stacked category panes -->
         <StackPane fx:id="settingsContent" HBox.hgrow="ALWAYS">

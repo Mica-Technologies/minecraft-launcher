@@ -130,12 +130,30 @@
     -md-inverse-on-surface:        #29313F;
     -md-inverse-primary:           #0059C5;
     -md-scrim:                     #000000;
+    -md-active-indicator:          #394664;
+    -md-on-active-indicator:       #D8E2FF;
     -md-state-hover-on-surface:    rgba(231, 233, 238, 0.08);
     -md-state-pressed-on-surface:  rgba(231, 233, 238, 0.1);
     -md-state-hover-primary:       rgba(6, 104, 225, 0.08);
     -md-state-pressed-primary:     rgba(6, 104, 225, 0.1);
     -md-state-hover-on-primary:    rgba(255, 255, 255, 0.08);
     -md-state-pressed-on-primary:  rgba(255, 255, 255, 0.1);
+    -md-icon-blue:                 #AEC6FF;
+    -md-on-icon-blue:              #002E6A;
+    -md-icon-cyan:                 #60D4FE;
+    -md-on-icon-cyan:              #003545;
+    -md-icon-green:                #59DDA6;
+    -md-on-icon-green:             #003825;
+    -md-icon-yellow:               #FFB961;
+    -md-on-icon-yellow:            #472A00;
+    -md-icon-orange:               #FFB5A0;
+    -md-on-icon-orange:            #5F1500;
+    -md-icon-pink:                 #FFACE9;
+    -md-on-icon-pink:              #5E0054;
+    -md-icon-purple:               #CCBDFF;
+    -md-on-icon-purple:            #350097;
+    -md-icon-grey:                 #BFC7D9;
+    -md-on-icon-grey:              #29313F;
     /* ==== END GENERATED ==== */
 }
 

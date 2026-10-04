@@ -273,14 +273,6 @@
 .navBar .mfx-button:hover { -fx-background-color: -color-primary-soft; -fx-text-fill: -color-text; }
 .bottomBar .mfx-button:hover { -fx-background-color: -color-primary-soft; }
 
-/* ---- Settings navigation ---- */
-.settingsNavBtn.mfx-button { -fx-font-size: 13; }
-.settingsNavBtn.mfx-button.selected {
-    -fx-border-width: 0 0 0 3;
-    -fx-border-radius: 0 8 8 0;
-    -fx-background-radius: 0 8 8 0;
-}
-
 
 /* =====================================================================
  * 1. Root + Typography
@@ -2147,41 +2139,82 @@
 }
 
 /* Sidebar nav buttons inherit ghost appearance, tightened up for the rail */
+/* Settings sidebar, laid out like Android's settings list (SettingsNavTile): groups
+ * of tiles 2 px apart, rounded 16 at the group's outer corners and 4 between tiles,
+ * each tile an icon in a coloured circle, a title and a summary. The selected
+ * category fills with Material's navigation active indicator. Hover and press lay Material's state
+ * layers over the tile instead of swapping its colour. */
 .settingsNavBtn.mfx-button,
 .settingsNavBtn.mfx-button:armed,
 .settingsNavBtn.mfx-button:focused {
-    -fx-background-color: transparent;
+    -fx-background-color: -md-surface-container;
     -fx-border-color: transparent;
-    -fx-background-radius: 8;
-    -fx-border-radius: 8;
-    -fx-padding: 6 12 6 12;
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+    -fx-padding: 10 14 10 12;
     -fx-alignment: CENTER_LEFT;
-    -fx-text-fill: -color-text-muted;
+    -mfx-button-type: FLAT;
 }
-
-.settingsNavBtn.mfx-button .text {
-    -fx-fill: -color-text-muted;
+.settingsNavBtn.mfx-button .mfx-ripple-generator,
+.settingsNavBtn.mfx-button .ripple-generator {
+    -mfx-ripple-color: -md-state-pressed-on-surface;
 }
-
 .settingsNavBtn.mfx-button:hover {
-    -fx-background-color: -color-surface-hover;
-    -fx-text-fill: -color-text;
+    -fx-background-color: -md-surface-container, -md-state-hover-on-surface;
 }
-
-.settingsNavBtn.mfx-button:hover .text {
-    -fx-fill: -color-text;
-}
+/* Three classes, so they tie with the :armed / :focused rule above and win on order. */
+.settingsNavBtn.mfx-button.navTileOnly  { -fx-background-radius: 16; -fx-border-radius: 16; }
+.settingsNavBtn.mfx-button.navTileFirst { -fx-background-radius: 16 16 4 4; -fx-border-radius: 16 16 4 4; }
+.settingsNavBtn.mfx-button.navTileLast  { -fx-background-radius: 4 4 16 16; -fx-border-radius: 4 4 16 16; }
 
 .settingsNavBtn.mfx-button.selected,
-.settingsNavBtn.mfx-button.selected:focused {
-    -fx-background-color: -color-primary-soft;
-    -fx-text-fill: -color-text;
-    -fx-border-color: transparent;
+.settingsNavBtn.mfx-button.selected:focused,
+.settingsNavBtn.mfx-button.selected:armed {
+    -fx-background-color: -md-active-indicator;
+}
+.settingsNavBtn.mfx-button.selected:hover {
+    -fx-background-color: -md-active-indicator, -md-state-hover-on-surface;
 }
 
-.settingsNavBtn.mfx-button.selected .text {
-    -fx-fill: -color-text;
+.settingsNavTitle {
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -md-on-surface;
 }
+.settingsNavSummary {
+    -fx-font-size: 12px;
+    -fx-text-fill: -md-on-surface-variant;
+}
+.settingsNavBtn.selected .settingsNavTitle,
+.settingsNavBtn.selected .settingsNavSummary {
+    -fx-text-fill: -md-on-active-indicator;
+}
+/* The .mfx-button .text rules paint every Text inside a button; these keep the
+ * tile's labels on their own colours in every button state. */
+.settingsNavBtn .settingsNavTitle .text              { -fx-fill: -md-on-surface; }
+.settingsNavBtn .settingsNavSummary .text            { -fx-fill: -md-on-surface-variant; }
+.settingsNavBtn.selected .settingsNavTitle .text,
+.settingsNavBtn.selected .settingsNavSummary .text   { -fx-fill: -md-on-active-indicator; }
+
+.settingsNavIcon {
+    -fx-background-radius: 999;
+}
+.settingsNavIcon.icon-blue { -fx-background-color: -md-icon-blue; }
+.settingsNavIcon.icon-blue .settingsNavGlyph { -fx-fill: -md-on-icon-blue; }
+.settingsNavIcon.icon-cyan { -fx-background-color: -md-icon-cyan; }
+.settingsNavIcon.icon-cyan .settingsNavGlyph { -fx-fill: -md-on-icon-cyan; }
+.settingsNavIcon.icon-green { -fx-background-color: -md-icon-green; }
+.settingsNavIcon.icon-green .settingsNavGlyph { -fx-fill: -md-on-icon-green; }
+.settingsNavIcon.icon-yellow { -fx-background-color: -md-icon-yellow; }
+.settingsNavIcon.icon-yellow .settingsNavGlyph { -fx-fill: -md-on-icon-yellow; }
+.settingsNavIcon.icon-orange { -fx-background-color: -md-icon-orange; }
+.settingsNavIcon.icon-orange .settingsNavGlyph { -fx-fill: -md-on-icon-orange; }
+.settingsNavIcon.icon-pink { -fx-background-color: -md-icon-pink; }
+.settingsNavIcon.icon-pink .settingsNavGlyph { -fx-fill: -md-on-icon-pink; }
+.settingsNavIcon.icon-purple { -fx-background-color: -md-icon-purple; }
+.settingsNavIcon.icon-purple .settingsNavGlyph { -fx-fill: -md-on-icon-purple; }
+.settingsNavIcon.icon-grey { -fx-background-color: -md-icon-grey; }
+.settingsNavIcon.icon-grey .settingsNavGlyph { -fx-fill: -md-on-icon-grey; }
 
 
 /* =====================================================================

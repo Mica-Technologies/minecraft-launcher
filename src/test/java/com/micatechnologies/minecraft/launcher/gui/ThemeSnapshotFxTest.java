@@ -122,6 +122,15 @@ class ThemeSnapshotFxTest
                     }
                 } );
                 if ( "settingsGUI".equals( screen ) ) {
+                    // The controller decorates the sidebar; do the same so the tiles render.
+                    String[] navIds = { "navAccount", "navGame", "navAppearance", "navAdvanced", "navNetwork",
+                                        "navSecurity", "navSystem", "navDiscord", "navRgb", "navAbout" };
+                    io.github.palexdev.materialfx.controls.MFXButton[] nav =
+                            new io.github.palexdev.materialfx.controls.MFXButton[ navIds.length ];
+                    for ( int n = 0; n < navIds.length; n++ ) {
+                        nav[ n ] = (io.github.palexdev.materialfx.controls.MFXButton) loader.getNamespace().get( navIds[ n ] );
+                    }
+                    robot.interact( () -> SettingsNavTile.decorateSidebar( nav ) );
                     // One pane per settings category; the controller shows one at a time.
                     List< Map.Entry< String, Object > > panes = new ArrayList<>();
                     for ( Map.Entry< String, Object > e : loader.getNamespace().entrySet() ) {
@@ -130,11 +139,20 @@ class ThemeSnapshotFxTest
                         }
                     }
                     for ( Map.Entry< String, Object > shown : panes ) {
-                        robot.interact( () -> panes.forEach( p -> {
-                            Node n = (Node) p.getValue();
-                            n.setVisible( p == shown );
-                            n.setManaged( p == shown );
-                        } ) );
+                        String category = shown.getKey().replace( "Pane", "" );
+                        robot.interact( () -> {
+                            panes.forEach( p -> {
+                                Node n = (Node) p.getValue();
+                                n.setVisible( p == shown );
+                                n.setManaged( p == shown );
+                            } );
+                            for ( var button : nav ) {
+                                button.getStyleClass().remove( "selected" );
+                                if ( button.getId().equalsIgnoreCase( "nav" + category ) ) {
+                                    button.getStyleClass().add( "selected" );
+                                }
+                            }
+                        } );
                         render( robot, theme, root.get(), "settings-" + shown.getKey().replace( "Pane", "" ),
                                 1000, 800 );
                     }

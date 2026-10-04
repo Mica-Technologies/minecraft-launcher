@@ -85,7 +85,11 @@ class ThemeTokensTest
                 check( failures, sheet, t, "-md-on-surface-variant", surface, backdrop, TEXT );
             }
             check( failures, sheet, t, "-md-outline", "-md-surface-container", backdrop, NON_TEXT );
+            for ( String hue : SettingsNavTile.HUES ) {
+                check( failures, sheet, t, "-md-on-icon-" + hue, "-md-icon-" + hue, backdrop, NON_TEXT );
+            }
             check( failures, sheet, t, "-md-inverse-on-surface", "-md-inverse-surface", backdrop, TEXT );
+            check( failures, sheet, t, "-md-on-active-indicator", "-md-active-indicator", backdrop, TEXT );
             // The live tokens the current stylesheets use for text on primary buttons.
             check( failures, sheet, t, "-color-text-on-primary", "-color-primary", backdrop, TEXT );
             check( failures, sheet, t, "-color-text", "-color-popup", backdrop, TEXT );

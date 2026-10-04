@@ -1632,6 +1632,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         navRgb.setOnAction( e -> showCategory( 8 ) );
         navAbout.setOnAction( e -> showCategory( 9 ) );
 
+        SettingsNavTile.decorateSidebar( navButtons );
+
         setupAboutTab();
         setupRgbTab();
 
