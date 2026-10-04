@@ -315,9 +315,20 @@ attach tooltips and context menus to a node (`Tooltip.install`, `ContextMenu.sho
 
 **Components and motion.** Material 3 Expressive pieces live in `gui/`: `MaterialSwitchSkin` (every
 `MFXToggleButton`, installed by `-fx-skin`), `WavyProgressBar`, `LoadingIndicator` (morphing shape),
-`FilterChip`, `SearchFields` (search pill), `StepBadge`, `BlockyHorizon`, and the Settings tiles
-(`SettingsNavTile`, `SettingsGroups`). Buttons follow a hierarchy in `ui-base.css`: `.primary` filled,
-tonal by default, `.outlinedBtn`, `.textBtn`, `.selected`, `.danger`; all pills. Icons come only from
+`FilterChip`, `SearchFields` (search pill), `IconButtons` (40 px icon buttons, label in the tooltip
+and accessible text), `EmptyStates` (the tonal glyph badge above an empty screen), `AnnouncementBanners`
+(shows or collapses a screen's banner row), `PackColorScheme` (the detail window's colours from the
+pack logo; Settings › Appearance › Colour from modpack art), `StepBadge`, `BlockyHorizon`, and the
+Settings tiles (`SettingsNavTile`, `SettingsGroups`; `.settingsRow` + `tileOnly`/`tileFirst`/… also
+groups the Modpack Editor's sections and, as `.tileList`, Runtime Management's list). Buttons follow a
+hierarchy in `ui-base.css`: `.primary` filled, tonal by default, `.outlinedBtn`, `.textBtn`,
+`.selected`, `.danger`, `.errorTonalBtn`, `.errorTextBtn`; all pills, sized to their label (never give a
+button a fixed `prefWidth`: translations are longer and the label gets cut off). `.connectedGroup` makes
+a row of buttons an M3 connected group. The focus ring shows only for keyboard focus (`:focus-visible`).
+Shared controls (dropdowns, checkboxes, TabPane tabs, menus, tooltips, scrollbars) are restyled in one
+block at the end of `ui-base.css`. Fonts: Inter for the UI and JetBrains Mono for logs, both bundled
+(`BundledFonts`): JavaFX uses only the first family a CSS font list names, so a font the system may
+lack must be bundled. Icons come only from
 `LauncherIcons` (`tools/launcher-icons/build_icons.py`). Corner radii use `ShapeScale`; text sizes use
 the type scale (`type-*` classes). `Motion` holds Material's easing and duration tokens and the standard
 transitions (`enter`, `exit`, `fadeThrough`): screens, Settings categories and Running Games tabs fade
@@ -327,7 +338,9 @@ bar has its own on/off switch there.
 
 **Snapshots.** `ThemeSnapshotFxTest` (`MMCL_RUN_TESTFX=true`) renders every screen, two control
 galleries, a dialog and the popups in all seven theme variants to `build/target/snapshots/themes/`.
-`tools/ui-snapshots/diff_snapshots.py BEFORE AFTER` reports changed pixels per image and writes
+`DetailModalSnapshotFxTest`, `RunningGamesSnapshotFxTest` and `SecondaryScreensSnapshotFxTest` render the
+data-driven parts the FXML-only snapshots can't (detail tabs and pack colours, game sessions, runtime
+tiles). `tools/ui-snapshots/diff_snapshots.py BEFORE AFTER` reports changed pixels per image and writes
 highlighted diffs. Every Maven run wipes `build/` (except `build/jdk`), so keep a baseline outside it.
 
 `applyTheme( tokens )` swaps the sheets only when they differ. It always paints the root
