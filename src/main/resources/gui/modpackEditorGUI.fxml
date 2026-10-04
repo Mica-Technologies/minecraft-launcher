@@ -105,10 +105,10 @@
                     <!-- Each section is a titled tile, like the Settings screen's groups. -->
                     <Label text="%editor.section.packIdentity" styleClass="settingsSectionTitle"/>
                     <VBox styleClass="settingsRow, tileOnly" spacing="12.0">
-                        <MFXTextField fx:id="packNameField" floatingText="Pack Name" maxWidth="500.0"
+                        <MFXTextField fx:id="packNameField" floatingText="%editor.field.packName" maxWidth="500.0"
                                       prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
                         <HBox spacing="12.0" alignment="CENTER_LEFT">
-                            <MFXTextField fx:id="packVersionField" floatingText="Pack Version" maxWidth="300.0"
+                            <MFXTextField fx:id="packVersionField" floatingText="%editor.field.packVersion" maxWidth="300.0"
                                           prefWidth="300.0" minHeight="48.0" prefHeight="48.0"/>
                             <!-- Version bumps: a connected button group. -->
                             <HBox styleClass="connectedGroup" spacing="2.0">
@@ -117,9 +117,9 @@
                                 <MFXButton fx:id="bumpPatchBtn" text="%editor.bumpBtn.patch" styleClass="tileLast"/>
                             </HBox>
                         </HBox>
-                        <MFXTextField fx:id="packURLField" floatingText="Pack Website URL" maxWidth="500.0"
+                        <MFXTextField fx:id="packURLField" floatingText="%editor.field.packUrl" maxWidth="500.0"
                                       prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
-                        <MFXTextField fx:id="packMinRAMField" floatingText="Minimum RAM (GB)" maxWidth="500.0"
+                        <MFXTextField fx:id="packMinRAMField" floatingText="%editor.field.minRam" maxWidth="500.0"
                                       prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
                     </VBox>
 
@@ -137,11 +137,11 @@
                         </HBox>
                         <Label fx:id="packModLoaderHint" styleClass="settingsHint" wrapText="true"
                                text="%editor.modloaderHint"/>
-                        <MFXTextField fx:id="packForgeURLField" floatingText="Modloader URL (installer JAR or Fabric profile JSON)" maxWidth="500.0"
+                        <MFXTextField fx:id="packForgeURLField" floatingText="%editor.field.modloaderUrl" maxWidth="500.0"
                                       prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
-                        <MFXTextField fx:id="packForgeHashField" floatingText="Modloader SHA-1 (optional for Fabric)" maxWidth="500.0"
+                        <MFXTextField fx:id="packForgeHashField" floatingText="%editor.field.modloaderSha1" maxWidth="500.0"
                                       prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
-                        <MFXTextField fx:id="packMinecraftVersionField" floatingText="Minecraft Version (informational — runtime derives from loader installer)" maxWidth="500.0"
+                        <MFXTextField fx:id="packMinecraftVersionField" floatingText="%editor.field.minecraftVersion" maxWidth="500.0"
                                       prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
                     </VBox>
 
@@ -152,22 +152,22 @@
                                 <TextArea fx:id="packLogoURLField" maxWidth="400.0" prefWidth="400.0"
                                           prefHeight="58.0" wrapText="false"
                                           promptText="%editor.logoUrls.prompt"/>
-                                <MFXTextField fx:id="packLogoSha1Field" floatingText="Logo SHA-1" maxWidth="400.0"
+                                <MFXTextField fx:id="packLogoSha1Field" floatingText="%editor.field.logoSha1" maxWidth="400.0"
                                               prefWidth="400.0" minHeight="48.0" prefHeight="48.0"/>
                             </VBox>
                             <ImageView fx:id="logoPreview" fitHeight="64.0" fitWidth="64.0" preserveRatio="true"
-                                       accessibleText="Logo preview"/>
+                                       accessibleText="%editor.preview.logo"/>
                         </HBox>
                         <HBox spacing="16.0" alignment="CENTER_LEFT">
                             <VBox spacing="4.0">
                                 <TextArea fx:id="packBgURLField" maxWidth="400.0" prefWidth="400.0"
                                           prefHeight="58.0" wrapText="false"
                                           promptText="%editor.backgroundUrls.prompt"/>
-                                <MFXTextField fx:id="packBgSha1Field" floatingText="Background SHA-1" maxWidth="400.0"
+                                <MFXTextField fx:id="packBgSha1Field" floatingText="%editor.field.backgroundSha1" maxWidth="400.0"
                                               prefWidth="400.0" minHeight="48.0" prefHeight="48.0"/>
                             </VBox>
                             <ImageView fx:id="bgPreview" fitHeight="64.0" fitWidth="128.0" preserveRatio="true"
-                                       accessibleText="Background preview"/>
+                                       accessibleText="%editor.preview.background"/>
                         </HBox>
                     </VBox>
 

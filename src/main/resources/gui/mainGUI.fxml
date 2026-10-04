@@ -106,7 +106,7 @@
              -fx-fill and reacts to clicks via the controller. Placed to the LEFT of
              Library so it lives with the other navigation actions on the right-aligned
              end of the navbar. -->
-        <SVGPath fx:id="refreshIcon" accessibleText="Refresh modpack list"
+        <SVGPath fx:id="refreshIcon" accessibleText="%main.navbar.refresh.a11y"
                  focusTraversable="true" pickOnBounds="true" styleClass="navRefreshIcon"
                  >
             <content><LauncherIcons fx:constant="REFRESH"/></content>
@@ -128,7 +128,7 @@
              a PNG file so it's theme-coloured via -fx-fill: -color-primary and never breaks
              when the PNG resource lookup misbehaves. The previous @../update.png include
              intermittently rendered as empty space — replaced wholesale with this vector. -->
-        <SVGPath fx:id="updateImgView" accessibleText="Update available - click to download"
+        <SVGPath fx:id="updateImgView" accessibleText="%main.navbar.update.a11y"
                  focusTraversable="true" pickOnBounds="true" styleClass="navUpdateIcon"
                  >
             <content><LauncherIcons fx:constant="DOWNLOAD"/></content>
@@ -145,7 +145,7 @@
 
         <!-- User identity, right-aligned -->
         <HBox styleClass="accountChip" alignment="CENTER_LEFT" spacing="8.0">
-            <ImageView fx:id="userImage" accessibleText="Player avatar" fitHeight="28.0" fitWidth="28.0"
+            <ImageView fx:id="userImage" accessibleText="%main.navbar.avatar.a11y" fitHeight="28.0" fitWidth="28.0"
                        pickOnBounds="true" preserveRatio="true">
                 <Image url="@../no_user.png"/>
             </ImageView>
