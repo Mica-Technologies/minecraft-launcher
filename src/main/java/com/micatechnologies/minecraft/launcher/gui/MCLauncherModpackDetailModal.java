@@ -374,10 +374,12 @@ public class MCLauncherModpackDetailModal extends StackPane
         }
 
         if ( !alreadyShown ) {
-            FadeTransition fade = new FadeTransition( Duration.millis( 140 ), this );
+            // The scrim fades in while the card grows into place.
+            FadeTransition fade = new FadeTransition( Duration.millis( Motion.isReduced() ? 1 : Motion.SHORT ), this );
             fade.setFromValue( 0.0 );
             fade.setToValue( 1.0 );
             fade.play();
+            Motion.enter( modalCard );
         }
         else {
             setOpacity( 1.0 );
@@ -448,7 +450,9 @@ public class MCLauncherModpackDetailModal extends StackPane
             s.removeEventFilter( KeyEvent.KEY_PRESSED, escHandler );
         }
 
-        FadeTransition fade = new FadeTransition( Duration.millis( 120 ), this );
+        // The card shrinks away while the scrim fades.
+        Motion.exit( modalCard, null );
+        FadeTransition fade = new FadeTransition( Duration.millis( Motion.isReduced() ? 1 : Motion.SHORT ), this );
         fade.setFromValue( getOpacity() );
         fade.setToValue( 0.0 );
         fade.setOnFinished( e -> {

@@ -117,7 +117,10 @@ public class LoadingIndicator extends Region
         if ( size <= 0 ) {
             return;
         }
-        shape.getElements().setAll( outline( seconds, getWidth() / 2, getHeight() / 2, size / 2 ) );
+        // Reduce motion keeps one shape and only turns it, slowly: still clearly busy.
+        double clock = Motion.isReduced() ? 0 : seconds;
+        shape.getElements().setAll( outline( clock, getWidth() / 2, getHeight() / 2, size / 2 ) );
+        shape.setRotate( Motion.isReduced() ? ( seconds * 90 ) % 360 : 0 );
     }
 
     /**

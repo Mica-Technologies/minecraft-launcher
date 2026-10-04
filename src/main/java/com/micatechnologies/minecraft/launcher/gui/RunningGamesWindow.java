@@ -68,6 +68,12 @@ public final class RunningGamesWindow
         StackPane root = new StackPane( empty, tabs );
         root.getStyleClass().add( "rootPane" );
         tabs.setTabClosingPolicy( TabPane.TabClosingPolicy.ALL_TABS );
+        // Switching games fades the selected game's pane in (Material's fade-through).
+        tabs.getSelectionModel().selectedItemProperty().addListener( ( o, was, now ) -> {
+            if ( was != null && now != null ) {
+                Motion.fadeThrough( now.getContent() );
+            }
+        } );
         stage.setTitle( LocalizationManager.get( "session.window.title" ) );
         stage.setScene( new Scene( root, 1000, 720 ) );
         stage.setMinWidth( 640 );

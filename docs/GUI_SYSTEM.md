@@ -313,6 +313,18 @@ because the theme can't reach inline styles. `InlineStyleGuardTest` fails the bu
 `style="..."` attribute; its allow-list holds the few exceptions, each with its reason. Popups resolve tokens through their owner node, so
 attach tooltips and context menus to a node (`Tooltip.install`, `ContextMenu.show( anchor, ... )`).
 
+**Components and motion.** Material 3 Expressive pieces live in `gui/`: `MaterialSwitchSkin` (every
+`MFXToggleButton`, installed by `-fx-skin`), `WavyProgressBar`, `LoadingIndicator` (morphing shape),
+`FilterChip`, `SearchFields` (search pill), `StepBadge`, `BlockyHorizon`, and the Settings tiles
+(`SettingsNavTile`, `SettingsGroups`). Buttons follow a hierarchy in `ui-base.css`: `.primary` filled,
+tonal by default, `.outlinedBtn`, `.textBtn`, `.selected`, `.danger`; all pills. Icons come only from
+`LauncherIcons` (`tools/launcher-icons/build_icons.py`). Corner radii use `ShapeScale`; text sizes use
+the type scale (`type-*` classes). `Motion` holds Material's easing and duration tokens and the standard
+transitions (`enter`, `exit`, `fadeThrough`): screens, Settings categories and Running Games tabs fade
+through, the detail window and dialogs grow in and shrink out. Settings › Appearance › Reduce motion
+(`Motion.setReduceMotion`) makes transitions instant and stills ambient animation; the wavy progress
+bar has its own on/off switch there.
+
 **Snapshots.** `ThemeSnapshotFxTest` (`MMCL_RUN_TESTFX=true`) renders every screen, two control
 galleries, a dialog and the popups in all seven theme variants to `build/target/snapshots/themes/`.
 `tools/ui-snapshots/diff_snapshots.py BEFORE AFTER` reports changed pixels per image and writes

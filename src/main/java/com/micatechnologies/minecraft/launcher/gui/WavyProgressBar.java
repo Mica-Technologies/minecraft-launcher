@@ -184,7 +184,9 @@ public class WavyProgressBar extends Region
         double x0 = snappedLeftInset();
         double cy = snappedTopInset() + ( getHeight() - snappedTopInset() - snappedBottomInset() ) / 2;
         double seconds = nanos / 1e9;
-        double phase = ( seconds % WAVE_PERIOD_S ) / WAVE_PERIOD_S * Math.PI * 2;
+        // Reduce motion holds the wave still; the indeterminate sweep (which shows that work is
+        // happening) keeps moving.
+        double phase = Motion.isReduced() ? 0 : ( seconds % WAVE_PERIOD_S ) / WAVE_PERIOD_S * Math.PI * 2;
 
         double amplitude = WAVY.get() ? AMPLITUDE : 0;
         double target = getProgress();

@@ -292,6 +292,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     io.github.palexdev.materialfx.controls.MFXToggleButton wavyProgressToggle;
 
+    /** Appearance toggle: reduce motion. Backed by {@link ConfigManager#getReduceMotion}, default
+     *  off; applies immediately.
+     *
+     *  @since 2026.10 */
+    @SuppressWarnings( "unused" )
+    @FXML
+    io.github.palexdev.materialfx.controls.MFXToggleButton reduceMotionToggle;
+
     /** Appearance dropdown: how often a pack's logo + background cycle when the
      *  manifest declares multiple images (issue #43). Items are localized labels;
      *  the selected index maps to a token in
@@ -1214,6 +1222,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             } );
         }
 
+        // Reduce motion toggle (Appearance tab): saved and applied immediately.
+        if ( reduceMotionToggle != null ) {
+            reduceMotionToggle.setSelected( ConfigManager.getReduceMotion() );
+            reduceMotionToggle.selectedProperty().addListener( ( obs, oldV, newV ) -> {
+                boolean reduce = Boolean.TRUE.equals( newV );
+                ConfigManager.setReduceMotion( reduce );
+                Motion.setReduceMotion( reduce );
+            } );
+        }
+
         // Multi-image cycle interval (Appearance tab). The combo shows localized
         // labels; selection maps back to a canonical token. On change we write the
         // token AND reconfigure the live cycle clock so the new cadence takes effect
@@ -1677,8 +1695,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         ObservableList< Node > children = settingsContent.getChildren();
         for ( int i = 0; i < children.size(); i++ ) {
             boolean active = ( i == index );
+            boolean wasHidden = !children.get( i ).isVisible();
             children.get( i ).setVisible( active );
             children.get( i ).setManaged( active );
+            if ( active && wasHidden ) {
+                Motion.fadeThrough( children.get( i ) );
+            }
         }
         for ( MFXButton btn : navButtons ) {
             btn.getStyleClass().remove( "selected" );

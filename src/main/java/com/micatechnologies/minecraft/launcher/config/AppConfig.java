@@ -156,6 +156,21 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /** Whether motion is reduced: instant transitions, still ambient animation. */
+    public static synchronized boolean getReduceMotion() {
+        return ConfigStore.getOrInitBoolean( ConfigConstants.REDUCE_MOTION_KEY, ConfigConstants.REDUCE_MOTION_DEFAULT );
+    }
+
+    /**
+     * Sets whether motion is reduced, and schedules a debounced disk flush.
+     *
+     * @param reduce {@code true} to reduce motion
+     */
+    public static synchronized void setReduceMotion( boolean reduce ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.REDUCE_MOTION_KEY, reduce );
+        ConfigStore.scheduleWrite();
+    }
+
     // ====================================================================
     // Discord integration
     // ====================================================================

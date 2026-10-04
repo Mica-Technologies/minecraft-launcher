@@ -1128,6 +1128,21 @@ public class ConfigConstants
     public static final boolean WAVY_PROGRESS_DEFAULT = true;
 
     /**
+     * Config key: reduce motion. Transitions become instant and ambient animations still
+     * (wave, loading morph, hopping blocks). Settings › Appearance.
+     *
+     * @since 2026.10
+     */
+    public static final String REDUCE_MOTION_KEY = "reduceMotion";
+
+    /**
+     * Default for {@link #REDUCE_MOTION_KEY}: off.
+     *
+     * @since 2026.10
+     */
+    public static final boolean REDUCE_MOTION_DEFAULT = false;
+
+    /**
      * Default for {@link #SHOW_PACK_BACKGROUNDS_KEY}. True so fresh installs
      * see the imagery the modpack authors curated; users who prefer the
      * gradient-only look opt out via Settings → Appearance.

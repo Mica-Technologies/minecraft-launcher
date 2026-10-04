@@ -132,6 +132,7 @@ public class MCLauncherGuiWindow extends Application
         // Register the bundled fonts before any stylesheet resolves a font family.
         BundledFonts.ensureLoaded();
         WavyProgressBar.setWavyEnabled( ConfigManager.getWavyProgress() );
+        Motion.setReduceMotion( ConfigManager.getReduceMotion() );
 
         // Save stage
         this.stage = stage;
@@ -593,8 +594,9 @@ public class MCLauncherGuiWindow extends Application
             com.micatechnologies.minecraft.launcher.utilities.WindowsTitleBarControls
                     .prePaintSetup( gui.scene.getRoot() );
 
-            // Set scene
+            // Set scene, fading the new screen in (Material's fade-through).
             stage.setScene( gui.scene );
+            Motion.fadeThrough( gui.rootPane );
 
             // macOS hidden-inset title bar: the traffic lights float over the top-left of
             // the content, so drop this scene's redundant in-window brand lockup (the OS

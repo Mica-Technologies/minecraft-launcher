@@ -207,6 +207,9 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      */
     private void startVoxelBounceAnimation() {
         stopVoxelBounceAnimation();
+        if ( Motion.isReduced() ) {
+            return;
+        }
         startBounceOn( voxelCube1, voxelShadow1, 0 );
         startBounceOn( voxelCube2, voxelShadow2, 150 );
         startBounceOn( voxelCube3, voxelShadow3, 300 );

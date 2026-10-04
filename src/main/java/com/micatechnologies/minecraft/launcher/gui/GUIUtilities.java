@@ -695,6 +695,10 @@ public class GUIUtilities
     public static void themeAlertChrome( javafx.scene.control.Dialog< ? > alert )
     {
         if ( alert == null ) return;
+        // Grow the dialog in as it appears. An event handler, not setOnShown, so a caller's own
+        // onShown handler stays in place.
+        alert.addEventHandler( javafx.scene.control.DialogEvent.DIALOG_SHOWN,
+                               ev -> Motion.enter( alert.getDialogPane() ) );
         alert.setOnShowing( ev -> {
             try {
                 // Install the launcher theme stylesheets on the dialog's own scene so the
