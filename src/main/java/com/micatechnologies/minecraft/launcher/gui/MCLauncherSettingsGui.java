@@ -300,6 +300,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     io.github.palexdev.materialfx.controls.MFXToggleButton reduceMotionToggle;
 
+    /** Appearance toggle: colour each pack's detail window from its logo. Backed by
+     *  {@link ConfigManager#getPackColors}, default on; applies to windows opened afterwards.
+     *
+     *  @since 2026.10 */
+    @SuppressWarnings( "unused" )
+    @FXML
+    io.github.palexdev.materialfx.controls.MFXToggleButton packColorsToggle;
+
     /** Appearance dropdown: how often a pack's logo + background cycle when the
      *  manifest declares multiple images (issue #43). Items are localized labels;
      *  the selected index maps to a token in
@@ -1230,6 +1238,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 ConfigManager.setReduceMotion( reduce );
                 Motion.setReduceMotion( reduce );
             } );
+        }
+
+        // Colour from modpack art (Appearance tab): read when a detail window opens.
+        if ( packColorsToggle != null ) {
+            packColorsToggle.setSelected( ConfigManager.getPackColors() );
+            packColorsToggle.selectedProperty().addListener(
+                    ( obs, oldV, newV ) -> ConfigManager.setPackColors( Boolean.TRUE.equals( newV ) ) );
         }
 
         // Multi-image cycle interval (Appearance tab). The combo shows localized

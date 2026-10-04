@@ -649,6 +649,10 @@ public class ConfigManager
     public synchronized static boolean getReduceMotion()                { return AppConfig.getReduceMotion(); }
     /** Sets whether motion is reduced. @param v the new flag. @see AppConfig#setReduceMotion(boolean) @since 2026.10 */
     public synchronized static void    setReduceMotion( boolean v )     { AppConfig.setReduceMotion( v ); }
+    /** @return whether detail windows take colours from the pack's logo. @see AppConfig#getPackColors() @since 2026.10 */
+    public synchronized static boolean getPackColors()                  { return AppConfig.getPackColors(); }
+    /** Sets whether detail windows take colours from the pack's logo. @param v the new flag. @see AppConfig#setPackColors(boolean) @since 2026.10 */
+    public synchronized static void    setPackColors( boolean v )       { AppConfig.setPackColors( v ); }
     /** @return whether launcher windows can be resized. @see AppConfig#getResizableWindows() @since 1.0 */
     public synchronized static boolean getResizableWindows()            { return AppConfig.getResizableWindows(); }
     /** Sets whether launcher windows can be resized. @param v the new flag. @see AppConfig#setResizableWindows(boolean) @since 1.0 */

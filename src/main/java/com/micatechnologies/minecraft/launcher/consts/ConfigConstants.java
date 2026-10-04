@@ -1143,6 +1143,20 @@ public class ConfigConstants
     public static final boolean REDUCE_MOTION_DEFAULT = false;
 
     /**
+     * Config key: colour each modpack's detail window from its logo. Settings › Appearance.
+     *
+     * @since 2026.10
+     */
+    public static final String PACK_COLORS_KEY = "packColors";
+
+    /**
+     * Default for {@link #PACK_COLORS_KEY}: on.
+     *
+     * @since 2026.10
+     */
+    public static final boolean PACK_COLORS_DEFAULT = true;
+
+    /**
      * Default for {@link #SHOW_PACK_BACKGROUNDS_KEY}. True so fresh installs
      * see the imagery the modpack authors curated; users who prefer the
      * gradient-only look opt out via Settings → Appearance.

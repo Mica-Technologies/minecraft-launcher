@@ -171,6 +171,22 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /** Whether each modpack's detail window takes its colours from the pack's logo. */
+    public static synchronized boolean getPackColors() {
+        return ConfigStore.getOrInitBoolean( ConfigConstants.PACK_COLORS_KEY, ConfigConstants.PACK_COLORS_DEFAULT );
+    }
+
+    /**
+     * Sets whether detail windows take their colours from the pack's logo, and schedules a
+     * debounced disk flush.
+     *
+     * @param enabled {@code true} to colour from the logo
+     */
+    public static synchronized void setPackColors( boolean enabled ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.PACK_COLORS_KEY, enabled );
+        ConfigStore.scheduleWrite();
+    }
+
     // ====================================================================
     // Discord integration
     // ====================================================================

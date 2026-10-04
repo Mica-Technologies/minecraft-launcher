@@ -232,6 +232,11 @@ public class MCLauncherModpackDetailModal extends StackPane
         }
     };
 
+    /** Where the Problems banner gets its findings: the pack's audit log. Package-private so a
+     *  snapshot test can show a pack with many problems without writing audit files. */
+    static java.util.function.BiFunction< String, Integer, java.util.List< ModPackAuditLog.Problem > > problemSource =
+            ModPackAuditLog::analyzeProblems;
+
     /**
      * Constructs the overlay and registers it as a child of the supplied parent. The
      * overlay is initially invisible/unmanaged so it doesn't intercept layout or
@@ -489,6 +494,11 @@ public class MCLauncherModpackDetailModal extends StackPane
     private static final String TAB_CONTENT  = "content";
     private static final String TAB_ACTIVITY = "activity";
     private static final String TAB_ADVANCED = "advanced";
+    private static final String TAB_PROBLEMS = "problems";
+
+    /** The audit problems for the pack being shown; empty when it has none. Listed in the Problems
+     *  tab, summarised by the header banner. */
+    private java.util.List< ModPackAuditLog.Problem > currentProblems = java.util.List.of();
 
     /** Scroll pane hosting the active tab's body; its content is swapped on tab
      *  switch (the body itself never moves, so the sticky header/footer stay put). */
@@ -513,6 +523,8 @@ public class MCLauncherModpackDetailModal extends StackPane
     private void rebuildModalSkeleton( GameModPack pack )
     {
         modalCard.getChildren().clear();
+        // Back to the theme's colours until this pack's art has been read.
+        PackColorScheme.apply( modalCard, null );
         tabBodies.clear();
         tabButtons.clear();
         final int gen = ++packGeneration;
@@ -526,11 +538,14 @@ public class MCLauncherModpackDetailModal extends StackPane
         headerMeta.setPadding( new Insets( 14, 24, 0, 24 ) );
         headerMeta.getStyleClass().add( "modpackDetailHeaderMeta" );
         headerMeta.getChildren().add( buildChipsRow( pack ) );
+        // Problems: a one-line banner here, the full list in its own tab. Listing every problem in
+        // the header pushed the tabs and body out of a window with many of them.
+        currentProblems = java.util.List.of();
         if ( pack.getPackRootFolder() != null ) {
-            java.util.List< ModPackAuditLog.Problem > problems =
-                    ModPackAuditLog.analyzeProblems( pack.getPackRootFolder(), pack.getLaunchCount() );
-            if ( !problems.isEmpty() ) {
-                headerMeta.getChildren().add( buildProblemsSection( problems ) );
+            currentProblems = problemSource.apply( pack.getPackRootFolder(), pack.getLaunchCount() );
+            if ( !currentProblems.isEmpty() ) {
+                headerMeta.getChildren().add(
+                        buildProblemsBanner( currentProblems.size(), () -> selectTab( TAB_PROBLEMS, pack, gen ) ) );
             }
         }
 
@@ -540,6 +555,9 @@ public class MCLauncherModpackDetailModal extends StackPane
         // manifest.
         java.util.List< String > tabs = new java.util.ArrayList<>();
         tabs.add( TAB_OVERVIEW );
+        if ( !currentProblems.isEmpty() ) {
+            tabs.add( TAB_PROBLEMS );
+        }
         if ( pack.getPackRootFolder() != null ) {
             tabs.add( TAB_CONTENT );
             tabs.add( TAB_ACTIVITY );
@@ -575,18 +593,27 @@ public class MCLauncherModpackDetailModal extends StackPane
      */
     private HBox buildTabBar( GameModPack pack, java.util.List< String > tabs, int gen )
     {
-        HBox bar = new HBox( 6 );
+        HBox bar = new HBox( 2 );
         bar.getStyleClass().add( "modpackDetailTabBar" );
         bar.setPadding( new Insets( 12, 24, 12, 24 ) );
         bar.setAlignment( Pos.CENTER_LEFT );
         for ( String tab : tabs ) {
             Label btn = new Label( tabLabel( tab ) );
             btn.getStyleClass().add( "modpackDetailTab" );
+            if ( TAB_PROBLEMS.equals( tab ) ) {
+                // The count as a small error badge after the label.
+                Label badge = new Label( String.valueOf( currentProblems.size() ) );
+                badge.getStyleClass().add( "modpackDetailTabBadge" );
+                btn.setGraphic( badge );
+                btn.setContentDisplay( javafx.scene.control.ContentDisplay.RIGHT );
+            }
             btn.setCursor( Cursor.HAND );
             btn.setOnMouseClicked( e -> selectTab( tab, pack, gen ) );
             tabButtons.put( tab, btn );
             bar.getChildren().add( btn );
         }
+        // Connected button group: round the outer ends, keep the inner corners tight.
+        SettingsNavTile.markGroupPositions( java.util.List.of( bar ) );
         return bar;
     }
 
@@ -597,6 +624,7 @@ public class MCLauncherModpackDetailModal extends StackPane
             case TAB_CONTENT  -> LocalizationManager.get( "detailModal.tab.content" );
             case TAB_ACTIVITY -> LocalizationManager.get( "detailModal.tab.activity" );
             case TAB_ADVANCED -> LocalizationManager.get( "detailModal.tab.advanced" );
+            case TAB_PROBLEMS -> LocalizationManager.get( "detailModal.section.problems" );
             default           -> LocalizationManager.get( "detailModal.tab.overview" );
         };
     }
@@ -696,6 +724,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                 b.add( () -> ModpackContentBrowser.buildCrashHistorySection( pack, this::buildSectionBox, this ) );
             }
             case TAB_ADVANCED -> b.add( () -> buildAdvancedSection( pack ) );
+            case TAB_PROBLEMS -> b.add( () -> buildProblemsList( currentProblems ) );
             default -> { }
         }
         if ( b.isEmpty() ) {
@@ -822,6 +851,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         // (custom bg → file URL; vanilla → sky gradient; modded w/ logo → derived
         // gradient; modded w/o logo → Forge default).
         Image logoImage = resolveLogoImage( pack );
+        colorFromArt( logoImage, packGeneration );
         Region bgLayer = new Region();
         bgLayer.getStyleClass().add( "heroBackground" );
         // Always paint the dynamic gradient as the placeholder behind the bg-image so
@@ -2255,6 +2285,11 @@ public class MCLauncherModpackDetailModal extends StackPane
 
         MFXButton playBtn = new MFXButton( LocalizationManager.get( "common.button.play" ) );
         playBtn.getStyleClass().addAll( "primary", "modpackDetailPlayBtn" );
+        javafx.scene.shape.SVGPath playIcon = new javafx.scene.shape.SVGPath();
+        playIcon.setContent( LauncherIcons.PLAY );
+        playIcon.getStyleClass().add( "playBtnIcon" );
+        playBtn.setGraphic( playIcon );
+        playBtn.setGraphicTextGap( 6 );
         playBtn.setMinHeight( BTN_H );
         playBtn.setPrefHeight( BTN_H );
         playBtn.setMaxHeight( BTN_H );
@@ -2354,34 +2389,62 @@ public class MCLauncherModpackDetailModal extends StackPane
     }
 
     /**
-     * Builds the "Problems" section listing files the audit log flags as re-downloading on
-     * every recent launch. Only constructed when {@code problems} is non-empty (see
-     * {@link #populateBodyContent}). Each row names the file and explains the likely cause —
-     * an identical re-fetch points at a manifest hash that doesn't match the served bytes.
+     * The header's one-line problems banner: a warning glyph, how many files keep re-downloading,
+     * and a Review button that opens the Problems tab. One line however many problems there are.
+     *
+     * @param count  the number of problems
+     * @param review opens the Problems tab
+     *
+     * @return the banner
      */
-    private VBox buildProblemsSection( java.util.List< ModPackAuditLog.Problem > problems )
+    private Node buildProblemsBanner( int count, Runnable review )
     {
-        VBox section = buildSectionBox( LocalizationManager.get( "detailModal.section.problems" ), true );
-        for ( ModPackAuditLog.Problem p : problems ) {
-            VBox row = new VBox( 2 );
-            row.getStyleClass().add( "modpackDetailProblemRow" );
+        javafx.scene.shape.SVGPath icon = new javafx.scene.shape.SVGPath();
+        icon.setContent( LauncherIcons.WARNING );
+        icon.getStyleClass().add( "problemsBannerIcon" );
+        icon.setScaleX( 20.0 / 24 );
+        icon.setScaleY( 20.0 / 24 );
+        Label text = new Label( LocalizationManager.format( "detailModal.problems.banner", count ) );
+        text.getStyleClass().add( "problemsBannerText" );
+        text.setMinWidth( 0 );
+        Region spacer = new Region();
+        HBox.setHgrow( spacer, Priority.ALWAYS );
+        MFXButton reviewBtn = new MFXButton( LocalizationManager.get( "detailModal.problems.review" ) );
+        reviewBtn.getStyleClass().addAll( "textBtn", "problemsBannerAction" );
+        reviewBtn.setOnAction( e -> review.run() );
+        HBox banner = new HBox( 10, icon, text, spacer, reviewBtn );
+        banner.getStyleClass().add( "problemsBanner" );
+        banner.setAlignment( Pos.CENTER_LEFT );
+        return banner;
+    }
 
+    /**
+     * The Problems tab: one tile per file the launcher re-downloads on every launch, with what that
+     * likely means, as a group of rows that scrolls with the tab body.
+     *
+     * @param problems the problems to list
+     *
+     * @return the list
+     */
+    private VBox buildProblemsList( java.util.List< ModPackAuditLog.Problem > problems )
+    {
+        VBox group = new VBox( 2 );
+        group.getStyleClass().add( "settingsGroup" );
+        for ( int i = 0; i < problems.size(); i++ ) {
+            ModPackAuditLog.Problem p = problems.get( i );
             Label head = new Label( LocalizationManager.format( "detailModal.problems.redownload",
                                                                 p.file(), p.consecutiveLaunches() ) );
-            head.getStyleClass().add( "modpackDetailProblemTitle" );
-            head.getStyleClass().add( "type-weight-bold" );
+            head.getStyleClass().add( "type-title-small" );
             head.setWrapText( true );
-
             Label detail = new Label( LocalizationManager.get(
                     p.contentUnchanged() ? "detailModal.problems.unchanged" : "detailModal.problems.changed" ) );
-            detail.getStyleClass().add( "modpackDetailProblemDetail" );
+            detail.getStyleClass().add( "settingsHint" );
             detail.setWrapText( true );
-            detail.setOpacity( 0.85 );
-
-            row.getChildren().addAll( head, detail );
-            section.getChildren().add( row );
+            VBox row = new VBox( 4, head, detail );
+            row.getStyleClass().addAll( "settingsRow", SettingsNavTile.positionClass( i, problems.size() ) );
+            group.getChildren().add( row );
         }
-        return section;
+        return group;
     }
 
     /**
@@ -2583,6 +2646,56 @@ public class MCLauncherModpackDetailModal extends StackPane
     //  self-contained — the small duplication is preferable to making private
     //  helpers package-visible across the gui package).
     // =============================================================================
+
+    /**
+     * Colours the window from the pack's logo (Settings › Appearance › Colour from modpack art):
+     * once the logo has loaded, its dominant vivid colour seeds an accent scheme set on the card.
+     * Packs showing the launcher's default logo, and grey logos, keep the theme's colours.
+     *
+     * @param logo the pack's logo image, possibly still loading
+     * @param gen  the show generation, so a late load for a previous pack is ignored
+     */
+    private void colorFromArt( Image logo, int gen )
+    {
+        if ( logo == null || !com.micatechnologies.minecraft.launcher.config.ConfigManager.getPackColors()
+                || ModPackConstants.MODPACK_DEFAULT_LOGO_URL.equals( logo.getUrl() ) ) {
+            return;
+        }
+        Runnable read = () -> {
+            if ( gen != packGeneration || logo.isError() ) {
+                return;
+            }
+            java.util.OptionalInt seed = PackColorScheme.seedFrom( logo );
+            if ( seed.isEmpty() ) {
+                return;
+            }
+            boolean dark = !GUIUtilities.isLightChrome(
+                    com.micatechnologies.minecraft.launcher.config.ConfigManager.getTheme() );
+            PackColorScheme.apply( modalCard, PackColorScheme.roles( seed.getAsInt(), dark, cardSurface( dark ) ) );
+        };
+        if ( logo.getProgress() >= 1.0 ) {
+            read.run();
+        }
+        else {
+            logo.progressProperty().addListener( ( o, was, now ) -> {
+                if ( now.doubleValue() >= 1.0 ) {
+                    read.run();
+                }
+            } );
+        }
+    }
+
+    /** The card's resolved background colour, for checking text contrast against it. */
+    private int cardSurface( boolean dark )
+    {
+        javafx.scene.layout.Background bg = modalCard.getBackground();
+        if ( bg != null && !bg.getFills().isEmpty()
+                && bg.getFills().get( 0 ).getFill() instanceof javafx.scene.paint.Color c && c.getOpacity() > 0.9 ) {
+            return ( (int) Math.round( c.getRed() * 255 ) << 16 ) | ( (int) Math.round( c.getGreen() * 255 ) << 8 )
+                   | (int) Math.round( c.getBlue() * 255 );
+        }
+        return dark ? 0x222732 : 0xEDEEF2;
+    }
 
     /**
      * Resolves the pack's logo image for the hero, mirroring the hero card's

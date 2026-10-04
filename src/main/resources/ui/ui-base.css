@@ -593,6 +593,26 @@
 .wavy-progress .wavy-track  { -fx-stroke: -md-active-indicator; -fx-fill: transparent; }
 .wavy-progress .wavy-stop   { -fx-fill: -md-primary; }
 
+.playBtnIcon { -fx-fill: -md-on-primary; }
+
+/* Detail window problems banner: one line on the error container, with a Review
+ * text button that opens the Problems tab. */
+.problemsBanner {
+    -fx-background-color: -md-error-container;
+    -fx-background-radius: 12;
+    -fx-padding: 4 6 4 14;
+}
+.problemsBannerIcon { -fx-fill: -md-on-error-container; }
+.label.problemsBannerText {
+    -fx-text-fill: -md-on-error-container;
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
+}
+.mfx-button.textBtn.problemsBannerAction .text,
+.mfx-button.textBtn.problemsBannerAction:hover .text { -fx-fill: -md-on-error-container; }
+.mfx-button.textBtn.problemsBannerAction:hover { -fx-background-color: -md-state-hover-on-surface; }
+
 /* Loading indicator (LoadingIndicator): Material 3 Expressive's morphing shape. */
 .loadingIndicatorShape { -fx-fill: -md-primary; }
 
@@ -937,29 +957,32 @@
 }
 
 /* Compact stat chips used in the hero meta row (MC version, Forge, etc.) */
+/* Chips: Material 3 assist chips. Outlined, the small (8 px) corner; the warn and
+ * success variants are tonal containers. (Chips laid over a hero image keep their
+ * own glass styling below.) */
 .stat-chip {
-    -fx-background-color: -color-surface-hover;
-    -fx-border-color: -color-border;
-    -fx-border-radius: 999;
-    -fx-background-radius: 999;
+    -fx-background-color: transparent;
+    -fx-border-color: -md-outline-variant;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
     -fx-border-width: 1;
-    -fx-text-fill: -color-text-muted;
-    -fx-padding: 2 12 2 12;
+    -fx-text-fill: -md-on-surface-variant;
     -fx-font-size: 11px;
     -fx-font-weight: 600;
     -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
+    -fx-padding: 3 10 3 10;
 }
 
 .stat-chip-warn {
-    -fx-background-color: -color-warning-soft;
-    -fx-border-color: -color-warning;
-    -fx-text-fill: -color-warning;
+    -fx-background-color: -md-warning-container;
+    -fx-border-color: transparent;
+    -fx-text-fill: -md-on-warning-container;
 }
 
 .stat-chip-success {
-    -fx-background-color: -color-secondary-soft;
-    -fx-border-color: -color-secondary;
-    -fx-text-fill: -color-secondary;
+    -fx-background-color: -md-success-container;
+    -fx-border-color: transparent;
+    -fx-text-fill: -md-on-success-container;
 }
 
 /* =====================================================================
@@ -980,11 +1003,8 @@
 
 /* The centered modal card surface. */
 .modpackDetailCard {
-    -fx-background-color: -color-surface-elevated;
+    -fx-background-color: -md-surface-container-high;
     -fx-background-radius: 28;
-    -fx-border-color: -color-border-strong;
-    -fx-border-radius: 28;
-    -fx-border-width: 1;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 32, 0.30, 0, 12);
 }
 
@@ -1108,30 +1128,40 @@
  * active tab gets a soft fill + a primary-colored underline. */
 .modpackDetailTabBar {
     -fx-background-color: transparent;
-    -fx-border-color: transparent transparent -color-border transparent;
-    -fx-border-width: 0 0 1 0;
 }
 
+/* The detail window's tabs: Material 3 Expressive's connected button group, pill
+ * segments 2 px apart (round outer ends, tight inner corners), the selected one in
+ * the navigation active-indicator tone. */
 .modpackDetailTab {
-    -fx-text-fill: -color-text-muted;
+    -fx-background-color: -md-surface-container-highest;
+    -fx-background-radius: 4;
+    -fx-text-fill: -md-on-surface-variant;
     -fx-font-size: 14px;
     -fx-font-weight: 600;
-    -fx-padding: 7 14 7 14;
-    -fx-background-radius: 8;
     -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
+    -fx-padding: 8 18 8 18;
+    -fx-graphic-text-gap: 8;
+}
+.modpackDetailTab.tileOnly  { -fx-background-radius: 999; }
+.modpackDetailTab.tileFirst { -fx-background-radius: 999 4 4 999; }
+.modpackDetailTab.tileLast  { -fx-background-radius: 4 999 999 4; }
+.modpackDetailTabBadge {
+    -fx-background-color: -md-error;
+    -fx-text-fill: -md-on-error;
+    -fx-background-radius: 999;
+    -fx-font-size: 11px;
+    -fx-padding: 0 6 0 6;
 }
 
 .modpackDetailTab:hover {
-    -fx-background-color: -color-primary-soft;
-    -fx-text-fill: -color-text;
+    -fx-background-color: -md-surface-container-highest, -md-state-hover-on-surface;
+    -fx-text-fill: -md-on-surface;
 }
 
 .modpackDetailTab.active {
-    -fx-background-color: -color-primary-soft;
-    -fx-text-fill: -color-text;
-    -fx-border-color: transparent transparent -color-primary transparent;
-    -fx-border-width: 0 0 2 0;
-    -fx-background-radius: 8 8 0 0;
+    -fx-background-color: -md-active-indicator;
+    -fx-text-fill: -md-on-active-indicator;
 }
 
 /* Section panels inside the modal body — soft surface, padded, separates the
@@ -1139,19 +1169,20 @@
 /* Sections sit one level below the detail window's surface (recessed). */
 .modpackDetailSection {
     -fx-background-color: -md-surface-container-low;
-    -fx-background-radius: 12;
-    -fx-padding: 14;
+    -fx-background-radius: 16;
+    -fx-padding: 16;
 }
 
 .modpackDetailSectionHeading {
-    -fx-text-fill: -color-text;
+    -fx-text-fill: -md-text-primary;
     -fx-font-size: 14px;
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
     -fx-padding: 0 0 4 0;
 }
 
 .modpackDetailSectionChevron {
-    -fx-text-fill: -color-text-muted;
+    -fx-text-fill: -md-text-primary;
     -fx-font-size: 11px;
     -fx-padding: 0 0 4 0;
     -fx-min-width: 14;
@@ -1200,10 +1231,8 @@
  * top divider so it reads as a distinct pinned region rather than continuous
  * with the scrolled body. */
 .modpackDetailActions {
-    -fx-background-color: -color-surface;
-    -fx-background-radius: 0 0 28 0;
-    -fx-border-color: -color-border;
-    -fx-border-width: 1 0 0 0;
+    -fx-background-color: -md-surface-container;
+    -fx-background-radius: 0 0 28 28;
 }
 
 .modpackDetailPlayBtn,

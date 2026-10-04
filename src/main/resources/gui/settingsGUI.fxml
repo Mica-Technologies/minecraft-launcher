@@ -239,6 +239,10 @@
                             <MFXToggleButton fx:id="showPackBackgroundsToggle" text="%settings.fxml.showPackBackground" />
                         </VBox>
                         <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="packColorsToggle" text="%settings.appearance.packColors" />
+                            <Label text="%settings.appearance.packColors.hint" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
                             <Label text="%settings.fxml.imageCycleInterval" wrapText="true" styleClass="settingsHint"/>
                             <MFXComboBox fx:id="imageCycleIntervalSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="300.0" />
                         </VBox>
