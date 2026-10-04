@@ -145,7 +145,8 @@ class GameLibraryManifestExtractLibrariesTest
 
         assertEquals( 1, libs.size() );
         GameLibrary lib = libs.get( 0 );
-        assertEquals( "com/example/lib/1.0/lib-1.0.jar", lib.getLocalFilePath() );
+        // The local path comes back in the platform's separators (backslashes on Windows).
+        assertEquals( "com/example/lib/1.0/lib-1.0.jar", lib.getLocalFilePath().replace( '\\', '/' ) );
         assertFalse( lib.isNativeLib() );
         assertTrue( lib.getApplicableOSes().contains( CURRENT ) );
     }

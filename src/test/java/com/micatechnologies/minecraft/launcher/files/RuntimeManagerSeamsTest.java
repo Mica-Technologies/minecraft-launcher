@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /**
  * Tests for the file-system-search and progress-reporting seams in {@link RuntimeManager}
@@ -140,6 +141,9 @@ class RuntimeManagerSeamsTest
     @Test
     void restoresExecuteBitOnFilesInTheSiblingBinDirectory( @TempDir File dir ) throws IOException
     {
+        // Windows execution is governed by file extension, not the POSIX bit — the method is
+        // documented as a no-op there, and setExecutable( false ) can't clear the bit to begin with.
+        assumeFalse( SystemUtils.IS_OS_WINDOWS, "POSIX execute bit only" );
         File bin = new File( dir, "bin" );
         assertTrue( bin.mkdirs() );
         File javaExec = new File( bin, "java" );
@@ -151,11 +155,6 @@ class RuntimeManagerSeamsTest
 
         RuntimeManager.markJavaBinariesExecutable( javaExec );
 
-        if ( SystemUtils.IS_OS_WINDOWS ) {
-            // Windows execution is governed by file extension, not the POSIX bit —
-            // the method is documented as a no-op there.
-            return;
-        }
         assertTrue( javaExec.canExecute(), "java binary should have its execute bit restored" );
         assertTrue( otherBinary.canExecute(), "every regular file in bin/ should be marked executable" );
     }
@@ -163,6 +162,7 @@ class RuntimeManagerSeamsTest
     @Test
     void restoresExecuteBitOnLibJspawnhelperWhenPresent( @TempDir File dir ) throws IOException
     {
+        assumeFalse( SystemUtils.IS_OS_WINDOWS, "POSIX execute bit only" );
         File bin = new File( dir, "bin" );
         assertTrue( bin.mkdirs() );
         File javaExec = new File( bin, "java" );
@@ -175,9 +175,7 @@ class RuntimeManagerSeamsTest
 
         RuntimeManager.markJavaBinariesExecutable( javaExec );
 
-        if ( !SystemUtils.IS_OS_WINDOWS ) {
-            assertTrue( jspawnHelper.canExecute() );
-        }
+        assertTrue( jspawnHelper.canExecute() );
     }
 
     // ===================================================================== reportProgress
