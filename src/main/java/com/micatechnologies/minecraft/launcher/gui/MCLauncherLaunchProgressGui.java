@@ -24,7 +24,6 @@ import com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracke
 import com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.State;
 import com.micatechnologies.minecraft.launcher.utilities.TaskbarProgressManager;
 import io.github.palexdev.materialfx.controls.MFXButton;
-import io.github.palexdev.materialfx.controls.MFXProgressBar;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
@@ -325,17 +324,17 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
     private static final class RowWidgets
     {
         final HBox container;
-        final Label statusIcon;
+        final StepBadge statusIcon;
         final Label titleLabel;
         final Label subTextLabel;
-        final MFXProgressBar progressBar;
+        final WavyProgressBar progressBar;
         /** PauseTransition that hides the bar shortly after a RUNNING → DONE
          *  transition, giving the eye time to register the bar at 100% before
          *  it disappears. Lazy — only allocated when first needed. */
         javafx.animation.PauseTransition doneHidePause;
 
-        RowWidgets( HBox container, Label statusIcon, Label titleLabel,
-                    Label subTextLabel, MFXProgressBar progressBar )
+        RowWidgets( HBox container, StepBadge statusIcon, Label titleLabel,
+                    Label subTextLabel, WavyProgressBar progressBar )
         {
             this.container = container;
             this.statusIcon = statusIcon;
@@ -355,13 +354,10 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
      */
     private RowWidgets buildRow( Step step )
     {
-        Label statusIcon = new Label( iconFor( step.state() ) );
-        statusIcon.getStyleClass().add( "launchStepIcon" );
-        statusIcon.setMinWidth( 28 );
-        statusIcon.setAlignment( Pos.CENTER );
+        StepBadge statusIcon = new StepBadge( step.state() );
 
         Label titleLabel = new Label( step.displayLabel() );
-        titleLabel.getStyleClass().add( "heading-h3" );
+        titleLabel.getStyleClass().add( "type-title-small" );
 
         // Sub-text and progress bar stay managed-but-possibly-invisible across
         // every state so the row's overall height doesn't change as a row
@@ -376,7 +372,7 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
         subText.getStyleClass().add( "type-label-small" );
         subText.setVisible( !step.subText().isEmpty() );
 
-        MFXProgressBar bar = new MFXProgressBar();
+        WavyProgressBar bar = new WavyProgressBar();
         bar.setPrefWidth( 200 );
         bar.setProgress( step.progress() );
         bar.setVisible( step.state() == State.RUNNING );
@@ -405,12 +401,7 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
     private void renderRow( RowWidgets row, Step step )
     {
         State state = step.state();
-        row.statusIcon.setText( iconFor( state ) );
-        row.statusIcon.getStyleClass().removeAll(
-                "launchStepIcon-pending", "launchStepIcon-running",
-                "launchStepIcon-done", "launchStepIcon-failed",
-                "launchStepIcon-skipped" );
-        row.statusIcon.getStyleClass().add( iconStyleClassFor( state ) );
+        row.statusIcon.setState( state );
 
         String sub = step.subText();
         // Failure overrides whatever sub-text was in flight — the error
@@ -479,43 +470,6 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
         if ( row.doneHidePause != null ) {
             row.doneHidePause.stop();
         }
-    }
-
-    /**
-     * Returns the status-icon glyph for a step state (pending / active / done /
-     * failed).
-     *
-     * @param state the step state
-     *
-     * @return the icon glyph
-     */
-    private static String iconFor( State state )
-    {
-        return switch ( state ) {
-            case PENDING -> "○";
-            case RUNNING -> "●";
-            case DONE    -> "✓";
-            case FAILED  -> "✗";
-            case SKIPPED -> "—";
-        };
-    }
-
-    /**
-     * Returns the CSS style class for a step state's status icon.
-     *
-     * @param state the step state
-     *
-     * @return the icon style class
-     */
-    private static String iconStyleClassFor( State state )
-    {
-        return switch ( state ) {
-            case PENDING -> "launchStepIcon-pending";
-            case RUNNING -> "launchStepIcon-running";
-            case DONE    -> "launchStepIcon-done";
-            case FAILED  -> "launchStepIcon-failed";
-            case SKIPPED -> "launchStepIcon-skipped";
-        };
     }
 
     /** Pushes a coarse rolled-up fraction to the OS-level taskbar overlay.

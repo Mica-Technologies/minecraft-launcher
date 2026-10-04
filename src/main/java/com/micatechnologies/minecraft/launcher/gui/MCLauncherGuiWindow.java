@@ -131,6 +131,7 @@ public class MCLauncherGuiWindow extends Application
     public void start( Stage stage ) throws Exception {
         // Register the bundled fonts before any stylesheet resolves a font family.
         BundledFonts.ensureLoaded();
+        WavyProgressBar.setWavyEnabled( ConfigManager.getWavyProgress() );
 
         // Save stage
         this.stage = stage;

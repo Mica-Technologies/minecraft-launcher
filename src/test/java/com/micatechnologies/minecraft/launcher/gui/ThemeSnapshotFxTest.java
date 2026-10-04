@@ -341,6 +341,19 @@ class ThemeSnapshotFxTest
         mfxList.setPrefSize( 240, 170 );
         column.getChildren().add( new HBox( 12, table, mfxList ) );
 
+        VBox wavy = new VBox( 10 );
+        for ( double p : new double[]{ 0.08, 0.45, 0.9, -1 } ) {
+            WavyProgressBar bar = new WavyProgressBar( p );
+            bar.setPrefWidth( 360 );
+            bar.setMaxWidth( 360 );
+            wavy.getChildren().add( bar );
+        }
+        HBox badges = new HBox( 8 );
+        for ( var state : com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.State.values() ) {
+            badges.getChildren().add( new StepBadge( state ) );
+        }
+        column.getChildren().add( new HBox( 24, wavy, badges ) );
+
         StackPane root = new StackPane( column );
         root.getStyleClass().add( "rootPane" );
         return root;

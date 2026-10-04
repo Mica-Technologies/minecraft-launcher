@@ -141,6 +141,21 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /** Whether progress bars draw a moving wave rather than a flat bar. */
+    public static synchronized boolean getWavyProgress() {
+        return ConfigStore.getOrInitBoolean( ConfigConstants.WAVY_PROGRESS_KEY, ConfigConstants.WAVY_PROGRESS_DEFAULT );
+    }
+
+    /**
+     * Sets whether progress bars draw a moving wave, and schedules a debounced disk flush.
+     *
+     * @param wavy {@code true} for the wave, {@code false} for a flat bar
+     */
+    public static synchronized void setWavyProgress( boolean wavy ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.WAVY_PROGRESS_KEY, wavy );
+        ConfigStore.scheduleWrite();
+    }
+
     // ====================================================================
     // Discord integration
     // ====================================================================

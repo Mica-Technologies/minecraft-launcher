@@ -1113,6 +1113,21 @@ public class ConfigConstants
     public static final String SHOW_PACK_BACKGROUNDS_KEY = "showPackBackgrounds";
 
     /**
+     * Config key: whether progress bars draw their filled part as a moving wave (Material 3
+     * Expressive) rather than a flat bar. Settings › Appearance.
+     *
+     * @since 2026.10
+     */
+    public static final String WAVY_PROGRESS_KEY = "wavyProgress";
+
+    /**
+     * Default for {@link #WAVY_PROGRESS_KEY}: on.
+     *
+     * @since 2026.10
+     */
+    public static final boolean WAVY_PROGRESS_DEFAULT = true;
+
+    /**
      * Default for {@link #SHOW_PACK_BACKGROUNDS_KEY}. True so fresh installs
      * see the imagery the modpack authors curated; users who prefer the
      * gradient-only look opt out via Settings → Appearance.

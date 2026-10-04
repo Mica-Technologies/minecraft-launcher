@@ -216,6 +216,10 @@
                             <Label text="%settings.fxml.theme" />
                             <MFXComboBox fx:id="themeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
                         </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="wavyProgressToggle" text="%settings.appearance.wavyProgress" />
+                            <Label text="%settings.appearance.wavyProgress.hint" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
                     </VBox>
                     <Label text="%settings.fxml.language" styleClass="settingsSectionTitle"/>
                     <VBox styleClass="settingsGroup" spacing="2">

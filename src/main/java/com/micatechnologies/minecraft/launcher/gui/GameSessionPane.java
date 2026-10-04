@@ -37,7 +37,6 @@ import javafx.geometry.Pos;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
@@ -363,15 +362,7 @@ final class GameSessionPane
 
     private static HBox stepRow( LaunchProgressTracker.Step step )
     {
-        Label icon = new Label( switch ( step.state() ) {
-            case PENDING -> "○";
-            case RUNNING -> "◐";
-            case DONE -> "✓";
-            case FAILED -> "✕";
-            case SKIPPED -> "–";
-        } );
-        icon.getStyleClass().add( "launchStepIcon-" + step.state().name().toLowerCase( java.util.Locale.ROOT ) );
-        icon.setMinWidth( 18 );
+        StepBadge icon = new StepBadge( step.state() );
         Label label = new Label( step.displayLabel() );
         VBox text = new VBox( 2, label );
         String detail = step.state() == LaunchProgressTracker.State.FAILED ? step.errorMessage() : step.subText();
@@ -382,7 +373,7 @@ final class GameSessionPane
             text.getChildren().add( sub );
         }
         if ( step.state() == LaunchProgressTracker.State.RUNNING ) {
-            ProgressBar bar = new ProgressBar( step.progress() > 0 ? step.progress() : ProgressBar.INDETERMINATE_PROGRESS );
+            WavyProgressBar bar = new WavyProgressBar( step.progress() > 0 ? step.progress() : -1 );
             bar.setMaxWidth( Double.MAX_VALUE );
             text.getChildren().add( bar );
         }

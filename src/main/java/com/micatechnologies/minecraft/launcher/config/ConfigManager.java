@@ -641,6 +641,10 @@ public class ConfigManager
     /** Sets whether Discord "Join Game" invites are enabled. @param v the new flag. @see AppConfig#setDiscordInvitesEnable(boolean) @since 1.0 */
     public synchronized static void    setDiscordInvitesEnable( boolean v ) { AppConfig.setDiscordInvitesEnable( v ); }
 
+    /** @return whether progress bars draw a moving wave. @see AppConfig#getWavyProgress() @since 2026.10 */
+    public synchronized static boolean getWavyProgress()                { return AppConfig.getWavyProgress(); }
+    /** Sets whether progress bars draw a moving wave. @param v the new flag. @see AppConfig#setWavyProgress(boolean) @since 2026.10 */
+    public synchronized static void    setWavyProgress( boolean v )     { AppConfig.setWavyProgress( v ); }
     /** @return whether launcher windows can be resized. @see AppConfig#getResizableWindows() @since 1.0 */
     public synchronized static boolean getResizableWindows()            { return AppConfig.getResizableWindows(); }
     /** Sets whether launcher windows can be resized. @param v the new flag. @see AppConfig#setResizableWindows(boolean) @since 1.0 */

@@ -352,17 +352,6 @@
 .launchStepRow {
     -fx-padding: 4 0 4 0;
 }
-.launchStepIcon {
-    -fx-font-size: 16px;
-    -fx-font-weight: 700;
-    -fx-text-fill: -color-text-subtle;
-}
-.launchStepIcon-pending { -fx-text-fill: -color-text-subtle; }
-.launchStepIcon-running { -fx-text-fill: -color-primary; }
-.launchStepIcon-done    { -fx-text-fill: -color-success; }
-.launchStepIcon-failed  { -fx-text-fill: -color-danger; }
-.launchStepIcon-skipped { -fx-text-fill: -color-text-subtle; }
-
 
 /* =====================================================================
  * 2. Surfaces (rootPane + pane backgrounds)
@@ -485,22 +474,96 @@
 }
 
 /* =====================================================================
- *  Progress GUI card
- *  Visual upgrade for the modpack-install / auth-renewal / etc. progress
- *  screens. The base card was visually flat; this layer adds a hairline
- *  brand-blue inner highlight at the top and a slightly stronger shadow
- *  so the card feels lifted off the hero-surface background.
+ *  Progress screens (progressGUI, launchProgressGUI)
+ *  A card on a soft glow in the theme's hue, over a strip of blocky
+ *  Minecraft hills (BlockyHorizon). The card is a modal surface: Material's
+ *  extra-large corners and a shadow, since it floats over the backdrop.
  * ===================================================================== */
 
-.progressCard {
-    /* Subtle drop shadow only — no primary-tinted inner highlight. The earlier
-     * version added an inner-shadow at the top with -color-primary-soft to
-     * suggest a brand-tinted glow under the voxel cluster, but with the
-     * primary now grass-green that inner highlight read as an awkward green
-     * smear at the top edge of the card. Neutral elevation shadow is enough
-     * to lift the card off the hero-surface background. */
-    -fx-effect: dropshadow(gaussian, -color-shadow, 24, 0.22, 0, 10);
+.progressGlow {
+    -fx-background-color:
+        radial-gradient(center 50% 42%, radius 55%, -color-hero-stop-1, transparent),
+        radial-gradient(center 50% 100%, radius 70%, -color-hero-stop-2, transparent);
 }
+
+.blockyHorizonBack  { -fx-fill: -md-surface-container-low; }
+.blockyHorizonFront { -fx-fill: -md-surface-container; }
+.blockyHorizonGrass { -fx-fill: -md-active-indicator; }
+.blockyHorizonSeams { -fx-stroke: -md-surface-container-low; -fx-fill: transparent; }
+
+.progressCard {
+    -fx-background-color: -md-surface-container-high;
+    -fx-background-radius: 28;
+    -fx-effect: dropshadow(gaussian, -color-shadow, 32, 0.18, 0, 12);
+}
+
+.voxelShadow {
+    -fx-fill: -color-shadow-soft;
+}
+
+.label.progressTitle {
+    -fx-font-size: 22px;
+    -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
+    -fx-text-fill: -md-on-surface;
+}
+.label.progressStep {
+    -fx-font-size: 14px;
+    -fx-text-fill: -md-on-surface-variant;
+}
+.label.progressDetail {
+    -fx-font-size: 12px;
+    -fx-text-fill: -md-on-surface-variant;
+}
+/* Speed and time left as a small chip. */
+.label.progressChip {
+    -fx-font-size: 12px;
+    -fx-text-fill: -md-on-surface-variant;
+    -fx-background-color: -md-surface-container-highest;
+    -fx-background-radius: 999;
+    -fx-padding: 4 12 4 12;
+}
+
+/* Tonal button: Material's mid-emphasis pill (cancel, secondary actions). */
+.mfx-button.tonalBtn,
+.mfx-button.tonalBtn:armed,
+.mfx-button.tonalBtn:focused {
+    -fx-background-color: -md-surface-container-highest;
+    -fx-background-radius: 999;
+    -fx-border-color: transparent;
+    -fx-border-radius: 999;
+    -fx-padding: 8 24 8 24;
+}
+.mfx-button.tonalBtn:hover {
+    -fx-background-color: -md-surface-container-highest, -md-state-hover-on-surface;
+}
+.mfx-button.tonalBtn .text {
+    -fx-fill: -md-on-surface;
+}
+
+/* Wavy progress (WavyProgressBar): the wave in primary, the flat track in the
+ * active-indicator tone, a primary stop dot at the end. */
+.wavy-progress .wavy-active { -fx-stroke: -md-primary; -fx-fill: transparent; }
+.wavy-progress .wavy-track  { -fx-stroke: -md-active-indicator; -fx-fill: transparent; }
+.wavy-progress .wavy-stop   { -fx-fill: -md-primary; }
+
+/* Step status badges (StepBadge) in the launch and verify step lists. */
+.stepBadge {
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+}
+.stepBadge-pending {
+    -fx-border-color: -md-outline;
+    -fx-border-width: 1.5;
+}
+.stepBadge-running              { -fx-background-color: -md-active-indicator; }
+.stepBadge-running .stepBadgeGlyph { -fx-fill: -md-on-active-indicator; }
+.stepBadge-done                 { -fx-background-color: -md-primary; }
+.stepBadge-done .stepBadgeGlyph { -fx-fill: -md-on-primary; }
+.stepBadge-failed               { -fx-background-color: -md-error; }
+.stepBadge-failed .stepBadgeGlyph { -fx-fill: -md-on-error; }
+.stepBadge-skipped              { -fx-background-color: -md-surface-container-highest; }
+.stepBadge-skipped .stepBadgeGlyph { -fx-fill: -md-on-surface-variant; }
 
 
 /* =====================================================================

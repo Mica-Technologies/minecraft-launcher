@@ -22,13 +22,16 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.utilities.TaskbarProgressManager;
 import io.github.palexdev.materialfx.controls.MFXButton;
-import io.github.palexdev.materialfx.controls.MFXProgressBar;
 import javafx.animation.Animation;
 import javafx.animation.Interpolator;
-import javafx.animation.TranslateTransition;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.scene.Group;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.shape.Ellipse;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -62,33 +65,30 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     @FXML
     Label detailLabel;
 
-    /** Progress bar. */
+    /** Progress bar: Material 3 Expressive's wavy indicator. */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXProgressBar progressBar;
+    WavyProgressBar progressBar;
 
     /** Download speed and ETA info below the detail label. */
     @SuppressWarnings( "unused" )
     @FXML
     Label speedLabel;
 
-    /** Three iso-cube voxel groups at the top of the progress card. Animated in
-     *  {@link #afterShow()} with a staggered bounce so the screen feels alive while a
-     *  long-running download is in flight. */
-    /** Cancel button at the bottom of the progress card. Hidden by default; callers
-     *  that want cancellation opt in via {@link #setCancelHandler}. */
-    /** Container for the cancel button — toggled visible + managed by
-     *  {@link #setCancelHandler}. Wrapping the button in an HBox lets us add top
-     *  padding that's only allocated when the cancel button is actually shown
-     *  (the row collapses to zero height when the HBox is unmanaged). */
-    /** Running animations on the voxel cubes. Held so {@link #cleanup()} can stop them
-     *  on scene transition rather than leaking timeline state across scene changes. */
+    /** The three Minecraft blocks at the top of the card, and their ground shadows. Animated in
+     *  {@link #afterShow()} with a staggered hop so the screen feels alive during long work. */
     @SuppressWarnings( "unused" ) @FXML Group voxelCube1;
     @SuppressWarnings( "unused" ) @FXML Group voxelCube2;
     @SuppressWarnings( "unused" ) @FXML Group voxelCube3;
+    @SuppressWarnings( "unused" ) @FXML Ellipse voxelShadow1;
+    @SuppressWarnings( "unused" ) @FXML Ellipse voxelShadow2;
+    @SuppressWarnings( "unused" ) @FXML Ellipse voxelShadow3;
+    /** Cancel button, and the row that holds it: hidden and unmanaged unless a caller opts in via
+     *  {@link #setCancelHandler}, so the card only grows to fit it when it's offered. */
     @SuppressWarnings( "unused" ) @FXML MFXButton cancelBtn;
     @SuppressWarnings( "unused" ) @FXML HBox cancelBtnRow;
-    private final List< TranslateTransition > voxelAnimations = new ArrayList<>();
+    /** Running hop animations, held so {@link #cleanup()} can stop them on scene transition. */
+    private final List< Timeline > voxelAnimations = new ArrayList<>();
 
     /**
      * Constructs the progress GUI bound to the given stage, using the abstract
@@ -200,54 +200,61 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Kicks off the staggered bounce animation on the three voxel cubes at the top of the
-     * progress card. Each cube bobs up-down (Y translate 0 → -8 → 0) on an indefinite
-     * cycle, with the second and third cubes starting ~150 ms and ~300 ms after the first
-     * so the cluster looks like a Mexican wave rather than three things blinking in sync.
-     *
-     * <p>Easing is {@link Interpolator#EASE_BOTH} for a gentle, "watching a loading dots"
-     * feel rather than a snappy bounce. Translates use the Node's {@code translateY}
-     * property which doesn't affect layout — the HBox row size stays stable; only the
-     * cube's draw position moves within its layout slot. That's why the row's
-     * {@code prefHeight} got bumped up a few px in the FXML — to give the cubes 8 px of
-     * vertical travel room without clipping at the top edge of the row.</p>
+     * Starts the staggered hop on the three blocks: each one squashes slightly as it lands, leaps
+     * with an ease-out, falls with an ease-in and rests a beat, while its shadow shrinks and fades
+     * as it rises. The second and third blocks start 150 ms and 300 ms after the first, so the
+     * cluster moves as a wave. Only transforms and opacity change, so layout stays put.
      */
     private void startVoxelBounceAnimation() {
         stopVoxelBounceAnimation();
-        startBounceOn( voxelCube1,   0 );
-        startBounceOn( voxelCube2, 150 );
-        startBounceOn( voxelCube3, 300 );
+        startBounceOn( voxelCube1, voxelShadow1, 0 );
+        startBounceOn( voxelCube2, voxelShadow2, 150 );
+        startBounceOn( voxelCube3, voxelShadow3, 300 );
     }
 
     /**
-     * Starts an indefinite, auto-reversing vertical bounce on a single voxel cube,
-     * offset by a start delay so the three cubes animate as a staggered wave.
-     * No-ops if the cube node is {@code null} (e.g. absent from the FXML). The
-     * created transition is registered in {@link #voxelAnimations} so
-     * {@link #stopVoxelBounceAnimation()} can later stop it.
+     * Starts the indefinite hop on one block, offset by a start delay. No-op for a missing block.
      *
-     * @param cube    the cube node to animate; ignored when {@code null}
-     * @param delayMs the start delay before this cube begins bouncing, in milliseconds
+     * @param cube    the block to animate; ignored when {@code null}
+     * @param shadow  its ground shadow, or {@code null}
+     * @param delayMs the start delay, in milliseconds
      */
-    private void startBounceOn( Group cube, int delayMs ) {
+    private void startBounceOn( Group cube, Ellipse shadow, int delayMs ) {
         if ( cube == null ) {
             return;
         }
-        TranslateTransition tt = new TranslateTransition( Duration.millis( 500 ), cube );
-        tt.setFromY( 0 );
-        tt.setToY( -8 );
-        tt.setAutoReverse( true );
-        tt.setCycleCount( Animation.INDEFINITE );
-        tt.setInterpolator( Interpolator.EASE_BOTH );
-        tt.setDelay( Duration.millis( delayMs ) );
-        tt.play();
-        voxelAnimations.add( tt );
+        Interpolator rise = Interpolator.SPLINE( 0.2, 0.0, 0.0, 1.0 );   // ease-out
+        Interpolator fall = Interpolator.SPLINE( 0.4, 0.0, 1.0, 1.0 );   // ease-in
+        List< KeyFrame > frames = new ArrayList<>();
+        frames.add( new KeyFrame( Duration.ZERO,
+                new KeyValue( cube.translateYProperty(), 0 ),
+                new KeyValue( cube.scaleYProperty(), 0.9 ),
+                new KeyValue( cube.scaleXProperty(), 1.06 ) ) );
+        frames.add( new KeyFrame( Duration.millis( 90 ),
+                new KeyValue( cube.scaleYProperty(), 1.0, rise ),
+                new KeyValue( cube.scaleXProperty(), 1.0, rise ) ) );
+        frames.add( new KeyFrame( Duration.millis( 380 ), new KeyValue( cube.translateYProperty(), -14, rise ) ) );
+        frames.add( new KeyFrame( Duration.millis( 660 ), new KeyValue( cube.translateYProperty(), 0, fall ) ) );
+        frames.add( new KeyFrame( Duration.millis( 1000 ) ) );
+        if ( shadow != null ) {
+            frames.add( new KeyFrame( Duration.ZERO,
+                    new KeyValue( shadow.scaleXProperty(), 1.0 ), new KeyValue( shadow.opacityProperty(), 1.0 ) ) );
+            frames.add( new KeyFrame( Duration.millis( 380 ),
+                    new KeyValue( shadow.scaleXProperty(), 0.6, rise ), new KeyValue( shadow.opacityProperty(), 0.45, rise ) ) );
+            frames.add( new KeyFrame( Duration.millis( 660 ),
+                    new KeyValue( shadow.scaleXProperty(), 1.0, fall ), new KeyValue( shadow.opacityProperty(), 1.0, fall ) ) );
+        }
+        Timeline hop = new Timeline( frames.toArray( new KeyFrame[ 0 ] ) );
+        hop.setCycleCount( Animation.INDEFINITE );
+        hop.setDelay( Duration.millis( delayMs ) );
+        hop.play();
+        voxelAnimations.add( hop );
     }
 
     /** Stops every running voxel bounce. Called from {@link #cleanup()} so the timelines
      *  don't keep ticking on a hidden / disposed scene. */
     private void stopVoxelBounceAnimation() {
-        for ( TranslateTransition tt : voxelAnimations ) {
+        for ( Timeline tt : voxelAnimations ) {
             try {
                 tt.stop();
             }
@@ -302,7 +309,13 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      * @param text the speed/ETA info text to display
      */
     public void setSpeedText( String text ) {
-        GUIUtilities.JFXPlatformRun( () -> speedLabel.setText( text ) );
+        GUIUtilities.JFXPlatformRun( () -> {
+            speedLabel.setText( text );
+            // A chip with nothing in it is just an empty pill: hide it until there's text.
+            boolean any = text != null && !text.isEmpty();
+            speedLabel.setVisible( any );
+            speedLabel.setManaged( any );
+        } );
     }
 
     /**
@@ -380,14 +393,14 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      * Sets the progress bar value, also mirroring it onto the OS taskbar progress
      * overlay. The value is on a 0-100 scale (normalized internally against
      * {@link GameModPackProgressProvider#PROGRESS_PERCENT_BASE} to the 0.0-1.0
-     * range the bar expects), or {@link MFXProgressBar#INDETERMINATE_PROGRESS} to
+     * range the bar expects), or {@link ProgressIndicator#INDETERMINATE_PROGRESS} to
      * show an indeterminate animation.
      *
      * @param progress the progress value on a 0-100 scale, or
-     *                 {@link MFXProgressBar#INDETERMINATE_PROGRESS}
+     *                 {@link ProgressIndicator#INDETERMINATE_PROGRESS}
      */
     public void setProgress( double progress ) {
-        final double baseProgValue = ( progress == MFXProgressBar.INDETERMINATE_PROGRESS ) ?
+        final double baseProgValue = ( progress == ProgressIndicator.INDETERMINATE_PROGRESS ) ?
                                      ( progress ) :
                                      ( progress / GameModPackProgressProvider.PROGRESS_PERCENT_BASE );
 

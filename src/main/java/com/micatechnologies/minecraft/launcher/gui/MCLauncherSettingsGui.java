@@ -284,6 +284,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     io.github.palexdev.materialfx.controls.MFXToggleButton showPackBackgroundsToggle;
 
+    /** Appearance toggle: wavy (Material 3 Expressive) or flat progress bars. Backed by
+     *  {@link ConfigManager#getWavyProgress}, default on; applies to bars already on screen.
+     *
+     *  @since 2026.10 */
+    @SuppressWarnings( "unused" )
+    @FXML
+    io.github.palexdev.materialfx.controls.MFXToggleButton wavyProgressToggle;
+
     /** Appearance dropdown: how often a pack's logo + background cycle when the
      *  manifest declares multiple images (issue #43). Items are localized labels;
      *  the selected index maps to a token in
@@ -1194,6 +1202,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             showPackBackgroundsToggle.selectedProperty().addListener(
                     ( obs, oldV, newV ) -> ConfigManager.setShowPackBackgrounds(
                             Boolean.TRUE.equals( newV ) ) );
+        }
+
+        // Wavy progress toggle (Appearance tab): saved and applied live to every bar.
+        if ( wavyProgressToggle != null ) {
+            wavyProgressToggle.setSelected( ConfigManager.getWavyProgress() );
+            wavyProgressToggle.selectedProperty().addListener( ( obs, oldV, newV ) -> {
+                boolean wavy = Boolean.TRUE.equals( newV );
+                ConfigManager.setWavyProgress( wavy );
+                WavyProgressBar.setWavyEnabled( wavy );
+            } );
         }
 
         // Multi-image cycle interval (Appearance tab). The combo shows localized
