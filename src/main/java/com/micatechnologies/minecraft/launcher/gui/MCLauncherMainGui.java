@@ -1437,9 +1437,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             imageBox.setMaxHeight( IMAGE_HEIGHT );
             // Clip to rounded top corners. JavaFX background-radius alone doesn't clip
             // child ImageView/Region overflows — an explicit Rectangle clip does.
-            Rectangle imageClip = new Rectangle( CARD_WIDTH, IMAGE_HEIGHT );
-            imageClip.setArcWidth( 28 );    // 14 px radius * 2
-            imageClip.setArcHeight( 28 );
+            Rectangle imageClip = ShapeScale.round( new Rectangle( CARD_WIDTH, IMAGE_HEIGHT ), ShapeScale.LARGE );
             imageClip.heightProperty().bind( imageBox.heightProperty() );
             imageClip.widthProperty().bind( imageBox.widthProperty() );
             imageBox.setClip( imageClip );
@@ -1470,9 +1468,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             logo.setFitWidth( 68 );
             logo.setFitHeight( 68 );
             logo.setPreserveRatio( true );
-            Rectangle logoClip = new Rectangle( 68, 68 );
-            logoClip.setArcWidth( 16 );
-            logoClip.setArcHeight( 16 );
+            // 2 px inside the 72 px frame: concentric with its corners.
+            Rectangle logoClip = ShapeScale.round( new Rectangle( 68, 68 ), ShapeScale.inner( ShapeScale.MEDIUM, 2 ) );
             logo.setClip( logoClip );
             logoContainer.getChildren().add( logo );
             logoContainer.setTranslateY( -36 );  // overlap the image

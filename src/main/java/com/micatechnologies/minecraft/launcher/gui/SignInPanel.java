@@ -163,9 +163,7 @@ final class SignInPanel
 
         StackPane frame = new StackPane( webView, overlay );
         frame.getStyleClass().add( "signInFrame" );
-        Rectangle clip = new Rectangle();
-        clip.setArcWidth( 24 );
-        clip.setArcHeight( 24 );
+        Rectangle clip = ShapeScale.round( new Rectangle(), ShapeScale.MEDIUM );
         clip.widthProperty().bind( frame.widthProperty() );
         clip.heightProperty().bind( frame.heightProperty() );
         frame.setClip( clip );

@@ -1472,9 +1472,7 @@ public final class ModpackContentBrowser
         // build; the ImageView fades the image in once the bytes land.
         iv.setImage( new Image( shot.toURI().toString(), THUMB_SIZE, THUMB_SIZE, true, true, true ) );
 
-        Rectangle clip = new Rectangle( THUMB_SIZE, THUMB_SIZE );
-        clip.setArcWidth( 8 );
-        clip.setArcHeight( 8 );
+        Rectangle clip = ShapeScale.round( new Rectangle( THUMB_SIZE, THUMB_SIZE ), ShapeScale.EXTRA_SMALL );
         iv.setClip( clip );
 
         tile.getChildren().add( iv );

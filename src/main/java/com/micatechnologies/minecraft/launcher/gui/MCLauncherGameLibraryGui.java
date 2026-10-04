@@ -1297,9 +1297,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             imageBox.setPrefHeight( IMAGE_HEIGHT );
             imageBox.setMinHeight( IMAGE_HEIGHT );
             imageBox.setMaxHeight( IMAGE_HEIGHT );
-            Rectangle clip = new Rectangle( CARD_WIDTH, IMAGE_HEIGHT );
-            clip.setArcWidth( 28 );
-            clip.setArcHeight( 28 );
+            Rectangle clip = ShapeScale.round( new Rectangle( CARD_WIDTH, IMAGE_HEIGHT ), ShapeScale.LARGE );
             clip.heightProperty().bind( imageBox.heightProperty() );
             clip.widthProperty().bind( imageBox.widthProperty() );
             imageBox.setClip( clip );
@@ -2086,9 +2084,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             imageBox.setPrefHeight( IMAGE_HEIGHT );
             imageBox.setMinHeight( IMAGE_HEIGHT );
             imageBox.setMaxHeight( IMAGE_HEIGHT );
-            Rectangle imageClip = new Rectangle( CARD_WIDTH, IMAGE_HEIGHT );
-            imageClip.setArcWidth( 28 );
-            imageClip.setArcHeight( 28 );
+            Rectangle imageClip = ShapeScale.round( new Rectangle( CARD_WIDTH, IMAGE_HEIGHT ), ShapeScale.LARGE );
             imageClip.heightProperty().bind( imageBox.heightProperty() );
             imageClip.widthProperty().bind( imageBox.widthProperty() );
             imageBox.setClip( imageClip );
@@ -2116,9 +2112,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             logo.setFitWidth( 52 );
             logo.setFitHeight( 52 );
             logo.setPreserveRatio( true );
-            Rectangle logoClip = new Rectangle( 52, 52 );
-            logoClip.setArcWidth( 12 );
-            logoClip.setArcHeight( 12 );
+            // 2 px inside the 56 px frame: concentric with its corners.
+            Rectangle logoClip = ShapeScale.round( new Rectangle( 52, 52 ), ShapeScale.inner( ShapeScale.MEDIUM, 2 ) );
             logo.setClip( logoClip );
             logoContainer.getChildren().add( logo );
             logoContainer.setTranslateY( -28 );

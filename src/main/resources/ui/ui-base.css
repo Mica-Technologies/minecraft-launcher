@@ -150,7 +150,7 @@
 
 /* ---- Context menus ---- */
 .context-menu { -fx-border-width: 1; -fx-padding: 4; }
-.context-menu .menu-item { -fx-background-color: transparent; -fx-background-radius: 6; -fx-padding: 6 12 6 12; }
+.context-menu .menu-item { -fx-background-color: transparent; -fx-background-radius: 8; -fx-padding: 6 12 6 12; }
 .context-menu .menu-item .label { -fx-text-fill: -color-text; }
 .context-menu .menu-item:hover,
 .context-menu .menu-item:focused { -fx-background-color: -color-primary-soft; }
@@ -216,8 +216,8 @@
 .table-view .button {
     -fx-background-color: -color-surface-hover;
     -fx-text-fill: -color-text;
-    -fx-background-radius: 6;
-    -fx-border-radius: 6;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
     -fx-padding: 2 8 2 8;
     -fx-cursor: hand;
 }
@@ -238,7 +238,7 @@
 /* ---- Help (?) button ---- */
 .helpButton.mfx-button {
     -fx-background-color: -color-surface-hover;
-    -fx-background-radius: 50;
+    -fx-background-radius: 999;
     -fx-min-width: 28;
     -fx-min-height: 28;
     -fx-max-width: 28;
@@ -252,9 +252,9 @@
 .mcl-tooltip {
     -fx-background-color: -color-popup;
     -fx-text-fill: -color-text;
-    -fx-background-radius: 6;
+    -fx-background-radius: 8;
     -fx-border-color: -color-popup-border;
-    -fx-border-radius: 6;
+    -fx-border-radius: 8;
     -fx-padding: 6 10 6 10;
     -fx-font-size: 12;
 }
@@ -387,9 +387,9 @@
 /* Reusable card */
 .card {
     -fx-background-color: -color-surface;
-    -fx-background-radius: 10;
+    -fx-background-radius: 12;
     -fx-border-color: -color-border;
-    -fx-border-radius: 10;
+    -fx-border-radius: 12;
     -fx-border-width: 1;
     -fx-padding: 16;
     -fx-effect: dropshadow(gaussian, -color-shadow-soft, 12, 0.10, 0, 4);
@@ -501,8 +501,8 @@
 
 .crashDiagnosisCard {
     -fx-background-color: -color-surface-elevated;
-    -fx-background-radius: 10;
-    -fx-border-radius: 10;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
     -fx-border-width: 1 1 1 4;
     -fx-effect: dropshadow(gaussian, -color-shadow-soft, 10, 0.18, 0, 3);
 }
@@ -567,9 +567,9 @@
  * box has its own top-only rounding so the image clips cleanly to the card. */
 .heroCardShell {
     -fx-background-color: -color-surface-elevated;
-    -fx-background-radius: 14;
+    -fx-background-radius: 16;
     -fx-border-color: -color-border;
-    -fx-border-radius: 14;
+    -fx-border-radius: 16;
     -fx-border-width: 1;
     -fx-effect: dropshadow(gaussian, -color-shadow, 14, 0.22, 0, 4);
 }
@@ -586,7 +586,7 @@
  * corners square so the image sits flush with the content surface. */
 .heroCardImage {
     -fx-background-color: -color-bg-soft;
-    -fx-background-radius: 14 14 0 0;
+    -fx-background-radius: 16 16 0 0;
     -fx-border-color: -color-border;
     -fx-border-width: 0 0 1 0;
 }
@@ -595,7 +595,7 @@
  * image/content boundary) has a darker backdrop while the rest of the image
  * stays vivid. */
 .heroCardImageVeil {
-    -fx-background-radius: 14 14 0 0;
+    -fx-background-radius: 16 16 0 0;
     -fx-background-color:
         linear-gradient(to bottom,
             transparent 0%,
@@ -638,7 +638,7 @@
  * via setStyle(...). This rule provides defaults (clipping, sizing). */
 .heroBackground {
     -fx-background-color: transparent;
-    -fx-background-radius: 14;
+    -fx-background-radius: 16;
     -fx-background-size: cover;
     -fx-background-position: center;
     -fx-background-repeat: no-repeat;
@@ -693,7 +693,7 @@
 /* Layer 2: dark gradient veil so the foreground text reads cleanly over any
  * modpack image. Slight tint of -color-bg at top, more opacity at bottom. */
 .heroBackgroundVeil {
-    -fx-background-radius: 14;
+    -fx-background-radius: 16;
     -fx-background-color:
         linear-gradient(to right,
             rgba(0, 0, 0, 0.55) 0%,
@@ -878,9 +878,9 @@
 /* The centered modal card surface. */
 .modpackDetailCard {
     -fx-background-color: -color-surface-elevated;
-    -fx-background-radius: 18;
+    -fx-background-radius: 28;
     -fx-border-color: -color-border-strong;
-    -fx-border-radius: 18;
+    -fx-border-radius: 28;
     -fx-border-width: 1;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 32, 0.30, 0, 12);
 }
@@ -889,7 +889,7 @@
  * match the card; bottom corners square so the image sits flush with the body. */
 .modpackDetailHero {
     -fx-background-color: -color-bg-soft;
-    -fx-background-radius: 18 18 0 0;
+    -fx-background-radius: 28 28 0 0;
     -fx-border-color: -color-border;
     -fx-border-width: 0 0 1 0;
 }
@@ -898,7 +898,7 @@
  * sit, so they read against bright pack imagery without darkening the entire
  * hero. */
 .modpackDetailHeroVeil {
-    -fx-background-radius: 18 18 0 0;
+    -fx-background-radius: 28 28 0 0;
     -fx-background-color:
         linear-gradient(to bottom right,
             rgba(0, 0, 0, 0.70) 0%,
@@ -930,8 +930,8 @@
 .modpackDetailLogo {
     -fx-background-color: rgba(255, 255, 255, 0.08);
     -fx-border-color: rgba(255, 255, 255, 0.32);
-    -fx-border-radius: 14;
-    -fx-background-radius: 14;
+    -fx-border-radius: 16;
+    -fx-background-radius: 16;
     -fx-border-width: 1;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 20, 0.30, 0, 6);
 }
@@ -1105,7 +1105,7 @@
  * with the scrolled body. */
 .modpackDetailActions {
     -fx-background-color: -color-surface;
-    -fx-background-radius: 0 0 18 0;
+    -fx-background-radius: 0 0 28 0;
     -fx-border-color: -color-border;
     -fx-border-width: 1 0 0 0;
 }
@@ -1870,7 +1870,7 @@
 
 .tab-pane .tab {
     -fx-background-color: transparent;
-    -fx-background-radius: 6 6 0 0;
+    -fx-background-radius: 8 8 0 0;
     -fx-padding: 4 14 4 14;
 }
 
@@ -2136,9 +2136,9 @@
 
 .settingsContainer {
     -fx-background-color: -color-surface;
-    -fx-background-radius: 10;
+    -fx-background-radius: 12;
     -fx-border-color: -color-border;
-    -fx-border-radius: 10;
+    -fx-border-radius: 12;
     -fx-border-width: 1;
 }
 
@@ -2382,7 +2382,7 @@
 /* One scan acknowledgement in the detail modal's Advanced section. */
 .scanAckRow {
     -fx-background-color: -color-surface-hover;
-    -fx-background-radius: 6;
+    -fx-background-radius: 8;
     -fx-padding: 6 10 6 10;
 }
 

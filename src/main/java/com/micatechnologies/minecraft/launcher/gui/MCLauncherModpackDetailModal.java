@@ -809,9 +809,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         hero.maxHeightProperty().bind( heroHeight );
 
         // Rounded-top clip so the hero image respects the modal card's corner radius.
-        Rectangle clip = new Rectangle();
-        clip.setArcWidth( 32 );
-        clip.setArcHeight( 32 );
+        Rectangle clip = ShapeScale.round( new Rectangle(), ShapeScale.EXTRA_LARGE );
         clip.widthProperty().bind( hero.widthProperty() );
         clip.heightProperty().bind( hero.heightProperty() );
         hero.setClip( clip );
@@ -908,9 +906,8 @@ public class MCLauncherModpackDetailModal extends StackPane
         // Fade the logo in once its bytes arrive — keeps the modal from flickering
         // a blank logo square on cold-network opens.
         ImageFadeIn.apply( logoView );
-        Rectangle logoClip = new Rectangle( 88, 88 );
-        logoClip.setArcWidth( 18 );
-        logoClip.setArcHeight( 18 );
+        // The 88 px logo sits 4 px inside the 96 px frame, so its corners follow the frame's.
+        Rectangle logoClip = ShapeScale.round( new Rectangle( 88, 88 ), ShapeScale.inner( ShapeScale.LARGE, 4 ) );
         logoView.setClip( logoClip );
         logoBox.getChildren().add( logoView );
 
