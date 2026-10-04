@@ -78,6 +78,8 @@ jobs:
         with:
           name: surefire-reports-pr${{ github.event.pull_request.number }}
           path: build/target/surefire-reports/
+          retention-days: 14
+          if-no-files-found: warn
 
       # Coverage report. jacoco:report is a separate goal because the `report`
       # execution is bound to `verify`, and this job deliberately stops at `test`
@@ -156,7 +158,6 @@ jobs:
         with:
           name: testfx-reports-pr${{ github.event.pull_request.number }}
           path: build/target/surefire-reports/
-          if-no-files-found: warn
           retention-days: 14
           if-no-files-found: warn
 
