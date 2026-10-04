@@ -123,6 +123,38 @@ public final class LogTrimPolicy
     }
 
     /**
+     * The last {@code maxLines} lines of a text, so a whole log can be cut to the display limit
+     * before it reaches the {@code TextArea} rather than after (setting millions of characters
+     * and then deleting most of them is slow on the UI thread).
+     *
+     * @param text     the text, lines ending in {@code '\n'}
+     * @param maxLines the configured cap ({@code <= 0} means unlimited)
+     *
+     * @return the text itself when within the cap or unlimited, else its last {@code maxLines}
+     *         lines
+     *
+     * @since 2026.10
+     */
+    public static String tailLines( String text, int maxLines )
+    {
+        if ( text == null || text.isEmpty() || isUnlimited( maxLines ) ) {
+            return text == null ? "" : text;
+        }
+        int lines = 0;
+        for ( int i = 0; i < text.length(); i++ ) {
+            if ( text.charAt( i ) == '\n' ) {
+                lines++;
+            }
+        }
+        // An unterminated last line counts too.
+        if ( text.charAt( text.length() - 1 ) != '\n' ) {
+            lines++;
+        }
+        int drop = displayDropOffset( text, lines - maxLines );
+        return drop > 0 ? text.substring( drop ) : text;
+    }
+
+    /**
      * Character offset to delete from the front of the full-log capture buffer so it drops
      * back to the retain size, trimmed forward to a line boundary so the buffer never
      * starts mid-line.

@@ -416,12 +416,49 @@ final class GameSessionPane
             }
         } );
         unsubscribeLog = sub.cancel();
-        logArea.setText( sub.snapshot() );
-        displayLines = countLines( sub.snapshot() );
-        trimIfNeeded();
+        showLogText( sub.snapshot() );
+        // An ended log keeps only its tail in memory; the rest comes back from the file.
+        if ( log.isClosed() && log.isTruncated() ) {
+            loadFullLog( log );
+        }
+    }
+
+    /**
+     * Shows a whole log, cut to Settings' line limit before it reaches the text area: setting
+     * millions of characters and then deleting most of them stalls the UI thread.
+     *
+     * @param text the log text
+     */
+    private void showLogText( String text )
+    {
+        int maxLines = ConfigManager.getConsoleLogMaxLines();
+        String shown = LogTrimPolicy.tailLines( text, maxLines );
+        logArea.setText( shown );
+        displayLines = countLines( shown );
+        if ( shown.length() < text.length() ) {
+            showTruncated( maxLines );
+        }
         if ( autoScroll.isSelected() ) {
             logArea.positionCaret( logArea.getLength() );
         }
+    }
+
+    /**
+     * Reads an ended log's full text from its file off the UI thread, then shows it if the pane
+     * still shows that log.
+     *
+     * @param log the ended log
+     */
+    private void loadFullLog( GameLog log )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            String full = log.fullText();
+            Platform.runLater( () -> {
+                if ( !disposed && boundLog == log && !showingCrashReport ) {
+                    showLogText( full );
+                }
+            } );
+        } );
     }
 
     private void append( String text, int lines )
@@ -455,6 +492,12 @@ final class GameSessionPane
             logArea.deleteText( 0, idx );
             displayLines = maxLines;
         }
+        showTruncated( maxLines );
+    }
+
+    /** Shows the "older entries are truncated" note, with the link to the full file. */
+    private void showTruncated( int maxLines )
+    {
         if ( !truncated.isVisible() ) {
             truncated.setText( LocalizationManager.format( "console.truncationLabel", maxLines ) );
             setShown( truncated, true );
@@ -546,7 +589,31 @@ final class GameSessionPane
     {
         diagnosed = true;
         String report = session.crashReport();
-        String analyze = report != null ? report : ( boundLog != null ? boundLog.text() : "" );
+        GameLog log = boundLog;
+        if ( report == null && log != null && log.isTruncated() ) {
+            // The log's memory holds only part of it; analyze the full text, read off the UI
+            // thread.
+            SystemUtilities.spawnNewTask( () -> {
+                String full = log.fullText();
+                Platform.runLater( () -> {
+                    if ( !disposed ) {
+                        showDiagnosis( null, full );
+                    }
+                } );
+            } );
+            return;
+        }
+        showDiagnosis( report, report != null ? report : ( log != null ? log.text() : "" ) );
+    }
+
+    /**
+     * Analyzes a crash and shows the diagnosis card.
+     *
+     * @param report  the crash report, or {@code null} when the game left none
+     * @param analyze the text to analyze: the report, else the game log
+     */
+    private void showDiagnosis( String report, String analyze )
+    {
         CrashDiagnosis diagnosis;
         try {
             diagnosis = CrashReportAnalyzer.analyze( analyze, session.pack(), session.exitCode() );
@@ -611,10 +678,10 @@ final class GameSessionPane
             crashToggle.setText( LocalizationManager.get( "console.crashReportBtn.gameLog" ) );
         }
         else {
-            String text = boundLog != null ? boundLog.text() : "";
-            logArea.setText( text );
-            displayLines = countLines( text );
-            trimIfNeeded();
+            showLogText( boundLog != null ? boundLog.text() : "" );
+            if ( boundLog != null && boundLog.isClosed() && boundLog.isTruncated() ) {
+                loadFullLog( boundLog );
+            }
             crashToggle.setText( LocalizationManager.get( "console.crashReportBtn.crashReport" ) );
         }
     }

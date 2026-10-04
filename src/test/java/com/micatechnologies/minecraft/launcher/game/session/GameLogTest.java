@@ -148,6 +148,70 @@ class GameLogTest
         assertTrue( log.text().endsWith( "line number 299\n" ), "the newest lines are kept" );
     }
 
+    private static String[] numbered( int count )
+    {
+        String[] many = new String[ count ];
+        for ( int i = 0; i < count; i++ ) {
+            many[ i ] = "line number " + i;
+        }
+        return many;
+    }
+
+    @Test
+    void anEndedLogKeepsOnlyItsTailButServesTheFullTextFromTheFile() throws Exception
+    {
+        Path file = tempDir.resolve( "game.log" );
+        GameLog log = new GameLog( file, 1_000_000, 900_000, 200 );
+        log.attach( lines( numbered( 300 ) ), lines() );
+        assertTrue( log.awaitClosed( 5_000 ) );
+
+        assertTrue( log.isTruncated() );
+        assertTrue( log.text().length() <= 200, "memory holds only the tail" );
+        assertTrue( log.text().startsWith( "line number " ), "the tail starts on a line boundary" );
+        assertTrue( log.text().endsWith( "line number 299\n" ) );
+        String full = log.fullText();
+        assertTrue( full.startsWith( "line number 0" + System.lineSeparator() ) );
+        assertEquals( Files.readString( file ), full );
+    }
+
+    @Test
+    void fullTextOfAVeryLongSessionIsCappedLikeTheLiveBuffer() throws Exception
+    {
+        Path file = tempDir.resolve( "game.log" );
+        GameLog log = new GameLog( file, 1_000, 500, 100 );
+        log.attach( lines( numbered( 300 ) ), lines() );
+        assertTrue( log.awaitClosed( 5_000 ) );
+
+        String full = log.fullText();
+        assertTrue( full.length() <= 1_000 && full.length() > 100 );
+        assertTrue( full.startsWith( "line number " ) );
+        assertTrue( full.endsWith( "line number 299" + System.lineSeparator() ) );
+    }
+
+    @Test
+    void withoutAFileAnEndedLogKeepsEverything() throws Exception
+    {
+        GameLog log = new GameLog( null, 1_000_000, 900_000, 200 );
+        log.attach( lines( numbered( 300 ) ), lines() );
+        assertTrue( log.awaitClosed( 5_000 ) );
+
+        assertFalse( log.isTruncated() );
+        assertTrue( log.text().startsWith( "line number 0\n" ) );
+        assertEquals( log.text(), log.fullText() );
+    }
+
+    @Test
+    void anUnwritableFileKeepsTheWholeEndedLogInMemory() throws Exception
+    {
+        Path blocker = Files.writeString( tempDir.resolve( "not-a-dir" ), "x" );
+        GameLog log = new GameLog( blocker.resolve( "game.log" ), 1_000_000, 900_000, 200 );
+        log.attach( lines( numbered( 300 ) ), lines() );
+        assertTrue( log.awaitClosed( 5_000 ) );
+
+        assertFalse( log.isTruncated() );
+        assertTrue( log.fullText().startsWith( "line number 0\n" ) );
+    }
+
     @Test
     void logFileNamesAreSafe()
     {

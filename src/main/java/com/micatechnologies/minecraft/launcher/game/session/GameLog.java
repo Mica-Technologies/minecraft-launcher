@@ -51,6 +51,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>This used to live inside the game console screen, so leaving that screen stopped the
  * capture. Owned by the {@link GameSession} now, it outlives any window.</p>
  *
+ * <p>Once the game's output ends and the file is complete, the in-memory buffer shrinks to its
+ * last {@link #CLOSED_TAIL_CHARS} characters: the registry keeps a number of ended sessions, and
+ * each one holding millions of characters added up. {@link #fullText()} reads the rest back from
+ * the file for whatever needs it.</p>
+ *
  * @since 2026.10
  */
 public final class GameLog
@@ -84,11 +89,18 @@ public final class GameLog
 
     private static final int TRIGGER_CHARS = 5_000_000;
     private static final int RETAIN_CHARS  = 4_000_000;
+    /** What an ended log keeps in memory once its file is complete. */
+    static final int CLOSED_TAIL_CHARS = 256 * 1024;
 
     private final Path                              file;
     private final int                               triggerChars;
     private final int                               retainChars;
+    private final int                               closedTailChars;
     private final StringBuilder                     buffer  = new StringBuilder();
+    /** Whether the buffer has dropped its oldest text; guarded by {@link #buffer}. */
+    private       boolean                           truncated;
+    /** Whether the file holds every line: it opened and no write failed. */
+    private volatile boolean                        fileComplete;
     private final ConcurrentLinkedQueue< Numbered > pending = new ConcurrentLinkedQueue<>();
     /** Lines appended so far; guarded by {@link #buffer}. Numbers lines for {@link #subscribe}. */
     private       long                              lineCount;
@@ -117,9 +129,21 @@ public final class GameLog
      */
     GameLog( Path file, int triggerChars, int retainChars )
     {
+        this( file, triggerChars, retainChars, CLOSED_TAIL_CHARS );
+    }
+
+    /**
+     * @param file            the session log file, or {@code null}
+     * @param triggerChars    buffer size that triggers dropping old text
+     * @param retainChars     how much text to keep after dropping
+     * @param closedTailChars how much text to keep once the log has ended and its file is complete
+     */
+    GameLog( Path file, int triggerChars, int retainChars, int closedTailChars )
+    {
         this.file = file;
         this.triggerChars = triggerChars;
         this.retainChars = retainChars;
+        this.closedTailChars = closedTailChars;
     }
 
     /**
@@ -178,8 +202,8 @@ public final class GameLog
     }
 
     /**
-     * @return the captured text still held in memory (the oldest lines of a very long session
-     *         are only in the file)
+     * @return the captured text still held in memory (the oldest lines of a very long session,
+     *         and all but the tail of an ended one, are only in the file; see {@link #fullText()})
      *
      * @since 2026.10
      */
@@ -188,6 +212,47 @@ public final class GameLog
         synchronized ( buffer ) {
             return buffer.toString();
         }
+    }
+
+    /**
+     * @return whether {@link #text()} is missing the session's oldest lines
+     *
+     * @since 2026.10
+     */
+    public boolean isTruncated()
+    {
+        synchronized ( buffer ) {
+            return truncated;
+        }
+    }
+
+    /**
+     * The session's log as far back as it is kept: all of it, or for a very long session its
+     * last few million characters (the same amount the live buffer holds). Once the log has
+     * ended this reads the file, so call it off the UI thread.
+     *
+     * @return the log text; the in-memory text when the file can't supply more
+     *
+     * @since 2026.10
+     */
+    public String fullText()
+    {
+        synchronized ( buffer ) {
+            if ( !truncated ) {
+                return buffer.toString();
+            }
+        }
+        if ( file != null && isClosed() && fileComplete ) {
+            try {
+                String all = Files.readString( file, StandardCharsets.UTF_8 );
+                int dropTo = LogTrimPolicy.fullLogDropOffset( all, triggerChars, retainChars );
+                return dropTo > 0 ? all.substring( dropTo ) : all;
+            }
+            catch ( IOException | RuntimeException e ) {
+                // Moved, deleted or unreadable: what is in memory is the best we have.
+            }
+        }
+        return text();
     }
 
     /**
@@ -300,6 +365,7 @@ public final class GameLog
                     int dropTo = LogTrimPolicy.fullLogDropOffset( buffer, triggerChars, retainChars );
                     if ( dropTo > 0 ) {
                         buffer.delete( 0, dropTo );
+                        truncated = true;
                     }
                     // Queued under the same lock as the append, so a subscriber's snapshot and
                     // the numbering agree on exactly which lines it already has.
@@ -330,6 +396,7 @@ public final class GameLog
         }
         deliver();
         closeWriter();
+        trimToTail();
         closed.countDown();
         for ( Listener l : listeners ) {
             try {
@@ -337,6 +404,25 @@ public final class GameLog
             }
             catch ( RuntimeException ignored ) {
                 // A failing listener must not stop the others.
+            }
+        }
+    }
+
+    /**
+     * Shrinks an ended log's buffer to its tail, once the file holds everything. Without a
+     * complete file the buffer is all there is, so it stays.
+     */
+    private void trimToTail()
+    {
+        if ( !fileComplete ) {
+            return;
+        }
+        synchronized ( buffer ) {
+            int dropTo = LogTrimPolicy.fullLogDropOffset( buffer, closedTailChars, closedTailChars );
+            if ( dropTo > 0 ) {
+                buffer.delete( 0, dropTo );
+                buffer.trimToSize();
+                truncated = true;
             }
         }
     }
@@ -376,6 +462,7 @@ public final class GameLog
             Files.createDirectories( file.getParent() );
             synchronized ( writerLock ) {
                 writer = Files.newBufferedWriter( file, StandardCharsets.UTF_8 );
+                fileComplete = true;
             }
             // Game logs can carry user names and mod debug output; owner-only, best-effort.
             FilePermissions.applyOwnerOnly( file );
@@ -398,7 +485,9 @@ public final class GameLog
                 writer.newLine();
             }
             catch ( IOException ignored ) {
-                // A failed write must never back up into the game's pipe.
+                // A failed write must never back up into the game's pipe. The file now has a
+                // hole, so the buffer must keep its text.
+                fileComplete = false;
             }
         }
     }
@@ -411,7 +500,8 @@ public final class GameLog
                     writer.flush();
                 }
                 catch ( IOException ignored ) {
-                    // Best effort; close() gets a final try.
+                    // Best effort; but lines may be lost, so don't trust the file.
+                    fileComplete = false;
                 }
             }
         }
@@ -425,7 +515,8 @@ public final class GameLog
                     writer.close();
                 }
                 catch ( IOException ignored ) {
-                    // Nothing more to do.
+                    // The final flush may have failed; don't trust the file.
+                    fileComplete = false;
                 }
                 writer = null;
             }

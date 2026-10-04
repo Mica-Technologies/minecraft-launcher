@@ -229,4 +229,22 @@ class LogTrimPolicyTest
         assertTrue( buf.length() - off <= 400 + 5,
                     "post-trim length must be at or below the retain size (plus one line boundary)" );
     }
+
+    @Test
+    void tailLinesKeepsTheLastLinesOnly()
+    {
+        assertEquals( "c\nd\n", LogTrimPolicy.tailLines( "a\nb\nc\nd\n", 2 ) );
+        assertEquals( "c\nd", LogTrimPolicy.tailLines( "a\nb\nc\nd", 2 ), "an unterminated last line counts" );
+    }
+
+    @Test
+    void tailLinesLeavesShortOrUnlimitedTextAlone()
+    {
+        String text = "a\nb\n";
+        assertEquals( text, LogTrimPolicy.tailLines( text, 2 ) );
+        assertEquals( text, LogTrimPolicy.tailLines( text, 10 ) );
+        assertEquals( text, LogTrimPolicy.tailLines( text, 0 ) );
+        assertEquals( "", LogTrimPolicy.tailLines( null, 5 ) );
+        assertEquals( "", LogTrimPolicy.tailLines( "", 5 ) );
+    }
 }
