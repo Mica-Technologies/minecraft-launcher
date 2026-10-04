@@ -30,6 +30,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameLibrary;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
+import com.micatechnologies.minecraft.launcher.game.modpack.LaunchPrepareContext;
 import com.micatechnologies.minecraft.launcher.game.modpack.Lwjgl2ArmPatcher;
 import com.micatechnologies.minecraft.launcher.game.modpack.ManagedGameFile;
 import com.micatechnologies.minecraft.launcher.utilities.DownloadExecutor;
@@ -77,6 +78,16 @@ public class GameLibraryManifest extends ManagedGameFile
         super( remote, SystemUtilities.buildFilePath( parentModPack.getPackBinFolder(),
                                                       LocalPathConstants.MINECRAFT_LIBRARY_MANIFEST_FILE_NAME ) );
         this.parentModPack = parentModPack;
+    }
+
+    /**
+     * Checks this manifest and the files it lists under the pack's current prepare run.
+     *
+     * @return the parent pack's prepare context
+     */
+    @Override
+    protected LaunchPrepareContext prepareContext() {
+        return parentModPack != null ? parentModPack.getPrepareContext() : LaunchPrepareContext.NONE;
     }
 
     /**
@@ -323,12 +334,14 @@ public class GameLibraryManifest extends ManagedGameFile
             return;
         }
 
-        // Build list of library download tasks on the shared bounded download pool.
+        // Build list of library download tasks on the shared bounded download pool. Every
+        // library is checked under the same prepare run, captured once here.
+        final LaunchPrepareContext context = prepareContext();
         List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
         for ( GameLibrary library : libraries ) {
             Callable< Boolean > updateFileCallable = () -> {
                 library.setLocalPathPrefix( localLibPath );
-                boolean didChange = library.updateLocalFile();
+                boolean didChange = library.updateLocalFile( context );
                 if ( library.isNativeLib() ) {
                     // Extract every launch, not just when the JAR was re-downloaded.
                     // The previous "didChange" gate left the launcher unable to recover
@@ -583,7 +596,7 @@ public class GameLibraryManifest extends ManagedGameFile
 
         if ( !verifiedMarker.isFile() ) {
             // Verify and download as necessary (signed Mojang jar)
-            mcAppRemoteFile.updateLocalFile();
+            mcAppRemoteFile.updateLocalFile( prepareContext() );
 
             // Strip Mojang's META-INF signing only for pre-1.6 packs. There launchwrapper's
             // class transformer trips JarVerifier and breaks subsequent resource lookups

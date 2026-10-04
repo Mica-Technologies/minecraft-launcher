@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Side gating for {@link GameMod}. The post-sync existence check relies on
  * {@link GameMod#isRequiredFor(GameMode)} to skip mods that were never downloaded for the
- * active side; if it disagreed with {@link GameMod#updateLocalFile(GameMode)}, a client launch
+ * active side; if it disagreed with {@link GameMod#updateLocalFile(GameMode, LaunchPrepareContext)}, a client launch
  * of a pack with server-only mods would abort with those mods reported as "missing".
  */
 class GameModSideTest
@@ -67,6 +67,6 @@ class GameModSideTest
     {
         // updateLocalFile must be a successful no-op on the side the mod doesn't apply to;
         // the bogus URL would fail if it actually tried to fetch.
-        assertTrue( mod( false, true ).updateLocalFile( GameMode.CLIENT ) );
+        assertTrue( mod( false, true ).updateLocalFile( GameMode.CLIENT, LaunchPrepareContext.NONE ) );
     }
 }

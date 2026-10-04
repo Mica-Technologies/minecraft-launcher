@@ -52,11 +52,11 @@ import java.util.TreeSet;
  * verifies, nothing downloads) and a cold install (no prior file to compare) write nothing —
  * the cost is borne only by the misconfigured packs this is meant to catch.</p>
  *
- * <p>The current-launch context ({@link #beginLaunch}/{@link #endLaunch}) is held statically.
- * Same rationale as {@link ManagedGameFile}'s {@code currentVerifyMode}: the launcher
- * serializes launches at the {@code LauncherCore.play()} boundary, so concurrent launches
- * can't race it. The per-file writes <em>within</em> a launch run concurrently on the shared
- * download pool, so each append is serialized on the audit file's canonical monitor.</p>
+ * <p>Which pack and launch an entry belongs to travels with the launch, in its
+ * {@link LaunchPrepareContext}, not in shared state here: several packs can prepare at once
+ * and their downloads share one thread pool, so a global "current launch" would file one
+ * pack's re-downloads under another. The per-file writes of a launch run concurrently, so
+ * each append is serialized on the audit file's canonical monitor.</p>
  *
  * @author Mica Technologies
  * @since 3.7
@@ -84,66 +84,23 @@ public final class ModPackAuditLog
      */
     public static final int DEFAULT_PROBLEM_THRESHOLD = 3;
 
-    // Current-launch context. Set by the launch orchestrator around the download phase.
-    private static volatile String currentPackRoot = null;
-    private static volatile int    currentLaunchId = -1;
-
     /**
-     * Marks the start of a launch's download phase. Subsequent {@link #recordRedownload}
-     * calls are attributed to {@code launchId} and written under {@code packRoot}.
-     *
-     * @param packRoot the pack's root folder
-     * @param launchId the launch number this run will be recorded under
-     *
-     * @since 3.7
-     */
-    public static void beginLaunch( String packRoot, int launchId )
-    {
-        currentPackRoot = packRoot;
-        currentLaunchId = launchId;
-    }
-
-    /**
-     * Clears the current-launch context. Always call from the orchestrator's finally.
-     *
-     * @since 3.7
-     */
-    public static void endLaunch()
-    {
-        currentPackRoot = null;
-        currentLaunchId = -1;
-    }
-
-    /**
-     * Whether a launch context is active (an audit entry would be recorded).
-     *
-     * @return {@code true} when {@link #beginLaunch} has set a launch context
-     *         that {@link #endLaunch} has not yet cleared
-     *
-     * @since 3.7
-     */
-    public static boolean isRecording()
-    {
-        return currentPackRoot != null;
-    }
-
-    /**
-     * Records a re-download of an existing file. No-op when no launch context is active.
+     * Records a re-download of an existing file. No-op when {@code packRoot} is null.
      * Never throws — diagnostics must not break a launch.
      *
+     * @param packRoot      the pack's root folder, where its audit log lives (may be null)
+     * @param launchId      the launch number to record the entry under
      * @param fullLocalPath the file's full local path (relativized against the pack root)
      * @param oldHash       hash of the file before the download (may be null)
      * @param newHash       hash of the file after the download (may be null)
      * @param expectedHash  the manifest's declared hash (may be null)
      * @param algo          the hash algorithm used ({@code sha256}/{@code sha1}/{@code md5}, may be null)
      *
-     * @since 3.7
+     * @since 2026.10
      */
-    public static void recordRedownload( String fullLocalPath, String oldHash, String newHash,
-                                         String expectedHash, String algo )
+    public static void recordRedownload( String packRoot, int launchId, String fullLocalPath, String oldHash,
+                                         String newHash, String expectedHash, String algo )
     {
-        String packRoot = currentPackRoot;
-        int launchId = currentLaunchId;
         if ( packRoot == null || fullLocalPath == null ) {
             return;
         }

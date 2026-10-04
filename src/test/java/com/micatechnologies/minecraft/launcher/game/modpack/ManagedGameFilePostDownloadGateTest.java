@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -53,12 +52,6 @@ class ManagedGameFilePostDownloadGateTest
     private static final String WRONG_SHA1   = "0000000000000000000000000000000000000000";
     private static final String WRONG_SHA256 =
             "0000000000000000000000000000000000000000000000000000000000000000";
-
-    @AfterEach
-    void resetVerifyMode()
-    {
-        ManagedGameFile.setCurrentVerifyMode( LaunchVerifyMode.FULL );
-    }
 
     @Test
     void gateAcceptsMatchingHashAndRejectsMismatch( @TempDir Path tmp ) throws Exception
@@ -100,7 +93,7 @@ class ManagedGameFilePostDownloadGateTest
         ManagedGameFile bad = new ManagedGameFile( "https://e/x.jar", "x.jar",
                                                     WRONG_SHA1, null, null );
 
-        ManagedGameFile.setCurrentVerifyMode( LaunchVerifyMode.FAST_PATH );
+        // The gate takes no prepare context, so no launch's FAST_PATH can reach it.
         assertFalse( bad.matchesDeclaredHash( file ),
                 "FAST_PATH must not bypass the post-download acceptance gate" );
     }

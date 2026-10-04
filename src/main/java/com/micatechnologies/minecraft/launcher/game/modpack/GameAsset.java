@@ -83,19 +83,20 @@ class GameAsset extends ManagedGameFile
      * Update the local copy of this MCForgeAsset using the specified game mode (Client/Server).
      *
      * @param gameAppMode client/server
+     * @param context     the owning pack's prepare run
      *
      * @throws ModpackException if update fails
      */
-    void updateLocalFile( GameMode gameAppMode ) throws ModpackException {
+    void updateLocalFile( GameMode gameAppMode, LaunchPrepareContext context ) throws ModpackException {
         if ( isRequiredFor( gameAppMode ) ) {
-            super.updateLocalFile();
+            super.updateLocalFile( context );
         }
     }
 
     /**
      * Indicates whether this asset is required for the given side (client/server).
      * Assets that aren't required for the active side are never downloaded by
-     * {@link #updateLocalFile(GameMode)} and so must also be excluded from the
+     * {@link #updateLocalFile(GameMode, LaunchPrepareContext)} and so must also be excluded from the
      * classpath rather than contributing a path to a file that was never fetched.
      *
      * @param gameAppMode client/server

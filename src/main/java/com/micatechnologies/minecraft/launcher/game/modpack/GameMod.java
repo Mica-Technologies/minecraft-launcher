@@ -38,7 +38,7 @@ public class GameMod extends ManagedGameFile
 
     /**
      * Flag indicating whether this mod is required when launching in client mode. When
-     * {@code false}, {@link #updateLocalFile(GameMode)} skips downloading it for the client.
+     * {@code false}, {@link #updateLocalFile(GameMode, LaunchPrepareContext)} skips downloading it for the client.
      *
      * @since 1.0
      */
@@ -46,7 +46,7 @@ public class GameMod extends ManagedGameFile
 
     /**
      * Flag indicating whether this mod is required when launching in server mode. When
-     * {@code false}, {@link #updateLocalFile(GameMode)} skips downloading it for the server.
+     * {@code false}, {@link #updateLocalFile(GameMode, LaunchPrepareContext)} skips downloading it for the server.
      *
      * @since 1.0
      */
@@ -88,19 +88,21 @@ public class GameMod extends ManagedGameFile
      * is a no-op that reports success.
      *
      * @param gameAppMode client/server
+     * @param context     the owning pack's prepare run
      *
      * @return {@code true} if the local copy is up to date after the call (including the
      *         no-op case where the mod is not required for {@code gameAppMode}); otherwise the
-     *         result of the underlying {@link ManagedGameFile#updateLocalFile()} call
+     *         result of the underlying {@link ManagedGameFile#updateLocalFile(LaunchPrepareContext)}
+     *         call
      *
      * @throws ModpackException if update fails
      *
      * @since 1.0
      */
-    boolean updateLocalFile( GameMode gameAppMode ) throws ModpackException
+    boolean updateLocalFile( GameMode gameAppMode, LaunchPrepareContext context ) throws ModpackException
     {
         if ( isRequiredFor( gameAppMode ) ) {
-            return super.updateLocalFile();
+            return super.updateLocalFile( context );
         }
         return true;
     }
@@ -108,7 +110,7 @@ public class GameMod extends ManagedGameFile
     /**
      * Indicates whether this mod is required for the given side (client/server). Mods that
      * aren't required for the active side are never downloaded by
-     * {@link #updateLocalFile(GameMode)}, so anything that checks the mods folder afterwards
+     * {@link #updateLocalFile(GameMode, LaunchPrepareContext)}, so anything that checks the mods folder afterwards
      * must skip them too rather than reporting a side-only mod as missing.
      *
      * @param gameAppMode client/server

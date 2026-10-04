@@ -546,6 +546,45 @@ public abstract class GameModPackMetadata
 
     // endregion
 
+    // region Prepare context
+
+    /**
+     * The prepare run (launch or "verify this pack") this pack is in, if any. Set by
+     * {@code GameModPackLauncher} for the length of the run and read by this pack's loader,
+     * manifests and file sync when they check files. Per pack, not global, so two packs
+     * preparing at once each verify and audit under their own settings. Transient: Gson
+     * skips it, and an instance Gson builds without a constructor leaves it {@code null},
+     * which {@link #getPrepareContext()} treats as {@link LaunchPrepareContext#NONE}.
+     */
+    private transient volatile LaunchPrepareContext prepareContext = LaunchPrepareContext.NONE;
+
+    /**
+     * The settings files of this pack are checked under right now.
+     *
+     * @return the current prepare context, or {@link LaunchPrepareContext#NONE} outside a
+     *         prepare run; never {@code null}
+     *
+     * @since 2026.10
+     */
+    public LaunchPrepareContext getPrepareContext()
+    {
+        LaunchPrepareContext context = prepareContext;
+        return context != null ? context : LaunchPrepareContext.NONE;
+    }
+
+    /**
+     * Sets the prepare context for this pack. The launcher owns this lifecycle and restores
+     * the previous value when its run ends.
+     *
+     * @param context the context; {@code null} means {@link LaunchPrepareContext#NONE}
+     */
+    void setPrepareContext( LaunchPrepareContext context )
+    {
+        prepareContext = context != null ? context : LaunchPrepareContext.NONE;
+    }
+
+    // endregion
+
     // region Path helpers
 
     /**

@@ -408,13 +408,23 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
     }
 
     /**
+     * Checks the installer under its pack's current prepare run.
+     *
+     * @return the parent pack's prepare context
+     */
+    @Override
+    protected LaunchPrepareContext prepareContext() {
+        return parentModPack != null ? parentModPack.getPrepareContext() : LaunchPrepareContext.NONE;
+    }
+
+    /**
      * Invalidates the per-instance installer caches (entry-name set, version
      * manifest, library list) whenever the installer JAR is re-downloaded, so a
      * fresh jar is re-read rather than serving stale cached metadata.
      */
     @Override
-    public boolean updateLocalFile() throws ModpackException {
-        boolean changed = super.updateLocalFile();
+    public boolean updateLocalFile( LaunchPrepareContext context ) throws ModpackException {
+        boolean changed = super.updateLocalFile( context );
         if ( changed ) {
             cachedJarEntryNames = null;
             cachedForgeVersionManifest = null;
@@ -755,7 +765,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             futures.add( com.micatechnologies.minecraft.launcher.utilities.DownloadExecutor.submit(
                     ( java.util.concurrent.Callable< Void > ) () -> {
                 forgeAsset.setLocalPathPrefix( localPathPrefix );
-                forgeAsset.updateLocalFile( gameAppMode );
+                forgeAsset.updateLocalFile( gameAppMode, prepareContext() );
                 if ( progressProvider != null ) {
                     progressProvider.submitProgress( LocalizationManager.format(
                             "forgeLoader.verifiedAsset",

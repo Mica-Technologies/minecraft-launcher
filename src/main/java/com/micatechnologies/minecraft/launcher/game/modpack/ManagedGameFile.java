@@ -44,53 +44,6 @@ import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 public class ManagedGameFile
 {
 
-    /**
-     * Launcher-wide verify mode applied to every {@link ManagedGameFile} during
-     * the current pre-launch run. {@link LaunchVerifyMode#FULL} (the default)
-     * runs the historical hash-everything path; {@link LaunchVerifyMode#FAST_PATH}
-     * accepts each file on existence + non-zero size alone.
-     *
-     * <p>Static because passing the mode through every {@code fetchLatest*} /
-     * {@code buildXClasspath} call site would balloon the API for what's
-     * effectively a one-launch-at-a-time setting. The launcher serializes
-     * launches at the {@code LauncherCore.play()} boundary, so two concurrent
-     * launches can't race on this. Parallel branches inside a single launch
-     * (see 3.2's CompletableFuture fan-out) all read the same value cleanly.</p>
-     *
-     * <p>Set at the top of {@code GameModPackLauncher.buildClasspath} and
-     * cleared back to FULL in the finally so a subsequent launch starts from
-     * a known state regardless of how the previous one ended.</p>
-     *
-     * @since 2026.3
-     */
-    private static volatile LaunchVerifyMode currentVerifyMode = LaunchVerifyMode.FULL;
-
-    /**
-     * Reads the current launcher-wide verify mode.
-     *
-     * @return the verify mode currently applied to every {@link ManagedGameFile}
-     *         verification this launch
-     *
-     * @since 2026.3
-     */
-    public static LaunchVerifyMode getCurrentVerifyMode() { return currentVerifyMode; }
-
-    /**
-     * Sets the launcher-wide verify mode that subsequent {@code verifyLocalFile}
-     * calls will honor. The launch orchestrator owns this lifecycle. A
-     * {@code null} argument is coerced to {@link LaunchVerifyMode#FULL} so the
-     * field never holds a null and the verify path always has a definite mode.
-     *
-     * @param mode the verify mode to apply, or {@code null} to reset to
-     *             {@link LaunchVerifyMode#FULL}
-     *
-     * @since 2026.3
-     */
-    public static void setCurrentVerifyMode( LaunchVerifyMode mode )
-    {
-        currentVerifyMode = ( mode != null ) ? mode : LaunchVerifyMode.FULL;
-    }
-
     /** Cross-instance hash-verify cache shared across every {@link ManagedGameFile}.
      *  Pack-list reloads (and the per-pack carousel rebuild on the home screen)
      *  construct fresh loader-instance objects every time, so each one's
@@ -307,16 +260,35 @@ public class ManagedGameFile
      *  reach this through {@link #updateLocalFile}; tests can call it
      *  directly with a temp file to verify the strongest-first selection
      *  without standing up a download pipeline. */
-    boolean verifyLocalFileForTest() { return verifyLocalFile(); }
+    boolean verifyLocalFileForTest() { return verifyLocalFile( LaunchPrepareContext.NONE ); }
+
+    /** As {@link #verifyLocalFileForTest()}, under the given prepare context. */
+    boolean verifyLocalFileForTest( LaunchPrepareContext context ) { return verifyLocalFile( context ); }
+
+    /**
+     * The prepare context this file is checked under when {@link #updateLocalFile()} is called
+     * without one. {@link LaunchPrepareContext#NONE} here; a file owned by a pack (a loader, a
+     * manifest) overrides this to return its pack's current context, so its own checks
+     * (including {@link #readToJsonObject()}) follow that pack's run.
+     *
+     * @return the context; never {@code null}
+     *
+     * @since 2026.10
+     */
+    protected LaunchPrepareContext prepareContext() {
+        return LaunchPrepareContext.NONE;
+    }
 
     /**
      * Verify the integrity of the local copy of this remote file
+     *
+     * @param context the prepare run this check belongs to; decides FULL vs FAST_PATH
      *
      * @return true if local copy is valid
      *
      * @since 1.0
      */
-    private boolean verifyLocalFile() {
+    private boolean verifyLocalFile( LaunchPrepareContext context ) {
         // Defense against malicious modpack JSON: the "local" field is fully
         // attacker-controllable (it's deserialized straight from the manifest),
         // so a manifest with "local": "../../something" would escape the modpack
@@ -329,14 +301,14 @@ public class ManagedGameFile
         }
         File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
 
-        // FAST_PATH bypass: when the launch orchestrator decided the pack is
+        // FAST_PATH bypass: when the launch orchestrator decided this pack is
         // unchanged since the last successful FULL verify (manifest content
         // hash matches + within TTL + no opt-out), accept files on existence
         // + non-zero size alone. Empty / missing files fall through to the
         // download path on the caller's next move, so a manually-deleted mod
         // still gets repaired — we're only skipping the SHA computation, not
         // the "fix what's broken" half of updateLocalFile.
-        if ( currentVerifyMode == LaunchVerifyMode.FAST_PATH ) {
+        if ( context != null && context.verifyMode() == LaunchVerifyMode.FAST_PATH ) {
             return localFile.exists() && localFile.isFile() && localFile.length() > 0;
         }
 
@@ -530,7 +502,8 @@ public class ManagedGameFile
     }
 
     /**
-     * Check for and download any new update(s) to the local file copy.
+     * Check for and download any new update(s) to the local file copy, under this file's own
+     * {@link #prepareContext()}.
      *
      * @return true if changed
      *
@@ -538,6 +511,26 @@ public class ManagedGameFile
      * @since 1.0
      */
     public boolean updateLocalFile() throws ModpackException {
+        return updateLocalFile( prepareContext() );
+    }
+
+    /**
+     * Check for and download any new update(s) to the local file copy, as part of the given
+     * prepare run: its verify mode decides whether the file is hashed, and a re-download of an
+     * existing file is recorded in its audit log.
+     *
+     * @param context the prepare run this check belongs to; {@code null} means
+     *                {@link LaunchPrepareContext#NONE}
+     *
+     * @return true if changed
+     *
+     * @throws ModpackException if file cannot verify or download
+     * @since 2026.10
+     */
+    public boolean updateLocalFile( LaunchPrepareContext context ) throws ModpackException {
+        if ( context == null ) {
+            context = LaunchPrepareContext.NONE;
+        }
         if ( sessionVerified ) {
             return false;
         }
@@ -564,7 +557,7 @@ public class ManagedGameFile
                             + ". Open the modpack in the Modpack Editor to set the loader "
                             + "installer URL (or restore the missing file)." );
         }
-        if ( !verifyLocalFile() ) {
+        if ( !verifyLocalFile( context ) ) {
             // Offline mode: refuse to launch with a hash-mismatched file. Previously
             // we'd accept any on-disk content as a courtesy ("better than nothing"),
             // but a mismatched file is by definition unverified — an attacker who
@@ -588,7 +581,7 @@ public class ManagedGameFile
             // genuine re-download of an existing file while a launch context is active, so cold
             // installs and healthy launches pay nothing.
             File auditFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
-            boolean auditExisted = ModPackAuditLog.isRecording() && auditFile.exists() && auditFile.isFile();
+            boolean auditExisted = context.isAuditing() && auditFile.exists() && auditFile.isFile();
             String auditAlgo = auditExisted ? declaredAlgoName() : null;
             String auditOldHash = ( auditAlgo != null ) ? hashFileWithAlgo( auditFile, auditAlgo ) : null;
 
@@ -596,8 +589,8 @@ public class ManagedGameFile
 
             if ( auditExisted ) {
                 String auditNewHash = ( auditAlgo != null ) ? hashFileWithAlgo( auditFile, auditAlgo ) : null;
-                ModPackAuditLog.recordRedownload( getFullLocalFilePath(), auditOldHash, auditNewHash,
-                                                  declaredExpectedHash(), auditAlgo );
+                context.recordRedownload( getFullLocalFilePath(), auditOldHash, auditNewHash,
+                                          declaredExpectedHash(), auditAlgo );
             }
 
             sessionVerified = true;

@@ -26,6 +26,7 @@ import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
+import com.micatechnologies.minecraft.launcher.game.modpack.LaunchPrepareContext;
 import com.micatechnologies.minecraft.launcher.game.modpack.ManagedGameFile;
 import com.micatechnologies.minecraft.launcher.utilities.DownloadExecutor;
 import com.micatechnologies.minecraft.launcher.utilities.JsonHelper;
@@ -83,6 +84,16 @@ public class GameAssetManifest extends ManagedGameFile
                                                       version + ManifestConstants.JSON_FILE_EXTENSION ) );
         this.parentModPack = parentModPack;
         this.version = version;
+    }
+
+    /**
+     * Checks this manifest and the files it lists under the pack's current prepare run.
+     *
+     * @return the parent pack's prepare context
+     */
+    @Override
+    protected LaunchPrepareContext prepareContext() {
+        return parentModPack != null ? parentModPack.getPrepareContext() : LaunchPrepareContext.NONE;
     }
 
     /** Absolute path to the shared {@code assets/} root used by every modpack. Modern MC
@@ -342,8 +353,10 @@ public class GameAssetManifest extends ManagedGameFile
         // is safe.
         SystemUtilities.spawnNewTask( this::cleanupLegacyPerPackAssetsTree );
 
-        // Update asset manifest first
-        updateLocalFile();
+        // Update asset manifest first. Every asset below is checked under the same prepare
+        // run, captured once so a pool thread can't straddle a change.
+        final LaunchPrepareContext context = prepareContext();
+        updateLocalFile( context );
 
         // Update each asset
         List< ManagedGameFile > assets = getAssets();
@@ -360,7 +373,7 @@ public class GameAssetManifest extends ManagedGameFile
         List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
         for ( ManagedGameFile asset : assets ) {
             Callable< Boolean > updateFileCallable = () -> {
-                boolean ret = asset.updateLocalFile();
+                boolean ret = asset.updateLocalFile( context );
 
                 // Update progress provider if present
                 if ( progressProvider != null ) {

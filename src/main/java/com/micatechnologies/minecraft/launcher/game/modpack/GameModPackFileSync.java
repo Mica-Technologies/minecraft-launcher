@@ -172,7 +172,7 @@ class GameModPackFileSync
                         mod.setDownloadTracker( downloadTracker );
                     }
 
-                    boolean ret = mod.updateLocalFile( GameModeManager.getCurrentGameMode() );
+                    boolean ret = mod.updateLocalFile( GameModeManager.getCurrentGameMode(), metadata.getPrepareContext() );
 
                     int done = modsProcessed.incrementAndGet();
                     if ( progressProvider != null ) {
@@ -267,7 +267,7 @@ class GameModPackFileSync
             if ( progressProvider != null ) {
                 progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( config.getFullLocalFilePath() ) + "..." );
             }
-            config.updateLocalFile( GameModeManager.getCurrentGameMode() );
+            config.updateLocalFile( GameModeManager.getCurrentGameMode(), metadata.getPrepareContext() );
 
             if ( progressProvider != null ) {
                 progressProvider.submitProgress( "Verified " + FilenameUtils.getName( config.getFullLocalFilePath() ),
@@ -314,7 +314,7 @@ class GameModPackFileSync
             if ( progressProvider != null ) {
                 progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( resourcePack.getFullLocalFilePath() ) + "..." );
             }
-            resourcePack.updateLocalFile();
+            resourcePack.updateLocalFile( metadata.getPrepareContext() );
             if ( progressProvider != null ) {
                 progressProvider.submitProgress(
                         "Verified " + FilenameUtils.getName( resourcePack.getFullLocalFilePath() ),
@@ -360,7 +360,7 @@ class GameModPackFileSync
             if ( progressProvider != null ) {
                 progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( shaderPack.getFullLocalFilePath() ) + "..." );
             }
-            shaderPack.updateLocalFile();
+            shaderPack.updateLocalFile( metadata.getPrepareContext() );
             if ( progressProvider != null ) {
                 progressProvider.submitProgress(
                         "Verified " + FilenameUtils.getName( shaderPack.getFullLocalFilePath() ),
@@ -402,7 +402,7 @@ class GameModPackFileSync
             if ( progressProvider != null ) {
                 progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( initFile.getFullLocalFilePath() ) + "..." );
             }
-            initFile.updateLocalFile( GameModeManager.getCurrentGameMode() );
+            initFile.updateLocalFile( GameModeManager.getCurrentGameMode(), metadata.getPrepareContext() );
 
             if ( progressProvider != null ) {
                 progressProvider.submitProgress( "Verified " + FilenameUtils.getName( initFile.getFullLocalFilePath() ),

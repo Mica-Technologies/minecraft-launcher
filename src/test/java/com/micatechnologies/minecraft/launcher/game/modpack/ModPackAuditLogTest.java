@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -39,18 +38,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ModPackAuditLogTest
 {
-    @AfterEach
-    void clearContext()
-    {
-        ModPackAuditLog.endLaunch();
-    }
-
     /** Records a re-download of {@code file} under {@code launchId} with the given before/after hashes. */
     private static void redownload( String packRoot, int launchId, String file, String oldHash, String newHash )
     {
-        ModPackAuditLog.beginLaunch( packRoot, launchId );
-        ModPackAuditLog.recordRedownload( packRoot + File.separator + file, oldHash, newHash, "EXPECTED", "sha1" );
-        ModPackAuditLog.endLaunch();
+        LaunchPrepareContext.forLaunch( LaunchVerifyMode.FULL, packRoot, launchId )
+                            .recordRedownload( packRoot + File.separator + file, oldHash, newHash, "EXPECTED", "sha1" );
     }
 
     @Test
@@ -106,9 +98,32 @@ class ModPackAuditLogTest
     void recordIsNoOpWithoutLaunchContext( @TempDir Path packDir )
     {
         String root = packDir.toString();
-        // No beginLaunch — should write nothing and not throw.
-        ModPackAuditLog.recordRedownload( root + "/mods/x.jar", "A", "A", "E", "sha1" );
+        // Outside a launch — should write nothing and not throw.
+        LaunchPrepareContext.NONE.recordRedownload( root + "/mods/x.jar", "A", "A", "E", "sha1" );
         assertTrue( ModPackAuditLog.analyzeProblems( root, 7, 3 ).isEmpty() );
+    }
+
+    @Test
+    void concurrentLaunchesOfTwoPacksEachRecordInTheirOwnLog( @TempDir Path dir )
+    {
+        // Two packs preparing at once used to share one static "current launch", so whichever
+        // began last received both packs' entries. Each launch now carries its own target.
+        String rootA = dir.resolve( "a" ).toString();
+        String rootB = dir.resolve( "b" ).toString();
+        LaunchPrepareContext launchA = LaunchPrepareContext.forLaunch( LaunchVerifyMode.FULL, rootA, 3 );
+        LaunchPrepareContext launchB = LaunchPrepareContext.forLaunch( LaunchVerifyMode.FAST_PATH, rootB, 9 );
+        new File( rootA ).mkdirs();
+        new File( rootB ).mkdirs();
+
+        launchA.recordRedownload( rootA + File.separator + "mods/a.jar", "A", "A", "E", "sha1" );
+        launchB.recordRedownload( rootB + File.separator + "mods/b.jar", "B", "B", "E", "sha1" );
+
+        List< ModPackAuditLog.Problem > inA = ModPackAuditLog.analyzeProblems( rootA, 3, 1 );
+        List< ModPackAuditLog.Problem > inB = ModPackAuditLog.analyzeProblems( rootB, 9, 1 );
+        assertEquals( 1, inA.size() );
+        assertEquals( "mods/a.jar", inA.get( 0 ).file() );
+        assertEquals( 1, inB.size() );
+        assertEquals( "mods/b.jar", inB.get( 0 ).file() );
     }
 
     @Test

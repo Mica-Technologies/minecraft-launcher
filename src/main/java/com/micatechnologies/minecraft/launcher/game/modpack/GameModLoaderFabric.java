@@ -214,6 +214,16 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
      *
      * @since 2026.5
      */
+    /**
+     * Checks the profile JSON and libraries under the pack's current prepare run.
+     *
+     * @return the parent pack's prepare context
+     */
+    @Override
+    protected LaunchPrepareContext prepareContext() {
+        return parentModPack != null ? parentModPack.getPrepareContext() : LaunchPrepareContext.NONE;
+    }
+
     @Override
     public String getName() { return "Fabric"; }
 
@@ -356,7 +366,7 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
             GameAsset asset = sha1 != null
                     ? new GameAsset( remoteUrl, localPath, sha1, ManagedGameFileHashType.SHA1, true, true )
                     : new GameAsset( remoteUrl, localPath, true, true );
-            asset.updateLocalFile( gameAppMode );
+            asset.updateLocalFile( gameAppMode, prepareContext() );
 
             classpathEntries.add( localPath );
         }

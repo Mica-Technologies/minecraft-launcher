@@ -180,28 +180,24 @@ class GameModPackLauncher
             progressProvider.setCurrText( LocalizationManager.get( "gameModPackLauncher.progress.preparingModpack" ) );
         }
 
-        // Decide and install the verify mode for this launch. The mode is read
-        // by ManagedGameFile.verifyLocalFile inside every fetchLatest* /
-        // buildXClasspath call below. FULL is the historical behaviour (hash
-        // every file); FAST_PATH accepts files on existence + non-zero size.
+        // Decide this launch's verify mode and put it, with the audit-log target, on the pack
+        // for the length of the prepare run. The pack's loader, manifests and file sync hand
+        // that context to every ManagedGameFile they check. FULL hashes every file; FAST_PATH
+        // accepts files on existence + non-zero size.
         //
-        // Step 2 of 3.3 lands this plumbing but ManagedGameFile still always
-        // does the FULL check regardless of the value — the decision result
-        // is observable for verification but doesn't yet change behaviour.
-        // Step 3 lights up the FAST_PATH branch and the sidecar write that
-        // makes subsequent launches eligible.
+        // It lives on this pack rather than in a global because several packs can prepare at
+        // once (GameSessionRegistry admits one launch per pack, not one overall) and their
+        // downloads share one thread pool: a global let one pack's FAST_PATH leak into another
+        // pack's FULL verify, and filed one pack's re-downloads in another pack's audit log.
         //
-        // The user-facing controls (per-pack toggle + global force flag) land
-        // in step 4; for now both inputs are hardcoded false so the decision
-        // is driven entirely by manifest-hash + TTL + sidecar presence.
+        // getLaunchCount() + 1 is the launch number recordLaunchStart will commit once this
+        // launch succeeds, so audit entries line up with the official launch count the detail
+        // modal reads back.
         final LaunchVerifyMode chosenMode = decideLaunchVerifyMode();
         Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.verifyMode", pack.getPackName(), chosenMode ) );
-        LaunchVerifyMode prevMode = ManagedGameFile.getCurrentVerifyMode();
-        ManagedGameFile.setCurrentVerifyMode( chosenMode );
-        // Open the audit-log context for this launch's download phase. getLaunchCount() + 1 is
-        // the launch number recordLaunchStart will commit once this launch succeeds, so audit
-        // entries line up with the official launch count the detail modal reads back.
-        ModPackAuditLog.beginLaunch( pack.getPackRootFolder(), pack.getLaunchCount() + 1 );
+        LaunchPrepareContext prevContext = pack.getPrepareContext();
+        pack.setPrepareContext( LaunchPrepareContext.forLaunch( chosenMode, pack.getPackRootFolder(),
+                                                                pack.getLaunchCount() + 1 ) );
         try {
             String classpath = buildClasspathInner();
             // Persist the sidecar ONLY after a successful FULL verify. A FAST_PATH
@@ -225,10 +221,9 @@ class GameModPackLauncher
             return classpath;
         }
         finally {
-            // Always restore so a subsequent launch starts from a known state
+            // Always restore so a later run of this pack starts from a known state
             // regardless of how this one ended.
-            ManagedGameFile.setCurrentVerifyMode( prevMode );
-            ModPackAuditLog.endLaunch();
+            pack.setPrepareContext( prevContext );
         }
     }
 
@@ -281,14 +276,7 @@ class GameModPackLauncher
      */
     void verifyAllFilesNow() throws ModpackException
     {
-        LaunchVerifyMode prev = ManagedGameFile.getCurrentVerifyMode();
-        ManagedGameFile.setCurrentVerifyMode( LaunchVerifyMode.FULL );
-        try {
-            buildClasspathForceFull();
-        }
-        finally {
-            ManagedGameFile.setCurrentVerifyMode( prev );
-        }
+        buildClasspathForceFull();
     }
 
     /**
@@ -301,8 +289,8 @@ class GameModPackLauncher
     private void buildClasspathForceFull() throws ModpackException
     {
         Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.forceFullVerify", pack.getPackName() ) );
-        LaunchVerifyMode prevMode = ManagedGameFile.getCurrentVerifyMode();
-        ManagedGameFile.setCurrentVerifyMode( LaunchVerifyMode.FULL );
+        LaunchPrepareContext prevContext = pack.getPrepareContext();
+        pack.setPrepareContext( LaunchPrepareContext.fullVerify() );
         try {
             buildClasspathInner();
             if ( pack.getManifestContentSha256() != null ) {
@@ -313,7 +301,7 @@ class GameModPackLauncher
             }
         }
         finally {
-            ManagedGameFile.setCurrentVerifyMode( prevMode );
+            pack.setPrepareContext( prevContext );
         }
     }
 
