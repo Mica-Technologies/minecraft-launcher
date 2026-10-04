@@ -77,8 +77,7 @@ public final class RunningGamesWindow
         stage.setTitle( LocalizationManager.get( "session.window.title" ) );
         stage.setScene( new Scene( UiScale.wrap( root ), 1000 * UiScale.get(), 720 * UiScale.get() ) );
         UiScale.install( stage.getScene() );
-        stage.setMinWidth( 640 );
-        stage.setMinHeight( 420 );
+        ScaledMinSize.follow( stage, 640, 420 );
         MCLauncherGuiWindow.installCurrentThemeStylesheets( root );
         stage.setOnShown( e -> com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
                 .applyTitleBarDarkMode( stage, !GUIUtilities.isLightChrome( ConfigManager.getTheme() ) ) );

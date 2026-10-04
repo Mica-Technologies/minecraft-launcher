@@ -416,8 +416,7 @@ public class MCLauncherHelpWindow
         Scene scene = new Scene( UiScale.wrap( root ), 800 * UiScale.get(), 600 * UiScale.get() );
         UiScale.install( scene );
         helpStage.setScene( scene );
-        helpStage.setMinWidth( 600 );
-        helpStage.setMinHeight( 400 );
+        ScaledMinSize.follow( helpStage, 600, 400 );
 
         applyTheme();
     }

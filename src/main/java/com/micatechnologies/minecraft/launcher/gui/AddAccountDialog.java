@@ -72,8 +72,7 @@ public final class AddAccountDialog
         root.getStyleClass().addAll( "rootPane", "hero-surface" );
         stage.setScene( new Scene( UiScale.wrap( root ), 1000 * UiScale.get(), 800 * UiScale.get() ) );
         UiScale.install( stage.getScene() );
-        stage.setMinWidth( 860 );
-        stage.setMinHeight( 680 );
+        ScaledMinSize.follow( stage, 860, 680 );
         MCLauncherGuiWindow.installCurrentThemeStylesheets( root );
         stage.setOnShown( e -> com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
                 .applyTitleBarDarkMode( stage, !GUIUtilities.isLightChrome( ConfigManager.getTheme() ) ) );
