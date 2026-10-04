@@ -259,6 +259,13 @@ public final class LoopbackHttpTransport
 
             McpHttpGuard.Verdict verdict = McpHttpGuard.admit( request, token );
             if ( verdict != McpHttpGuard.Verdict.ALLOW ) {
+                if ( verdict == McpHttpGuard.Verdict.PAYLOAD_TOO_LARGE ) {
+                    // Only reached by an authenticated caller: the size check runs after the
+                    // token check, so nobody else can make us read their upload.
+                    try ( InputStream in = exchange.getRequestBody() ) {
+                        discardUpTo( in, DRAIN_LIMIT_BYTES );
+                    }
+                }
                 // No detail in the body: a rejected caller learns the status and nothing more.
                 sendEmpty( exchange, statusFor( verdict ) );
                 return;
@@ -325,9 +332,46 @@ public final class LoopbackHttpTransport
         try ( InputStream in = exchange.getRequestBody() ) {
             byte[] bytes = in.readNBytes( (int) McpHttpGuard.MAX_BODY_BYTES + 1 );
             if ( bytes.length > McpHttpGuard.MAX_BODY_BYTES ) {
+                discardUpTo( in, DRAIN_LIMIT_BYTES );
                 return null;
             }
             return new String( bytes, StandardCharsets.UTF_8 );
+        }
+    }
+
+    /**
+     * How much of a refused, oversized body is read and thrown away before the 413 goes out.
+     * <p>
+     * The JDK server drains only a small amount of unread request body when an exchange closes.
+     * Past that it closes the socket with the client's upload still arriving, which sends a TCP
+     * reset, and the client often sees "connection reset" instead of the 413. Reading the rest
+     * (up to this bound, cheap on loopback) lets the 413 arrive intact. A body past the bound
+     * still gets the reset, which is acceptable for a client that far out of spec.
+     */
+    private static final long DRAIN_LIMIT_BYTES = 4L * McpHttpGuard.MAX_BODY_BYTES;
+
+    /**
+     * Reads and discards up to {@code limit} bytes, stopping early at end of stream. A read
+     * failure ends the drain quietly: the caller is refusing the request either way.
+     *
+     * @param in    the stream to drain
+     * @param limit the most bytes to discard
+     */
+    private static void discardUpTo( InputStream in, long limit )
+    {
+        byte[] buffer = new byte[ 8192 ];
+        long remaining = limit;
+        try {
+            while ( remaining > 0 ) {
+                int read = in.read( buffer, 0, (int) Math.min( buffer.length, remaining ) );
+                if ( read < 0 ) {
+                    return;
+                }
+                remaining -= read;
+            }
+        }
+        catch ( IOException e ) {
+            // Nothing to do: the request is being refused regardless.
         }
     }
 
