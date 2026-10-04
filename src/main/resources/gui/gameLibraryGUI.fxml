@@ -49,8 +49,8 @@
              where the macOS hidden-inset window title floats. Mirrors the mainGUI
              top-bar pattern. -->
         <RowConstraints minHeight="48.0" prefHeight="48.0" maxHeight="48.0"/>
-        <!-- Row 3: pagination bar (prev / page X of Y / next + per-page selector), ~40 px -->
-        <RowConstraints minHeight="40.0" prefHeight="40.0" maxHeight="40.0"/>
+        <!-- Row 3: pagination bar (prev / page X of Y / next + per-page selector), 48 px -->
+        <RowConstraints minHeight="48.0" prefHeight="48.0" maxHeight="48.0"/>
         <!-- Row 4: card grid (fills available space) -->
         <RowConstraints vgrow="ALWAYS"/>
         <!-- Row 5: bottom action bar (add-from-URL + editor + return), ~52 px -->

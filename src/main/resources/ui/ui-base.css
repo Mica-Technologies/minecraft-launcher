@@ -609,6 +609,17 @@
 .mfx-button.iconBtn .iconBtnGlyph { -fx-fill: -md-on-surface-variant; }
 .mfx-button.iconBtn:hover .iconBtnGlyph { -fx-fill: -md-on-surface; }
 .mfx-button.iconBtn:disabled { -fx-opacity: 0.38; }
+/* In the 48 px toolbar rows (pagination) icon buttons are 36 px, so with the bar's
+ * 6 px padding they fit the row instead of spilling over the row above. */
+.navBar .mfx-button.iconBtn,
+.bottomBar .mfx-button.iconBtn {
+    -fx-padding: 6;
+    -fx-min-width: 36;
+    -fx-min-height: 36;
+    -fx-pref-width: 36;
+    -fx-pref-height: 36;
+    -fx-max-height: 36;
+}
 
 .playBtnIcon { -fx-fill: -md-on-primary; }
 

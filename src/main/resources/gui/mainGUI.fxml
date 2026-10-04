@@ -52,7 +52,7 @@
         <!-- Row 3: Pagination bar — prev / page X of Y / next + per-page
              selector. Sits between the filter row and the cards so the user
              can see where they are without scrolling. -->
-        <RowConstraints maxHeight="40.0" minHeight="40.0" prefHeight="40.0"/>
+        <RowConstraints maxHeight="48.0" minHeight="48.0" prefHeight="48.0"/>
         <!-- Row 4: Main content (fills remaining) -->
         <RowConstraints vgrow="ALWAYS"/>
         <!-- Row 5: Bottom status bar -->
