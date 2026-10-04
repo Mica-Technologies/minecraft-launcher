@@ -549,6 +549,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             Integer selected = pageSizeFilter.getValue();
             if ( selected != null ) vm.setPageSize( selected );
         } );
+        IconButtons.decorate( prevPageBtn, LauncherIcons.PREVIOUS,
+                              LocalizationManager.get( "main.pagination.prevPage" ) );
+        IconButtons.decorate( nextPageBtn, LauncherIcons.NEXT,
+                              LocalizationManager.get( "main.pagination.nextPage" ) );
         prevPageBtn.setOnAction( e -> vm.prevPage() );
         nextPageBtn.setOnAction( e -> vm.nextPage() );
 
@@ -1520,7 +1524,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             websiteBtn.setMinHeight( BTN_H );
             websiteBtn.setPrefHeight( BTN_H );
             websiteBtn.setMaxHeight( BTN_H );
-            websiteBtn.setPrefWidth( 96 );
+            websiteBtn.setMinWidth( javafx.scene.layout.Region.USE_PREF_SIZE );
             websiteBtn.setOnAction( e -> openModpackWebsite( this.pack ) );
 
             actions.getChildren().addAll( playBtn, websiteBtn );

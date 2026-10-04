@@ -209,6 +209,19 @@ def build():
         ('SEARCH', m('search'), 'Search: Material Symbols "search".'),
         ('WARNING', m('warning'), 'Warning: Material Symbols "warning".'),
         ('PLAY', m('play_arrow'), 'Play: Material Symbols "play_arrow".'),
+        ('PREVIOUS', m('chevron_left'), 'Previous: Material Symbols "chevron_left".'),
+        ('NEXT', m('chevron_right'), 'Next: Material Symbols "chevron_right".'),
+        ('ARROW_UP', m('keyboard_arrow_up'), 'Arrow up: Material Symbols "keyboard_arrow_up".'),
+        ('ARROW_DOWN', m('keyboard_arrow_down'), 'Arrow down: Material Symbols "keyboard_arrow_down".'),
+        ('COPY', m('content_copy'), 'Copy: Material Symbols "content_copy".'),
+        ('STOP', m('stop'), 'Stop: Material Symbols "stop".'),
+        ('EXPAND', m('expand_more'), 'Expand: Material Symbols "expand_more".'),
+        ('ANNOUNCEMENT', m('campaign'), 'Announcement: Material Symbols "campaign".'),
+        ('DELETE', m('delete'), 'Delete: Material Symbols "delete".'),
+        ('HELP', m('help'), 'Help: Material Symbols "help".'),
+        ('BROWSE', m('explore'), 'Browse: Material Symbols "explore".'),
+        ('OPEN_EXTERNAL', m('open_in_new'), 'Open external: Material Symbols "open_in_new".'),
+        ('EMPTY_BOX', m('inventory_2'), 'Empty box: Material Symbols "inventory_2".'),
     ]
     header = (HERE.parent.parent / 'src/main/java/com/micatechnologies/minecraft/launcher/gui/ShapeScale.java').read_text()
     header = header[:header.index('package ')]

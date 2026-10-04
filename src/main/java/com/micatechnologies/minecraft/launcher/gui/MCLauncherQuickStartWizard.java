@@ -251,11 +251,11 @@ public final class MCLauncherQuickStartWizard
 
         backBtn = new MFXButton( LocalizationManager.get( "quickStart.backBtn" ) );
         backBtn.setOnAction( e -> goToStep( currentStep - 1 ) );
-        backBtn.setPrefWidth( 90 );
+        backBtn.setMinWidth( javafx.scene.layout.Region.USE_PREF_SIZE );
 
         nextBtn = new MFXButton( LocalizationManager.get( "quickStart.nextBtn.next" ) );
         nextBtn.getStyleClass().add( "primary" );
-        nextBtn.setPrefWidth( 140 );
+        nextBtn.setMinWidth( javafx.scene.layout.Region.USE_PREF_SIZE );
         nextBtn.setOnAction( e -> {
             if ( currentStep == steps.length - 1 ) {
                 finish();

@@ -2306,7 +2306,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         websiteBtn.setMinHeight( BTN_H );
         websiteBtn.setPrefHeight( BTN_H );
         websiteBtn.setMaxHeight( BTN_H );
-        websiteBtn.setPrefWidth( 110 );
+        websiteBtn.setMinWidth( javafx.scene.layout.Region.USE_PREF_SIZE );
         websiteBtn.setOnAction( e -> openModpackWebsite( pack ) );
         if ( pack.getPackURL() == null || pack.getPackURL().isBlank() ) {
             websiteBtn.setDisable( true );

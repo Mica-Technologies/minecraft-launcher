@@ -179,7 +179,7 @@
         <padding><Insets left="14.0" right="14.0"/></padding>
         <Label fx:id="statusLabel" text="%editor.status.noFile" styleClass="muted"/>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="saveBtn" prefHeight="28.0" prefWidth="80.0" text="%editor.saveBtn"/>
-        <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="%editor.returnBtn"/>
+        <MFXButton minWidth="-Infinity" fx:id="saveBtn" prefHeight="28.0" text="%editor.saveBtn"/>
+        <MFXButton minWidth="-Infinity" fx:id="returnBtn" prefHeight="28.0" text="%editor.returnBtn"/>
     </HBox>
 </GridPane>

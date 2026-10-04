@@ -354,6 +354,10 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             Integer selected = pageSizeFilter.getValue();
             if ( selected != null ) vm.setPageSize( selected );
         } );
+        IconButtons.decorate( prevPageBtn, LauncherIcons.PREVIOUS,
+                              LocalizationManager.get( "main.pagination.prevPage" ) );
+        IconButtons.decorate( nextPageBtn, LauncherIcons.NEXT,
+                              LocalizationManager.get( "main.pagination.nextPage" ) );
         prevPageBtn.setOnAction( e -> vm.prevPage() );
         nextPageBtn.setOnAction( e -> vm.nextPage() );
 
@@ -2364,7 +2368,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             MFXButton btn = new MFXButton( label );
             btn.getStyleClass().add( "heroCardSecondaryBtn" );
             btn.setPrefHeight( 32 );
-            btn.setPrefWidth( 80 );
+            btn.setMinWidth( javafx.scene.layout.Region.USE_PREF_SIZE );
             btn.setOnAction( e -> onClick.run() );
             return btn;
         }

@@ -77,10 +77,10 @@
         <HBox spacing="10.0" alignment="CENTER_LEFT">
             <Label fx:id="statusLabel" text="%runtime.status.selectAPrompt" styleClass="muted"/>
             <Pane HBox.hgrow="ALWAYS"/>
-            <MFXButton fx:id="refreshBtn" prefHeight="28.0" prefWidth="110.0" text="%runtime.refreshBtn"/>
-            <MFXButton fx:id="deleteBtn" prefHeight="28.0" prefWidth="110.0" styleClass="dangerZone"
+            <MFXButton minWidth="-Infinity" fx:id="refreshBtn" prefHeight="28.0" text="%runtime.refreshBtn"/>
+            <MFXButton minWidth="-Infinity" fx:id="deleteBtn" prefHeight="28.0" styleClass="dangerZone"
                        text="%runtime.deleteBtn"/>
-            <MFXButton fx:id="deleteAllBtn" prefHeight="28.0" prefWidth="110.0" styleClass="dangerZone"
+            <MFXButton minWidth="-Infinity" fx:id="deleteAllBtn" prefHeight="28.0" styleClass="dangerZone"
                        text="%runtime.deleteAllBtn"/>
         </HBox>
     </VBox>
@@ -91,6 +91,6 @@
         <Label fx:id="infoLabel" text="%runtime.infoLabel"
                styleClass="muted"/>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="%runtime.returnBtn"/>
+        <MFXButton minWidth="-Infinity" fx:id="returnBtn" prefHeight="28.0" text="%runtime.returnBtn"/>
     </HBox>
 </GridPane>

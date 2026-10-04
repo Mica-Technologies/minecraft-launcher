@@ -175,9 +175,9 @@
         <padding><Insets left="20.0" right="20.0"/></padding>
         <Label fx:id="paginationRangeLabel" text="" styleClass="muted"/>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="prevPageBtn" prefHeight="28.0" prefWidth="70.0" text="%main.pagination.prev"/>
+        <MFXButton minWidth="-Infinity" fx:id="prevPageBtn" prefHeight="28.0" text="%main.pagination.prev"/>
         <Label fx:id="paginationPageLabel" text="" styleClass="muted"/>
-        <MFXButton fx:id="nextPageBtn" prefHeight="28.0" prefWidth="70.0" text="%main.pagination.next"/>
+        <MFXButton minWidth="-Infinity" fx:id="nextPageBtn" prefHeight="28.0" text="%main.pagination.next"/>
         <Pane HBox.hgrow="SOMETIMES" minWidth="20.0"/>
         <Label text="%main.pagination.perPageLabel" styleClass="muted"/>
         <MFXComboBox fx:id="pageSizeFilter" minWidth="80.0" prefWidth="80.0"

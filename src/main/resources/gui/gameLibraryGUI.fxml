@@ -139,9 +139,9 @@
         <Label fx:id="backgroundFetchLabel" text="%main.fetchLabel.loading"
                styleClass="muted" visible="false" managed="false"/>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="prevPageBtn" prefHeight="28.0" prefWidth="60.0" text="%main.pagination.prev"/>
+        <MFXButton minWidth="-Infinity" fx:id="prevPageBtn" prefHeight="28.0" text="%main.pagination.prev"/>
         <Label fx:id="paginationPageLabel" text="" styleClass="muted"/>
-        <MFXButton fx:id="nextPageBtn" prefHeight="28.0" prefWidth="70.0" text="%main.pagination.next"/>
+        <MFXButton minWidth="-Infinity" fx:id="nextPageBtn" prefHeight="28.0" text="%main.pagination.next"/>
         <Pane HBox.hgrow="SOMETIMES" minWidth="20.0"/>
         <Label text="%main.pagination.perPageLabel" styleClass="muted"/>
         <MFXComboBox fx:id="pageSizeFilter" minWidth="80.0" prefWidth="80.0"
@@ -167,16 +167,16 @@
         <MFXTextField fx:id="urlAddField" promptText="%browse.addByUrl.prompt" minHeight="32.0"
                       prefHeight="32.0" prefWidth="320.0" HBox.hgrow="SOMETIMES"
                       styleClass="no-floating-label"/>
-        <MFXButton fx:id="urlAddBtn" prefHeight="32.0" prefWidth="120.0" text="%browse.bottomBar.urlAddBtn"/>
-        <MFXButton fx:id="importZipBtn" prefHeight="32.0" prefWidth="130.0" text="%browse.bottomBar.importZipBtn"/>
-        <MFXButton fx:id="importPrismBtn" prefHeight="32.0" prefWidth="150.0"
+        <MFXButton minWidth="-Infinity" fx:id="urlAddBtn" prefHeight="32.0" text="%browse.bottomBar.urlAddBtn"/>
+        <MFXButton minWidth="-Infinity" fx:id="importZipBtn" prefHeight="32.0" text="%browse.bottomBar.importZipBtn"/>
+        <MFXButton minWidth="-Infinity" fx:id="importPrismBtn" prefHeight="32.0"
                    text="%browse.bottomBar.importPrismBtn"/>
 
         <Pane HBox.hgrow="ALWAYS"/>
 
-        <MFXButton fx:id="editorBtn" prefHeight="32.0" prefWidth="130.0" text="%browse.bottomBar.editorBtn"/>
-        <MFXButton fx:id="hostingManifestBtn" prefHeight="32.0" prefWidth="170.0"
+        <MFXButton minWidth="-Infinity" fx:id="editorBtn" prefHeight="32.0" text="%browse.bottomBar.editorBtn"/>
+        <MFXButton minWidth="-Infinity" fx:id="hostingManifestBtn" prefHeight="32.0"
                    text="%browse.hostingManifest.label"/>
-        <MFXButton fx:id="returnBtn" prefHeight="32.0" prefWidth="80.0" text="%browse.bottomBar.returnBtn"/>
+        <MFXButton minWidth="-Infinity" fx:id="returnBtn" prefHeight="32.0" text="%browse.bottomBar.returnBtn"/>
     </HBox>
 </GridPane>

@@ -157,7 +157,7 @@
                             <VBox fx:id="savedAccountsList" spacing="6" />
                         </VBox>
                         <VBox styleClass="settingsRow" spacing="6">
-                            <MFXButton fx:id="addAccountBtn" prefHeight="30.0" prefWidth="180.0" text="%settings.accounts.add" styleClass="type-label-medium"/>
+                            <MFXButton minWidth="-Infinity" fx:id="addAccountBtn" prefHeight="30.0" text="%settings.accounts.add" styleClass="type-label-medium"/>
                         </VBox>
                     </VBox>
                     <!-- Log out -->
@@ -165,7 +165,7 @@
                     <VBox styleClass="settingsGroup, dangerZone" spacing="2">
                         <VBox styleClass="settingsRow" spacing="6">
                             <Label text="%settings.accounts.signOutHint" wrapText="true" styleClass="settingsHint"/>
-                            <MFXButton fx:id="logoutBtn" prefHeight="30.0" prefWidth="160.0" text="%settings.accounts.signOutDefault" styleClass="dangerZone, type-label-medium"/>
+                            <MFXButton minWidth="-Infinity" fx:id="logoutBtn" prefHeight="30.0" text="%settings.accounts.signOutDefault" styleClass="dangerZone, type-label-medium"/>
                         </VBox>
                     </VBox>
                 </VBox>
@@ -319,7 +319,7 @@
                         <VBox styleClass="settingsRow" spacing="6">
                             <Label text="%settings.fxml.reHashesEvery" wrapText="true" styleClass="settingsHint"/>
                             <HBox spacing="8">
-                                <MFXButton fx:id="verifyAllGameFilesBtn" prefHeight="30.0" prefWidth="180.0" text="%settings.fxml.verifyAllGame" styleClass="type-label-medium"/>
+                                <MFXButton minWidth="-Infinity" fx:id="verifyAllGameFilesBtn" prefHeight="30.0" text="%settings.fxml.verifyAllGame" styleClass="type-label-medium"/>
                             </HBox>
                         </VBox>
                     </VBox>
@@ -329,8 +329,8 @@
                             <Label text="%settings.fxml.curseforgeCoreApi" wrapText="true" styleClass="settingsHint"/>
                             <HBox spacing="8" alignment="CENTER_LEFT">
                                 <MFXPasswordField fx:id="curseForgeApiKeyField" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="320.0" floatingText="CurseForge API key" />
-                                <MFXButton fx:id="curseForgeApiKeySaveBtn" prefHeight="30.0" prefWidth="80.0" text="%settings.fxml.save" styleClass="type-label-medium"/>
-                                <MFXButton fx:id="curseForgeApiKeyClearBtn" prefHeight="30.0" prefWidth="80.0" text="%settings.fxml.clear" styleClass="type-label-medium"/>
+                                <MFXButton minWidth="-Infinity" fx:id="curseForgeApiKeySaveBtn" prefHeight="30.0" text="%settings.fxml.save" styleClass="type-label-medium"/>
+                                <MFXButton minWidth="-Infinity" fx:id="curseForgeApiKeyClearBtn" prefHeight="30.0" text="%settings.fxml.clear" styleClass="type-label-medium"/>
                             </HBox>
                             <Label fx:id="curseForgeApiKeyStatusLabel" styleClass="muted, settingsHint"/>
                         </VBox>
@@ -482,26 +482,26 @@
                     <VBox styleClass="settingsGroup" spacing="2">
                         <VBox styleClass="settingsRow" spacing="6">
                             <HBox spacing="8">
-                                <MFXButton fx:id="resetLauncherBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.resetLauncher" styleClass="type-label-medium"/>
-                                <MFXButton fx:id="resetRuntimeBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.resetRuntimes" styleClass="type-label-medium"/>
+                                <MFXButton minWidth="-Infinity" fx:id="resetLauncherBtn" prefHeight="30.0" text="%settings.fxml.resetLauncher" styleClass="type-label-medium"/>
+                                <MFXButton minWidth="-Infinity" fx:id="resetRuntimeBtn" prefHeight="30.0" text="%settings.fxml.resetRuntimes" styleClass="type-label-medium"/>
                             </HBox>
                         </VBox>
                         <VBox styleClass="settingsRow" spacing="6">
-                            <MFXButton fx:id="manageRuntimeBtn" prefHeight="30.0" prefWidth="140.0" text="%settings.fxml.manageRuntimes" styleClass="type-label-medium"/>
+                            <MFXButton minWidth="-Infinity" fx:id="manageRuntimeBtn" prefHeight="30.0" text="%settings.fxml.manageRuntimes" styleClass="type-label-medium"/>
                         </VBox>
                     </VBox>
                     <Label text="%settings.fxml.importExport" styleClass="settingsSectionTitle"/>
                     <VBox styleClass="settingsGroup" spacing="2">
                         <VBox styleClass="settingsRow" spacing="6">
                             <HBox spacing="8">
-                                <MFXButton fx:id="exportSettingsBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.exportSettings" styleClass="type-label-medium"/>
-                                <MFXButton fx:id="importSettingsBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.importSettings" styleClass="type-label-medium"/>
+                                <MFXButton minWidth="-Infinity" fx:id="exportSettingsBtn" prefHeight="30.0" text="%settings.fxml.exportSettings" styleClass="type-label-medium"/>
+                                <MFXButton minWidth="-Infinity" fx:id="importSettingsBtn" prefHeight="30.0" text="%settings.fxml.importSettings" styleClass="type-label-medium"/>
                             </HBox>
                         </VBox>
                     </VBox>
                     <VBox styleClass="settingsGroup" spacing="2">
                         <VBox styleClass="settingsRow" spacing="6">
-                            <MFXButton fx:id="openFolderBtn" prefHeight="28.0" prefWidth="180.0" text="%settings.fxml.openLauncherFolder" />
+                            <MFXButton minWidth="-Infinity" fx:id="openFolderBtn" prefHeight="28.0" text="%settings.fxml.openLauncherFolder" />
                             <Label fx:id="versionLabel" text="%settings.fxml.launcherVersionErr_unk" wrapText="true" styleClass="settingsHint"/>
                         </VBox>
                     </VBox>
@@ -608,7 +608,7 @@
                     <VBox styleClass="settingsGroup" spacing="2">
                         <VBox styleClass="settingsRow" spacing="6">
                             <Label styleClass="muted, settingsHint" text="%settings.fxml.flashesSolidMagenta" wrapText="true"/>
-                            <MFXButton fx:id="rgbTestBtn" prefHeight="30.0" prefWidth="160.0" text="%settings.fxml.testConnection" />
+                            <MFXButton minWidth="-Infinity" fx:id="rgbTestBtn" prefHeight="30.0" text="%settings.fxml.testConnection" />
                         </VBox>
                     </VBox>
                 </VBox>
@@ -640,8 +640,8 @@
                         </VBox>
                         <VBox styleClass="settingsRow" spacing="6">
                             <HBox spacing="8" alignment="CENTER_LEFT">
-                                <MFXButton fx:id="aboutWebsiteBtn" prefHeight="28.0" prefWidth="140.0" text="%settings.fxml.visitWebsite" styleClass="type-label-medium"/>
-                                <MFXButton fx:id="aboutSourceBtn" prefHeight="28.0" prefWidth="140.0" text="%settings.fxml.viewSource" styleClass="type-label-medium"/>
+                                <MFXButton minWidth="-Infinity" fx:id="aboutWebsiteBtn" prefHeight="28.0" text="%settings.fxml.visitWebsite" styleClass="type-label-medium"/>
+                                <MFXButton minWidth="-Infinity" fx:id="aboutSourceBtn" prefHeight="28.0" text="%settings.fxml.viewSource" styleClass="type-label-medium"/>
                             </HBox>
                         </VBox>
                     </VBox>
@@ -695,13 +695,13 @@
             <Insets left="14.0" right="14.0" />
         </padding>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="saveBtn" prefHeight="28.0" prefWidth="80.0" text="%settings.fxml.save" />
+        <MFXButton minWidth="-Infinity" fx:id="saveBtn" prefHeight="28.0" text="%settings.fxml.save" />
         <!-- Only shown (visible + managed) while a language change is pending — a
              language switch needs a relaunch to fully re-apply (Locale.setDefault and
              the static translation fields are locked at launch), so this offers a
              save-and-relaunch shortcut inline next to Save. Toggled in
              MCLauncherSettingsGui via the language dropdown listener. -->
-        <MFXButton fx:id="saveAndRestartBtn" prefHeight="28.0" prefWidth="140.0" text="%settings.fxml.saveAndRestart" visible="false" managed="false" />
-        <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="%settings.fxml.return" />
+        <MFXButton minWidth="-Infinity" fx:id="saveAndRestartBtn" prefHeight="28.0" text="%settings.fxml.saveAndRestart" visible="false" managed="false" />
+        <MFXButton minWidth="-Infinity" fx:id="returnBtn" prefHeight="28.0" text="%settings.fxml.return" />
     </HBox>
 </GridPane>
