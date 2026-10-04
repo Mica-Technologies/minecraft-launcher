@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.micatechnologies.minecraft.launcher.gui.LauncherIcons?>
+<?import javafx.scene.shape.SVGPath?>
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
 <?import io.github.palexdev.materialfx.controls.MFXComboBox?>
 <?import io.github.palexdev.materialfx.controls.MFXTextField?>
@@ -49,7 +51,9 @@
     <!-- Row 1: Announcement (below the navbar) -->
     <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308"
            maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement"
-           text="--" wrapText="true" GridPane.rowIndex="1"/>
+           text="--" wrapText="true" GridPane.rowIndex="1">
+        <graphic><SVGPath styleClass="bannerIcon"><content><LauncherIcons fx:constant="ANNOUNCEMENT"/></content></SVGPath></graphic>
+    </Label>
 
     <!-- Row 0: Top navbar — matches mainGUI / library / settings so the editor
          reads as part of the same app shell. Brand lockup on the left, screen
@@ -69,7 +73,9 @@
 
         <Label fx:id="offlineLabel" text="%main.fetchLabel.offline" managed="false" visible="false"
                styleClass="chip-offline"/>
-        <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
+        <Label fx:id="helpBtn" styleClass="helpButton" accessibleText="%menu.help.title">
+            <graphic><SVGPath styleClass="helpButtonGlyph"><content><LauncherIcons fx:constant="HELP"/></content></SVGPath></graphic>
+        </Label>
     </HBox>
 
     <!-- Row 2: File / document tools. These are contextual to the editor

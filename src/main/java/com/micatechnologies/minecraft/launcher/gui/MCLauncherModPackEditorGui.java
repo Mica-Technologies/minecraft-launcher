@@ -311,6 +311,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     @Override
     void setup()
     {
+        AnnouncementBanners.show( announcement, announcementRow,
+                                  com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager.getAnnouncementModpacksEdit() );
         // Configure window close
         stage.setOnCloseRequest( windowEvent -> {
             windowEvent.consume();

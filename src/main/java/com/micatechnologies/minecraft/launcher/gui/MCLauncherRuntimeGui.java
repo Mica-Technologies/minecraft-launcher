@@ -212,6 +212,8 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
      */
     @Override
     void setup() {
+        AnnouncementBanners.show( announcement, announcementRow,
+                                  com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager.getAnnouncementConfig() );
         // Configure window close -- X button closes the app
         stage.setOnCloseRequest( windowEvent -> {
             windowEvent.consume();

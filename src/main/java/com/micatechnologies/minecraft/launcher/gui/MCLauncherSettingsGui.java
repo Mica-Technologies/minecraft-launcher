@@ -1112,8 +1112,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         String announcementText = AnnouncementManager.getAnnouncementConfig();
         if ( announcementText.length() > 0 ) {
             announcement.setText( announcementText );
-            announcement.setMinHeight( 30 );
-            announcementRow.setMinHeight( 30 );
+            announcement.setMinHeight( 40 );
+            announcementRow.setMinHeight( 40 );
         }
         else {
             announcement.setMaxHeight( 0 );

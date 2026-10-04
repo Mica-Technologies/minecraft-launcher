@@ -68,8 +68,12 @@
           GridPane.rowIndex="1">
         <padding><Insets left="12.0" right="4.0"/></padding>
         <Label fx:id="announcement" alignment="CENTER" maxWidth="Infinity" minHeight="0.0"
-               textAlignment="CENTER" text="--" wrapText="true" HBox.hgrow="ALWAYS"/>
-        <Label fx:id="announcementClose" text="✕" styleClass="bannerCloseBtn"/>
+               textAlignment="CENTER" text="--" wrapText="true" HBox.hgrow="ALWAYS">
+            <graphic><SVGPath styleClass="bannerIcon"><content><LauncherIcons fx:constant="ANNOUNCEMENT"/></content></SVGPath></graphic>
+        </Label>
+        <Label fx:id="announcementClose" styleClass="bannerCloseBtn" accessibleText="%banner.dismiss">
+            <graphic><SVGPath styleClass="bannerCloseGlyph"><content><LauncherIcons fx:constant="CLOSE"/></content></SVGPath></graphic>
+        </Label>
     </HBox>
 
     <!-- Row 0: Top navigation bar -->
@@ -113,8 +117,12 @@
              the wordmark area above now uses "Library" as the screen-name header
              for the main menu itself — "Browse" reads better as the verb for going
              out to find more packs to add to that library. -->
-        <MFXButton fx:id="libraryBtn" text="%main.navbar.browse" prefHeight="28.0"/>
-        <MFXButton fx:id="settingsBtn" text="%main.navbar.settings" prefHeight="28.0"/>
+        <MFXButton fx:id="libraryBtn" text="%main.navbar.browse" styleClass="navActionBtn">
+            <graphic><SVGPath styleClass="navActionGlyph"><content><LauncherIcons fx:constant="BROWSE"/></content></SVGPath></graphic>
+        </MFXButton>
+        <MFXButton fx:id="settingsBtn" text="%main.navbar.settings" styleClass="navActionBtn">
+            <graphic><SVGPath styleClass="navActionGlyph"><content><LauncherIcons fx:constant="SYSTEM"/></content></SVGPath></graphic>
+        </MFXButton>
 
         <!-- Update available icon. Inline SVG (download-arrow over a tray bar) instead of
              a PNG file so it's theme-coloured via -fx-fill: -color-primary and never breaks
@@ -128,17 +136,21 @@
 
         <!-- Help — a Label rather than a Button to avoid MFXButton text-rendering quirks. Click handler
              is wired in the controller; pointer cursor and hover styling come from .helpButton CSS. -->
-        <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
+        <Label fx:id="helpBtn" styleClass="helpButton" accessibleText="%menu.help.title">
+            <graphic><SVGPath styleClass="helpButtonGlyph"><content><LauncherIcons fx:constant="HELP"/></content></SVGPath></graphic>
+        </Label>
 
         <!-- Subtle vertical divider between actions and identity -->
         <Region styleClass="navDivider" prefWidth="1" prefHeight="22"/>
 
         <!-- User identity, right-aligned -->
-        <ImageView fx:id="userImage" accessibleText="Player avatar" fitHeight="28.0" fitWidth="28.0"
-                   pickOnBounds="true" preserveRatio="true">
-            <Image url="@../no_user.png"/>
-        </ImageView>
-        <Label fx:id="playerLabel" text="%main.navbar.player"/>
+        <HBox styleClass="accountChip" alignment="CENTER_LEFT" spacing="8.0">
+            <ImageView fx:id="userImage" accessibleText="Player avatar" fitHeight="28.0" fitWidth="28.0"
+                       pickOnBounds="true" preserveRatio="true">
+                <Image url="@../no_user.png"/>
+            </ImageView>
+            <Label fx:id="playerLabel" text="%main.navbar.player"/>
+        </HBox>
     </HBox>
 
     <!-- Row 2: Filter / search row. Label prefixes (Search / Type / Sort) rather

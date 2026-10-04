@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.micatechnologies.minecraft.launcher.gui.LauncherIcons?>
+<?import javafx.scene.shape.SVGPath?>
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
 <?import io.github.palexdev.materialfx.controls.MFXComboBox?>
 <?import io.github.palexdev.materialfx.controls.MFXTextField?>
@@ -58,7 +60,9 @@
     <!-- Row 1: Announcement banner (below the navbar) -->
     <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308"
            maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement"
-           text="--" textAlignment="CENTER" wrapText="true" GridPane.rowIndex="1"/>
+           text="--" textAlignment="CENTER" wrapText="true" GridPane.rowIndex="1">
+        <graphic><SVGPath styleClass="bannerIcon"><content><LauncherIcons fx:constant="ANNOUNCEMENT"/></content></SVGPath></graphic>
+    </Label>
 
     <!-- Row 0: Top navbar — brand + help only. The search/type/status/sort filters
          moved to their own row (Row 2) so they no longer reach the horizontal centre,
@@ -89,7 +93,9 @@
         <!-- Navbar-anchored help button, same pattern as mainGUI / settings / editor /
              runtime / console so MCLauncherGuiWindow.injectHelpButton's corner-overlay
              fallback doesn't drop it on top of the navbar at runtime. -->
-        <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
+        <Label fx:id="helpBtn" styleClass="helpButton" accessibleText="%menu.help.title">
+            <graphic><SVGPath styleClass="helpButtonGlyph"><content><LauncherIcons fx:constant="HELP"/></content></SVGPath></graphic>
+        </Label>
     </HBox>
 
     <!-- Row 2: Filter / search row. Label prefixes instead of MFX's floatingText

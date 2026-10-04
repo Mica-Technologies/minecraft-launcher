@@ -370,6 +370,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 e -> AccountSwitcherMenu.show( (Node) e.getSource(), () -> openAccountSettings.handle( e ) );
         userImage.setOnMouseClicked( showAccountMenu );
         userImage.setCursor( Cursor.HAND );
+        // A round avatar, as Material shows account images.
+        userImage.setClip( new javafx.scene.shape.Circle( 14, 14, 14 ) );
         playerLabel.setOnMouseClicked( showAccountMenu );
         playerLabel.setCursor( Cursor.HAND );
 

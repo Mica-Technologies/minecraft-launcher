@@ -2847,3 +2847,86 @@
 .table-view:hover .scroll-bar .thumb { -fx-background-color: -md-outline; }
 .scroll-bar .thumb:hover,
 .scroll-bar .thumb:pressed { -fx-background-color: -md-on-surface-variant; }
+
+
+/* =============================================================================
+ * Top bars and banners, Material 3 (second refresh pass).
+ * ============================================================================= */
+
+/* Announcement banner: a 12 px warning-container card inset in its 40 px row, with a
+ * campaign icon, instead of a full-width yellow strip. (The row heights are fixed in
+ * FXML/code; the inset comes from background insets, so layout is unchanged.) */
+.banner-announcement,
+.label.banner-announcement {
+    -fx-background-color: -md-warning-container;
+    -fx-background-insets: 4 12 4 12;
+    -fx-background-radius: 12;
+    -fx-text-fill: -md-on-warning-container;
+    -fx-padding: 0 28 0 28;
+    -fx-graphic-text-gap: 10;
+}
+.banner-announcement > .label { -fx-text-fill: -md-on-warning-container; }
+.bannerIcon, .bannerCloseGlyph {
+    -fx-fill: -md-on-warning-container;
+    -fx-scale-x: 0.8;
+    -fx-scale-y: 0.8;
+}
+.bannerCloseBtn {
+    -fx-padding: 4;
+    -fx-background-radius: 999;
+    -fx-opacity: 1;
+    -fx-cursor: hand;
+}
+.bannerCloseBtn:hover { -fx-background-color: -md-state-hover-on-surface; }
+
+/* Help: a standard icon button with the help glyph (was a "?" in a filled circle). */
+.helpButton {
+    -fx-background-color: transparent;
+    -fx-background-radius: 999;
+    -fx-min-width: 40;
+    -fx-min-height: 40;
+    -fx-pref-width: 40;
+    -fx-pref-height: 40;
+    -fx-max-width: 40;
+    -fx-max-height: 40;
+    -fx-alignment: center;
+    -fx-border-width: 0;
+    -fx-cursor: hand;
+    -fx-content-display: graphic-only;
+}
+.helpButton.mfx-button {
+    -fx-background-color: transparent;
+    -fx-min-width: 40;
+    -fx-min-height: 40;
+    -fx-max-width: 40;
+    -fx-max-height: 40;
+}
+.helpButton:hover, .helpButton.mfx-button:hover { -fx-background-color: -md-state-hover-on-surface; }
+.helpButtonGlyph { -fx-fill: -md-on-surface-variant; }
+.helpButton:hover .helpButtonGlyph { -fx-fill: -md-on-surface; }
+
+/* App bar actions: tonal pills with a leading 18 px icon. */
+.mfx-button.navActionBtn { -fx-graphic-text-gap: 6; -fx-padding: 6 16 6 12; }
+.navActionGlyph {
+    -fx-fill: -md-on-surface-variant;
+    -fx-scale-x: 0.75;
+    -fx-scale-y: 0.75;
+}
+
+/* Account chip: the round avatar and name, a pill that highlights on hover. */
+.accountChip {
+    -fx-background-radius: 999;
+    -fx-padding: 4 12 4 4;
+    -fx-cursor: hand;
+}
+.accountChip:hover { -fx-background-color: -md-state-hover-on-surface; }
+
+/* Refresh and update glyphs in the app bar: brighten on hover like icon buttons. */
+.navRefreshIcon { -fx-fill: -md-on-surface-variant; }
+.navRefreshIcon:hover { -fx-fill: -md-on-surface; }
+
+/* Bottom bars: a quiet tonal strip without the divider line. */
+.bottomBar {
+    -fx-background-color: -md-surface-container-low;
+    -fx-border-width: 0;
+}

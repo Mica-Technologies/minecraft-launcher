@@ -1370,8 +1370,13 @@ public class MCLauncherGuiWindow extends Application
             return;
         }
 
-        MFXButton helpBtn = new MFXButton( "?" );
+        MFXButton helpBtn = new MFXButton( "" );
         helpBtn.getStyleClass().add( "helpButton" );
+        javafx.scene.shape.SVGPath helpGlyph = new javafx.scene.shape.SVGPath();
+        helpGlyph.setContent( LauncherIcons.HELP );
+        helpGlyph.getStyleClass().add( "helpButtonGlyph" );
+        helpBtn.setGraphic( helpGlyph );
+        helpBtn.setAccessibleText( LocalizationManager.get( "menu.help.title" ) );
         helpBtn.setOnAction( e -> MCLauncherHelpWindow.show( gui.getHelpTopic() ) );
 
         // Anchor to top-right corner of a GridPane root.
