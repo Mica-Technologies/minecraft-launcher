@@ -42,7 +42,7 @@ import java.util.List;
  *
  * <p>The wave's phase comes from the clock rather than from each bar, so a bar that is rebuilt
  * (the Running Games pane recreates its step rows on every update) keeps moving smoothly instead
- * of restarting. The animation only runs while the bar is in a scene and visible. Settings ›
+ * of restarting. The animation only runs while the bar can be seen ({@link AnimationGate}). Settings ›
  * Appearance can turn the wave off ({@link #setWavyEnabled}); bars then draw flat. Colours come
  * from {@code ui-base.css} ({@code .wavy-progress .wavy-*}).
  *
@@ -80,12 +80,11 @@ public class WavyProgressBar extends Region
         @Override
         public void handle( long now )
         {
-            // Skip while any parent is hidden: a hidden step row shouldn't keep drawing.
-            if ( LoadingIndicator.showing( WavyProgressBar.this ) ) {
-                redraw( now );
-            }
+            redraw( now );
         }
     };
+    /** Runs {@link #timer} only while the bar is seen; held here so its listeners live. */
+    private final AnimationGate gate;
 
     /** Creates a bar at zero progress. */
     public WavyProgressBar()
@@ -118,10 +117,8 @@ public class WavyProgressBar extends Region
         setMaxHeight( AMPLITUDE * 2 + STROKE + 2 );
         setPrefWidth( 240 );
 
-        // Animate only while shown.
-        sceneProperty().addListener( ( o, a, b ) -> updateTimer() );
-        visibleProperty().addListener( ( o, a, b ) -> updateTimer() );
-        progress.addListener( ( o, a, b ) -> updateTimer() );
+        // Animate only while seen: visible, in a scene, in a showing window.
+        gate = AnimationGate.attach( this, timer );
     }
 
     /**
@@ -157,16 +154,6 @@ public class WavyProgressBar extends Region
     public void setProgress( double value )
     {
         progress.set( value );
-    }
-
-    private void updateTimer()
-    {
-        if ( getScene() != null && isVisible() ) {
-            timer.start();
-        }
-        else {
-            timer.stop();
-        }
     }
 
     @Override

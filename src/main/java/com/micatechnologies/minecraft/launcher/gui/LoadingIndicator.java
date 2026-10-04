@@ -19,7 +19,6 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import javafx.animation.AnimationTimer;
-import javafx.scene.Node;
 import javafx.scene.layout.Region;
 import javafx.scene.shape.ClosePath;
 import javafx.scene.shape.LineTo;
@@ -39,7 +38,7 @@ import java.util.List;
  *
  * <p>Each shape is a radius that varies with angle, {@code 1 + a cos(kθ)} for {@code k} lobes of
  * depth {@code a}, sampled at fixed angles, so any two shapes blend point for point. The animation
- * reads the clock and skips drawing while the indicator, or any parent, is hidden.
+ * reads the clock, and runs only while the indicator can be seen ({@link AnimationGate}).
  *
  * @since 2026.10
  */
@@ -60,11 +59,11 @@ public class LoadingIndicator extends Region
         @Override
         public void handle( long now )
         {
-            if ( showing( LoadingIndicator.this ) ) {
-                draw( now / 1e9 );
-            }
+            draw( now / 1e9 );
         }
     };
+    /** Runs {@link #timer} only while the indicator is seen; held here so its listeners live. */
+    private final AnimationGate gate;
 
     /** Creates a 32 px indicator. */
     public LoadingIndicator()
@@ -77,32 +76,7 @@ public class LoadingIndicator extends Region
         setPrefSize( 32, 32 );
         setMinSize( USE_PREF_SIZE, USE_PREF_SIZE );
         setMaxSize( USE_PREF_SIZE, USE_PREF_SIZE );
-        sceneProperty().addListener( ( o, a, b ) -> {
-            if ( b != null ) {
-                timer.start();
-            }
-            else {
-                timer.stop();
-            }
-        } );
-    }
-
-    /**
-     * Whether a node and all its parents are visible: an animation inside a hidden parent would
-     * otherwise keep drawing for nothing.
-     *
-     * @param node the node
-     *
-     * @return {@code true} when nothing up the tree hides it
-     */
-    static boolean showing( Node node )
-    {
-        for ( Node n = node; n != null; n = n.getParent() ) {
-            if ( !n.isVisible() ) {
-                return false;
-            }
-        }
-        return node.getScene() != null;
+        gate = AnimationGate.attach( this, timer );
     }
 
     @Override
