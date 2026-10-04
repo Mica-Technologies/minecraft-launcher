@@ -21,6 +21,7 @@ import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.mcp.McpEndpointFile;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.JsonRpcCodec;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.McpErrors;
+import com.micatechnologies.minecraft.launcher.mcp.protocol.McpMethods;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -44,10 +45,14 @@ import java.time.Duration;
  * {@code launcher --mcp} instead runs this thin relay, which forwards each line to the launcher
  * that actually owns the files and writes the reply back.
  * <p>
- * <b>Nothing is interpreted on the way through.</b> The proxy does not parse, validate, or
- * rewrite messages; the running launcher applies every admission check and approval decision
- * exactly as it would for a direct HTTP client. A compromised relay therefore gains nothing
- * that a local process could not already attempt by talking to the port itself.
+ * <b>Nothing is interpreted on the way through.</b> The proxy does not validate or rewrite
+ * messages; the running launcher applies every admission check and approval decision exactly
+ * as it would for a direct HTTP client. A compromised relay therefore gains nothing that a
+ * local process could not already attempt by talking to the port itself. The relay only looks
+ * at a message's method to remember the client's {@code initialize}, so that when the launcher
+ * answers {@code 404} — the session expired or was evicted — it can re-run the handshake and
+ * retry once instead of failing every later call. It ends its session with {@code DELETE} when
+ * the client closes stdin, so a client restart does not leave a session behind.
  * <p>
  * <b>stdout carries protocol only.</b> Every diagnostic goes to stderr — a stray log line on
  * stdout would corrupt the JSON-RPC stream and break the client, which is why the relay never
@@ -94,6 +99,7 @@ public final class StdioProxy
                 .build();
         URI target = URI.create( "http://127.0.0.1:" + endpoint.port() + LoopbackHttpTransport.PATH );
         String sessionId = null;
+        String initializeLine = null;
 
         try ( BufferedReader reader = new BufferedReader(
                 new InputStreamReader( in, StandardCharsets.UTF_8 ) ) ) {
@@ -102,7 +108,24 @@ public final class StdioProxy
                 if ( line.isBlank() ) {
                     continue;
                 }
-                Relayed relayed = relay( client, target, endpoint.token(), sessionId, line, err );
+                boolean isInitialize = isInitialize( line );
+                if ( isInitialize ) {
+                    initializeLine = line;
+                }
+
+                // A handshake always starts a new session, so it is sent without the old id.
+                Relayed relayed = relay( client, target, endpoint.token(),
+                                         isInitialize ? null : sessionId, line, err );
+                if ( relayed.sessionUnknown() && initializeLine != null ) {
+                    // The launcher no longer holds our session (idle expiry or eviction). The
+                    // transport specification says to initialize again; do that on the
+                    // client's behalf with its own handshake, then retry this message once.
+                    String renewed = reinitialize( client, target, endpoint.token(), initializeLine, err );
+                    if ( renewed != null ) {
+                        sessionId = renewed;
+                        relayed = relay( client, target, endpoint.token(), sessionId, line, err );
+                    }
+                }
                 if ( relayed.sessionId() != null ) {
                     sessionId = relayed.sessionId();
                 }
@@ -116,22 +139,108 @@ public final class StdioProxy
         }
         catch ( IOException e ) {
             err.println( "MCP relay stopped: " + e.getClass().getSimpleName() );
+            endSession( client, target, endpoint.token(), sessionId );
             return 1;
         }
+        endSession( client, target, endpoint.token(), sessionId );
         return 0;
+    }
+
+    /**
+     * Reports whether a message is an {@code initialize} request.
+     *
+     * @param line the raw JSON-RPC message
+     *
+     * @return {@code true} for a well-formed {@code initialize}
+     */
+    private static boolean isInitialize( String line )
+    {
+        JsonRpcCodec.Parse parse = JsonRpcCodec.parse( line );
+        return parse.ok() && McpMethods.INITIALIZE.equals( parse.message().method() );
+    }
+
+    /**
+     * Re-runs the client's handshake to obtain a new session, and completes it with the
+     * {@code notifications/initialized} the client would have sent. Neither reply reaches the
+     * client: it already holds the answer to its original {@code initialize}.
+     *
+     * @param client         the HTTP client
+     * @param target         the launcher's MCP endpoint
+     * @param token          the bearer token from the endpoint file
+     * @param initializeLine the client's original {@code initialize} message
+     * @param err            where diagnostics go
+     *
+     * @return the new session id, or {@code null} when the handshake failed
+     */
+    private static String reinitialize( HttpClient client, URI target, String token,
+                                        String initializeLine, PrintStream err )
+    {
+        Relayed handshake = relay( client, target, token, null, initializeLine, err );
+        if ( handshake.sessionId() == null ) {
+            err.println( "MCP relay: could not re-establish the session" );
+            return null;
+        }
+        err.println( "MCP relay: session expired; re-initialized" );
+        relay( client, target, token, handshake.sessionId(),
+               "{\"jsonrpc\":\"2.0\",\"method\":\"" + McpMethods.NOTIFICATIONS_INITIALIZED + "\"}",
+               err );
+        return handshake.sessionId();
+    }
+
+    /**
+     * Ends the relay's session, best effort, so a client restart does not leave a session
+     * holding a slot on the launcher until it idles out.
+     *
+     * @param client    the HTTP client
+     * @param target    the launcher's MCP endpoint
+     * @param token     the bearer token from the endpoint file
+     * @param sessionId the session to end, or {@code null} when none was established
+     */
+    private static void endSession( HttpClient client, URI target, String token, String sessionId )
+    {
+        if ( sessionId == null ) {
+            return;
+        }
+        try {
+            client.send( HttpRequest.newBuilder( target )
+                                 .DELETE()
+                                 .header( "Authorization", "Bearer " + token )
+                                 .header( LoopbackHttpTransport.SESSION_HEADER, sessionId )
+                                 .timeout( Duration.ofSeconds( 5 ) )
+                                 .build(),
+                         HttpResponse.BodyHandlers.discarding() );
+        }
+        catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+        }
+        catch ( Exception ignored ) {
+            // The launcher may already be gone; its idle expiry will reclaim the session.
+        }
     }
 
     /**
      * One relayed message's outcome.
      *
-     * @param body      the response line to write to stdout, or {@code null} for a
-     *                  notification, which must not be answered
-     * @param sessionId the session id the launcher assigned, or {@code null} when unchanged
+     * @param body           the response line to write to stdout, or {@code null} for a
+     *                       notification, which must not be answered
+     * @param sessionId      the session id the launcher assigned, or {@code null} when unchanged
+     * @param sessionUnknown whether the launcher answered {@code 404}: it does not hold the
+     *                       session the message carried
      *
      * @since 3.0
      */
-    record Relayed( String body, String sessionId )
+    record Relayed( String body, String sessionId, boolean sessionUnknown )
     {
+        /**
+         * Constructs an outcome for a session the launcher recognised.
+         *
+         * @param body      the response line, or {@code null}
+         * @param sessionId the assigned session id, or {@code null}
+         */
+        Relayed( String body, String sessionId )
+        {
+            this( body, sessionId, false );
+        }
     }
 
     /**
@@ -164,9 +273,20 @@ public final class StdioProxy
             String assigned = response.headers()
                     .firstValue( LoopbackHttpTransport.SESSION_HEADER ).orElse( null );
 
+            if ( response.statusCode() == 404 && sessionId != null ) {
+                // Our session is gone. The launcher's own JSON-RPC error is passed through if
+                // the caller cannot recover by re-initializing.
+                String body = response.body() == null || response.body().isBlank() ? null : response.body();
+                return new Relayed( body, null, true );
+            }
             if ( response.statusCode() == 202 || response.body() == null || response.body().isBlank() ) {
                 // Accepted with no content: the message was a notification.
                 return new Relayed( null, assigned );
+            }
+            if ( response.statusCode() == 400 && response.body() != null && !response.body().isBlank() ) {
+                // The launcher explained the refusal in JSON-RPC terms; that is more useful to
+                // the client than a generic transport error.
+                return new Relayed( response.body(), assigned );
             }
             if ( response.statusCode() != 200 ) {
                 // Turn a transport-level rejection into a JSON-RPC error the client can read,

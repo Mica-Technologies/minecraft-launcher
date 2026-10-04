@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpAuthorizer;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.JsonRpcCodec;
+import com.micatechnologies.minecraft.launcher.mcp.protocol.JsonRpcMessage;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.McpErrors;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.McpMethods;
 import com.micatechnologies.minecraft.launcher.mcp.resources.McpResourceRegistry;
@@ -164,7 +165,7 @@ public final class McpServer
         }
 
         token = bearerToken == null || bearerToken.isBlank() ? McpAccessToken.generate() : bearerToken;
-        transport = new LoopbackHttpTransport( token, this::dispatch );
+        transport = new LoopbackHttpTransport( token, this::dispatch, sessions::remove );
         dispatcher = Executors.newSingleThreadExecutor( runnable -> {
             Thread thread = new Thread( runnable, "mcp-dispatch" );
             thread.setDaemon( true );
@@ -277,19 +278,29 @@ public final class McpServer
      */
     public List< McpSession > getSessions()
     {
+        // Sweep first, so a client that went away stops being listed once it has gone idle,
+        // not only once someone else connects.
+        sessions.evictIdle( System.currentTimeMillis() );
         return sessions.all();
     }
 
     /**
      * Handles one request body: parses it, resolves the session, and dispatches on the
      * single-threaded executor.
+     * <p>
+     * Session rules follow MCP's Streamable HTTP transport. Only {@code initialize} creates a
+     * session, and its id is returned in the {@code Mcp-Session-Id} header. Any other request
+     * must carry that id: without one it is refused with {@code 400}, and with one the server
+     * does not hold — expired, evicted, or ended — with {@code 404}, which tells the client to
+     * initialize again. The one exception is {@code ping} without an id, answered without
+     * creating anything, so a liveness check needs no handshake.
      *
      * @param body      the raw request body
      * @param sessionId the {@code Mcp-Session-Id} header, or {@code null}
      *
      * @return the response to send
      */
-    private LoopbackHttpTransport.Response dispatch( String body, String sessionId )
+    LoopbackHttpTransport.Response dispatch( String body, String sessionId )
     {
         JsonRpcCodec.Parse parse = JsonRpcCodec.parse( body );
         if ( !parse.ok() ) {
@@ -297,15 +308,35 @@ public final class McpServer
         }
 
         long now = System.currentTimeMillis();
-        McpSession session = sessions.find( sessionId );
+        JsonRpcMessage message = parse.message();
+        String method = message.method();
+        boolean hasSessionId = sessionId != null && !sessionId.isBlank();
+        boolean isInitialize = McpMethods.INITIALIZE.equals( method );
+
+        McpSession session = hasSessionId ? sessions.find( sessionId, now ) : null;
         if ( session == null ) {
-            session = sessions.create( now );
-            if ( session == null ) {
-                // At the session cap. Refusing is better than evicting someone else's session,
-                // which would silently drop their handshake state mid-conversation.
+            if ( isInitialize ) {
+                // A fresh handshake -- including a client re-initializing after a 404, which
+                // is exactly what the transport specification tells it to do.
+                session = sessions.create( now );
+            }
+            else if ( hasSessionId ) {
                 return new LoopbackHttpTransport.Response(
-                        JsonRpcCodec.error( parse.message().id(), McpErrors.INTERNAL_ERROR,
-                                            "Too many active MCP sessions" ), null );
+                        message.isNotification() ? null : JsonRpcCodec.error(
+                                message.id(), McpErrors.SESSION_NOT_FOUND,
+                                "Unknown or expired MCP session; send initialize to start a new one" ),
+                        null, 404 );
+            }
+            else if ( McpMethods.PING.equals( method ) ) {
+                // A liveness check with no session: answered, but nothing is registered.
+                session = new McpSession( "", now );
+            }
+            else {
+                return new LoopbackHttpTransport.Response(
+                        message.isNotification() ? null : JsonRpcCodec.error(
+                                message.id(), McpErrors.INVALID_REQUEST,
+                                "Missing Mcp-Session-Id header; send initialize first" ),
+                        null, 400 );
             }
         }
 
@@ -313,7 +344,7 @@ public final class McpServer
         JsonObject response;
         try {
             Future< JsonObject > future = dispatcher.submit(
-                    () -> handler.handle( parse.message(), target, now ) );
+                    () -> handler.handle( message, target, now ) );
             response = future.get();
         }
         catch ( InterruptedException e ) {
@@ -329,7 +360,7 @@ public final class McpServer
         }
 
         // The session id is echoed on the handshake so the client can carry it afterwards.
-        String echoed = McpMethods.INITIALIZE.equals( parse.message().method() ) ? target.getId() : null;
+        String echoed = isInitialize ? target.getId() : null;
         return new LoopbackHttpTransport.Response( response, echoed );
     }
 

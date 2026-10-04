@@ -196,6 +196,34 @@ class StdioProxyTest
         assertEquals( 2, replies.get( 1 ).get( "id" ).getAsInt() );
     }
 
+    /** Closing stdin ends the relay's session, so a client restart leaves nothing behind. */
+    @Test
+    void closingStdinEndsTheSession()
+    {
+        Result result = relay( initialize( 1 ), toolCall( 2 ) );
+        assertEquals( 0, result.exitCode() );
+        assertEquals( 0, server.getSessions().size() );
+    }
+
+    /**
+     * When the launcher no longer holds the relay's session (it idled out or was evicted), the
+     * relay re-runs the client's handshake and retries, so the client never sees the gap.
+     */
+    @Test
+    void aSessionTheLauncherDroppedIsReEstablishedTransparently()
+    {
+        Result result = relay( List.of( initialize( 1 ) ), this::endEverySession, toolCall( 2 ) );
+
+        List< JsonObject > replies = result.parsedOut();
+        assertEquals( 2, replies.size(), "exactly the handshake and the call reply: " + result.out() );
+        JsonObject callReply = replies.get( 1 );
+        assertEquals( 2, callReply.get( "id" ).getAsInt() );
+        assertFalse( callReply.has( "error" ), "the call was not retried: " + callReply );
+        assertEquals( "echo:Relay Test",
+                      callReply.getAsJsonObject( "result" ).getAsJsonArray( "content" )
+                              .get( 0 ).getAsJsonObject().get( "text" ).getAsString() );
+    }
+
     @Test
     void blankInputLinesAreSkipped()
     {
@@ -295,7 +323,67 @@ class StdioProxyTest
 
     private Result relay( String... lines )
     {
-        return relay( null, lines );
+        return relay( (Runnable) null, lines );
+    }
+
+    /**
+     * Relays {@code first}, runs {@code between} once the relay asks for more input — that
+     * is, after every reply to {@code first} has been written — and then relays {@code rest}.
+     */
+    private Result relay( List< String > first, Runnable between, String... rest )
+    {
+        byte[] head = ( String.join( "\n", first ) + "\n" ).getBytes( StandardCharsets.UTF_8 );
+        byte[] tail = String.join( "\n", rest ).getBytes( StandardCharsets.UTF_8 );
+        java.io.InputStream in = new java.io.SequenceInputStream(
+                new ByteArrayInputStream( head ),
+                new java.io.InputStream()
+                {
+                    private ByteArrayInputStream delegate;
+
+                    private ByteArrayInputStream delegate()
+                    {
+                        if ( delegate == null ) {
+                            between.run();
+                            delegate = new ByteArrayInputStream( tail );
+                        }
+                        return delegate;
+                    }
+
+                    @Override
+                    public int read() { return delegate().read(); }
+
+                    @Override
+                    public int read( byte[] b, int off, int len ) { return delegate().read( b, off, len ); }
+                } );
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ByteArrayOutputStream err = new ByteArrayOutputStream();
+
+        int exit = StdioProxy.run( endpointPath, in,
+                                   new PrintStream( out, true, StandardCharsets.UTF_8 ),
+                                   new PrintStream( err, true, StandardCharsets.UTF_8 ) );
+        return new Result( exit, out.toString( StandardCharsets.UTF_8 ),
+                           err.toString( StandardCharsets.UTF_8 ) );
+    }
+
+    /** Ends every live session the way a client would, as idle expiry or eviction would. */
+    private void endEverySession()
+    {
+        java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+        for ( var session : server.getSessions() ) {
+            try {
+                http.send( java.net.http.HttpRequest.newBuilder(
+                                         java.net.URI.create( "http://127.0.0.1:" + server.getPort() + "/mcp" ) )
+                                   .DELETE()
+                                   .header( "Authorization", "Bearer " + server.getToken() )
+                                   .header( "Mcp-Session-Id", session.getId() )
+                                   .build(),
+                           java.net.http.HttpResponse.BodyHandlers.discarding() );
+            }
+            catch ( Exception e ) {
+                throw new IllegalStateException( "could not end a session", e );
+            }
+        }
+        assertEquals( 0, server.getSessions().size() );
     }
 
     private Result relay( Runnable beforeSending, String... lines )

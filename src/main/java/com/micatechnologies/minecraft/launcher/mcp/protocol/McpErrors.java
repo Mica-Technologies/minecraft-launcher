@@ -45,6 +45,12 @@ public final class McpErrors
     /** The server failed while handling an otherwise well-formed request. */
     public static final int INTERNAL_ERROR = -32603;
 
+    /**
+     * The {@code Mcp-Session-Id} the request carried is unknown — it expired, was evicted, or
+     * was ended — and the client must send {@code initialize} again. Sent with HTTP {@code 404}.
+     */
+    public static final int SESSION_NOT_FOUND = -32001;
+
     /** The requested resource URI does not correspond to anything this server exposes. */
     public static final int RESOURCE_NOT_FOUND = -32002;
 

@@ -57,8 +57,12 @@ public final class LoopbackHttpTransport
     /** Header carrying the session id, per MCP's Streamable HTTP transport. */
     public static final String SESSION_HEADER = "Mcp-Session-Id";
 
-    /** Threads serving HTTP requests. Small: work is serialized downstream anyway. */
-    private static final int HTTP_THREADS = 4;
+    /**
+     * Threads serving HTTP requests. Tool calls are serialized downstream and one can sit on a
+     * consent dialog for minutes, holding its thread; the headroom keeps pings and listings
+     * answerable while a few calls queue behind it.
+     */
+    private static final int HTTP_THREADS = 8;
 
     /**
      * Turns one request body into one response body.
@@ -82,16 +86,51 @@ public final class LoopbackHttpTransport
     }
 
     /**
+     * Ends a session on the client's request ({@code DELETE /mcp}).
+     *
+     * @since 2026.10
+     */
+    @FunctionalInterface
+    public interface SessionCloser
+    {
+        /**
+         * Ends one session.
+         *
+         * @param sessionId the value of the {@code Mcp-Session-Id} header
+         *
+         * @return {@code true} when a live session was ended; {@code false} when none matched
+         *
+         * @since 2026.10
+         */
+        boolean close( String sessionId );
+    }
+
+    /**
      * One response to send back.
      *
-     * @param json      the response body, or {@code null} to send an empty {@code 202} — which
-     *                  is what a JSON-RPC notification gets, since it must not be answered
+     * @param json      the response body, or {@code null} to send no body — which is what a
+     *                  JSON-RPC notification gets, since it must not be answered
      * @param sessionId the session id to echo in the response header, or {@code null}
+     * @param status    the HTTP status; {@code 200} for an ordinary reply ({@code 202} is used
+     *                  instead when there is no body), {@code 400} for a request that needs a
+     *                  session but carried none, {@code 404} for an unknown session
      *
      * @since 3.0
      */
-    public record Response( JsonObject json, String sessionId )
+    public record Response( JsonObject json, String sessionId, int status )
     {
+        /**
+         * Constructs an ordinary {@code 200} response.
+         *
+         * @param json      the response body, or {@code null} for an accepted notification
+         * @param sessionId the session id to echo, or {@code null}
+         *
+         * @since 3.0
+         */
+        public Response( JsonObject json, String sessionId )
+        {
+            this( json, sessionId, 200 );
+        }
     }
 
     /** The bearer token callers must present. */
@@ -99,6 +138,9 @@ public final class LoopbackHttpTransport
 
     /** Dispatches request bodies. */
     private final BodyHandler bodyHandler;
+
+    /** Ends sessions on {@code DELETE}. */
+    private final SessionCloser sessionCloser;
 
     /** The running server, or {@code null} when stopped. */
     private HttpServer server;
@@ -114,6 +156,25 @@ public final class LoopbackHttpTransport
      */
     public LoopbackHttpTransport( String token, BodyHandler bodyHandler )
     {
+        this( token, bodyHandler, sessionId -> false );
+    }
+
+    /**
+     * Constructs a transport that also lets clients end their session with {@code DELETE}.
+     *
+     * @param token         the per-launch bearer token callers must present
+     * @param bodyHandler   dispatches request bodies
+     * @param sessionCloser ends a session on {@code DELETE /mcp}
+     *
+     * @throws IllegalArgumentException if the token is blank or a handler is {@code null}
+     * @since 2026.10
+     */
+    public LoopbackHttpTransport( String token, BodyHandler bodyHandler, SessionCloser sessionCloser )
+    {
+        if ( sessionCloser == null ) {
+            throw new IllegalArgumentException( "A session closer is required" );
+        }
+        this.sessionCloser = sessionCloser;
         if ( token == null || token.isBlank() ) {
             throw new IllegalArgumentException( "A non-blank bearer token is required" );
         }
@@ -203,6 +264,19 @@ public final class LoopbackHttpTransport
                 return;
             }
 
+            if ( "DELETE".equalsIgnoreCase( exchange.getRequestMethod() ) ) {
+                // The client is ending its session. 400 without an id to end, 404 for one we
+                // do not hold, per MCP's Streamable HTTP transport.
+                String sessionId = exchange.getRequestHeaders().getFirst( SESSION_HEADER );
+                if ( sessionId == null || sessionId.isBlank() ) {
+                    sendEmpty( exchange, 400 );
+                }
+                else {
+                    sendEmpty( exchange, sessionCloser.close( sessionId ) ? 204 : 404 );
+                }
+                return;
+            }
+
             String body = readCappedBody( exchange );
             if ( body == null ) {
                 sendEmpty( exchange, 413 );
@@ -212,14 +286,16 @@ public final class LoopbackHttpTransport
             Response response = bodyHandler.handle( body, exchange.getRequestHeaders()
                     .getFirst( SESSION_HEADER ) );
             if ( response == null || response.json() == null ) {
-                // A notification. MCP expects an accepted-with-no-content answer.
-                sendEmpty( exchange, 202 );
+                // A notification. MCP expects an accepted-with-no-content answer -- unless it
+                // was refused, in which case the refusal status still has to reach the client.
+                sendEmpty( exchange, response == null || response.status() == 200 ? 202
+                                                                                   : response.status() );
                 return;
             }
             if ( response.sessionId() != null ) {
                 exchange.getResponseHeaders().add( SESSION_HEADER, response.sessionId() );
             }
-            sendJson( exchange, JsonRpcCodec.encode( response.json() ) );
+            sendJson( exchange, response.status(), JsonRpcCodec.encode( response.json() ) );
         }
         catch ( Exception e ) {
             Logger.logError( "MCP transport failed while serving a request" );
@@ -299,15 +375,16 @@ public final class LoopbackHttpTransport
      * Sends a JSON response.
      *
      * @param exchange the exchange to answer
+     * @param status   the status code
      * @param json     the response body
      *
      * @throws IOException if writing fails
      */
-    private static void sendJson( HttpExchange exchange, String json ) throws IOException
+    private static void sendJson( HttpExchange exchange, int status, String json ) throws IOException
     {
         byte[] bytes = json.getBytes( StandardCharsets.UTF_8 );
         exchange.getResponseHeaders().add( "Content-Type", "application/json; charset=utf-8" );
-        exchange.sendResponseHeaders( 200, bytes.length );
+        exchange.sendResponseHeaders( status, bytes.length );
         try ( OutputStream out = exchange.getResponseBody() ) {
             out.write( bytes );
         }

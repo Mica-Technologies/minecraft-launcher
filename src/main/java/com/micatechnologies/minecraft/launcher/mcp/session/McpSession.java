@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * into tool code.
  * <p>
  * Instances are shared between the transport thread and the tool executor, so the mutable
- * counters are atomic and the client identity is written once during the handshake.
+ * counters are atomic and the client identity is written once, by the first handshake.
  *
  * @author Mica Technologies
  * @version 1.0
@@ -169,17 +169,29 @@ public final class McpSession
     /**
      * Records the client identity from the {@code initialize} handshake and marks the session
      * initialized.
+     * <p>
+     * <b>Only the first handshake counts.</b> The client name is half of every session-grant
+     * key, so a client able to re-send {@code initialize} under a new name could otherwise
+     * pick up grants given to a different client. A repeated handshake is answered but leaves
+     * the identity unchanged.
      *
      * @param name    the client's self-reported name
      * @param version the client's self-reported version
      *
+     * @return {@code true} when this call set the identity; {@code false} when the session was
+     *         already initialized and nothing changed
+     *
      * @since 3.0
      */
-    public void initialize( String name, String version )
+    public synchronized boolean initialize( String name, String version )
     {
+        if ( initialized ) {
+            return false;
+        }
         this.clientName = name == null ? "" : name;
         this.clientVersion = version == null ? "" : version;
         this.initialized = true;
+        return true;
     }
 
     /**

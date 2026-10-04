@@ -274,10 +274,22 @@ class McpHttpGuardTest
         assertEquals( McpHttpGuard.Verdict.UNAUTHORIZED, McpHttpGuard.admit( malformed, TOKEN ) );
     }
 
+    /** DELETE ends a session (MCP Streamable HTTP); it has no body to size or type-check. */
     @Test
-    void nonPostMethodsAreRefused()
+    void anAuthenticatedDeleteIsAdmitted()
     {
-        for ( String method : new String[]{ "GET", "PUT", "DELETE", "OPTIONS", "HEAD" } ) {
+        assertEquals( McpHttpGuard.Verdict.ALLOW, McpHttpGuard.admit( new McpHttpGuard.Request(
+                "DELETE", "Bearer " + TOKEN, null, null, -1, true ), TOKEN ) );
+        assertEquals( McpHttpGuard.Verdict.UNAUTHORIZED, McpHttpGuard.admit( new McpHttpGuard.Request(
+                "DELETE", null, null, null, -1, true ), TOKEN ) );
+        assertEquals( McpHttpGuard.Verdict.FORBIDDEN, McpHttpGuard.admit( new McpHttpGuard.Request(
+                "DELETE", "Bearer " + TOKEN, "http://evil.example", null, -1, true ), TOKEN ) );
+    }
+
+    @Test
+    void otherMethodsAreRefused()
+    {
+        for ( String method : new String[]{ "GET", "PUT", "OPTIONS", "HEAD" } ) {
             McpHttpGuard.Request request = new McpHttpGuard.Request(
                     method, "Bearer " + TOKEN, null, "application/json", 10, true );
             assertEquals( McpHttpGuard.Verdict.METHOD_NOT_ALLOWED, McpHttpGuard.admit( request, TOKEN ),

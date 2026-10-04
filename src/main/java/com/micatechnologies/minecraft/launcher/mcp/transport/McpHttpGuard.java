@@ -63,7 +63,7 @@ public final class McpHttpGuard
         /** Non-loopback peer, or a browser origin that is not loopback. Answer {@code 403}. */
         FORBIDDEN,
 
-        /** Not a POST. Answer {@code 405}. */
+        /** Neither a POST nor a session-ending DELETE. Answer {@code 405}. */
         METHOD_NOT_ALLOWED,
 
         /** Body exceeds {@link #MAX_BODY_BYTES}. Answer {@code 413}. */
@@ -121,6 +121,10 @@ public final class McpHttpGuard
         }
         if ( !tokensMatch( expectedToken, bearerTokenOf( request.authorizationHeader() ) ) ) {
             return Verdict.UNAUTHORIZED;
+        }
+        if ( "DELETE".equalsIgnoreCase( request.httpMethod() ) ) {
+            // Ending a session: no body, so the size and media-type checks do not apply.
+            return Verdict.ALLOW;
         }
         if ( !"POST".equalsIgnoreCase( request.httpMethod() ) ) {
             return Verdict.METHOD_NOT_ALLOWED;

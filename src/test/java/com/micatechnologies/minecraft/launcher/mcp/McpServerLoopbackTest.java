@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.mcp.approval.McpAuthorizer;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpRiskClass;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.McpErrors;
 import com.micatechnologies.minecraft.launcher.mcp.resources.McpResourceRegistry;
+import com.micatechnologies.minecraft.launcher.mcp.session.McpSessionRegistry;
 import com.micatechnologies.minecraft.launcher.mcp.tools.McpCallContext;
 import com.micatechnologies.minecraft.launcher.mcp.tools.McpTool;
 import com.micatechnologies.minecraft.launcher.mcp.tools.McpToolRegistry;
@@ -257,8 +258,10 @@ class McpServerLoopbackTest
     @Test
     void aNotificationGetsNoResponseBody() throws Exception
     {
+        String sessionId = handshake();
         HttpResponse< String > response = send( authorized(
-                "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}", token ) );
+                "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}", token )
+                                                        .header( "Mcp-Session-Id", sessionId ) );
         assertEquals( 202, response.statusCode() );
         assertTrue( response.body().isEmpty() );
     }
@@ -288,15 +291,107 @@ class McpServerLoopbackTest
                               .get( "text" ).getAsString() );
     }
 
-    /** Without the session id the request is a fresh, un-handshaken session and is refused. */
+    /** Without the session id the request is refused with 400, and creates no session. */
     @Test
     void aToolCallWithoutTheSessionIdIsRefused() throws Exception
     {
         send( authorized( initialize(), token ) );
-        JsonObject body = jsonOf( send( authorized( callEcho(), token ) ) );
+        HttpResponse< String > response = send( authorized( callEcho(), token ) );
 
-        assertEquals( McpErrors.INVALID_REQUEST, body.getAsJsonObject( "error" ).get( "code" ).getAsInt() );
+        assertEquals( 400, response.statusCode() );
+        assertEquals( McpErrors.INVALID_REQUEST,
+                      jsonOf( response ).getAsJsonObject( "error" ).get( "code" ).getAsInt() );
         assertFalse( toolRan );
+        assertEquals( 1, server.getSessions().size(), "only the handshake creates a session" );
+    }
+
+    /** An id the server does not hold gets 404, which tells the client to initialize again. */
+    @Test
+    void anUnknownSessionIdIsAnswered404() throws Exception
+    {
+        HttpResponse< String > response = send( authorized( callEcho(), token )
+                                                        .header( "Mcp-Session-Id", "0".repeat( 32 ) ) );
+
+        assertEquals( 404, response.statusCode() );
+        assertEquals( McpErrors.SESSION_NOT_FOUND,
+                      jsonOf( response ).getAsJsonObject( "error" ).get( "code" ).getAsInt() );
+        assertFalse( toolRan );
+        assertEquals( 0, server.getSessions().size() );
+    }
+
+    /** Requests that are not a handshake never create sessions, so they cannot fill the cap. */
+    @Test
+    void sessionlessRequestsDoNotCreateSessions() throws Exception
+    {
+        for ( int i = 0; i < 20; i++ ) {
+            send( authorized( ping(), token ) );
+            send( authorized( callEcho(), token ) );
+        }
+        assertEquals( 0, server.getSessions().size() );
+    }
+
+    /**
+     * Each client restart starts a new session. Past the cap the oldest is evicted rather than
+     * the newcomer refused, so restarts can never lock clients out.
+     */
+    @Test
+    void handshakesPastTheCapEvictTheOldestRatherThanRefusing() throws Exception
+    {
+        String first = handshake();
+        for ( int i = 0; i < McpSessionRegistry.MAX_SESSIONS + 4; i++ ) {
+            HttpResponse< String > response = send( authorized( initialize(), token ) );
+            assertEquals( 200, response.statusCode() );
+            assertFalse( jsonOf( response ).has( "error" ), response.body() );
+        }
+        assertEquals( McpSessionRegistry.MAX_SESSIONS, server.getSessions().size() );
+        assertEquals( 404, send( authorized( callEcho(), token ).header( "Mcp-Session-Id", first ) )
+                .statusCode() );
+    }
+
+    @Test
+    void aDeleteEndsTheSession() throws Exception
+    {
+        String sessionId = handshake();
+
+        assertEquals( 204, delete( sessionId ).statusCode() );
+        assertEquals( 0, server.getSessions().size() );
+        assertEquals( 404, delete( sessionId ).statusCode(), "it is already gone" );
+        assertEquals( 404, send( authorized( callEcho(), token ).header( "Mcp-Session-Id", sessionId ) )
+                .statusCode() );
+    }
+
+    @Test
+    void aDeleteWithoutASessionIdIsABadRequest() throws Exception
+    {
+        assertEquals( 400, delete( null ).statusCode() );
+    }
+
+    @Test
+    void aDeleteWithoutTheTokenIsRejected() throws Exception
+    {
+        String sessionId = handshake();
+        HttpResponse< String > response = client.send(
+                HttpRequest.newBuilder( endpoint() ).DELETE()
+                        .header( "Mcp-Session-Id", sessionId ).build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 401, response.statusCode() );
+        assertEquals( 1, server.getSessions().size() );
+    }
+
+    /**
+     * A repeated handshake on a live session must not rename the client: the name is half of
+     * every session-grant key.
+     */
+    @Test
+    void reInitializingASessionCannotChangeTheClientName() throws Exception
+    {
+        String sessionId = handshake();
+        send( authorized( "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"initialize\"," +
+                                  "\"params\":{\"clientInfo\":{\"name\":\"Impostor\",\"version\":\"9\"}}}",
+                          token ).header( "Mcp-Session-Id", sessionId ) );
+
+        assertEquals( 1, server.getSessions().size() );
+        assertEquals( "Loopback Test", server.getSessions().get( 0 ).getClientName() );
     }
 
     @Test
@@ -325,6 +420,22 @@ class McpServerLoopbackTest
     // endregion
 
     // region helpers
+
+    private String handshake() throws Exception
+    {
+        return send( authorized( initialize(), token ) )
+                .headers().firstValue( "Mcp-Session-Id" ).orElseThrow();
+    }
+
+    private HttpResponse< String > delete( String sessionId ) throws Exception
+    {
+        HttpRequest.Builder builder = HttpRequest.newBuilder( endpoint() ).DELETE()
+                .header( "Authorization", "Bearer " + token );
+        if ( sessionId != null ) {
+            builder.header( "Mcp-Session-Id", sessionId );
+        }
+        return send( builder );
+    }
 
     private URI endpoint()
     {

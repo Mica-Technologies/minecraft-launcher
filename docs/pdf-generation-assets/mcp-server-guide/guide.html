@@ -445,9 +445,11 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
                  "clientInfo":{"name":"curl","version":"1"}}}'</code></pre>
 
     <p>The response carries <code>Mcp-Session-Id</code>. Send it back on every following request;
-        without it the launcher opens a new, uninitialized session and refuses everything but
-        <code>ping</code> with <code>-32600 Session is not initialized</code>. Appendix B has the
-        rest of the calls.</p>
+        without it the launcher answers <code>400</code> with <code>-32600</code> (only
+        <code>ping</code> is answered without a session). An id the launcher no longer holds
+        gets <code>404</code> with <code>-32001</code>: send <code>initialize</code> again. A
+        <code>DELETE /mcp</code> carrying the id ends the session. Appendix B has the rest of the
+        calls.</p>
 
     <h3><span class="num">2.9</span>Troubleshooting</h3>
 
@@ -462,7 +464,12 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
                 itself loopback — including <code>Origin: null</code>. Browser pages are refused
                 by design; see §4.2.</td></tr>
         <tr><td><code>405</code></td>
-            <td>Not a POST. The endpoint answers POST only; there is no GET/SSE stream.</td></tr>
+            <td>Not a POST or DELETE. Messages are POSTed, and DELETE ends a session; there is no
+                GET/SSE stream.</td></tr>
+        <tr><td><code>404</code> with <code>-32001</code></td>
+            <td>The session expired (30 minutes idle), was evicted to make room, or was ended.
+                Send <code>initialize</code> again; the <code>--mcp</code> relay does this for
+                you.</td></tr>
         <tr><td><code>413</code></td>
             <td>Body over 1 MB. A JSON-RPC tool call is small; this cap exists so a local process
                 cannot exhaust launcher memory.</td></tr>
@@ -471,7 +478,7 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         <tr><td>Connection refused</td>
             <td>The launcher is closed, the server is off, or it bound a fallback port. Check the
                 Settings status line, then the endpoint file.</td></tr>
-        <tr><td><code>-32600 Session is not initialized</code></td>
+        <tr><td><code>400</code> with <code>-32600</code></td>
             <td>A call arrived before <code>initialize</code>, or the <code>Mcp-Session-Id</code>
                 header is not being carried.</td></tr>
         <tr><td><code>-32602 Unknown tool: uninstall_modpack</code></td>
@@ -556,10 +563,11 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         <li><strong>Parse.</strong> <code>JsonRpcCodec.parse()</code> turns the body into a
             message or an error. A notification produces no reply, ever — including an unknown
             one, which is explicitly not an error in JSON-RPC.</li>
-        <li><strong>Session.</strong> The <code>Mcp-Session-Id</code> header resolves to a live
-            session, or a new one is created (subject to the cap of 8). Everything but
-            <code>ping</code> and <code>initialize</code> requires an initialized session, because
-            the client's self-reported name is half of every session-grant key.</li>
+        <li><strong>Session.</strong> The <code>Mcp-Session-Id</code> header must resolve to a
+            live session: missing is <code>400</code>, unknown or expired is <code>404</code>.
+            Only <code>initialize</code> creates a session, and only <code>ping</code> is answered
+            without one, because the client's self-reported name is half of every session-grant
+            key.</li>
         <li><strong>Tool resolution.</strong> An unregistered name is <code>-32602 Unknown
             tool</code>. With state changes off, the mutating tools are genuinely not registered.</li>
         <li><strong>Content gate.</strong> <code>tool.validateBeforeApproval()</code> runs
@@ -587,13 +595,14 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
     <table class="compact">
         <thead><tr><th style="width:34%">Method</th><th>Behaviour</th></tr></thead>
         <tbody>
-        <tr><td><code>initialize</code></td><td>Records <code>clientInfo.name</code> and
-            <code>.version</code> on the session, returns protocol version, capabilities and
-            <code>serverInfo</code> (<em>Mica Minecraft Launcher</em> + version). The response
-            carries <code>Mcp-Session-Id</code>.</td></tr>
+        <tr><td><code>initialize</code></td><td>Creates a session and records
+            <code>clientInfo.name</code> and <code>.version</code> on it, returns protocol version,
+            capabilities and <code>serverInfo</code> (<em>Mica Minecraft Launcher</em> + version).
+            The response carries <code>Mcp-Session-Id</code>. Re-sent on a live session it is
+            answered, but the recorded client name does not change.</td></tr>
         <tr><td><code>notifications/initialized</code></td><td>Logged; never answered.</td></tr>
         <tr><td><code>ping</code></td><td>Empty result. The one method allowed before the
-            handshake.</td></tr>
+            handshake, and without a session.</td></tr>
         <tr><td><code>tools/list</code></td><td>Name, title, description and JSON input schema for
             every registered tool.</td></tr>
         <tr><td><code>tools/call</code></td><td>The full path in §3.3.</td></tr>
@@ -615,10 +624,11 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         <thead><tr><th style="width:22%">Code</th><th style="width:26%">Name</th><th>When</th></tr></thead>
         <tbody>
         <tr><td><code>-32700</code></td><td>Parse error</td><td>Body is not JSON.</td></tr>
-        <tr><td><code>-32600</code></td><td>Invalid request</td><td>Not a valid JSON-RPC message; or a call before the handshake.</td></tr>
+        <tr><td><code>-32600</code></td><td>Invalid request</td><td>Not a valid JSON-RPC message; or a call before the handshake or without a session id (HTTP <code>400</code>).</td></tr>
         <tr><td><code>-32601</code></td><td>Method not found</td><td>Unknown method.</td></tr>
         <tr><td><code>-32602</code></td><td>Invalid params</td><td>Missing/unknown tool name, missing argument, or a content gate refusal.</td></tr>
-        <tr><td><code>-32603</code></td><td>Internal error</td><td>The tool threw, a resource read threw, the session cap was hit, or dispatch failed. Never carries the exception's own message.</td></tr>
+        <tr><td><code>-32603</code></td><td>Internal error</td><td>The tool threw, a resource read threw, or dispatch failed. Never carries the exception's own message.</td></tr>
+        <tr><td><code>-32001</code></td><td>Session not found</td><td>The <code>Mcp-Session-Id</code> is unknown, expired or ended (HTTP <code>404</code>); initialize again.</td></tr>
         <tr><td><code>-32002</code></td><td>Resource not found</td><td>No resource matches the URI — including one rejected by the segment gate.</td></tr>
         <tr><td><code>-32003</code></td><td>Request denied</td><td>The approval gate said no.</td></tr>
         </tbody>
@@ -636,12 +646,17 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
     <h3><span class="num">3.5</span>Sessions</h3>
 
     <ul>
-        <li>Created on first contact; identified by the <code>Mcp-Session-Id</code> header.</li>
+        <li>Created by <code>initialize</code> and nothing else; identified by the
+            <code>Mcp-Session-Id</code> header.</li>
         <li>Hold the client's name and version, connection time, tool-call count and last
             activity — what the Settings <em>Connected clients</em> list shows.</li>
-        <li>Capped at <strong>8</strong>. At the cap a new session is refused rather than an
-            existing one evicted — evicting would drop someone else's handshake state
-            mid-conversation.</li>
+        <li>Ended by the client with <code>DELETE /mcp</code> (the <code>--mcp</code> relay does
+            this when its client closes stdin), or after <strong>30 minutes</strong> without a
+            request.</li>
+        <li>Capped at <strong>8</strong>. At the cap the least-recently-active session is
+            evicted rather than the newcomer refused: an evicted client gets <code>404</code> and
+            re-initializes, as the transport specification requires, while a refusal would lock
+            every new client out once restarts had filled the slots.</li>
         <li>Cleared when the server stops. Session grants are cleared with them.</li>
     </ul>
 
@@ -712,7 +727,7 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         <tr><td>1</td><td>Peer address is loopback</td><td><code>403</code></td><td>A peer that cannot be resolved is treated as not loopback.</td></tr>
         <tr><td>2</td><td><code>Origin</code> absent, or loopback</td><td><code>403</code></td><td>Absent is normal for non-browser clients and allowed. <code>null</code> — a sandboxed iframe or <code>file:</code> page — is refused. Bracketed IPv6 (<code>[::1]</code>) is handled correctly.</td></tr>
         <tr><td>3</td><td>Bearer token matches</td><td><code>401</code></td><td><code>MessageDigest.isEqual</code>, constant-time in the content, so a local attacker cannot recover the token byte by byte from response timing.</td></tr>
-        <tr><td>4</td><td>Method is POST</td><td><code>405</code></td><td></td></tr>
+        <tr><td>4</td><td>Method is POST, or DELETE</td><td><code>405</code></td><td>DELETE ends a session and carries no body, so it skips checks 5 and 6.</td></tr>
         <tr><td>5</td><td>Body ≤ 1 MB</td><td><code>413</code></td><td>Enforced on the declared length and again while reading.</td></tr>
         <tr><td>6</td><td><code>Content-Type: application/json</code></td><td><code>415</code></td><td>Parameters such as <code>; charset=utf-8</code> are ignored.</td></tr>
         </tbody>
@@ -1417,6 +1432,7 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         <tr><td><code>LoopbackHttpTransport.SESSION_HEADER</code></td><td><code>Mcp-Session-Id</code></td></tr>
         <tr><td><code>McpHttpGuard.MAX_BODY_BYTES</code></td><td>1 MB</td></tr>
         <tr><td><code>McpSessionRegistry.MAX_SESSIONS</code></td><td>8</td></tr>
+        <tr><td><code>McpSessionRegistry.IDLE_TIMEOUT_MS</code></td><td>30 minutes</td></tr>
         <tr><td><code>McpApprovalEngine.DEFAULT_GRANT_TTL_MS</code></td><td>8 hours</td></tr>
         <tr><td><code>FxConsentPrompt.CONSENT_TIMEOUT_SECONDS</code></td><td>120</td></tr>
         <tr><td><code>McpActivityLog.MAX_ENTRIES</code></td><td>200</td></tr>
