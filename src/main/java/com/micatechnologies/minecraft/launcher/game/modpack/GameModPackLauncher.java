@@ -57,11 +57,59 @@ class GameModPackLauncher
      */
     private final GameModPackProgressProvider progressProvider;
 
+    /** A cancellation check that never reports cancelled. */
+    private static final java.util.function.BooleanSupplier NOT_CANCELLED = () -> false;
+
     /** Periodically-checked cancellation flag for <em>this</em> launch, set by
-     *  {@link #launch}. Branches poll it between major steps so an in-flight cancel doesn't
-     *  have to wait for the entire branch to complete. It used to read a single global
-     *  "current launch", so with two launches in flight, cancelling one cancelled both. */
-    private volatile java.util.function.BooleanSupplier cancellationCheck = () -> false;
+     *  {@link #launch} for its length only. Branches poll it between major steps so an
+     *  in-flight cancel doesn't have to wait for the entire branch to complete. It used to
+     *  read a single global "current launch", so with two launches in flight, cancelling one
+     *  cancelled both. It is cleared when the launch ends because this launcher is cached per
+     *  pack: a cancelled launch's check left in place made the next "Verify this pack" (which
+     *  runs the same steps) fail as cancelled. */
+    private volatile java.util.function.BooleanSupplier cancellationCheck = NOT_CANCELLED;
+
+    /**
+     * A launch step that may fail with a {@link ModpackException}.
+     *
+     * @param <T> what the step produces
+     */
+    @FunctionalInterface
+    interface LaunchStep< T >
+    {
+        /**
+         * Runs the step.
+         *
+         * @return its result
+         *
+         * @throws ModpackException if the step fails
+         */
+        T run() throws ModpackException;
+    }
+
+    /**
+     * Runs {@code body} with {@code cancelled} as this launcher's cancellation check, and
+     * clears the check afterwards however {@code body} ends.
+     *
+     * @param cancelled reports whether the launch has been cancelled; {@code null} never does
+     * @param body      the launch
+     * @param <T>       what the launch produces
+     *
+     * @return the result of {@code body}
+     *
+     * @throws ModpackException if {@code body} fails
+     */
+    < T > T withCancellationCheck( java.util.function.BooleanSupplier cancelled, LaunchStep< T > body )
+    throws ModpackException
+    {
+        this.cancellationCheck = cancelled == null ? NOT_CANCELLED : cancelled;
+        try {
+            return body.run();
+        }
+        finally {
+            this.cancellationCheck = NOT_CANCELLED;
+        }
+    }
 
     /**
      * Throws if the current launch has been cancelled. Branches call
@@ -72,7 +120,7 @@ class GameModPackLauncher
      * @throws ModpackException if {@link #cancellationCheck} reports the
      *                          current launch has been cancelled
      */
-    private void checkCancelled() throws ModpackException
+    void checkCancelled() throws ModpackException
     {
         if ( cancellationCheck.getAsBoolean() ) {
             throw new ModpackException( "Launch cancelled by user" );
@@ -1219,7 +1267,20 @@ class GameModPackLauncher
      */
     Process launch( User user, java.util.function.BooleanSupplier cancelled ) throws ModpackException
     {
-        this.cancellationCheck = cancelled == null ? () -> false : cancelled;
+        return withCancellationCheck( cancelled, () -> launchAs( user ) );
+    }
+
+    /**
+     * The body of {@link #launch}, run while that launch's cancellation check is in place.
+     *
+     * @param user the account to launch as; ignored for a server, required for a client
+     *
+     * @return the spawned game process
+     *
+     * @throws ModpackException if unable to launch the game, or if a client launch has no account
+     */
+    private Process launchAs( User user ) throws ModpackException
+    {
         // The account is chosen by the caller (a pack can launch as an account other than the
         // default). A client launch with none would hand Minecraft empty credentials.
         if ( GameModeManager.isClient() && user == null ) {
