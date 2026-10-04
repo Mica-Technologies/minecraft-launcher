@@ -831,8 +831,11 @@ public final class CrashReportAnalyzer
                 String url = pack.getPackURL();
                 Logger.logStd( LocalizationManager.format( "log.crashAnalyzer.reinstallRequested",
                                        pack.getPackName(), url ) );
-                GameModPackManager.uninstallModPack( pack );
-                GameModPackManager.installModPackByURL( url );
+                // Refused (and already reported) while the pack is running again; installing
+                // over it then would only re-add a pack that is still there.
+                if ( GameModPackManager.uninstallModPack( pack ) ) {
+                    GameModPackManager.installModPackByURL( url );
+                }
             }
             catch ( Exception | Error e ) {
                 Logger.logWarningSilent( LocalizationManager.format( "log.crashAnalyzer.reinstallFailed", e.getMessage() ) );

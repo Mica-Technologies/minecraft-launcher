@@ -998,24 +998,107 @@ public class GameModPackManager
     }
 
     /**
-     * Uninstalls the specified mod pack from the launcher.
+     * Uninstalls the specified mod pack from the launcher, keeping its files on disk.
      *
      * @param gameModPack mod pack to uninstall
      *
+     * @return {@code false} when the uninstall was refused because the pack is launching or
+     *         running
+     *
      * @since 1.0
      */
-    public synchronized static void uninstallModPack( GameModPack gameModPack ) {
-        // Deleting the folder of a pack that is launching or running pulls files out from under
-        // the game (and fails partway on Windows, which locks them). Refuse; the caller's UI
-        // already shows the pack as running.
-        if ( com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().isPackActive( gameModPack ) ) {
+    public synchronized static boolean uninstallModPack( GameModPack gameModPack ) {
+        return uninstallModPack( gameModPack, false );
+    }
+
+    /**
+     * Uninstalls the specified mod pack from the launcher, optionally deleting its install
+     * folder. A pack that is launching or running is refused before anything is touched, so
+     * a refused uninstall never deletes files (saves included).
+     *
+     * @param gameModPack mod pack to uninstall
+     * @param deleteFiles whether to delete the pack's install folder as well
+     *
+     * @return {@code false} when the uninstall was refused because the pack is launching or
+     *         running
+     *
+     * @since 2026.10
+     */
+    public synchronized static boolean uninstallModPack( GameModPack gameModPack, boolean deleteFiles ) {
+        boolean done = uninstallGuarded( gameModPack, deleteFiles,
+                com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get()::isPackActive,
+                GameModPackManager::deletePackFolder,
+                GameModPackManager::removeFromInstalledList );
+        if ( !done ) {
+            // Deleting the folder of a pack that is launching or running pulls files out from
+            // under the game (and fails partway on Windows, which locks them).
             Logger.logWarningSilent( LocalizationManager.format( "log.modPackManager.uninstallRefusedRunning",
                                                                  gameModPack.getPackName() ) );
             com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
                     LocalizationManager.get( "notification.pack.running.title" ),
                     LocalizationManager.format( "notification.pack.running.uninstall", gameModPack.getFriendlyName() ) );
-            return;
         }
+        return done;
+    }
+
+    /**
+     * The order of an uninstall, separated from its side effects so it can be tested: the
+     * running-pack check comes first and, when it refuses, nothing else happens; otherwise the
+     * folder is deleted (when asked) and then the pack is removed from the installed list.
+     *
+     * @param pack         the pack to uninstall
+     * @param deleteFiles  whether to delete the pack's install folder
+     * @param isActive     whether the pack is launching or running
+     * @param deleteFolder deletes the pack's install folder
+     * @param unregister   removes the pack from the installed list
+     *
+     * @return {@code false} when refused because the pack is active
+     */
+    static boolean uninstallGuarded( GameModPack pack,
+                                     boolean deleteFiles,
+                                     java.util.function.Predicate< GameModPack > isActive,
+                                     java.util.function.Consumer< GameModPack > deleteFolder,
+                                     java.util.function.Consumer< GameModPack > unregister )
+    {
+        if ( isActive.test( pack ) ) {
+            return false;
+        }
+        if ( deleteFiles ) {
+            deleteFolder.accept( pack );
+        }
+        unregister.accept( pack );
+        return true;
+    }
+
+    /**
+     * Deletes a pack's install folder. A failure is logged and does not stop the uninstall.
+     *
+     * @param pack the pack whose folder to delete
+     */
+    private static void deletePackFolder( GameModPack pack )
+    {
+        try {
+            String root = pack.getPackRootFolder();
+            if ( root == null ) {
+                return;
+            }
+            java.io.File installDir = new java.io.File( root );
+            if ( installDir.exists() ) {
+                org.codehaus.plexus.util.FileUtils.deleteDirectory( installDir );
+            }
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameLibrary.deleteFolderFailed", e.getMessage() ) );
+        }
+    }
+
+    /**
+     * Removes a pack from the installed list and the install index, and saves the change.
+     *
+     * @param gameModPack the pack to remove
+     */
+    private static void removeFromInstalledList( GameModPack gameModPack )
+    {
         // Populate lists if not already done
         if ( installedGameModPacks == null ) {
             fetchModPackInfo();

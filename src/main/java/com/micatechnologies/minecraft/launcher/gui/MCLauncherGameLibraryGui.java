@@ -2452,6 +2452,15 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                                                     Runnable onComplete )
     {
         if ( pack == null ) return;
+        // A launching or running pack can't be uninstalled; say so before asking anything.
+        // GameModPackManager.uninstallModPack re-checks, since the game may start while the
+        // dialog is open.
+        if ( com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().isPackActive( pack ) ) {
+            NotificationManager.warn( LocalizationManager.get( "notification.pack.running.title" ),
+                                      LocalizationManager.format( "notification.pack.running.uninstall",
+                                                                  displayName ) );
+            return;
+        }
         int response = GUIUtilities.showQuestionMessage(
                 LocalizationManager.get( "dialog.uninstall.modpack.title" ),
                 LocalizationManager.format( "dialog.uninstall.modpack.header", displayName ),
@@ -2466,19 +2475,10 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 LocalizationManager.format( "library.status.removing", displayName ) );
         SystemUtilities.spawnNewTask( () -> {
             try {
-                if ( deleteFiles ) {
-                    try {
-                        File installDir = new File( pack.getPackRootFolder() );
-                        if ( installDir.exists() ) {
-                            org.codehaus.plexus.util.FileUtils.deleteDirectory( installDir );
-                        }
-                    }
-                    catch ( Exception e ) {
-                        Logger.logWarningSilent( LocalizationManager.format( "log.gameLibrary.deleteFolderFailed", e.getMessage() ) );
-                    }
-                }
-                GameModPackManager.uninstallModPack( pack );
-                if ( onComplete != null ) GUIUtilities.JFXPlatformRun( onComplete );
+                // The manager refuses a running pack before deleting anything, then deletes
+                // the folder (when asked) and removes the pack from the list.
+                boolean removed = GameModPackManager.uninstallModPack( pack, deleteFiles );
+                if ( removed && onComplete != null ) GUIUtilities.JFXPlatformRun( onComplete );
             }
             finally {
                 if ( hideProgress != null ) GUIUtilities.JFXPlatformRun( hideProgress );
