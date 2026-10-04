@@ -170,7 +170,9 @@ public final class RunningGamesWindow
                 return;
             }
             instance.appliedThemeKey = key;
-            javafx.scene.Parent root = instance.stage.getScene().getRoot();
+            // The sheets were installed on the content (inside the UiScale wrapper), so replace them there:
+            // installing on the wrapper would leave the content's old sheets in place, and they win.
+            javafx.scene.Parent root = UiScale.unwrap( instance.stage.getScene().getRoot() );
             root.getStylesheets().clear();
             MCLauncherGuiWindow.installCurrentThemeStylesheets( root );
             com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.applyTitleBarDarkMode(

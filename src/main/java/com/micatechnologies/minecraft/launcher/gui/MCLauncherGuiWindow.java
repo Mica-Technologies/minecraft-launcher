@@ -618,7 +618,7 @@ public class MCLauncherGuiWindow extends Application
             // scene is shown, so it never flashes at its default colour/layout first. The rest of
             // the title-bar setup (caption buttons) runs after setScene since it needs the stage.
             com.micatechnologies.minecraft.launcher.utilities.WindowsTitleBarControls
-                    .prePaintSetup( gui.scene.getRoot() );
+                    .prePaintSetup( UiScale.unwrap( gui.scene.getRoot() ) );
 
             // Set scene, fading the new screen in (Material's fade-through).
             stage.setScene( gui.scene );
@@ -649,10 +649,12 @@ public class MCLauncherGuiWindow extends Application
             // Windows title-bar inset: the OS draws min/max/close at the top-right; place a
             // matching help button just left of them, hide the in-window help, and shift the
             // navbar's trailing items clear of the reserved corner. No-op unless the native
-            // subclass installed (WindowsCustomChromeManager.isActive()).
+            // subclass installed (WindowsCustomChromeManager.isActive()). The scene root is the
+            // UiScale wrapper; the title-bar setup needs the screen's own GridPane (it adds the
+            // caption cluster to row 0), so unwrap it first.
             final MCLauncherAbstractGui sceneGui = gui;
             com.micatechnologies.minecraft.launcher.utilities.WindowsTitleBarControls.apply(
-                    gui.scene.getRoot(),
+                    UiScale.unwrap( gui.scene.getRoot() ),
                     () -> MCLauncherHelpWindow.show( sceneGui.getHelpTopic() ) );
 
             gui.afterShow();
@@ -740,7 +742,7 @@ public class MCLauncherGuiWindow extends Application
                         && gui != null && gui.scene != null ) {
                     final MCLauncherAbstractGui shownGui = gui;
                     com.micatechnologies.minecraft.launcher.utilities.WindowsTitleBarControls.apply(
-                            gui.scene.getRoot(),
+                            UiScale.unwrap( gui.scene.getRoot() ),
                             () -> MCLauncherHelpWindow.show( shownGui.getHelpTopic() ) );
                 }
             }

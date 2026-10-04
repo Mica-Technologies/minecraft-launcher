@@ -113,6 +113,22 @@ public final class UiScale
     }
 
     /**
+     * The inverse of {@link #wrap(Parent)}: a window's own root, given its scene's root. Code that
+     * needs the screen itself (its type, its grid, the sheets installed on it) must go through
+     * this, because {@code scene.getRoot()} is the wrapper.
+     *
+     * @param sceneRoot a scene's root, wrapped or not; {@code null} passes through
+     *
+     * @return the wrapped content, or {@code sceneRoot} itself when it isn't a wrapper
+     *
+     * @since 2026.10
+     */
+    public static Parent unwrap( Parent sceneRoot )
+    {
+        return sceneRoot instanceof ScaledRoot scaled ? scaled.content() : sceneRoot;
+    }
+
+    /**
      * Keeps a scene's popup-scaling stylesheet in step with the scale. Idempotent per scene.
      *
      * @param scene the scene
