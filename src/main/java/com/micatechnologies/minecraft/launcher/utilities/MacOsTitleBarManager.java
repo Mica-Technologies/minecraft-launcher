@@ -218,13 +218,19 @@ public final class MacOsTitleBarManager
         // The top/right/bottom values mirror the `.navBar` rule every theme sheet carries
         // (`-fx-padding: 6 16 6 16`); only the leading edge changes. A theme that changes
         // its navbar padding needs this literal updated to match.
-        final String insetStyle = "-fx-padding: 6 16 6 " + ( int ) MAC_TRAFFIC_LIGHT_INSET + ";"
-                                  + "-fx-min-height: " + ( int ) MAC_TITLE_BAR_BAND_HEIGHT + ";";
-        String existing = region.getStyle();
-        if ( existing != null && existing.contains( insetStyle ) ) {
-            return;  // already inset on an earlier pass over this scene
-        }
-        region.setStyle( ( existing == null ? "" : existing ) + insetStyle );
+        // The traffic lights and the native title band don't follow the launcher's interface
+        // scale, but the navbar does (it's inside the zoomed content). So the inset and the band
+        // height are divided by the scale: drawn, they come out at the native size. (The height is
+        // a minimum: above 100 % the bar's own content makes it taller than the band anyway.)
+        double scale = com.micatechnologies.minecraft.launcher.gui.UiScale.get();
+        final String insetStyle = String.format( java.util.Locale.ROOT,
+                                                 "-fx-padding: 6 16 6 %.1f;-fx-min-height: %.1f;",
+                                                 MAC_TRAFFIC_LIGHT_INSET / scale,
+                                                 MAC_TITLE_BAR_BAND_HEIGHT / scale );
+        String existing = region.getStyle() == null ? "" : region.getStyle();
+        // Replace an inset from an earlier pass (possibly at another scale) rather than stacking.
+        existing = existing.replaceAll( "-fx-padding: 6 16 6 [0-9.]+;-fx-min-height: [0-9.]+;", "" );
+        region.setStyle( existing + insetStyle );
     }
 
     /** Collapses each node out of layout (visible + managed false) so the navbar's

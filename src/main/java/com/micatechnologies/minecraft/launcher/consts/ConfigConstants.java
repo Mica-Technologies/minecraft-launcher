@@ -1157,6 +1157,20 @@ public class ConfigConstants
     public static final boolean PACK_COLORS_DEFAULT = true;
 
     /**
+     * Config key: the interface scale, in percent (50, 75, 100, 125 or 150). Settings › Appearance.
+     *
+     * @since 2026.10
+     */
+    public static final String UI_SCALE_KEY = "uiScalePercent";
+
+    /**
+     * Default for {@link #UI_SCALE_KEY}: 100 %, the layout as designed.
+     *
+     * @since 2026.10
+     */
+    public static final int UI_SCALE_DEFAULT = 100;
+
+    /**
      * Default for {@link #SHOW_PACK_BACKGROUNDS_KEY}. True so fresh installs
      * see the imagery the modpack authors curated; users who prefer the
      * gradient-only look opt out via Settings → Appearance.

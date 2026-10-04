@@ -171,6 +171,21 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /** The interface scale, in percent (see {@link ConfigConstants#UI_SCALE_KEY}). */
+    public static synchronized int getUiScalePercent() {
+        return ConfigStore.getOrInitInt( ConfigConstants.UI_SCALE_KEY, ConfigConstants.UI_SCALE_DEFAULT );
+    }
+
+    /**
+     * Sets the interface scale and schedules a debounced disk flush.
+     *
+     * @param percent the scale, in percent
+     */
+    public static synchronized void setUiScalePercent( int percent ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.UI_SCALE_KEY, percent );
+        ConfigStore.scheduleWrite();
+    }
+
     /** Whether each modpack's detail window takes its colours from the pack's logo. */
     public static synchronized boolean getPackColors() {
         return ConfigStore.getOrInitBoolean( ConfigConstants.PACK_COLORS_KEY, ConfigConstants.PACK_COLORS_DEFAULT );

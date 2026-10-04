@@ -336,6 +336,19 @@ through, the detail window and dialogs grow in and shrink out. Settings › Appe
 (`Motion.setReduceMotion`) makes transitions instant and stills ambient animation; the wavy progress
 bar has its own on/off switch there.
 
+**Interface scale.** Settings › Appearance › Interface scale (50/75/100/125/150 %, config
+`uiScalePercent`, default 100) zooms every window, live. `UiScale.wrap` puts each window's root
+in a `ScaledRoot`, which lays the content out at the window size divided by the scale and draws it
+scaled (the content also carries the `root` style class, so theme sheets' `.root` tokens still
+match it). New windows must build their scene as `new Scene( UiScale.wrap( root ), w * UiScale.get(),
+h * UiScale.get() )` plus `UiScale.install( scene )`. Popups and dialogs are separate windows outside
+the zoom: `UiScale.install` adds a generated stylesheet (a data URI, scoped under `.root` to outrank
+the theme) that scales their text and padding; popups inherit their owner scene's sheets. Native
+chrome is kept aligned: the stage minimum is the screen's minimum times the scale, the Windows
+caption hit regions (`scaleUi`) multiply by it, and the macOS navbar inset/band divide by it so the
+traffic lights and the 52 pt band keep their native size. `UiScaleSnapshotFxTest` renders screens,
+a menu, a tooltip and a dialog at each scale (`build/target/snapshots/scale/`).
+
 **Snapshots.** `ThemeSnapshotFxTest` (`MMCL_RUN_TESTFX=true`) renders every screen, two control
 galleries, a dialog and the popups in all seven theme variants to `build/target/snapshots/themes/`.
 `DetailModalSnapshotFxTest`, `RunningGamesSnapshotFxTest` and `SecondaryScreensSnapshotFxTest` render the

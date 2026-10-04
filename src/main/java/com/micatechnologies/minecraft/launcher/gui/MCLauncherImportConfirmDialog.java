@@ -190,7 +190,8 @@ public final class MCLauncherImportConfirmDialog
         root.setPadding( new Insets( 16 ) );
         root.getStyleClass().add( "rootPane" );
 
-        Scene scene = new Scene( root, 600, 520 );
+        Scene scene = new Scene( UiScale.wrap( root ), 600 * UiScale.get(), 520 * UiScale.get() );
+        UiScale.install( scene );
         stage.setScene( scene );
 
         // Install the active theme on the dialog's own Parent root rather than

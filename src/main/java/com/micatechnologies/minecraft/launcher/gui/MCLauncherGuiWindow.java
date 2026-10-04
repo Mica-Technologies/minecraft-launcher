@@ -133,13 +133,23 @@ public class MCLauncherGuiWindow extends Application
         BundledFonts.ensureLoaded();
         WavyProgressBar.setWavyEnabled( ConfigManager.getWavyProgress() );
         Motion.setReduceMotion( ConfigManager.getReduceMotion() );
+        UiScale.setPercent( ConfigManager.getUiScalePercent() );
 
         // Save stage
         this.stage = stage;
 
-        // Configure stage
-        stage.setMinHeight( MIN_HEIGHT );
-        stage.setMinWidth( MIN_WIDTH );
+        // Configure stage. Minimums are in layout units, so they grow and shrink with the
+        // interface scale; a scale change re-applies them (and re-insets the macOS title bar).
+        baseMinWidth = MIN_WIDTH;
+        baseMinHeight = MIN_HEIGHT;
+        applyScaledMinSize();
+        UiScale.scaleProperty().addListener( ( o, was, now ) -> {
+            applyScaledMinSize();
+            if ( gui != null && gui.scene != null ) {
+                com.micatechnologies.minecraft.launcher.utilities.MacOsTitleBarManager
+                        .hideRedundantBranding( gui.scene.getRoot() );
+            }
+        } );
 
         // Set resizable property
         stage.setResizable( ConfigManager.getResizableWindows() );
@@ -508,6 +518,21 @@ public class MCLauncherGuiWindow extends Application
         } );
     }
 
+    /** The current screen's minimum size in layout units (before the interface scale). */
+    private double baseMinWidth;
+    private double baseMinHeight;
+
+    /** Sets the stage's minimum size to the screen's minimum at the current interface scale. */
+    private void applyScaledMinSize()
+    {
+        if ( stage == null ) {
+            return;
+        }
+        double s = UiScale.get();
+        stage.setMinWidth( baseMinWidth * s );
+        stage.setMinHeight( baseMinHeight * s );
+    }
+
     /**
      * Swaps the given screen into the stage as the active GUI. Cleans up the previously-shown screen, runs the new
      * screen's {@code setup()}, syncs the stage's minimum size to the screen's root min, injects the corner help
@@ -566,11 +591,12 @@ public class MCLauncherGuiWindow extends Application
             double minH = gui.rootPane.getMinHeight();
             double minW = gui.rootPane.getMinWidth();
             if ( minH > 0 && !Double.isInfinite( minH ) ) {
-                stage.setMinHeight( minH );
+                baseMinHeight = minH;
             }
             if ( minW > 0 && !Double.isInfinite( minW ) ) {
-                stage.setMinWidth( minW );
+                baseMinWidth = minW;
             }
+            applyScaledMinSize();
 
             // Inject context-sensitive help button into top-right corner
             injectHelpButton( gui );

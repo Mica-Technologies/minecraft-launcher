@@ -82,12 +82,13 @@ public abstract class MCLauncherAbstractGui
                         com.micatechnologies.minecraft.launcher.consts.localization
                                 .LocalizationManager.currentBundle() );
                 if ( stage.getScene() != null ) {
-                    scene = new Scene( fxmlLoader.load(), stage.getScene().getWidth(), stage.getScene().getHeight() );
+                    scene = new Scene( UiScale.wrap( fxmlLoader.load() ), stage.getScene().getWidth(), stage.getScene().getHeight() );
                 }
                 else {
-                    scene = new Scene( fxmlLoader.load() );
+                    scene = new Scene( UiScale.wrap( fxmlLoader.load() ) );
                 }
                 applySafeSceneFill( scene );
+                UiScale.install( scene );
             }
             catch ( Exception e ) {
                 Logger.logError( "Unable to build FXML loader for the application GUI." );
@@ -125,12 +126,13 @@ public abstract class MCLauncherAbstractGui
                         com.micatechnologies.minecraft.launcher.consts.localization
                                 .LocalizationManager.currentBundle() );
                 if ( stage.getScene() != null ) {
-                    scene = new Scene( fxmlLoader.load(), width, height );
+                    scene = new Scene( UiScale.wrap( fxmlLoader.load() ), width, height );
                 }
                 else {
-                    scene = new Scene( fxmlLoader.load() );
+                    scene = new Scene( UiScale.wrap( fxmlLoader.load() ) );
                 }
                 applySafeSceneFill( scene );
+                UiScale.install( scene );
             }
             catch ( Exception e ) {
                 Logger.logError( "Unable to build FXML loader for the application GUI." );

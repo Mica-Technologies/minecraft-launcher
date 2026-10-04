@@ -75,7 +75,8 @@ public final class RunningGamesWindow
             }
         } );
         stage.setTitle( LocalizationManager.get( "session.window.title" ) );
-        stage.setScene( new Scene( root, 1000, 720 ) );
+        stage.setScene( new Scene( UiScale.wrap( root ), 1000 * UiScale.get(), 720 * UiScale.get() ) );
+        UiScale.install( stage.getScene() );
         stage.setMinWidth( 640 );
         stage.setMinHeight( 420 );
         MCLauncherGuiWindow.installCurrentThemeStylesheets( root );

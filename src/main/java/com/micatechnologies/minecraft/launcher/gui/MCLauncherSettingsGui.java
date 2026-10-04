@@ -308,6 +308,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     io.github.palexdev.materialfx.controls.MFXToggleButton packColorsToggle;
 
+    /** Appearance: the interface scale, one button per {@link UiScale#PERCENTS} value. Applies at
+     *  once and is saved straight away.
+     *
+     *  @since 2026.10 */
+    @SuppressWarnings( "unused" )
+    @FXML
+    javafx.scene.layout.HBox uiScaleGroup;
+
     /** Appearance dropdown: how often a pack's logo + background cycle when the
      *  manifest declares multiple images (issue #43). Items are localized labels;
      *  the selected index maps to a token in
@@ -1238,6 +1246,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 ConfigManager.setReduceMotion( reduce );
                 Motion.setReduceMotion( reduce );
             } );
+        }
+
+        // Interface scale (Appearance tab).
+        if ( uiScaleGroup != null ) {
+            buildUiScaleGroup();
         }
 
         // Colour from modpack art (Appearance tab): read when a detail window opens.
@@ -3147,4 +3160,41 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         javafx.scene.input.Clipboard.getSystemClipboard().setContent( content );
     }
 
+
+    /**
+     * Fills the interface-scale row: a connected button group of the offered scales, labelled in
+     * the locale's percent format, the current one selected.
+     */
+    private void buildUiScaleGroup()
+    {
+        uiScaleGroup.getChildren().clear();
+        java.text.NumberFormat percentFormat = java.text.NumberFormat.getPercentInstance();
+        int count = UiScale.PERCENTS.length;
+        for ( int i = 0; i < count; i++ ) {
+            int percent = UiScale.PERCENTS[ i ];
+            MFXButton b = new MFXButton( percentFormat.format( percent / 100.0 ) );
+            b.setMinWidth( javafx.scene.layout.Region.USE_PREF_SIZE );
+            b.getStyleClass().add( SettingsNavTile.positionClass( i, count ) );
+            b.setOnAction( e -> {
+                UiScale.setPercent( percent );
+                ConfigManager.setUiScalePercent( percent );
+                markUiScaleSelection();
+            } );
+            b.setUserData( percent );
+            uiScaleGroup.getChildren().add( b );
+        }
+        markUiScaleSelection();
+    }
+
+    /** Marks the button for the current scale as selected. */
+    private void markUiScaleSelection()
+    {
+        int current = UiScale.percent();
+        for ( javafx.scene.Node n : uiScaleGroup.getChildren() ) {
+            n.getStyleClass().remove( "selected" );
+            if ( Integer.valueOf( current ).equals( n.getUserData() ) ) {
+                n.getStyleClass().add( "selected" );
+            }
+        }
+    }
 }

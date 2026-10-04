@@ -673,6 +673,20 @@ public class GUIUtilities
     }
 
     /**
+     * Makes a dialog follow the interface scale. Dialogs aren't wrapped in a {@link ScaledRoot}
+     * (JavaFX's dialog resizes its pane to its window directly, behind any wrapper), so instead
+     * the scene gets the generated scale stylesheet, which scales the dialog's base font and
+     * button padding, and the dialog sizes itself to the larger content.
+     */
+    private static void scaleDialog( javafx.scene.control.Dialog< ? > alert )
+    {
+        javafx.scene.Scene scene = alert.getDialogPane().getScene();
+        if ( scene != null ) {
+            UiScale.install( scene );
+        }
+    }
+
+    /**
      * Applies the active launcher theme's title-bar chrome (DWM immersive-dark
      * on Windows, NSWindow setAppearance on macOS, no-op on Linux) to the
      * {@link Alert}'s Stage so the alert window's frame matches the rest of
@@ -709,6 +723,7 @@ public class GUIUtilities
                 // root explicitly.
                 javafx.scene.Parent dialogRoot = alert.getDialogPane();
                 MCLauncherGuiWindow.installCurrentThemeStylesheets( dialogRoot );
+                scaleDialog( alert );
 
                 javafx.stage.Window w = dialogRoot.getScene().getWindow();
                 if ( w instanceof Stage st ) {

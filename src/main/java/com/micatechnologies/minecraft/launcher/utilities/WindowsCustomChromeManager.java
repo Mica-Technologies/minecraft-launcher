@@ -486,8 +486,8 @@ public final class WindowsCustomChromeManager
         int height = wr.bottom - wr.top;
 
         boolean maximized = isMaximized( hwnd );
-        int capH = scale( TITLE_BAR_HEIGHT );
-        int nativeButtonsW = scale( BUTTON_WIDTH ) * BUTTON_COUNT;
+        int capH = scaleUi( TITLE_BAR_HEIGHT );
+        int nativeButtonsW = scaleUi( BUTTON_WIDTH ) * BUTTON_COUNT;
 
         // When maximized, WM_NCCALCSIZE inset the client area by the frame thickness, so the JavaFX
         // content (and our caption buttons) start that far in from the window-rect edges. Shift to
@@ -507,7 +507,7 @@ public final class WindowsCustomChromeManager
         //    hover + a red close). Only the maximize glyph needs the native flyout.
         if ( cy >= 0 && cy < capH && cx >= contentWidth - nativeButtonsW && cx < contentWidth ) {
             int fromRight = contentWidth - cx;
-            int btnW = scale( BUTTON_WIDTH );
+            int btnW = scaleUi( BUTTON_WIDTH );
             if ( fromRight > btnW && fromRight <= btnW * 2 ) {
                 return new LRESULT( HTMAXBUTTON );
             }
@@ -713,6 +713,18 @@ public final class WindowsCustomChromeManager
      * @return the scaled value in physical pixels.
      */
     private static int scale( int logical ) { return Math.round( logical * dpiScale() ); }
+
+    /**
+     * Like {@link #scale}, for sizes of the launcher's own chrome (the title-bar height, the
+     * caption buttons): those are drawn inside the window's content, which the launcher's
+     * interface scale zooms, so the native hit regions follow that scale too. The resize border
+     * is the OS's and uses {@link #scale} alone.
+     */
+    private static int scaleUi( int logical )
+    {
+        return (int) Math.round( logical * dpiScale()
+                                 * com.micatechnologies.minecraft.launcher.gui.UiScale.get() );
+    }
 
     /**
      * Queries the DPI for a given window.

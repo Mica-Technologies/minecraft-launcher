@@ -413,7 +413,8 @@ public class MCLauncherHelpWindow
         root.setCenter( webView );
         root.getStyleClass().add( "helpRoot" );
 
-        Scene scene = new Scene( root, 800, 600 );
+        Scene scene = new Scene( UiScale.wrap( root ), 800 * UiScale.get(), 600 * UiScale.get() );
+        UiScale.install( scene );
         helpStage.setScene( scene );
         helpStage.setMinWidth( 600 );
         helpStage.setMinHeight( 400 );

@@ -157,7 +157,8 @@ public final class ModrinthAddModDialog
         rootBox.getStyleClass().add( "rootPane" );
         rootBox.setPadding( new Insets( 16 ) );
 
-        Scene scene = new Scene( rootBox, 560, 520 );
+        Scene scene = new Scene( UiScale.wrap( rootBox ), 560 * UiScale.get(), 520 * UiScale.get() );
+        UiScale.install( scene );
         stage.setScene( scene );
         // Apply the launcher's active theme the same way other auxiliary windows do: installs the
         // legacy + ui-base + token sheets AND paints a solid background, so the native (Mica) theme

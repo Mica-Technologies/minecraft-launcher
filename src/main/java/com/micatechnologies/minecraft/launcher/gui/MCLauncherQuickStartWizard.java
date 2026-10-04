@@ -280,7 +280,8 @@ public final class MCLauncherQuickStartWizard
         VBox root = new VBox( stepContainer, navBar );
         root.getStyleClass().add( "wizardRoot" );
 
-        Scene scene = new Scene( root, 620, 540 );
+        Scene scene = new Scene( UiScale.wrap( root ), 620 * UiScale.get(), 540 * UiScale.get() );
+        UiScale.install( scene );
         // Reuse the same theme stylesheet stack the main launcher uses so the
         // wizard inherits whichever theme the user picks live. Pulling from
         // MCLauncherGuiWindow keeps the resolution logic in one place.

@@ -223,6 +223,12 @@
                             <MFXComboBox fx:id="themeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
                         </VBox>
                         <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.appearance.uiScale" />
+                            <!-- Filled by the controller: one button per scale, a connected group. -->
+                            <HBox fx:id="uiScaleGroup" styleClass="connectedGroup" spacing="2.0"/>
+                            <Label text="%settings.appearance.uiScale.hint" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
                             <MFXToggleButton fx:id="wavyProgressToggle" text="%settings.appearance.wavyProgress" />
                             <Label text="%settings.appearance.wavyProgress.hint" wrapText="true" styleClass="settingsHint"/>
                         </VBox>

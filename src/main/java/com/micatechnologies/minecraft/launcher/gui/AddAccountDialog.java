@@ -70,7 +70,8 @@ public final class AddAccountDialog
         StackPane root = new StackPane( signIn.root() );
         root.setPadding( new Insets( 20 ) );
         root.getStyleClass().addAll( "rootPane", "hero-surface" );
-        stage.setScene( new Scene( root, 1000, 800 ) );
+        stage.setScene( new Scene( UiScale.wrap( root ), 1000 * UiScale.get(), 800 * UiScale.get() ) );
+        UiScale.install( stage.getScene() );
         stage.setMinWidth( 860 );
         stage.setMinHeight( 680 );
         MCLauncherGuiWindow.installCurrentThemeStylesheets( root );
