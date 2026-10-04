@@ -75,8 +75,9 @@
     /* === Popups (context menus, tooltips, dropdowns, dialogs) ===
      * Always opaque: popups are separate windows with no launcher surface or
      * OS backdrop behind them, so a translucent surface token would let the
-     * desktop show through. */
-    -color-popup:             #1E2533;
+     * desktop show through. The theme's own high container level, so menus
+     * and dialogs carry the theme's tint. */
+    -color-popup:             -md-surface-container-high;
     -color-popup-border:      rgba(220, 224, 240, 0.12);
 
     /* ==== GENERATED: Material 3 colour roles (tools/theme-roles) — do not edit by hand ==== */

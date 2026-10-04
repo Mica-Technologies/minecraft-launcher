@@ -72,7 +72,7 @@ class ThemeTokensTest
             Map< String, String > t = tokens( sheet );
             // Translucent (Native) surfaces are judged over the theme's opaque popup colour, the
             // closest stand-in for the OS backdrop they sit on.
-            int backdrop = rgb( t.get( "-color-popup" ), 0 );
+            int backdrop = rgb( resolve( t, "-color-popup" ), 0 );
             for ( String group : new String[]{ "primary", "secondary", "error", "success", "warning", "tertiary" } ) {
                 check( failures, sheet, t, "-md-on-" + group, "-md-" + group, backdrop, TEXT );
                 check( failures, sheet, t, "-md-on-" + group + "-container", "-md-" + group + "-container", backdrop,
