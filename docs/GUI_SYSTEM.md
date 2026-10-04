@@ -302,7 +302,9 @@ Until 2026.10 a per-theme legacy sheet (`guiStyle-<theme>.css`) loaded underneat
 **Inline styles.** `setStyle(...)` is only for values computed at runtime: background images, the
 hero gradient, window transparency, title-bar insets, theme swatches. Fixed sizes, weights and
 colours belong in a CSS class (`type-body-small`, `type-label-small`, `type-weight-bold` and so on),
-because the theme can't reach inline styles. Popups resolve tokens through their owner node, so
+because the theme can't reach inline styles. `InlineStyleGuardTest` fails the build on a
+`setStyle` that sets a font, text colour, padding, radius or literal colour, and on any FXML
+`style="..."` attribute; its allow-list holds the few exceptions, each with its reason. Popups resolve tokens through their owner node, so
 attach tooltips and context menus to a node (`Tooltip.install`, `ContextMenu.show( anchor, ... )`).
 
 **Snapshots.** `ThemeSnapshotFxTest` (`MMCL_RUN_TESTFX=true`) renders every screen, two control

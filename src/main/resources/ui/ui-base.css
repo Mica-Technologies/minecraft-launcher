@@ -2062,6 +2062,11 @@
     -fx-cursor: hand;
 }
 
+/* The colour square on each theme option; its colour is set inline per theme. */
+.wizardThemeSwatch {
+    -fx-background-radius: 4;
+}
+
 .wizardThemeOption:hover {
     -fx-background-color: -color-surface-hover;
     -fx-border-color: -color-primary;

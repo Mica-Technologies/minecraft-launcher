@@ -417,8 +417,8 @@ public final class MCLauncherQuickStartWizard
             Region swatch = new Region();
             swatch.setMinSize( 14, 14 );
             swatch.setMaxSize( 14, 14 );
-            swatch.setStyle( "-fx-background-color: " + toCssColor( entry.getValue() )
-                                     + "; -fx-background-radius: 4;" );
+            swatch.getStyleClass().add( "wizardThemeSwatch" );
+            swatch.setStyle( "-fx-background-color: " + toCssColor( entry.getValue() ) + ";" );
             tb.setGraphic( swatch );
             tb.setContentDisplay( javafx.scene.control.ContentDisplay.LEFT );
 
