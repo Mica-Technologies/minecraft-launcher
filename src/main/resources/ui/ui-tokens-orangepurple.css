@@ -25,7 +25,9 @@
     -color-text-muted:        #C4ABC0;
     -color-text-subtle:       #9F7F99;
     -color-text-inverse:      #201221;
-    -color-text-on-primary:   white;
+    /* Deep plum, not white: white on the orchid primary is only 3.4:1, below
+     * WCAG AA's 4.5:1 for text. */
+    -color-text-on-primary:   #36003C;
 
     /* === Brand: purple (primary) === */
     -color-primary:           #D257DB;
