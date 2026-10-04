@@ -41,6 +41,9 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -71,6 +74,12 @@ class McpServerLoopbackTest
     private HttpClient client;
     private boolean toolRan;
     private volatile boolean approve = true;
+
+    /** When set, the authorizer blocks on it, standing in for an unanswered consent dialog. */
+    private volatile CountDownLatch consentPending;
+
+    /** Counted down once the authorizer has started waiting on {@link #consentPending}. */
+    private volatile CountDownLatch consentShown;
 
     @TempDir
     Path tempDir;
@@ -111,7 +120,20 @@ class McpServerLoopbackTest
     {
         McpToolRegistry tools = new McpToolRegistry();
         tools.register( new EchoTool() );
-        McpAuthorizer authorizer = ( tool, context, arguments ) -> approve;
+        McpAuthorizer authorizer = ( tool, context, arguments ) -> {
+            CountDownLatch pending = consentPending;
+            if ( pending != null ) {
+                consentShown.countDown();
+                try {
+                    pending.await( 20, TimeUnit.SECONDS );
+                }
+                catch ( InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            }
+            return approve;
+        };
 
         server = new McpServer( tools, new McpResourceRegistry(), authorizer );
         port = server.start( 0, tempDir.resolve( McpEndpointFile.FILENAME ) );
@@ -119,11 +141,16 @@ class McpServerLoopbackTest
         client = HttpClient.newBuilder().connectTimeout( Duration.ofSeconds( 5 ) ).build();
         toolRan = false;
         approve = true;
+        consentPending = null;
     }
 
     @AfterEach
     void stopServer()
     {
+        CountDownLatch pending = consentPending;
+        if ( pending != null ) {
+            pending.countDown();
+        }
         if ( server != null ) {
             server.stop();
         }
@@ -417,9 +444,58 @@ class McpServerLoopbackTest
         assertEquals( "Loopback Test", server.getSessions().get( 0 ).getClientName() );
     }
 
+    /**
+     * A call waiting on a consent dialog must not stall everything else. Pings, listings and
+     * other clients' handshakes are answered while it waits; only tool calls queue behind it.
+     */
+    @Test
+    void aPendingConsentDoesNotBlockUnrelatedRequests() throws Exception
+    {
+        String sessionId = handshake();
+        consentShown = new CountDownLatch( 1 );
+        consentPending = new CountDownLatch( 1 );
+
+        CompletableFuture< HttpResponse< String > > blockedCall = client.sendAsync(
+                authorized( callEcho(), token ).header( "Mcp-Session-Id", sessionId )
+                        .timeout( Duration.ofSeconds( 30 ) ).build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertTrue( consentShown.await( 10, TimeUnit.SECONDS ), "the call never reached consent" );
+
+        HttpResponse< String > ping = sendWithin( authorized( ping(), token ), 3 );
+        assertEquals( 200, ping.statusCode() );
+        HttpResponse< String > list = sendWithin( authorized(
+                "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/list\"}", token )
+                                                          .header( "Mcp-Session-Id", sessionId ), 3 );
+        assertTrue( jsonOf( list ).has( "result" ), list.body() );
+        assertEquals( 200, sendWithin( authorized( initialize(), token ), 3 ).statusCode(),
+                      "another client could not even connect" );
+        assertFalse( blockedCall.isDone(), "the call should still be waiting on consent" );
+
+        consentPending.countDown();
+        assertEquals( 200, blockedCall.get( 10, TimeUnit.SECONDS ).statusCode() );
+        assertTrue( toolRan );
+    }
+
+    @Test
+    void onlyToolCallsAndResourceReadsAreSerialized()
+    {
+        assertTrue( McpServer.requiresSerialDispatch( "tools/call" ) );
+        assertTrue( McpServer.requiresSerialDispatch( "resources/read" ) );
+        for ( String method : new String[]{ "initialize", "ping", "tools/list", "resources/list",
+                                            "resources/templates/list", "notifications/initialized" } ) {
+            assertFalse( McpServer.requiresSerialDispatch( method ), method );
+        }
+    }
+
     // endregion
 
     // region helpers
+
+    private HttpResponse< String > sendWithin( HttpRequest.Builder builder, int seconds ) throws Exception
+    {
+        return client.send( builder.timeout( Duration.ofSeconds( seconds ) ).build(),
+                            HttpResponse.BodyHandlers.ofString() );
+    }
 
     private String handshake() throws Exception
     {

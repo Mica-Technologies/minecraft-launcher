@@ -42,10 +42,16 @@ import java.util.concurrent.Future;
 /**
  * The launcher's MCP server: lifecycle, session management, and request serialization.
  * <p>
- * <b>Requests are serialized.</b> Every message is dispatched through a single-threaded
- * executor, because {@code GameModPackManager} is {@code static synchronized} and several pack
- * operations are not safe to interleave. Serializing here makes concurrent calls from one
- * client well-defined instead of racy, at the cost of throughput this workload does not need.
+ * <b>Tool calls are serialized.</b> {@code tools/call} and {@code resources/read} — the
+ * methods that reach launcher state and the approval gate — are dispatched through a
+ * single-threaded executor, because {@code GameModPackManager} is {@code static synchronized}
+ * and several pack operations are not safe to interleave. Serializing here makes concurrent
+ * calls well-defined instead of racy, at the cost of throughput this workload does not need.
+ * <p>
+ * Everything else — the handshake, {@code ping}, the listings, notifications — is answered on
+ * the transport thread without queuing. A call can sit in the queue for up to two minutes on a
+ * consent dialog; if a ping or a {@code tools/list} waited behind it, clients would time out
+ * and drop the connection while the user was still reading the question.
  * <p>
  * Starting generates a fresh bearer token and publishes it, with the bound port, to the
  * owner-only endpoint file. The token is per-launch: a client that cached one from a previous
@@ -342,17 +348,27 @@ public final class McpServer
 
         final McpSession target = session;
         JsonObject response;
+        ExecutorService serial = dispatcher;
         try {
-            Future< JsonObject > future = dispatcher.submit(
-                    () -> handler.handle( message, target, now ) );
-            response = future.get();
+            if ( !requiresSerialDispatch( method ) ) {
+                response = handler.handle( message, target, now );
+            }
+            else if ( serial == null ) {
+                response = JsonRpcCodec.error( message.id(), McpErrors.INTERNAL_ERROR,
+                                               "The MCP server is stopping" );
+            }
+            else {
+                Future< JsonObject > future = serial.submit(
+                        () -> handler.handle( message, target, now ) );
+                response = future.get();
+            }
         }
         catch ( InterruptedException e ) {
             Thread.currentThread().interrupt();
             response = JsonRpcCodec.error( parse.message().id(), McpErrors.INTERNAL_ERROR,
                                            "Request was interrupted" );
         }
-        catch ( ExecutionException e ) {
+        catch ( ExecutionException | RuntimeException e ) {
             Logger.logError( "MCP dispatch failed" );
             Logger.logThrowable( e );
             response = JsonRpcCodec.error( parse.message().id(), McpErrors.INTERNAL_ERROR,
@@ -362,6 +378,22 @@ public final class McpServer
         // The session id is echoed on the handshake so the client can carry it afterwards.
         String echoed = isInitialize ? target.getId() : null;
         return new LoopbackHttpTransport.Response( response, echoed );
+    }
+
+    /**
+     * Reports whether a method must run on the serial dispatcher.
+     * <p>
+     * Only the methods that reach launcher state or the approval gate are serialized. Every
+     * other method reads nothing a tool call can be halfway through changing, so it is answered
+     * immediately, even while a call is waiting on a consent dialog.
+     *
+     * @param method the JSON-RPC method
+     *
+     * @return {@code true} for {@code tools/call} and {@code resources/read}
+     */
+    static boolean requiresSerialDispatch( String method )
+    {
+        return McpMethods.TOOLS_CALL.equals( method ) || McpMethods.RESOURCES_READ.equals( method );
     }
 
     /**

@@ -662,14 +662,19 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
 
     <h3><span class="num">3.6</span>Threading</h3>
 
-    <p>The transport's accept loop runs on daemon threads. Every parsed message is dispatched
-        through a <strong>single-threaded executor</strong> named <code>mcp-dispatch</code>,
-        because <code>GameModPackManager</code> is <code>static synchronized</code> and several
-        pack operations are not safe to interleave. Two consequences follow:</p>
+    <p>The transport's accept loop runs on daemon threads. <code>tools/call</code> and
+        <code>resources/read</code> are dispatched through a <strong>single-threaded
+        executor</strong> named <code>mcp-dispatch</code>, because <code>GameModPackManager</code>
+        is <code>static synchronized</code> and several pack operations are not safe to
+        interleave. Every other method — <code>initialize</code>, <code>ping</code>, the
+        listings, notifications — is answered on the transport thread without queuing. Two
+        consequences follow:</p>
 
     <ul>
-        <li><strong>A consent dialog blocks the queue.</strong> Consent marshals to the FX thread
-            and blocks dispatch until answered, denied or timed out at 120 s.</li>
+        <li><strong>A consent dialog blocks the call queue, and only that.</strong> Consent
+            marshals to the FX thread and holds later tool calls and resource reads until it is
+            answered, denied or timed out at 120 s; pings, listings and new handshakes are still
+            answered, so clients do not time out while the user reads the question.</li>
         <li><strong><code>launch_modpack</code> hands off.</strong> <code>LauncherCore.play()</code>
             blocks while the game downloads and prepares, so it is spawned onto its own task and
             the tool reports that the launch <em>started</em> rather than holding dispatch.</li>
