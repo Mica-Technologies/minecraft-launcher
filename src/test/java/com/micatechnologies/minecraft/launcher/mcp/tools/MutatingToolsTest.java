@@ -362,6 +362,27 @@ class MutatingToolsTest
         }
     }
 
+    /**
+     * The loader installer is downloaded and run, so its URL is held to the same install-source
+     * rules as install_modpack's and add_mod_to_modpack's.
+     */
+    @Test
+    void aModLoaderUrlTheLauncherRefusesIsRejectedBeforeApproval()
+    {
+        for ( String refused : new String[]{ "http://example.com/forge-installer.jar",
+                                             "file:///C:/Windows/System32/evil.jar",
+                                             "ftp://example.com/forge.jar", "not a url",
+                                             "https://example.com/a\nb.jar" } ) {
+            JsonObject arguments = args( "name", "Brand New" );
+            arguments.addProperty( "modLoaderUrl", refused );
+            assertNotNull( validate( "create_modpack", arguments ), refused );
+        }
+
+        JsonObject https = args( "name", "Brand New" );
+        https.addProperty( "modLoaderUrl", "https://maven.minecraftforge.net/forge-installer.jar" );
+        assertNull( validate( "create_modpack", https ) );
+    }
+
     @Test
     void aNameWithNoLettersOrDigitsIsRefused()
     {

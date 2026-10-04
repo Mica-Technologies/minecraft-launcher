@@ -1128,7 +1128,7 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         <dl class="meta">
             <dt>Purpose</dt><dd>Creates a new, empty pack and installs it locally, ready to have mods added.</dd>
             <dt>Arguments</dt><dd><code>name</code> <em>(required)</em>; <code>modLoader</code> (<code>forge</code> · <code>neoforge</code> · <code>fabric</code>, default forge); <code>modLoaderUrl</code>.</dd>
-            <dt>Before asking</dt><dd>Refuses an empty name or a name already in use.</dd>
+            <dt>Before asking</dt><dd>Refuses an empty name, a name with no letters or digits, or a name already in use — compared on letters and digits only, ignoring case, because that is what the manifest's filename keeps. <code>modLoaderUrl</code>, when given, faces the same install-source gate as a pack manifest: the installer it names is downloaded and run.</dd>
             <dt>Writes</dt><dd>A manifest into <code>&lt;config&gt;/mcp-manifests</code>, then installs from that local URL — the same convention the <code>.mmcjson</code> and <code>.mrpack</code> importers already use. Packs created this way are the ones the edit tools may later modify.</dd>
         </dl>
     </div>
@@ -1141,7 +1141,7 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         <dl class="meta">
             <dt>Purpose</dt><dd>Copies an installed pack under a new name and installs the copy, so it can be edited without touching the original. Keeps every mod, config and setting, with the minor version bumped.</dd>
             <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>, <code>newName</code> <em>(required)</em>.</dd>
-            <dt>Before asking</dt><dd>Both names required; source must exist; target name must be free.</dd>
+            <dt>Before asking</dt><dd>Both names required; source must exist; target name must be free, compared as for <code>create_modpack</code>.</dd>
             <dt>Why it matters</dt><dd>This is the supported route to editing a pack you installed from someone else's manifest — the launcher will not rewrite a manifest it does not own (§4.7).</dd>
         </dl>
     </div>

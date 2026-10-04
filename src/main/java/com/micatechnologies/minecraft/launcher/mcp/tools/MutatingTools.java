@@ -299,6 +299,14 @@ public final class MutatingTools
             if ( name.isEmpty() ) {
                 return "A name argument is required.";
             }
+            // The loader installer is downloaded and run when the pack is first played, so its
+            // URL gets the same install-source rules as a modpack or mod URL.
+            String loaderUrl = stringArg( arguments, "modLoaderUrl" );
+            if ( !loaderUrl.isEmpty() && LauncherUriHandler.classifyInstallUrl( loaderUrl )
+                    == LauncherUriHandler.InstallUrlVerdict.REJECT ) {
+                return "That mod loader URL was refused by the launcher's install-source rules. "
+                        + "Mod loader URLs must be well-formed https links.";
+            }
             return newPackNameRejection( name );
         }
 
