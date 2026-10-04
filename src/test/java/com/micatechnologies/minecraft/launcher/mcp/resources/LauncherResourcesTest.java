@@ -112,6 +112,30 @@ class LauncherResourcesTest
         assertNotNull( registry.resolve( "mica://modpack/Pack/crash-report" ) );
     }
 
+    /**
+     * Each resource is gated by the tool serving the same data, and that tool must really
+     * exist — a misspelt name would silently fall back to a read-only stand-in that the user's
+     * policy for the real tool does not reach.
+     */
+    @Test
+    void everyResourceIsGovernedByARegisteredReadOnlyTool()
+    {
+        com.micatechnologies.minecraft.launcher.mcp.tools.McpToolRegistry tools =
+                new com.micatechnologies.minecraft.launcher.mcp.tools.McpToolRegistry();
+        com.micatechnologies.minecraft.launcher.mcp.tools.ReadOnlyTools.registerAll( tools, view );
+
+        assertEquals( "list_modpacks",
+                      registry.resolve( LauncherResources.PACKS_URI ).resource().governingToolName() );
+        assertEquals( "get_modpack_manifest", registry.resolve( "mica://modpack/Pack/manifest" )
+                .resource().governingToolName() );
+        assertEquals( "get_crash_report", registry.resolve( "mica://modpack/Pack/crash-report" )
+                .resource().governingToolName() );
+        for ( McpResource resource : registry.all() ) {
+            assertNotNull( tools.find( resource.governingToolName() ),
+                           "no tool named " + resource.governingToolName() );
+        }
+    }
+
     @Test
     void registrationRequiresBothArguments()
     {

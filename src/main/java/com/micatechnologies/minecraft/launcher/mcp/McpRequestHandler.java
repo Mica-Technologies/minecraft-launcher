@@ -22,10 +22,12 @@ import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpAuthorizer;
+import com.micatechnologies.minecraft.launcher.mcp.approval.McpRiskClass;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.JsonRpcCodec;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.JsonRpcMessage;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.McpErrors;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.McpMethods;
+import com.micatechnologies.minecraft.launcher.mcp.resources.McpResource;
 import com.micatechnologies.minecraft.launcher.mcp.resources.McpResourceRegistry;
 import com.micatechnologies.minecraft.launcher.mcp.session.McpSession;
 import com.micatechnologies.minecraft.launcher.mcp.tools.McpCallContext;
@@ -164,7 +166,7 @@ public final class McpRequestHandler
             case McpMethods.RESOURCES_LIST -> JsonRpcCodec.result( message.id(), resources.listResult() );
             case McpMethods.RESOURCES_TEMPLATES_LIST ->
                     JsonRpcCodec.result( message.id(), resources.templatesListResult() );
-            case McpMethods.RESOURCES_READ -> handleResourcesRead( message );
+            case McpMethods.RESOURCES_READ -> handleResourcesRead( message, session );
             default -> JsonRpcCodec.error( message.id(), McpErrors.METHOD_NOT_FOUND,
                                            "Unknown method: " + method );
         };
@@ -298,12 +300,18 @@ public final class McpRequestHandler
 
     /**
      * Handles {@code resources/read}.
+     * <p>
+     * A resource serves the same data as a tool, so it goes through the same gate: the
+     * authorizer decides with the governing tool's policy, and the outcome is recorded in the
+     * activity log. A tool the user disabled therefore cannot be read around through its
+     * resource, and reads show up in Settings alongside calls.
      *
      * @param message the request
+     * @param session the calling session
      *
      * @return the response
      */
-    private JsonObject handleResourcesRead( JsonRpcMessage message )
+    private JsonObject handleResourcesRead( JsonRpcMessage message, McpSession session )
     {
         String uri = readString( message.paramsObject(), "uri" );
         if ( uri.isEmpty() ) {
@@ -316,6 +324,30 @@ public final class McpRequestHandler
                                        "No such resource: " + uri );
         }
 
+        McpTool gate = gateFor( match.resource() );
+        McpCallContext context = session.toCallContext();
+        String detail = "resource " + uri;
+        JsonObject arguments = new JsonObject();
+        match.params().forEach( arguments::addProperty );
+        arguments.addProperty( "uri", uri );
+
+        boolean allowed;
+        try {
+            allowed = authorizer.authorize( gate, context, arguments );
+        }
+        catch ( Exception e ) {
+            // Fail closed, exactly as for a tool call.
+            Logger.logError( "MCP approval check failed for resource " + uri + "; denying" );
+            Logger.logThrowable( e );
+            allowed = false;
+        }
+        if ( !allowed ) {
+            activityLog.record( System.currentTimeMillis(), context.clientName(), gate.name(),
+                                McpActivityLog.Decision.DENIED, detail );
+            return JsonRpcCodec.error( message.id(), McpErrors.REQUEST_DENIED,
+                                       "Resource read was not approved: " + uri );
+        }
+
         String text;
         try {
             text = match.resource().read( match.params() );
@@ -323,9 +355,13 @@ public final class McpRequestHandler
         catch ( Exception e ) {
             Logger.logError( "MCP resource read failed: " + uri );
             Logger.logThrowable( e );
+            activityLog.record( System.currentTimeMillis(), context.clientName(), gate.name(),
+                                McpActivityLog.Decision.FAILED, detail );
             return JsonRpcCodec.error( message.id(), McpErrors.INTERNAL_ERROR,
                                        "Could not read resource: " + uri );
         }
+        activityLog.record( System.currentTimeMillis(), context.clientName(), gate.name(),
+                            McpActivityLog.Decision.ALLOWED, detail );
 
         // Resource text goes out through the same redaction path as tool output, so a log or
         // crash report exposed as a resource is subject to the same credential invariant.
@@ -339,6 +375,52 @@ public final class McpRequestHandler
         JsonObject result = new JsonObject();
         result.add( "contents", array );
         return JsonRpcCodec.result( message.id(), result );
+    }
+
+    /**
+     * Returns the tool whose approval policy governs reading a resource: the registered tool
+     * the resource names, or a read-only stand-in carrying that name when none is registered.
+     *
+     * @param resource the resource being read
+     *
+     * @return the gating tool; never {@code null}
+     */
+    private McpTool gateFor( McpResource resource )
+    {
+        String name = resource.governingToolName();
+        if ( name == null || name.isBlank() ) {
+            name = "read_resource";
+        }
+        McpTool tool = tools.find( name );
+        return tool != null ? tool : new ResourceReadGate( name, resource );
+    }
+
+    /**
+     * The approval stand-in for a resource with no registered tool equivalent: read-only, and
+     * never invoked — it exists only to be shown to the authorizer.
+     *
+     * @param name     the tool name the policy is looked up under
+     * @param resource the resource being read
+     */
+    private record ResourceReadGate( String name, McpResource resource ) implements McpTool
+    {
+        @Override
+        public String title() { return resource.name(); }
+
+        @Override
+        public String description() { return resource.description(); }
+
+        @Override
+        public JsonObject inputSchema() { return new JsonObject(); }
+
+        @Override
+        public McpRiskClass riskClass() { return McpRiskClass.READ_ONLY; }
+
+        @Override
+        public McpToolResult invoke( McpCallContext context, JsonObject arguments )
+        {
+            throw new UnsupportedOperationException( "A resource read gate is never invoked" );
+        }
     }
 
     /**

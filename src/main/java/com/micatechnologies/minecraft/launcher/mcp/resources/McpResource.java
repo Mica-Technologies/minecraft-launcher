@@ -94,6 +94,25 @@ public interface McpResource
     String read( Map< String, String > params ) throws Exception;
 
     /**
+     * Names the tool whose approval policy governs reading this resource.
+     * <p>
+     * A resource usually serves the same data as a tool — the crash-report resource and
+     * {@code get_crash_report}, say — so reading it is approved exactly as calling that tool
+     * would be. Without this, a tool the user disabled would stay readable through its
+     * resource. When the named tool is not registered, the read is gated as a read-only tool of
+     * that name, so a per-tool policy stored under it still applies.
+     *
+     * @return the governing tool's name; the default, {@code read_resource}, is a read-only
+     *         pseudo-tool for resources with no tool equivalent
+     *
+     * @since 2026.10
+     */
+    default String governingToolName()
+    {
+        return "read_resource";
+    }
+
+    /**
      * Reports whether this resource is parameterized.
      *
      * @return {@code true} when {@link #uriTemplate()} contains a placeholder

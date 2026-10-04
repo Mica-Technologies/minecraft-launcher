@@ -19,7 +19,10 @@ package com.micatechnologies.minecraft.launcher.mcp;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.micatechnologies.minecraft.launcher.mcp.approval.LauncherMcpAuthorizer;
+import com.micatechnologies.minecraft.launcher.mcp.approval.McpApprovalPolicy;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpAuthorizer;
+import com.micatechnologies.minecraft.launcher.mcp.approval.McpGrantStore;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpRiskClass;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.JsonRpcCodec;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.JsonRpcMessage;
@@ -144,6 +147,26 @@ class McpRequestHandlerTest
         {
             return template.contains( "{" ) ? List.of() : List.of( template );
         }
+    }
+
+    /** A resource that names the tool whose policy governs reading it. */
+    private record GovernedResource( String template, String content, String governingToolName )
+            implements McpResource
+    {
+        @Override
+        public String uriTemplate() { return template; }
+
+        @Override
+        public String name() { return "governed"; }
+
+        @Override
+        public String description() { return "governed"; }
+
+        @Override
+        public String mimeType() { return "text/plain"; }
+
+        @Override
+        public String read( Map< String, String > params ) { return content; }
     }
 
     @BeforeEach
@@ -614,6 +637,123 @@ class McpRequestHandlerTest
 
         assertEquals( McpErrors.INTERNAL_ERROR, errorCodeOf( response ) );
         assertFalse( response.toString().contains( "/Users/someone/secret" ) );
+    }
+
+    /**
+     * A resource serves the same data as its tool, so the authorizer sees that tool — with the
+     * resource's parameters as arguments — and a refusal never reaches the resource.
+     */
+    @Test
+    void aResourceReadIsAuthorizedAsItsGoverningTool()
+    {
+        initializedAs( "Claude Code" );
+        tools.register( new StubTool( "get_crash_report", null, false ) );
+        resources.register( new GovernedResource( "mica://modpack/{friendlyName}/crash-report",
+                                                  "crash text", "get_crash_report" ) );
+        McpActivityLog log = new McpActivityLog();
+        String[] seenTool = new String[ 1 ];
+        JsonObject[] seenArguments = new JsonObject[ 1 ];
+
+        JsonObject response = new McpRequestHandler( tools, resources, ( t, c, a ) -> {
+            seenTool[ 0 ] = t.name();
+            seenArguments[ 0 ] = a;
+            return false;
+        }, log ).handle( request( 1, "resources/read",
+                                  uriParams( "mica://modpack/Pack/crash-report" ) ), session, NOW );
+
+        assertEquals( McpErrors.REQUEST_DENIED, errorCodeOf( response ) );
+        assertFalse( response.toString().contains( "crash text" ) );
+        assertEquals( "get_crash_report", seenTool[ 0 ] );
+        assertEquals( "Pack", seenArguments[ 0 ].get( "friendlyName" ).getAsString() );
+        assertFalse( toolRan, "the governing tool is consulted, never invoked" );
+
+        McpActivityLog.Entry entry = log.recent().get( 0 );
+        assertEquals( McpActivityLog.Decision.DENIED, entry.decision() );
+        assertEquals( "get_crash_report", entry.toolName() );
+        assertEquals( "Claude Code", entry.clientName() );
+    }
+
+    @Test
+    void anApprovedResourceReadIsRecorded()
+    {
+        initialized();
+        resources.register( new StubResource( "mica://packs", "the pack index", null ) );
+        McpActivityLog log = new McpActivityLog();
+
+        resultOf( new McpRequestHandler( tools, resources, allow(), log ).handle(
+                request( 1, "resources/read", uriParams( "mica://packs" ) ), session, NOW ) );
+
+        assertEquals( 1, log.size() );
+        assertEquals( McpActivityLog.Decision.ALLOWED, log.recent().get( 0 ).decision() );
+    }
+
+    /**
+     * With no registered tool of that name, the read is gated as a read-only stand-in carrying
+     * the name, so a policy stored under it still applies.
+     */
+    @Test
+    void aResourceWithNoRegisteredToolIsGatedAsReadOnly()
+    {
+        initialized();
+        resources.register( new GovernedResource( "mica://packs", "index", "list_modpacks" ) );
+        McpTool[] seen = new McpTool[ 1 ];
+
+        resultOf( handler( ( t, c, a ) -> {
+            seen[ 0 ] = t;
+            return true;
+        } ).handle( request( 1, "resources/read", uriParams( "mica://packs" ) ), session, NOW ) );
+
+        assertEquals( "list_modpacks", seen[ 0 ].name() );
+        assertEquals( McpRiskClass.READ_ONLY, seen[ 0 ].riskClass() );
+    }
+
+    /**
+     * The property the gate exists for, through the production authorizer: a tool the user
+     * disabled cannot be read around through its resource, auto-approve notwithstanding.
+     */
+    @Test
+    void aDisabledToolCannotBeReadThroughItsResource()
+    {
+        initialized();
+        tools.register( new StubTool( "get_modpack_manifest", null, false ) );
+        resources.register( new GovernedResource( "mica://modpack/{friendlyName}/manifest",
+                                                  "MANIFEST-BODY", "get_modpack_manifest" ) );
+        LauncherMcpAuthorizer authorizer = new LauncherMcpAuthorizer(
+                new LauncherMcpAuthorizer.Settings()
+                {
+                    @Override
+                    public boolean serverEnabled() { return true; }
+
+                    @Override
+                    public boolean autoApproveReadOnly() { return true; }
+
+                    @Override
+                    public McpApprovalPolicy policyFor( String toolName )
+                    {
+                        return "get_modpack_manifest".equals( toolName ) ? McpApprovalPolicy.DISABLED
+                                                                         : null;
+                    }
+                },
+                new McpGrantStore(),
+                new LauncherMcpAuthorizer.ConsentPrompt()
+                {
+                    @Override
+                    public boolean isAvailable() { return false; }
+
+                    @Override
+                    public LauncherMcpAuthorizer.Answer ask( McpTool tool, McpCallContext context,
+                                                             JsonObject arguments )
+                    {
+                        return LauncherMcpAuthorizer.Answer.DENY;
+                    }
+                },
+                () -> NOW );
+
+        JsonObject response = handler( authorizer ).handle(
+                request( 1, "resources/read", uriParams( "mica://modpack/Pack/manifest" ) ), session, NOW );
+
+        assertEquals( McpErrors.REQUEST_DENIED, errorCodeOf( response ) );
+        assertFalse( response.toString().contains( "MANIFEST-BODY" ) );
     }
 
     @Test

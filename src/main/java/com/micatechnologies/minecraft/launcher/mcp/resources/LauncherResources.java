@@ -32,7 +32,8 @@ import java.util.Map;
  * Resources cover what a client wants to <em>read repeatedly</em>, as opposed to act on: the
  * pack index, a manifest, a crash report. They read through the same {@link McpLauncherView} as
  * the tools, so they are subject to the same bound on what they can reach, and their text goes
- * out through the same redaction path.
+ * out through the same redaction path. Each one also names its equivalent tool, whose approval
+ * policy gates reading it — a resource must not be a way round a tool the user disabled.
  * <p>
  * The per-pack resources are templates. They enumerate their instances from the live pack list,
  * so a client can call {@code resources/list} and see one entry per installed pack rather than
@@ -76,6 +77,9 @@ public final class LauncherResources
     private record PackIndex( McpLauncherView view ) implements McpResource
     {
         @Override
+        public String governingToolName() { return "list_modpacks"; }
+
+        @Override
         public String uriTemplate() { return PACKS_URI; }
 
         @Override
@@ -115,6 +119,9 @@ public final class LauncherResources
     private record PackManifest( McpLauncherView view ) implements McpResource
     {
         @Override
+        public String governingToolName() { return "get_modpack_manifest"; }
+
+        @Override
         public String uriTemplate() { return MANIFEST_TEMPLATE; }
 
         @Override
@@ -147,6 +154,9 @@ public final class LauncherResources
     /** One pack's latest crash report. */
     private record PackCrashReport( McpLauncherView view ) implements McpResource
     {
+        @Override
+        public String governingToolName() { return "get_crash_report"; }
+
         @Override
         public String uriTemplate() { return CRASH_TEMPLATE; }
 
