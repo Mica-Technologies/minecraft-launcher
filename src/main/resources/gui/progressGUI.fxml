@@ -118,8 +118,7 @@
             <!-- Row 2: Section label (current step heading) -->
             <Label fx:id="sectionLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="400.0"
                    prefWidth="390.0" styleClass="muted, type-body-medium" text="" textAlignment="CENTER" wrapText="true"
-                   GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
-            </Label>
+                   GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER"/>
 
             <!-- Row 3: Progress bar -->
             <MFXProgressBar fx:id="progressBar" maxWidth="360.0" minWidth="360.0" prefWidth="360.0"
@@ -129,14 +128,12 @@
             <!-- Row 4: Detail label (file-level details below progress bar) -->
             <Label fx:id="detailLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="400.0"
                    prefWidth="390.0" styleClass="subtle, type-body-small" text="" textAlignment="CENTER" wrapText="true"
-                   GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER">
-            </Label>
+                   GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER"/>
 
             <!-- Row 5: Speed/ETA info below detail label -->
             <Label fx:id="speedLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="400.0"
                    prefWidth="390.0" styleClass="subtle, type-body-small" text="" textAlignment="CENTER" wrapText="true"
-                   GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
-            </Label>
+                   GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER"/>
 
             <!-- Row 6: Cancel button. Hidden by default (no managed slot when not shown);
                  LauncherCore.play() opts into showing it for cancellable modpack launches.

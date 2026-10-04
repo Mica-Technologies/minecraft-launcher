@@ -32,15 +32,15 @@ class SettingsNavTileTest
     @Test
     void aLoneTileIsRoundedAllRound()
     {
-        assertEquals( "navTileOnly", SettingsNavTile.positionClass( 0, 1 ) );
+        assertEquals( "tileOnly", SettingsNavTile.positionClass( 0, 1 ) );
     }
 
     @Test
     void groupTilesAreFirstMiddleLast()
     {
-        assertEquals( "navTileFirst", SettingsNavTile.positionClass( 0, 3 ) );
-        assertEquals( "navTileMiddle", SettingsNavTile.positionClass( 1, 3 ) );
-        assertEquals( "navTileLast", SettingsNavTile.positionClass( 2, 3 ) );
-        assertEquals( "navTileLast", SettingsNavTile.positionClass( 1, 2 ) );
+        assertEquals( "tileFirst", SettingsNavTile.positionClass( 0, 3 ) );
+        assertEquals( "tileMiddle", SettingsNavTile.positionClass( 1, 3 ) );
+        assertEquals( "tileLast", SettingsNavTile.positionClass( 2, 3 ) );
+        assertEquals( "tileLast", SettingsNavTile.positionClass( 1, 2 ) );
     }
 }

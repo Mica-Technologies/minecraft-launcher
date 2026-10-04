@@ -97,8 +97,7 @@
                     </padding>
 
                     <!-- Pack Identity -->
-                    <Label text="%editor.section.packIdentity" styleClass="type-weight-bold">
-                    </Label>
+                    <Label text="%editor.section.packIdentity" styleClass="type-weight-bold"/>
                     <MFXTextField fx:id="packNameField" floatingText="Pack Name" maxWidth="500.0"
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
                     <HBox spacing="8.0" alignment="CENTER_LEFT">
@@ -122,8 +121,7 @@
 
                     <!-- Modloader -->
                     <HBox spacing="8.0" alignment="CENTER_LEFT">
-                        <Label text="%editor.section.modloader" styleClass="type-weight-bold">
-                        </Label>
+                        <Label text="%editor.section.modloader" styleClass="type-weight-bold"/>
                         <MFXComboBox fx:id="packModLoaderTypeCombo" prefWidth="160.0" minHeight="32.0"/>
                         <MFXButton fx:id="forgePickerBtn" text="%editor.pickerBtn.forge" prefHeight="28.0"/>
                     </HBox>

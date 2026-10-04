@@ -35,13 +35,6 @@
 .logoutBtn.mfx-button:armed .text,
 .logoutBtn.mfx-button:focused .text { -fx-fill: -color-text-on-primary; }
 
-/* ---- MaterialFX toggles ---- */
-.mfx-toggle-button:selected .line { -fx-stroke-line-cap: round; }
-.mfx-toggle-button:disabled .line { -fx-stroke: -color-text-subtle; -fx-opacity: 0.4; }
-.mfx-toggle-button:disabled .circle { -fx-fill: -color-text-subtle; }
-.mfx-toggle-button .mfx-ripple-generator { -mfx-ripple-color: -color-border-strong; }
-.mfx-toggle-button:selected .mfx-ripple-generator { -mfx-ripple-color: -color-primary-soft; }
-
 /* ---- MaterialFX text fields ---- */
 .mfx-text-field { -mfx-line-color: -color-primary; }
 .mfx-text-field > * { -fx-background-color: transparent; }
@@ -1682,48 +1675,57 @@
  * 6. Toggle / Checkbox
  * ===================================================================== */
 
+/* Toggles are Material 3 switches (MaterialSwitchSkin): an outlined track with a
+ * small handle when off; a primary track with a large handle and a check mark
+ * when on, as Android draws them. The label sits left, the switch at the right
+ * edge. Colours come from the generated Material roles. */
 .mfx-toggle-button {
-    -mfx-main: -color-primary;
-    -mfx-secondary: -color-text-subtle;
-    -fx-text-fill: -color-text;
+    -fx-skin: "com.micatechnologies.minecraft.launcher.gui.MaterialSwitchSkin";
     -fx-background-color: transparent;
     -fx-border-width: 0;
+    -fx-padding: 4 0 4 0;
+    -fx-cursor: hand;
 }
-
-.mfx-toggle-button:hover,
-.mfx-toggle-button:armed,
-.mfx-toggle-button:focused,
-.mfx-toggle-button:selected,
-.mfx-toggle-button:focused:selected {
-    -fx-text-fill: -color-text;
-    -fx-background-color: transparent;
+.mfx-toggle-button .m3-switch-label {
+    -fx-text-fill: -md-on-surface;
 }
-
-/* Toggle knob (.circle) and track (.line) — both must be token-driven so dark / light
- * / blue-gray / creeper themes share one source of truth. The per-theme legacy sheets
- * (removed in 2026.10) shipped :selected .line strokes hardcoded to a Material green
- * (#2E7D32); those rules applied because the new sheets previously only set -fx-fill on the .line,
- * but .line is a javafx.scene.shape.Line where fill is meaningless — stroke is what
- * paints. We now set stroke explicitly so the track follows -color-primary and the
- * knob+track read as one accent color. */
-.mfx-toggle-button .circle {
-    -fx-fill: -color-text-subtle;
+.mfx-toggle-button .m3-switch-track {
+    -fx-background-color: -md-surface-container-highest;
+    -fx-border-color: -md-outline;
+    -fx-border-width: 1.5;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
 }
-
-.mfx-toggle-button:selected .circle {
-    -fx-fill: -color-primary;
+.mfx-toggle-button .m3-switch-track:on {
+    -fx-background-color: -md-primary;
+    -fx-border-color: -md-primary;
 }
-
-.mfx-toggle-button .line {
-    -fx-stroke: -color-text-subtle;
-    -fx-stroke-width: 14;
-    -fx-stroke-line-cap: round;
-    -fx-opacity: 0.45;
+.mfx-toggle-button .m3-switch-handle {
+    -fx-background-color: -md-outline;
+    -fx-background-radius: 999;
 }
-
-.mfx-toggle-button:selected .line {
-    -fx-stroke: -color-primary;
-    -fx-opacity: 0.55;
+.mfx-toggle-button .m3-switch-handle:on {
+    -fx-background-color: -md-on-primary;
+}
+.mfx-toggle-button .m3-switch-icon {
+    -fx-fill: -md-primary;
+}
+/* Hover / focus / press halo around the handle: Material's state layer. */
+.mfx-toggle-button .m3-switch-halo {
+    -fx-background-color: -md-state-hover-on-surface;
+    -fx-background-radius: 999;
+}
+.mfx-toggle-button .m3-switch-halo:on {
+    -fx-background-color: -md-state-hover-primary;
+}
+.mfx-toggle-button:pressed-handle .m3-switch-halo {
+    -fx-background-color: -md-state-pressed-on-surface;
+}
+.mfx-toggle-button:pressed-handle .m3-switch-halo:on {
+    -fx-background-color: -md-state-pressed-primary;
+}
+.mfx-toggle-button:disabled {
+    -fx-opacity: 0.38;
 }
 
 .mfx-checkbox,
@@ -2163,19 +2165,40 @@
     -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
-.settingsContainer {
-    -fx-background-color: -color-surface;
-    -fx-background-radius: 12;
-    -fx-border-color: -color-border;
-    -fx-border-radius: 12;
-    -fx-border-width: 1;
+/* Settings panes, laid out like the sidebar and Android's settings: each section
+ * is a primary-coloured title over a group of row tiles, 2 px apart, rounded 16
+ * at the group's outer corners and 4 between rows (SettingsGroups tags the
+ * positions and hides rows whose contents are all hidden). Rows step one surface
+ * level up from the page instead of carrying a border or shadow. */
+.settingsGroup {
+    -fx-background-color: transparent;
+}
+.settingsRow {
+    -fx-background-color: -md-surface-container;
+    -fx-background-radius: 4;
+    -fx-padding: 14 16 14 16;
+}
+.settingsRow.tileOnly  { -fx-background-radius: 16; }
+.settingsRow.tileFirst { -fx-background-radius: 16 16 4 4; }
+.settingsRow.tileLast  { -fx-background-radius: 4 4 16 16; }
+/* Fields keep a readable width instead of spanning the whole row. */
+.settingsRow .text-field,
+.settingsRow .mfx-text-field,
+.settingsRow .mfx-combo-box,
+.settingsRow .spinner {
+    -fx-max-width: 360;
+}
+/* Destructive sections (sign out) sit on the error container. */
+.settingsGroup.dangerZone .settingsRow {
+    -fx-background-color: -md-error-container;
+}
+.settingsGroup.dangerZone .settingsRow .label {
+    -fx-text-fill: -md-on-error-container;
+}
+.label.settingsSectionTitle {
+    -fx-padding: 8 4 0 4;
 }
 
-.settingsContainer.dangerZone {
-    -fx-border-color: -color-danger;
-}
-
-/* Sidebar nav buttons inherit ghost appearance, tightened up for the rail */
 /* Settings sidebar, laid out like Android's settings list (SettingsNavTile): groups
  * of tiles 2 px apart, rounded 16 at the group's outer corners and 4 between tiles,
  * each tile an icon in a coloured circle, a title and a summary. The selected
@@ -2200,9 +2223,9 @@
     -fx-background-color: -md-surface-container, -md-state-hover-on-surface;
 }
 /* Three classes, so they tie with the :armed / :focused rule above and win on order. */
-.settingsNavBtn.mfx-button.navTileOnly  { -fx-background-radius: 16; -fx-border-radius: 16; }
-.settingsNavBtn.mfx-button.navTileFirst { -fx-background-radius: 16 16 4 4; -fx-border-radius: 16 16 4 4; }
-.settingsNavBtn.mfx-button.navTileLast  { -fx-background-radius: 4 4 16 16; -fx-border-radius: 4 4 16 16; }
+.settingsNavBtn.mfx-button.tileOnly  { -fx-background-radius: 16; -fx-border-radius: 16; }
+.settingsNavBtn.mfx-button.tileFirst { -fx-background-radius: 16 16 4 4; -fx-border-radius: 16 16 4 4; }
+.settingsNavBtn.mfx-button.tileLast  { -fx-background-radius: 4 4 16 16; -fx-border-radius: 4 4 16 16; }
 
 .settingsNavBtn.mfx-button.selected,
 .settingsNavBtn.mfx-button.selected:focused,

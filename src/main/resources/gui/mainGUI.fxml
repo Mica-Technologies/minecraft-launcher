@@ -197,8 +197,7 @@
     <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="bottomBar" GridPane.rowIndex="5">
         <padding><Insets left="14.0" right="14.0"/></padding>
         <Label fx:id="versionLabel" text="%main.bottomBar.versionLabel"/>
-        <Label fx:id="offlineLabel" text="%main.fetchLabel.offline" managed="false" visible="false" styleClass="chip-offline">
-        </Label>
+        <Label fx:id="offlineLabel" text="%main.fetchLabel.offline" managed="false" visible="false" styleClass="chip-offline"/>
         <!-- Background-fetch indicator. Visible while the available-modpacks fetch
              kicked off at startup is still running (see
              GameModPackManager.startAvailableModPacksFetchAsync); hidden as soon as
@@ -206,8 +205,7 @@
              waiting for the available-packs network call, but still signals to the
              user that the Library screen will catch up shortly. -->
         <Label fx:id="backgroundFetchLabel" text="%main.fetchLabel.loading"
-               managed="false" visible="false" styleClass="muted, type-label-small">
-        </Label>
+               managed="false" visible="false" styleClass="muted, type-label-small"/>
         <Pane HBox.hgrow="ALWAYS"/>
         <!-- Shown while any game is launching or running; opens the Running Games window. -->
         <MFXButton fx:id="runningGamesBtn" prefHeight="26.0" managed="false" visible="false" styleClass="primary"/>

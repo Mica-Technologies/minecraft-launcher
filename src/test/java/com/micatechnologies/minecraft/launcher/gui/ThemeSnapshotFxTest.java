@@ -131,7 +131,10 @@ class ThemeSnapshotFxTest
                     for ( int n = 0; n < navIds.length; n++ ) {
                         nav[ n ] = (io.github.palexdev.materialfx.controls.MFXButton) loader.getNamespace().get( navIds[ n ] );
                     }
-                    robot.interact( () -> SettingsNavTile.decorateSidebar( nav ) );
+                    robot.interact( () -> {
+                        SettingsNavTile.decorateSidebar( nav );
+                        SettingsGroups.install( root.get() );
+                    } );
                     // One pane per settings category; the controller shows one at a time.
                     List< Map.Entry< String, Object > > panes = new ArrayList<>();
                     for ( Map.Entry< String, Object > e : loader.getNamespace().entrySet() ) {
@@ -299,6 +302,13 @@ class ThemeSnapshotFxTest
         logout.getStyleClass().add( "logoutBtn" );
         MFXButton help = new MFXButton( "?" );
         help.getStyleClass().add( "helpButton" );
+        MFXToggleButton onToggle = new MFXToggleButton( "Switch on" );
+        onToggle.setSelected( true );
+        MFXToggleButton offToggle = new MFXToggleButton( "Switch off" );
+        MFXToggleButton disabledOn = new MFXToggleButton( "Disabled on" );
+        disabledOn.setSelected( true );
+        disabledOn.setDisable( true );
+        buttons.getChildren().addAll( onToggle, offToggle, disabledOn );
         MFXToggleButton disabledToggle = new MFXToggleButton( "Disabled toggle" );
         disabledToggle.setDisable( true );
         buttons.getChildren().addAll( danger, nav, navSelected, logout, help, disabledToggle );

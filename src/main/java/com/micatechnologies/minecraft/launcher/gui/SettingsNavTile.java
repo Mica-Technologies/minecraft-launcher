@@ -88,7 +88,7 @@ final class SettingsNavTile
     static final List< String > HUES = List.of( "blue", "cyan", "green", "yellow", "orange", "pink", "purple", "grey" );
 
     /** Position classes {@link #markGroupPositions} sets. */
-    static final List< String > POSITIONS = List.of( "navTileOnly", "navTileFirst", "navTileMiddle", "navTileLast" );
+    static final List< String > POSITIONS = List.of( "tileOnly", "tileFirst", "tileMiddle", "tileLast" );
 
     private SettingsNavTile()
     {
@@ -194,11 +194,11 @@ final class SettingsNavTile
     static String positionClass( int index, int count )
     {
         if ( count == 1 ) {
-            return "navTileOnly";
+            return "tileOnly";
         }
         if ( index == 0 ) {
-            return "navTileFirst";
+            return "tileFirst";
         }
-        return index == count - 1 ? "navTileLast" : "navTileMiddle";
+        return index == count - 1 ? "tileLast" : "tileMiddle";
     }
 }

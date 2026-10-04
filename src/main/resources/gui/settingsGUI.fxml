@@ -123,64 +123,50 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="%settings.fxml.account" styleClass="settingsCategoryHeader">
-                    </Label>
+                    <Label text="%settings.fxml.account" styleClass="settingsCategoryHeader"/>
                     <!-- Player profile card -->
-                    <VBox styleClass="settingsContainer" spacing="12">
-                        <padding>
-                            <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
-                        </padding>
-                        <HBox spacing="16" alignment="CENTER_LEFT">
-                            <ImageView fx:id="accountAvatar" fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true" />
-                            <VBox spacing="4">
-                                <Label fx:id="accountNameLabel" text="%settings.fxml.player" styleClass="type-title-medium">
-                                </Label>
-                                <Label fx:id="accountUuidLabel" text="%settings.fxml.uuid" wrapText="true" styleClass="settingsHint">
-                                </Label>
-                            </VBox>
-                        </HBox>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox spacing="16" alignment="CENTER_LEFT">
+                                <ImageView fx:id="accountAvatar" fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true" />
+                                <VBox spacing="4">
+                                    <Label fx:id="accountNameLabel" text="%settings.fxml.player" styleClass="type-title-medium"/>
+                                    <Label fx:id="accountUuidLabel" text="%settings.fxml.uuid" wrapText="true" styleClass="settingsHint"/>
+                                </VBox>
+                            </HBox>
+                        </VBox>
                     </VBox>
                     <!-- Helpful links -->
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.helpfulLinks" styleClass="settingsSectionTitle">
-                        </Label>
-                        <HBox spacing="8">
-                            <MFXButton fx:id="minecraftNetBtn" prefHeight="30.0" text="%settings.fxml.minecraftNet" styleClass="type-label-medium">
-                            </MFXButton>
-                            <MFXButton fx:id="msAccountBtn" prefHeight="30.0" text="%settings.fxml.microsoftAccount" styleClass="type-label-medium">
-                            </MFXButton>
-                        </HBox>
+                    <Label text="%settings.fxml.helpfulLinks" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox spacing="8">
+                                <MFXButton fx:id="minecraftNetBtn" prefHeight="30.0" text="%settings.fxml.minecraftNet" styleClass="type-label-medium"/>
+                                <MFXButton fx:id="msAccountBtn" prefHeight="30.0" text="%settings.fxml.microsoftAccount" styleClass="type-label-medium"/>
+                            </HBox>
+                        </VBox>
                     </VBox>
                     <!-- Saved Accounts — populated by setupAccountTab() from
                          the signed-in accounts. Rows are appended at runtime
                          to the savedAccountsList VBox; the FXML just declares
                          the container chrome. -->
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.accounts.title" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.accounts.hint" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <VBox fx:id="savedAccountsList" spacing="6" />
-                        <MFXButton fx:id="addAccountBtn" prefHeight="30.0" prefWidth="180.0" text="%settings.accounts.add" styleClass="type-label-medium">
-                        </MFXButton>
+                    <Label text="%settings.accounts.title" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.accounts.hint" wrapText="true" styleClass="settingsHint"/>
+                            <VBox fx:id="savedAccountsList" spacing="6" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXButton fx:id="addAccountBtn" prefHeight="30.0" prefWidth="180.0" text="%settings.accounts.add" styleClass="type-label-medium"/>
+                        </VBox>
                     </VBox>
                     <!-- Log out -->
-                    <VBox styleClass="settingsContainer, dangerZone" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.signOut" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.accounts.signOutHint" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <MFXButton fx:id="logoutBtn" prefHeight="30.0" prefWidth="160.0" text="%settings.accounts.signOutDefault" styleClass="dangerZone, type-label-medium">
-                        </MFXButton>
+                    <Label text="%settings.fxml.signOut" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup, dangerZone" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.accounts.signOutHint" wrapText="true" styleClass="settingsHint"/>
+                            <MFXButton fx:id="logoutBtn" prefHeight="30.0" prefWidth="160.0" text="%settings.accounts.signOutDefault" styleClass="dangerZone, type-label-medium"/>
+                        </VBox>
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -191,30 +177,29 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="%settings.fxml.game" styleClass="settingsCategoryHeader">
-                    </Label>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.minimumRamGb" />
-                        <Spinner fx:id="minRamGb" editable="true" prefWidth="120.0" />
-                        <Label text="%settings.fxml.maximumRamGb" />
-                        <Spinner fx:id="maxRamGb" editable="true" prefWidth="120.0" />
-                        <Label fx:id="sysRamLabel" text="%settings.fxml.youHaveX" wrapText="true" styleClass="settingsHint">
-                        </Label>
+                    <Label text="%settings.fxml.game" styleClass="settingsCategoryHeader"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.minimumRamGb" />
+                            <Spinner fx:id="minRamGb" editable="true" prefWidth="120.0" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.maximumRamGb" />
+                            <Spinner fx:id="maxRamGb" editable="true" prefWidth="120.0" />
+                            <Label fx:id="sysRamLabel" text="%settings.fxml.youHaveX" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.jvmPreset" />
-                        <MFXComboBox fx:id="jvmPresetSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
-                        <HBox spacing="8" alignment="CENTER_LEFT">
-                            <MFXButton fx:id="generateJvmArgsBtn" text="%settings.fxml.generateJvmArgs" prefHeight="32.0" />
-                            <Label fx:id="generateJvmArgsHint" text="" styleClass="muted, settingsHint" wrapText="true">
-                            </Label>
-                        </HBox>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.jvmPreset" />
+                            <MFXComboBox fx:id="jvmPresetSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox spacing="8" alignment="CENTER_LEFT">
+                                <MFXButton fx:id="generateJvmArgsBtn" text="%settings.fxml.generateJvmArgs" prefHeight="32.0" />
+                                <Label fx:id="generateJvmArgsHint" text="" styleClass="muted, settingsHint" wrapText="true"/>
+                            </HBox>
+                        </VBox>
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -225,38 +210,33 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="%settings.fxml.appearance" styleClass="settingsCategoryHeader">
-                    </Label>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.theme" />
-                        <MFXComboBox fx:id="themeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
+                    <Label text="%settings.fxml.appearance" styleClass="settingsCategoryHeader"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.theme" />
+                            <MFXComboBox fx:id="themeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.language" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.fxml.defaultsToYour" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <MFXComboBox fx:id="languageSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="300.0" />
+                    <Label text="%settings.fxml.language" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.defaultsToYour" wrapText="true" styleClass="settingsHint"/>
+                            <MFXComboBox fx:id="languageSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="300.0" />
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.packImagery" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.fxml.whenOnModpack" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <MFXToggleButton fx:id="showPackBackgroundsToggle" text="%settings.fxml.showPackBackground" />
-                        <Label text="%settings.fxml.imageCycleInterval" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <MFXComboBox fx:id="imageCycleIntervalSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="300.0" />
-                        <MFXToggleButton fx:id="imageCycleShuffleToggle" text="%settings.fxml.imageCycleShuffle" />
+                    <Label text="%settings.fxml.packImagery" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.whenOnModpack" wrapText="true" styleClass="settingsHint"/>
+                            <MFXToggleButton fx:id="showPackBackgroundsToggle" text="%settings.fxml.showPackBackground" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.imageCycleInterval" wrapText="true" styleClass="settingsHint"/>
+                            <MFXComboBox fx:id="imageCycleIntervalSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="300.0" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="imageCycleShuffleToggle" text="%settings.fxml.imageCycleShuffle" />
+                        </VBox>
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -267,86 +247,81 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="%settings.fxml.advanced" styleClass="settingsCategoryHeader">
-                    </Label>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <MFXToggleButton fx:id="debugCheckBox" text="%settings.fxml.debugMode" />
-                        <MFXToggleButton fx:id="windowResizeCheckBox" text="%settings.fxml.windowResizing" />
-                        <MFXToggleButton fx:id="enhancedLoggingCheckBox" text="%settings.fxml.enhancedLogging" />
-                        <MFXToggleButton fx:id="inGameConsoleCheckBox" text="%settings.runningGames.keepOpen" />
-                        <HBox alignment="CENTER_LEFT" spacing="8.0">
-                            <Label text="%settings.fxml.consoleLogMaxLines" />
-                            <MFXComboBox fx:id="consoleLogMaxLinesSelection" prefWidth="140.0" />
-                        </HBox>
-                        <MFXToggleButton fx:id="batteryThrottleCheckBox" text="%settings.fxml.throttleDownloadsOn" />
-                        <MFXToggleButton fx:id="lwjglArmPatchCheckBox" text="%settings.fxml.lwjglArm64Patching" />
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.replacesX86_64Lwjgl2" wrapText="true">
-                        </Label>
+                    <Label text="%settings.fxml.advanced" styleClass="settingsCategoryHeader"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="debugCheckBox" text="%settings.fxml.debugMode" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="windowResizeCheckBox" text="%settings.fxml.windowResizing" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="enhancedLoggingCheckBox" text="%settings.fxml.enhancedLogging" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="inGameConsoleCheckBox" text="%settings.runningGames.keepOpen" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox alignment="CENTER_LEFT" spacing="8.0">
+                                <Label text="%settings.fxml.consoleLogMaxLines" />
+                                <MFXComboBox fx:id="consoleLogMaxLinesSelection" prefWidth="140.0" />
+                            </HBox>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="batteryThrottleCheckBox" text="%settings.fxml.throttleDownloadsOn" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="lwjglArmPatchCheckBox" text="%settings.fxml.lwjglArm64Patching" />
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.replacesX86_64Lwjgl2" wrapText="true"/>
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.securityScanFrequency" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.fxml.howOftenThe" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <MFXComboBox fx:id="defaultScanFrequencyCombo" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="280.0" />
+                    <Label text="%settings.fxml.securityScanFrequency" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.howOftenThe" wrapText="true" styleClass="settingsHint"/>
+                            <MFXComboBox fx:id="defaultScanFrequencyCombo" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="280.0" />
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.backupHeader" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.fxml.backupBlurb" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <MFXToggleButton fx:id="autoBackupToggle" text="%settings.fxml.autoBackupBeforeUpdate" />
-                        <MFXToggleButton fx:id="backupIncludeSavesToggle" text="%settings.fxml.backupIncludeSaves" />
-                        <Label text="%settings.fxml.backupIncludeSavesHint" wrapText="true" styleClass="muted, settingsHint">
-                        </Label>
-                        <HBox spacing="8" alignment="CENTER_LEFT">
-                            <Label text="%settings.fxml.backupMaxCount" />
-                            <Spinner fx:id="backupMaxCountSpinner" editable="true" prefWidth="80.0" />
-                            <Label text="%settings.fxml.backupMaxAgeDays" />
-                            <Spinner fx:id="backupMaxAgeDaysSpinner" editable="true" prefWidth="80.0" />
-                        </HBox>
-                        <Label text="%settings.fxml.backupCountAgeHint" wrapText="true" styleClass="muted, settingsHint">
-                        </Label>
+                    <Label text="%settings.fxml.backupHeader" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.backupBlurb" wrapText="true" styleClass="settingsHint"/>
+                            <MFXToggleButton fx:id="autoBackupToggle" text="%settings.fxml.autoBackupBeforeUpdate" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="backupIncludeSavesToggle" text="%settings.fxml.backupIncludeSaves" />
+                            <Label text="%settings.fxml.backupIncludeSavesHint" wrapText="true" styleClass="muted, settingsHint"/>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox spacing="8" alignment="CENTER_LEFT">
+                                <Label text="%settings.fxml.backupMaxCount" />
+                                <Spinner fx:id="backupMaxCountSpinner" editable="true" prefWidth="80.0" />
+                                <Label text="%settings.fxml.backupMaxAgeDays" />
+                                <Spinner fx:id="backupMaxAgeDaysSpinner" editable="true" prefWidth="80.0" />
+                            </HBox>
+                            <Label text="%settings.fxml.backupCountAgeHint" wrapText="true" styleClass="muted, settingsHint"/>
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.gameFileIntegrity" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.fxml.reHashesEvery" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <HBox spacing="8">
-                            <MFXButton fx:id="verifyAllGameFilesBtn" prefHeight="30.0" prefWidth="180.0" text="%settings.fxml.verifyAllGame" styleClass="type-label-medium">
-                            </MFXButton>
-                        </HBox>
+                    <Label text="%settings.fxml.gameFileIntegrity" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.reHashesEvery" wrapText="true" styleClass="settingsHint"/>
+                            <HBox spacing="8">
+                                <MFXButton fx:id="verifyAllGameFilesBtn" prefHeight="30.0" prefWidth="180.0" text="%settings.fxml.verifyAllGame" styleClass="type-label-medium"/>
+                            </HBox>
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.thirdPartyIntegrations" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.fxml.curseforgeCoreApi" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <HBox spacing="8" alignment="CENTER_LEFT">
-                            <MFXPasswordField fx:id="curseForgeApiKeyField" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="320.0" floatingText="CurseForge API key" />
-                            <MFXButton fx:id="curseForgeApiKeySaveBtn" prefHeight="30.0" prefWidth="80.0" text="%settings.fxml.save" styleClass="type-label-medium">
-                            </MFXButton>
-                            <MFXButton fx:id="curseForgeApiKeyClearBtn" prefHeight="30.0" prefWidth="80.0" text="%settings.fxml.clear" styleClass="type-label-medium">
-                            </MFXButton>
-                        </HBox>
-                        <Label fx:id="curseForgeApiKeyStatusLabel" styleClass="muted, settingsHint">
-                        </Label>
+                    <Label text="%settings.fxml.thirdPartyIntegrations" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.curseforgeCoreApi" wrapText="true" styleClass="settingsHint"/>
+                            <HBox spacing="8" alignment="CENTER_LEFT">
+                                <MFXPasswordField fx:id="curseForgeApiKeyField" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="320.0" floatingText="CurseForge API key" />
+                                <MFXButton fx:id="curseForgeApiKeySaveBtn" prefHeight="30.0" prefWidth="80.0" text="%settings.fxml.save" styleClass="type-label-medium"/>
+                                <MFXButton fx:id="curseForgeApiKeyClearBtn" prefHeight="30.0" prefWidth="80.0" text="%settings.fxml.clear" styleClass="type-label-medium"/>
+                            </HBox>
+                            <Label fx:id="curseForgeApiKeyStatusLabel" styleClass="muted, settingsHint"/>
+                        </VBox>
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -357,19 +332,23 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="%settings.fxml.network" styleClass="settingsCategoryHeader">
-                    </Label>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <MFXToggleButton fx:id="proxyEnableCheckBox" text="%settings.fxml.enableProxy" />
-                        <Label text="%settings.fxml.proxyType" />
-                        <MFXComboBox fx:id="proxyTypeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="120.0" />
-                        <Label text="%settings.fxml.proxyHost" />
-                        <TextField fx:id="proxyHostField" promptText="%settings.proxyHost.prompt" prefWidth="250.0" />
-                        <Label text="%settings.fxml.proxyPort" />
-                        <Spinner fx:id="proxyPortSpinner" editable="true" prefWidth="120.0" />
+                    <Label text="%settings.fxml.network" styleClass="settingsCategoryHeader"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="proxyEnableCheckBox" text="%settings.fxml.enableProxy" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.proxyType" />
+                            <MFXComboBox fx:id="proxyTypeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="120.0" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.proxyHost" />
+                            <TextField fx:id="proxyHostField" promptText="%settings.proxyHost.prompt" prefWidth="250.0" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.proxyPort" />
+                            <Spinner fx:id="proxyPortSpinner" editable="true" prefWidth="120.0" />
+                        </VBox>
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -380,103 +359,102 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="%settings.fxml.security" styleClass="settingsCategoryHeader">
-                    </Label>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.malwareScanning" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label fx:id="scanFolderLabel" text="%settings.fxml.scanFolderPath" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <HBox spacing="8">
-                            <MFXButton fx:id="scanBtn" prefHeight="30.0" prefWidth="110.0" text="%settings.fxml.scan" styleClass="type-label-medium">
-                            </MFXButton>
-                            <MFXButton fx:id="scanFolderBtn" prefHeight="30.0" prefWidth="110.0" text="%settings.fxml.changeFolder" styleClass="type-label-medium">
-                            </MFXButton>
-                            <MFXProgressBar fx:id="scanProgressBar" />
-                        </HBox>
-                        <Label fx:id="scanOutputLabel" text="%settings.fxml.scanOutput" wrapText="true" />
+                    <Label text="%settings.fxml.security" styleClass="settingsCategoryHeader"/>
+                    <Label text="%settings.fxml.malwareScanning" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label fx:id="scanFolderLabel" text="%settings.fxml.scanFolderPath" wrapText="true" styleClass="settingsHint"/>
+                            <HBox spacing="8">
+                                <MFXButton fx:id="scanBtn" prefHeight="30.0" text="%settings.fxml.scan" styleClass="type-label-medium"/>
+                                <MFXButton fx:id="scanFolderBtn" prefHeight="30.0" text="%settings.fxml.changeFolder" styleClass="type-label-medium"/>
+                                <MFXProgressBar fx:id="scanProgressBar" />
+                            </HBox>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label fx:id="scanOutputLabel" text="%settings.fxml.scanOutput" wrapText="true" />
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.deepLinksMmcl" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.fxml.whenEnabledQuot" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <MFXToggleButton fx:id="uriHandlerToggle" text="%settings.fxml.allowMmclDeep" />
+                    <Label text="%settings.fxml.deepLinksMmcl" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.whenEnabledQuot" wrapText="true" styleClass="settingsHint"/>
+                            <MFXToggleButton fx:id="uriHandlerToggle" text="%settings.fxml.allowMmclDeep" />
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.mcp.section.title" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.mcp.enable.description" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <MFXToggleButton fx:id="mcpServerToggle" text="%settings.mcp.enable.label" />
-                        <Label text="%settings.mcp.autoApproveReadOnly.description" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <MFXToggleButton fx:id="mcpAutoApproveToggle" text="%settings.mcp.autoApproveReadOnly.label" />
-                        <Label text="%settings.mcp.allowStateChanges.description" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <MFXToggleButton fx:id="mcpAllowStateChangesToggle" text="%settings.mcp.allowStateChanges.label" />
-                        <Label fx:id="mcpStatusLabel" wrapText="true" styleClass="settingsHint">
-                        </Label>
+                    <Label text="%settings.mcp.section.title" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.mcp.enable.description" wrapText="true" styleClass="settingsHint"/>
+                            <MFXToggleButton fx:id="mcpServerToggle" text="%settings.mcp.enable.label" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.mcp.autoApproveReadOnly.description" wrapText="true" styleClass="settingsHint"/>
+                            <MFXToggleButton fx:id="mcpAutoApproveToggle" text="%settings.mcp.autoApproveReadOnly.label" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.mcp.allowStateChanges.description" wrapText="true" styleClass="settingsHint"/>
+                            <MFXToggleButton fx:id="mcpAllowStateChangesToggle" text="%settings.mcp.allowStateChanges.label" />
+                            <Label fx:id="mcpStatusLabel" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.mcp.connect.title" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.mcp.connect.description" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <HBox spacing="8" alignment="CENTER_LEFT">
-                            <Label text="%settings.mcp.connect.endpoint" minWidth="70.0" />
-                            <Label fx:id="mcpEndpointLabel" wrapText="true" />
-                        </HBox>
-                        <HBox spacing="8" alignment="CENTER_LEFT">
-                            <Label text="%settings.mcp.connect.token" minWidth="70.0" />
-                            <Label fx:id="mcpTokenLabel" wrapText="true" />
-                            <MFXButton fx:id="mcpRevealTokenBtn" text="%settings.mcp.connect.token.reveal" />
-                            <MFXButton fx:id="mcpCopyTokenBtn" text="%settings.mcp.connect.token.copy" />
-                            <MFXButton fx:id="mcpRegenTokenBtn" text="%settings.mcp.connect.token.regenerate" />
-                        </HBox>
-                        <HBox spacing="8" alignment="CENTER_LEFT">
-                            <MFXComboBox fx:id="mcpClientSelection" />
-                            <MFXButton fx:id="mcpCopySetupBtn" text="%settings.mcp.connect.copy" />
-                        </HBox>
-                        <TextArea fx:id="mcpSetupSnippet" editable="false" wrapText="false"
-                                  prefRowCount="7" styleClass="settingsTextArea" />
+                    <Label text="%settings.mcp.connect.title" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.mcp.connect.description" wrapText="true" styleClass="settingsHint"/>
+                            <HBox spacing="8" alignment="CENTER_LEFT">
+                                <Label text="%settings.mcp.connect.endpoint" minWidth="70.0" />
+                                <Label fx:id="mcpEndpointLabel" wrapText="true" />
+                            </HBox>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox spacing="8" alignment="CENTER_LEFT">
+                                <Label text="%settings.mcp.connect.token" minWidth="70.0" />
+                                <Label fx:id="mcpTokenLabel" wrapText="true" />
+                                <MFXButton fx:id="mcpRevealTokenBtn" text="%settings.mcp.connect.token.reveal" />
+                                <MFXButton fx:id="mcpCopyTokenBtn" text="%settings.mcp.connect.token.copy" />
+                                <MFXButton fx:id="mcpRegenTokenBtn" text="%settings.mcp.connect.token.regenerate" />
+                            </HBox>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox spacing="8" alignment="CENTER_LEFT">
+                                <MFXComboBox fx:id="mcpClientSelection" />
+                                <MFXButton fx:id="mcpCopySetupBtn" text="%settings.mcp.connect.copy" />
+                            </HBox>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <TextArea fx:id="mcpSetupSnippet" editable="false" wrapText="false"
+                                      prefRowCount="7" styleClass="settingsTextArea" />
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.mcp.permissions.title" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.mcp.permissions.description" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <VBox fx:id="mcpToolPolicyList" spacing="6" fillWidth="true" />
-                        <Label text="%settings.mcp.sessions.title" styleClass="settingsSectionTitle">
-                        </Label>
-                        <VBox fx:id="mcpSessionList" spacing="4" fillWidth="true" />
-                        <Label text="%settings.mcp.activity.title" styleClass="settingsSectionTitle">
-                        </Label>
-                        <VBox fx:id="mcpActivityList" spacing="4" fillWidth="true" />
-                        <HBox spacing="8">
-                            <MFXButton fx:id="mcpRefreshBtn" text="%settings.mcp.refresh.label" />
-                            <MFXButton fx:id="mcpClearActivityBtn" text="%settings.mcp.activity.clear" />
-                        </HBox>
-                        <Label text="%settings.mcp.revokeGrants.description" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <Label fx:id="mcpGrantsLabel" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <MFXButton fx:id="mcpRevokeGrantsBtn" text="%settings.mcp.revokeGrants.label" />
+                    <Label text="%settings.mcp.permissions.title" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.mcp.permissions.description" wrapText="true" styleClass="settingsHint"/>
+                            <VBox fx:id="mcpToolPolicyList" spacing="6" fillWidth="true" />
+                        </VBox>
+                    </VBox>
+                    <Label text="%settings.mcp.sessions.title" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <VBox fx:id="mcpSessionList" spacing="4" fillWidth="true" />
+                        </VBox>
+                    </VBox>
+                    <Label text="%settings.mcp.activity.title" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <VBox fx:id="mcpActivityList" spacing="4" fillWidth="true" />
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox spacing="8">
+                                <MFXButton fx:id="mcpRefreshBtn" text="%settings.mcp.refresh.label" />
+                                <MFXButton fx:id="mcpClearActivityBtn" text="%settings.mcp.activity.clear" />
+                            </HBox>
+                            <Label text="%settings.mcp.revokeGrants.description" wrapText="true" styleClass="settingsHint"/>
+                            <Label fx:id="mcpGrantsLabel" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXButton fx:id="mcpRevokeGrantsBtn" text="%settings.mcp.revokeGrants.label" />
+                        </VBox>
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -487,43 +465,33 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="%settings.fxml.system" styleClass="settingsCategoryHeader">
-                    </Label>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.resetAmpRuntime" styleClass="settingsSectionTitle">
-                        </Label>
-                        <HBox spacing="8">
-                            <MFXButton fx:id="resetLauncherBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.resetLauncher" styleClass="type-label-medium">
-                            </MFXButton>
-                            <MFXButton fx:id="resetRuntimeBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.resetRuntimes" styleClass="type-label-medium">
-                            </MFXButton>
-                        </HBox>
-                        <MFXButton fx:id="manageRuntimeBtn" prefHeight="30.0" prefWidth="140.0" text="%settings.fxml.manageRuntimes" styleClass="type-label-medium">
-                        </MFXButton>
+                    <Label text="%settings.fxml.system" styleClass="settingsCategoryHeader"/>
+                    <Label text="%settings.fxml.resetAmpRuntime" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox spacing="8">
+                                <MFXButton fx:id="resetLauncherBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.resetLauncher" styleClass="type-label-medium"/>
+                                <MFXButton fx:id="resetRuntimeBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.resetRuntimes" styleClass="type-label-medium"/>
+                            </HBox>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXButton fx:id="manageRuntimeBtn" prefHeight="30.0" prefWidth="140.0" text="%settings.fxml.manageRuntimes" styleClass="type-label-medium"/>
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.importExport" styleClass="settingsSectionTitle">
-                        </Label>
-                        <HBox spacing="8">
-                            <MFXButton fx:id="exportSettingsBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.exportSettings" styleClass="type-label-medium">
-                            </MFXButton>
-                            <MFXButton fx:id="importSettingsBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.importSettings" styleClass="type-label-medium">
-                            </MFXButton>
-                        </HBox>
+                    <Label text="%settings.fxml.importExport" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox spacing="8">
+                                <MFXButton fx:id="exportSettingsBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.exportSettings" styleClass="type-label-medium"/>
+                                <MFXButton fx:id="importSettingsBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.importSettings" styleClass="type-label-medium"/>
+                            </HBox>
+                        </VBox>
                     </VBox>
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <MFXButton fx:id="openFolderBtn" prefHeight="28.0" prefWidth="180.0" text="%settings.fxml.openLauncherFolder" />
-                        <Label fx:id="versionLabel" text="%settings.fxml.launcherVersionErr_unk" wrapText="true" styleClass="settingsHint">
-                        </Label>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXButton fx:id="openFolderBtn" prefHeight="28.0" prefWidth="180.0" text="%settings.fxml.openLauncherFolder" />
+                            <Label fx:id="versionLabel" text="%settings.fxml.launcherVersionErr_unk" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -534,34 +502,26 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="%settings.fxml.discord" styleClass="settingsCategoryHeader">
-                    </Label>
+                    <Label text="%settings.fxml.discord" styleClass="settingsCategoryHeader"/>
 
                     <!-- Rich presence toggle (moved here from Advanced for grouping). -->
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.richPresence" styleClass="settingsSectionTitle">
-                        </Label>
-                        <MFXToggleButton fx:id="discordCheckBox" text="%settings.fxml.discordIntegration" />
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.showWhatYou" wrapText="true">
-                        </Label>
+                    <Label text="%settings.fxml.richPresence" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="discordCheckBox" text="%settings.fxml.discordIntegration" />
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.showWhatYou" wrapText="true"/>
+                        </VBox>
                     </VBox>
 
                     <!-- "Join Game" invite toggle — Discord-specific party + joinSecret on
                          the in-game presence so friends see a "Join Game" button. -->
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.friendInvites" styleClass="settingsSectionTitle">
-                        </Label>
-                        <MFXToggleButton fx:id="discordInvitesCheckBox" text="%settings.fxml.allowDiscordInvites" />
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.whenEnabledFriends" wrapText="true">
-                        </Label>
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.youCanAlso" wrapText="true">
-                        </Label>
+                    <Label text="%settings.fxml.friendInvites" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="discordInvitesCheckBox" text="%settings.fxml.allowDiscordInvites" />
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.whenEnabledFriends" wrapText="true"/>
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.youCanAlso" wrapText="true"/>
+                        </VBox>
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -572,84 +532,72 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="%settings.fxml.rgbLighting" styleClass="settingsCategoryHeader">
-                    </Label>
+                    <Label text="%settings.fxml.rgbLighting" styleClass="settingsCategoryHeader"/>
 
                     <!-- Master enable + backend choice + live status. -->
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.lightingBackend" styleClass="settingsSectionTitle">
-                        </Label>
-                        <MFXToggleButton fx:id="rgbEnableToggle" text="%settings.fxml.enableRgbLighting" />
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.whenEnabledThe" wrapText="true">
-                        </Label>
-                        <HBox spacing="8" alignment="CENTER_LEFT">
-                            <Label text="%settings.fxml.backend" />
-                            <MFXComboBox fx:id="rgbBackendCombo" prefWidth="200.0" />
-                            <Label fx:id="rgbStatusChip" text="%settings.fxml.disabled" styleClass="stat-chip" />
-                        </HBox>
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.autoRunsEvery" wrapText="true">
-                        </Label>
-
-                        <Label fx:id="rgbAutoToggleHeader" text="%settings.fxml.autoModeIntegrations" styleClass="muted, settingsHint">
-                        </Label>
-                        <VBox fx:id="rgbAutoToggleBox" spacing="4">
-                            <MFXToggleButton fx:id="rgbEnableOpenRgbToggle" text="%settings.fxml.openrgb" />
-                            <MFXToggleButton fx:id="rgbEnableChromaNativeToggle" text="%settings.fxml.razerChromaNative" />
-                            <MFXToggleButton fx:id="rgbEnableWindowsDlToggle" text="%settings.fxml.windowsDynamicLighting" />
-                            <MFXToggleButton fx:id="rgbEnableCorsairToggle" text="%settings.fxml.corsairIcue" />
-                            <MFXToggleButton fx:id="rgbEnableAsusAuraToggle" text="%settings.fxml.asusAuraLegacy" />
-                            <MFXToggleButton fx:id="rgbEnableChromaRestToggle" text="%settings.fxml.razerChromaRest" />
+                    <Label text="%settings.fxml.lightingBackend" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="rgbEnableToggle" text="%settings.fxml.enableRgbLighting" />
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.whenEnabledThe" wrapText="true"/>
                         </VBox>
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.turnOffThe" wrapText="true">
-                        </Label>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox spacing="8" alignment="CENTER_LEFT">
+                                <Label text="%settings.fxml.backend" />
+                                <MFXComboBox fx:id="rgbBackendCombo" prefWidth="200.0" />
+                                <Label fx:id="rgbStatusChip" text="%settings.fxml.disabled" styleClass="stat-chip" />
+                            </HBox>
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.autoRunsEvery" wrapText="true"/>
+                            <Label fx:id="rgbAutoToggleHeader" text="%settings.fxml.autoModeIntegrations" styleClass="muted, settingsHint"/>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <VBox fx:id="rgbAutoToggleBox" spacing="4">
+                                <MFXToggleButton fx:id="rgbEnableOpenRgbToggle" text="%settings.fxml.openrgb" />
+                                <MFXToggleButton fx:id="rgbEnableChromaNativeToggle" text="%settings.fxml.razerChromaNative" />
+                                <MFXToggleButton fx:id="rgbEnableWindowsDlToggle" text="%settings.fxml.windowsDynamicLighting" />
+                                <MFXToggleButton fx:id="rgbEnableCorsairToggle" text="%settings.fxml.corsairIcue" />
+                                <MFXToggleButton fx:id="rgbEnableAsusAuraToggle" text="%settings.fxml.asusAuraLegacy" />
+                                <MFXToggleButton fx:id="rgbEnableChromaRestToggle" text="%settings.fxml.razerChromaRest" />
+                            </VBox>
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.turnOffThe" wrapText="true"/>
+                        </VBox>
                     </VBox>
 
                     <!-- Idle/menu effect toggle + animation style picker. -->
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.menuEffect" styleClass="settingsSectionTitle">
-                        </Label>
-                        <MFXToggleButton fx:id="rgbMenuEffectToggle" text="%settings.fxml.lightUpDevices" />
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.whenOnYour" wrapText="true">
-                        </Label>
-                        <Label text="%settings.fxml.animationStyle" styleClass="muted, settingsHint">
-                        </Label>
-                        <MFXComboBox fx:id="rgbEffectStyleSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="220.0" />
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.solidSingleSteady" wrapText="true">
-                        </Label>
+                    <Label text="%settings.fxml.menuEffect" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="rgbMenuEffectToggle" text="%settings.fxml.lightUpDevices" />
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.whenOnYour" wrapText="true"/>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.animationStyle" styleClass="muted, settingsHint"/>
+                            <MFXComboBox fx:id="rgbEffectStyleSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="220.0" />
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.solidSingleSteady" wrapText="true"/>
+                        </VBox>
                     </VBox>
 
                     <!-- Effect behavior toggles. -->
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.inGameEffects" styleClass="settingsSectionTitle">
-                        </Label>
-                        <MFXToggleButton fx:id="rgbUsePackColorsToggle" text="%settings.fxml.useModpackColors" />
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.lightUpThe" wrapText="true">
-                        </Label>
-                        <MFXToggleButton fx:id="rgbHighlightKeysToggle" text="%settings.fxml.highlightMinecraftKeys" />
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.overlayWasdE" wrapText="true">
-                        </Label>
+                    <Label text="%settings.fxml.inGameEffects" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="rgbUsePackColorsToggle" text="%settings.fxml.useModpackColors" />
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.lightUpThe" wrapText="true"/>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <MFXToggleButton fx:id="rgbHighlightKeysToggle" text="%settings.fxml.highlightMinecraftKeys" />
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.overlayWasdE" wrapText="true"/>
+                        </VBox>
                     </VBox>
 
                     <!-- Test button — flashes solid magenta on every connected device so the user
                          can confirm the backend is talking to their hardware. -->
-                    <VBox styleClass="settingsContainer" spacing="8">
-                        <padding>
-                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
-                        </padding>
-                        <Label text="%settings.fxml.test" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.flashesSolidMagenta" wrapText="true">
-                        </Label>
-                        <MFXButton fx:id="rgbTestBtn" prefHeight="30.0" prefWidth="160.0" text="%settings.fxml.testConnection" />
+                    <Label text="%settings.fxml.test" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.flashesSolidMagenta" wrapText="true"/>
+                            <MFXButton fx:id="rgbTestBtn" prefHeight="30.0" prefWidth="160.0" text="%settings.fxml.testConnection" />
+                        </VBox>
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -660,86 +608,67 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="%settings.fxml.about" styleClass="settingsCategoryHeader">
-                    </Label>
+                    <Label text="%settings.fxml.about" styleClass="settingsCategoryHeader"/>
 
                     <!-- Launcher identity card -->
-                    <VBox styleClass="settingsContainer" spacing="6">
-                        <padding>
-                            <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
-                        </padding>
-                        <Label fx:id="aboutAppNameLabel" text="%settings.fxml.micaMinecraftLauncher" styleClass="type-title-medium">
-                        </Label>
-                        <Label fx:id="aboutVersionLabel" text="%settings.fxml.version" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <Label text="© 2021–2026 Mica Technologies" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <!-- Update-check toggle. Lives in the launcher identity card
-                             since it's directly tied to the version info above —
-                             a user noticing they're on an old version naturally
-                             looks here for "how do I get updates." Default ON so
-                             new installs receive update prompts. -->
-                        <MFXToggleButton fx:id="launcherUpdateCheckBox" text="%settings.fxml.checkForLauncher"/>
-                        <Label styleClass="muted, settingsHint" text="%settings.fxml.whenOffThe" wrapText="true">
-                        </Label>
-                        <HBox spacing="8" alignment="CENTER_LEFT">
-                            <MFXButton fx:id="aboutWebsiteBtn" prefHeight="28.0" prefWidth="140.0" text="%settings.fxml.visitWebsite" styleClass="type-label-medium">
-                            </MFXButton>
-                            <MFXButton fx:id="aboutSourceBtn" prefHeight="28.0" prefWidth="140.0" text="%settings.fxml.viewSource" styleClass="type-label-medium">
-                            </MFXButton>
-                        </HBox>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label fx:id="aboutAppNameLabel" text="%settings.fxml.micaMinecraftLauncher" styleClass="type-title-medium"/>
+                            <Label fx:id="aboutVersionLabel" text="%settings.fxml.version" wrapText="true" styleClass="settingsHint"/>
+                            <Label text="© 2021–2026 Mica Technologies" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <!-- Update-check toggle. Lives in the launcher identity card
+                                 since it's directly tied to the version info above —
+                                 a user noticing they're on an old version naturally
+                                 looks here for "how do I get updates." Default ON so
+                                 new installs receive update prompts. -->
+                            <MFXToggleButton fx:id="launcherUpdateCheckBox" text="%settings.fxml.checkForLauncher"/>
+                            <Label styleClass="muted, settingsHint" text="%settings.fxml.whenOffThe" wrapText="true"/>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <HBox spacing="8" alignment="CENTER_LEFT">
+                                <MFXButton fx:id="aboutWebsiteBtn" prefHeight="28.0" prefWidth="140.0" text="%settings.fxml.visitWebsite" styleClass="type-label-medium"/>
+                                <MFXButton fx:id="aboutSourceBtn" prefHeight="28.0" prefWidth="140.0" text="%settings.fxml.viewSource" styleClass="type-label-medium"/>
+                            </HBox>
+                        </VBox>
                     </VBox>
 
                     <!-- Trademark + non-affiliation notice -->
-                    <VBox styleClass="settingsContainer" spacing="6">
-                        <padding>
-                            <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
-                        </padding>
-                        <Label text="%settings.fxml.minecraftTrademark" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.fxml.minecraftIsA" wrapText="true" styleClass="settingsHint">
-                        </Label>
+                    <Label text="%settings.fxml.minecraftTrademark" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.minecraftIsA" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
                     </VBox>
 
                     <!-- Open-source acknowledgments -->
-                    <VBox styleClass="settingsContainer" spacing="6">
-                        <padding>
-                            <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
-                        </padding>
-                        <Label text="%settings.fxml.openSourceAcknowledgments" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.fxml.theLauncherUses" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <Label text="• OpenJFX — GPLv2 with Classpath Exception&#10;• MaterialFX (palexdev) — LGPL 3.0&#10;• jthemedetecor (Dansoftowner) — Apache 2.0&#10;• FXTaskbarProgressBar (Dansoftowner) — Apache 2.0&#10;• oshi-core — MIT&#10;• JNA / JNA Platform — Apache 2.0 / LGPL 2.1&#10;• Google Gson — Apache 2.0&#10;• Apache Commons IO — Apache 2.0&#10;• Apache Commons Lang3 — Apache 2.0&#10;• SLF4J — MIT&#10;• jarchivelib — Apache 2.0&#10;• minecraft_authenticator — MIT&#10;• jarscanner — MIT" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <Label text="%settings.fxml.fullLicenseTexts" wrapText="true" styleClass="settingsHint">
-                        </Label>
+                    <Label text="%settings.fxml.openSourceAcknowledgments" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.theLauncherUses" wrapText="true" styleClass="settingsHint"/>
+                            <Label text="• OpenJFX — GPLv2 with Classpath Exception&#10;• MaterialFX (palexdev) — LGPL 3.0&#10;• jthemedetecor (Dansoftowner) — Apache 2.0&#10;• FXTaskbarProgressBar (Dansoftowner) — Apache 2.0&#10;• oshi-core — MIT&#10;• JNA / JNA Platform — Apache 2.0 / LGPL 2.1&#10;• Google Gson — Apache 2.0&#10;• Apache Commons IO — Apache 2.0&#10;• Apache Commons Lang3 — Apache 2.0&#10;• SLF4J — MIT&#10;• jarchivelib — Apache 2.0&#10;• minecraft_authenticator — MIT&#10;• jarscanner — MIT" wrapText="true" styleClass="settingsHint"/>
+                            <Label text="%settings.fxml.fullLicenseTexts" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
                     </VBox>
 
                     <!-- Runtime dependencies — Java distributions pulled at run time,
                          distinct from the bundled libraries above. -->
-                    <VBox styleClass="settingsContainer" spacing="6">
-                        <padding>
-                            <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
-                        </padding>
-                        <Label text="%settings.fxml.javaRuntimes" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.fxml.modernMinecraftVersions" wrapText="true" styleClass="settingsHint">
-                        </Label>
+                    <Label text="%settings.fxml.javaRuntimes" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.modernMinecraftVersions" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
                     </VBox>
 
                     <!-- ARM64 native library credits — community-built binaries the
                          launcher downloads on demand when LWJGL ARM Patching is enabled. -->
-                    <VBox styleClass="settingsContainer" spacing="6">
-                        <padding>
-                            <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
-                        </padding>
-                        <Label text="%settings.fxml.arm64NativeLibraries" styleClass="settingsSectionTitle">
-                        </Label>
-                        <Label text="%settings.fxml.whenLwjglArm" wrapText="true" styleClass="settingsHint">
-                        </Label>
-                        <Label text="• MinecraftMachina/lwjgl — LWJGL2 ARM64 macOS natives (BSD)&#10;• r58Playz/jinput-m1 — jinput ARM64 macOS natives&#10;• theofficialgman/lwjgl3-binaries-arm64 — LWJGL2 / jinput ARM64 Linux natives" wrapText="true" styleClass="settingsHint">
-                        </Label>
+                    <Label text="%settings.fxml.arm64NativeLibraries" styleClass="settingsSectionTitle"/>
+                    <VBox styleClass="settingsGroup" spacing="2">
+                        <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.fxml.whenLwjglArm" wrapText="true" styleClass="settingsHint"/>
+                            <Label text="• MinecraftMachina/lwjgl — LWJGL2 ARM64 macOS natives (BSD)&#10;• r58Playz/jinput-m1 — jinput ARM64 macOS natives&#10;• theofficialgman/lwjgl3-binaries-arm64 — LWJGL2 / jinput ARM64 Linux natives" wrapText="true" styleClass="settingsHint"/>
+                        </VBox>
                     </VBox>
                 </VBox>
             </ScrollPane>
