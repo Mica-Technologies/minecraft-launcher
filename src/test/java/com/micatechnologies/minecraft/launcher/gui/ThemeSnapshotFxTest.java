@@ -354,6 +354,28 @@ class ThemeSnapshotFxTest
         }
         column.getChildren().add( new HBox( 24, wavy, badges ) );
 
+        MFXTextField search = new MFXTextField( "", "Search packs" );
+        search.setFloatMode( io.github.palexdev.materialfx.enums.FloatMode.DISABLED );
+        search.setPrefSize( 240, 32 );
+        SearchFields.decorate( search );
+        FilterChip chipOff = new FilterChip( "Recently updated only" );
+        FilterChip chipOn = new FilterChip( "Recently updated only" );
+        chipOn.setSelected( true );
+        MFXButton outlined = new MFXButton( "Outlined" );
+        outlined.getStyleClass().add( "outlinedBtn" );
+        MFXButton text = new MFXButton( "Text" );
+        text.getStyleClass().add( "textBtn" );
+        MFXButton filled = new MFXButton( "Filled" );
+        filled.getStyleClass().add( "primary" );
+        LoadingIndicator loading = new LoadingIndicator();
+        loading.setPrefSize( 40, 40 );
+        LoadingIndicator loadingSmall = new LoadingIndicator();
+        loadingSmall.setPrefSize( 20, 20 );
+        FlowPane row = new FlowPane( 12, 10, search, chipOff, chipOn, filled, new MFXButton( "Tonal" ), outlined, text,
+                                     loading, loadingSmall );
+        row.setAlignment( javafx.geometry.Pos.CENTER_LEFT );
+        column.getChildren().add( row );
+
         StackPane root = new StackPane( column );
         root.getStyleClass().add( "rootPane" );
         return root;

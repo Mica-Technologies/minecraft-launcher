@@ -5,7 +5,7 @@
 <?import io.github.palexdev.materialfx.controls.MFXTextField?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ProgressIndicator?>
+<?import com.micatechnologies.minecraft.launcher.gui.LoadingIndicator?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -99,7 +99,6 @@
     <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="navBar" GridPane.rowIndex="2">
         <padding><Insets left="14.0" right="14.0"/></padding>
 
-        <Label text="%main.filter.searchLabel" styleClass="muted"/>
         <MFXTextField fx:id="searchField" promptText="%filter.search.prompt" minWidth="180.0" prefWidth="200.0"
                       minHeight="32.0" prefHeight="32.0" maxHeight="32.0"
                       styleClass="no-floating-label"/>
@@ -130,8 +129,7 @@
              separate from backgroundFetchLabel so an install's status text isn't clobbered. -->
         <HBox fx:id="loadingIndicator" alignment="CENTER_LEFT" spacing="6.0"
               visible="false" managed="false">
-            <ProgressIndicator fx:id="loadingSpinner" visible="false"
-                               prefWidth="16.0" prefHeight="16.0" maxWidth="16.0" maxHeight="16.0"/>
+            <LoadingIndicator fx:id="loadingSpinner" visible="false" prefWidth="20.0" prefHeight="20.0"/>
             <Label text="%browse.loading" styleClass="muted"/>
         </HBox>
         <!-- Shows "Loading available packs…" while the background available-modpacks fetch

@@ -84,4 +84,21 @@ class ProgressVisualsTest
             }
         }
     }
+
+    @Test
+    void loadingShapesStayInsideTheirRadiusAndMorphSmoothly()
+    {
+        for ( double[] shape : LoadingIndicator.SHAPES ) {
+            for ( int i = 0; i < 360; i++ ) {
+                double r = LoadingIndicator.shapeRadius( shape, Math.toRadians( i ) );
+                assertTrue( r > 0.6 && r <= 1.0 + 1e-9, "radius " + r );
+            }
+        }
+        assertEquals( 0, LoadingIndicator.easeOutBack( 0 ), 1e-9 );
+        assertEquals( 1, LoadingIndicator.easeOutBack( 1 ), 1e-9 );
+        // The outline is closed and has every sample.
+        List< PathElement > outline = LoadingIndicator.outline( 3.21, 16, 16, 16 );
+        assertInstanceOf( MoveTo.class, outline.get( 0 ) );
+        assertInstanceOf( javafx.scene.shape.ClosePath.class, outline.get( outline.size() - 1 ) );
+    }
 }

@@ -80,7 +80,10 @@ public class WavyProgressBar extends Region
         @Override
         public void handle( long now )
         {
-            redraw( now );
+            // Skip while any parent is hidden: a hidden step row shouldn't keep drawing.
+            if ( LoadingIndicator.showing( WavyProgressBar.this ) ) {
+                redraw( now );
+            }
         }
     };
 

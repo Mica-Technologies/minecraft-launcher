@@ -28,7 +28,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
@@ -65,7 +64,7 @@ final class SignInPanel
     private final MFXButton        dismissButton;
     private final Label            statusLabel;
     private final VBox             overlay;
-    private final ProgressIndicator overlaySpinner;
+    private final LoadingIndicator overlaySpinner;
     private final Label            overlayText;
     private final MFXButton        retryButton;
     private final AtomicBoolean    waiting = new AtomicBoolean( false );
@@ -136,7 +135,7 @@ final class SignInPanel
         webView.setMinWidth( 440 );
         webView.setPrefWidth( 520 );
 
-        overlaySpinner = new ProgressIndicator();
+        overlaySpinner = new LoadingIndicator();
         overlaySpinner.setPrefSize( 36, 36 );
         overlayText = new Label();
         overlayText.getStyleClass().add( "muted" );

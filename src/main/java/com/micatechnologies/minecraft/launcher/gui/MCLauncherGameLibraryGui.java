@@ -41,7 +41,7 @@ import javafx.scene.CacheHint;
 import javafx.scene.Cursor;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressIndicator;
+
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.RowConstraints;
 import javafx.scene.image.Image;
@@ -100,7 +100,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     // backgroundFetchLabel, which install / uninstall handlers own for their own status text —
     // a filter change mid-install must not clear "Installing…".
     @SuppressWarnings( "unused" ) @FXML HBox loadingIndicator;
-    @SuppressWarnings( "unused" ) @FXML ProgressIndicator loadingSpinner;
+    @SuppressWarnings( "unused" ) @FXML LoadingIndicator loadingSpinner;
     @SuppressWarnings( "unused" ) @FXML Label paginationPageLabel;
     @SuppressWarnings( "unused" ) @FXML MFXButton prevPageBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton nextPageBtn;
@@ -333,6 +333,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // (driven by the `:floating` pseudo-class flipping on focus / content state)
         // and the UI shows a ghost label that doesn't go anywhere.
         searchField.setFloatMode( io.github.palexdev.materialfx.enums.FloatMode.DISABLED );
+        SearchFields.decorate( searchField );
         urlAddField.setFloatMode( io.github.palexdev.materialfx.enums.FloatMode.DISABLED );
 
         // Wire the navbar help button — same pattern as the other screens with a
@@ -1237,9 +1238,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         }
         loadingIndicator.setVisible( visible );
         loadingIndicator.setManaged( visible );
-        // Toggle the spinner itself too, not just its container: an indeterminate ProgressIndicator
-        // keeps its animation Timeline ticking while its own visibleProperty is true even if a
-        // parent is hidden, so flipping it here guarantees the skin pauses and burns no idle CPU.
+        // Toggle the indicator itself too, not just its container, so its own state matches.
         if ( loadingSpinner != null ) {
             loadingSpinner.setVisible( visible );
         }
@@ -1305,9 +1304,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             Region bgLayer = new Region();
             bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
 
-            ProgressIndicator spinner = new ProgressIndicator();
-            spinner.setMaxSize( 72, 72 );
-            spinner.setPrefSize( 72, 72 );
+            LoadingIndicator spinner = new LoadingIndicator();
+            spinner.setPrefSize( 56, 56 );
 
             imageBox.getChildren().addAll( bgLayer, spinner );
 

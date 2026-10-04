@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
-<?import io.github.palexdev.materialfx.controls.MFXCheckbox?>
 <?import io.github.palexdev.materialfx.controls.MFXComboBox?>
 <?import io.github.palexdev.materialfx.controls.MFXTextField?>
+<?import com.micatechnologies.minecraft.launcher.gui.FilterChip?>
 <?import com.micatechnologies.minecraft.launcher.gui.LauncherIcons?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.Group?>
@@ -148,7 +148,6 @@
     <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="navBar" GridPane.rowIndex="2">
         <padding><Insets left="14.0" right="14.0"/></padding>
 
-        <Label text="%main.filter.searchLabel" styleClass="muted"/>
         <MFXTextField fx:id="searchField" promptText="%filter.search.prompt" minWidth="180.0" prefWidth="220.0"
                       minHeight="32.0" prefHeight="32.0" maxHeight="32.0"
                       styleClass="no-floating-label"/>
@@ -166,7 +165,7 @@
              the ones with new manifest content. Phrased "Recently updated" to
              match the same terminology the Library screen uses on its badges. -->
         <Pane HBox.hgrow="ALWAYS" minWidth="10.0"/>
-        <MFXCheckbox fx:id="recentlyUpdatedOnlyCheck" text="%main.filter.recentlyUpdatedOnly"/>
+        <FilterChip fx:id="recentlyUpdatedOnlyCheck" text="%main.filter.recentlyUpdatedOnly"/>
     </HBox>
 
     <!-- Row 3: Pagination bar — matches the Game Library screen's layout so the

@@ -1219,9 +1219,8 @@ public final class ModpackContentBrowser
         HBox row = new HBox( 8 );
         row.setAlignment( Pos.CENTER_LEFT );
         row.setPadding( new Insets( 4, 0, 4, 0 ) );
-        javafx.scene.control.ProgressIndicator spinner = new javafx.scene.control.ProgressIndicator();
-        spinner.setPrefSize( 16, 16 );
-        spinner.setMaxSize( 16, 16 );
+        LoadingIndicator spinner = new LoadingIndicator();
+        spinner.setPrefSize( 20, 20 );
         Label label = new Label( LocalizationManager.get( "detailModal.section.loading" ) );
         label.getStyleClass().add( "muted" );
         row.getChildren().addAll( spinner, label );

@@ -29,7 +29,6 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.micatechnologies.minecraft.launcher.system.DesktopShortcutManager;
 import io.github.palexdev.materialfx.controls.MFXButton;
-import io.github.palexdev.materialfx.controls.MFXCheckbox;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
 import io.github.palexdev.materialfx.controls.MFXTextField;
 import javafx.animation.PauseTransition;
@@ -102,7 +101,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML MFXTextField searchField;
     @SuppressWarnings( "unused" ) @FXML MFXComboBox< String > typeFilter;
     @SuppressWarnings( "unused" ) @FXML MFXComboBox< String > sortFilter;
-    @SuppressWarnings( "unused" ) @FXML MFXCheckbox recentlyUpdatedOnlyCheck;
+    @SuppressWarnings( "unused" ) @FXML FilterChip recentlyUpdatedOnlyCheck;
 
     // ===== Pagination row =====
     @SuppressWarnings( "unused" ) @FXML Label paginationRangeLabel;
@@ -533,6 +532,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Same float-mode kill switch the Library screen uses — no floating label
         // wanted, just promptText.
         searchField.setFloatMode( io.github.palexdev.materialfx.enums.FloatMode.DISABLED );
+        SearchFields.decorate( searchField );
 
         // "Recently updated only" checkbox — flips the boolean filter on selection
         // change. A checkbox communicates the dual on/off state more clearly than

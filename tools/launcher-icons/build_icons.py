@@ -206,6 +206,7 @@ def build():
         ('DOT', rounded(rect(9, 9, 15, 15), 3), 'A 6 px dot, centred (custom).'),
         ('LOCK', m('lock'), 'Lock: Material Symbols "lock".'),
         ('PEOPLE', m('group'), 'People: Material Symbols "group".'),
+        ('SEARCH', m('search'), 'Search: Material Symbols "search".'),
     ]
     header = (HERE.parent.parent / 'src/main/java/com/micatechnologies/minecraft/launcher/gui/ShapeScale.java').read_text()
     header = header[:header.index('package ')]

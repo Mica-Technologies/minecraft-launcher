@@ -1499,9 +1499,8 @@ public class MCLauncherModpackDetailModal extends StackPane
         HBox placeholder = new HBox( 8 );
         placeholder.setAlignment( Pos.CENTER_LEFT );
         placeholder.setPadding( new Insets( 4, 0, 4, 0 ) );
-        javafx.scene.control.ProgressIndicator spinner = new javafx.scene.control.ProgressIndicator();
-        spinner.setPrefSize( 16, 16 );
-        spinner.setMaxSize( 16, 16 );
+        LoadingIndicator spinner = new LoadingIndicator();
+        spinner.setPrefSize( 20, 20 );
         Label loadingLabel = new Label(
                 com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.loading" ) );
         loadingLabel.getStyleClass().add( "muted" );
@@ -1572,9 +1571,8 @@ public class MCLauncherModpackDetailModal extends StackPane
         HBox placeholder = new HBox( 8 );
         placeholder.setAlignment( Pos.CENTER_LEFT );
         placeholder.setPadding( new Insets( 4, 0, 4, 0 ) );
-        javafx.scene.control.ProgressIndicator spinner = new javafx.scene.control.ProgressIndicator();
-        spinner.setPrefSize( 16, 16 );
-        spinner.setMaxSize( 16, 16 );
+        LoadingIndicator spinner = new LoadingIndicator();
+        spinner.setPrefSize( 20, 20 );
         Label loadingLabel = new Label(
                 com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.loading" ) );
         loadingLabel.getStyleClass().add( "muted" );
