@@ -2642,3 +2642,161 @@
     -fx-border-width: 0;
 }
 .transparentBg { -fx-background-color: transparent; }
+
+/* =============================================================================
+ * Shared controls, Material 3 (second refresh pass). Last in the file so these win
+ * over the older rules above for the same controls.
+ * ============================================================================= */
+
+/* Dropdowns (MFXComboBox): a field like the text fields, with M3's plain
+ * arrow_drop_down caret (no button behind it) and a 12 px menu below. */
+.mfx-combo-box .caret {
+    -fx-background-color: transparent;
+}
+.mfx-combo-box .caret .mfx-font-icon {
+    -mfx-color: -md-on-surface-variant !important;
+    -mfx-size: 14;
+}
+.mfx-combo-box:focus-within .caret .mfx-font-icon {
+    -mfx-color: -md-primary !important;
+}
+.mfx-combo-box .caret .mfx-ripple-generator {
+    -mfx-ripple-color: transparent !important;
+}
+.mfx-combo-box .mfx-list-view,
+.mfx-combo-box-popup .mfx-list-view {
+    -fx-background-color: -md-surface-container;
+    -fx-background-radius: 12;
+    -fx-border-width: 0;
+    -fx-padding: 6 0 6 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.30), 16, 0.10, 0, 4);
+}
+.mfx-combo-box-popup, .mfx-combo-box-popup .virtual-flow {
+    -fx-background-color: transparent;
+}
+.mfx-combo-box-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 10 16 10 16;
+    -mfx-hover: -md-state-hover-on-surface;
+    -mfx-selected: -md-active-indicator;
+}
+.mfx-combo-box-cell .data-label { -fx-text-fill: -md-on-surface; }
+.mfx-combo-box-cell:hover { -fx-background-color: -md-state-hover-on-surface; }
+.mfx-combo-box-cell:selected { -fx-background-color: -md-active-indicator; }
+.mfx-combo-box-cell:selected .data-label { -fx-text-fill: -md-on-active-indicator; }
+
+/* Checkboxes: M3's 18 px box with small corners (4 px, the scale's extra-small) and a 2 px outline; checked, it fills
+ * with primary and shows the mark in on-primary. (It was drawn as a circle.) */
+.check-box .box, .mfx-checkbox .box {
+    -fx-background-color: transparent;
+    -fx-border-color: -md-on-surface-variant;
+    -fx-border-width: 2;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 2;
+}
+.check-box:selected .box, .mfx-checkbox:selected .box {
+    -fx-background-color: -md-primary;
+    -fx-border-color: -md-primary;
+}
+.check-box:selected .mark, .mfx-checkbox:selected .mark {
+    -fx-background-color: -md-on-primary;
+}
+.check-box:hover .box, .mfx-checkbox:hover .box {
+    -fx-effect: dropshadow(gaussian, -md-state-hover-on-surface, 0, 0, 0, 0);
+}
+.check-box, .mfx-checkbox { -fx-text-fill: -md-on-surface; -fx-label-padding: 0 0 0 4; }
+.check-box:focus-visible .box, .mfx-checkbox:focus-visible .box {
+    -fx-border-color: -md-primary;
+}
+
+/* Tabs (TabPane): M3 primary tabs. Labels in on-surface-variant on a divider line;
+ * the selected tab's label in the primary text tone over a 3 px primary indicator.
+ * No box around the selected tab, and the keyboard focus ring only when the tabs
+ * were reached by keyboard. */
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: transparent;
+    -fx-border-color: -md-outline-variant;
+    -fx-border-width: 0 0 1 0;
+}
+.tab-pane .tab {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 8 8 0 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 3 0;
+    -fx-padding: 6 16 6 16;
+}
+.tab-pane .tab:hover { -fx-background-color: -md-state-hover-on-surface; }
+.tab-pane .tab .tab-label { -fx-text-fill: -md-on-surface-variant; }
+.tab-pane .tab:selected {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -md-primary transparent;
+}
+.tab-pane .tab:selected:hover { -fx-background-color: -md-state-hover-primary; }
+.tab-pane .tab:selected .tab-label { -fx-text-fill: -md-text-primary; }
+.tab-pane .tab .focus-indicator,
+.tab-pane:focused > .tab-header-area > .headers-region > .tab:selected .focus-indicator {
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+.tab-pane:focus-visible > .tab-header-area > .headers-region > .tab:selected .focus-indicator {
+    -fx-border-color: -md-primary;
+    -fx-border-width: 2;
+    -fx-border-radius: 8;
+    -fx-border-insets: 2;
+}
+.tab-pane .tab .tab-close-button { -fx-background-color: -md-on-surface-variant; }
+.tab-pane .tab:selected .tab-close-button { -fx-background-color: -md-text-primary; }
+
+/* Menus (context menus and menu-button popups): M3 menus. A 12 px surface-container
+ * card with a shadow and no border; items highlight with a state layer rather than
+ * the primary tint. */
+.context-menu {
+    -fx-background-color: -md-surface-container;
+    -fx-background-radius: 12;
+    -fx-border-width: 0;
+    -fx-padding: 6 4 6 4;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.30), 16, 0.10, 0, 4);
+}
+.context-menu .menu-item {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8;
+    -fx-padding: 8 12 8 12;
+}
+.context-menu .menu-item .label { -fx-text-fill: -md-on-surface; }
+.context-menu .menu-item:hover, .context-menu .menu-item:focused {
+    -fx-background-color: -md-state-hover-on-surface;
+}
+.context-menu .menu-item:disabled .label { -fx-opacity: 0.38; }
+.context-menu .separator .line {
+    -fx-border-color: -md-outline-variant;
+    -fx-border-width: 1 0 0 0;
+}
+
+/* Tooltips: M3 plain tooltips. Inverse surface, small (4 px) corners, 12 px text. */
+.tooltip, .mcl-tooltip {
+    -fx-background-color: -md-inverse-surface;
+    -fx-text-fill: -md-inverse-on-surface;
+    -fx-background-radius: 4;
+    -fx-border-width: 0;
+    -fx-padding: 4 8 4 8;
+    -fx-font-size: 12px;
+    -fx-effect: null;
+}
+
+/* Scrollbars: a thin rounded thumb that stays faint until the pointer is over the
+ * scrolling area, then darkens, and darkens further under the pointer. */
+.scroll-bar:vertical   { -fx-pref-width: 8; }
+.scroll-bar:horizontal { -fx-pref-height: 8; }
+.scroll-bar .thumb {
+    -fx-background-color: -md-outline-variant;
+    -fx-background-radius: 999;
+    -fx-background-insets: 1;
+}
+.scroll-pane:hover .scroll-bar .thumb,
+.list-view:hover .scroll-bar .thumb,
+.text-area:hover .scroll-bar .thumb,
+.table-view:hover .scroll-bar .thumb { -fx-background-color: -md-outline; }
+.scroll-bar .thumb:hover,
+.scroll-bar .thumb:pressed { -fx-background-color: -md-on-surface-variant; }
