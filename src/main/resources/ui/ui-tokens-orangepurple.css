@@ -63,5 +63,52 @@
      * desktop show through. */
     -color-popup:             #1E2533;
     -color-popup-border:      rgba(220, 224, 240, 0.12);
+
+    /* ==== GENERATED: Material 3 colour roles (tools/theme-roles) — do not edit by hand ==== */
+    -md-primary:                   #D257DB;
+    -md-on-primary:                #36003C;
+    -md-primary-container:         #7E008A;
+    -md-on-primary-container:      #FFD6FA;
+    -md-secondary:                 #F68D31;
+    -md-on-secondary:              #301400;
+    -md-secondary-container:       #703800;
+    -md-on-secondary-container:    #FFDCC5;
+    -md-error:                     #F34949;
+    -md-on-error:                  #410004;
+    -md-error-container:           #930014;
+    -md-on-error-container:        #FFDAD7;
+    -md-success:                   #51CD7A;
+    -md-on-success:                #00210C;
+    -md-success-container:         #005227;
+    -md-on-success-container:      #80FBA3;
+    -md-warning:                   #F7B23B;
+    -md-on-warning:                #281800;
+    -md-warning-container:         #614000;
+    -md-on-warning-container:      #FFDDB0;
+    -md-tertiary:                  #F6B8AB;
+    -md-on-tertiary:               #4C261D;
+    -md-tertiary-container:        #673B32;
+    -md-on-tertiary-container:     #FFDAD3;
+    -md-surface:                   #201221;
+    -md-surface-container-lowest:  #1D0C20;
+    -md-surface-container-low:     #2B182D;
+    -md-surface-container:         #2F1C31;
+    -md-surface-container-high:    #3A273C;
+    -md-surface-container-highest: #463247;
+    -md-on-surface:                #F4EBF3;
+    -md-on-surface-variant:        #C4ABC0;
+    -md-outline:                   #A289A2;
+    -md-outline-variant:           #554056;
+    -md-inverse-surface:           #F7D9F6;
+    -md-inverse-on-surface:        #3D2A3F;
+    -md-inverse-primary:           #9E22AA;
+    -md-scrim:                     #000000;
+    -md-state-hover-on-surface:    rgba(244, 235, 243, 0.08);
+    -md-state-pressed-on-surface:  rgba(244, 235, 243, 0.1);
+    -md-state-hover-primary:       rgba(210, 87, 219, 0.08);
+    -md-state-pressed-primary:     rgba(210, 87, 219, 0.1);
+    -md-state-hover-on-primary:    rgba(54, 0, 60, 0.08);
+    -md-state-pressed-on-primary:  rgba(54, 0, 60, 0.1);
+    /* ==== END GENERATED ==== */
 }
 

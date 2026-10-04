@@ -1,0 +1,14 @@
+{
+  "name": "mica-launcher-theme-roles",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Derives Material 3 colour-role tokens (-md-*) from each theme's own -color-* palette and writes them into src/main/resources/ui/ui-tokens-*.css. Run after changing a theme's colours.",
+  "scripts": {
+    "generate": "node generate-roles.mjs",
+    "check": "node generate-roles.mjs --check"
+  },
+  "dependencies": {
+    "@material/material-color-utilities": "0.3.0"
+  }
+}

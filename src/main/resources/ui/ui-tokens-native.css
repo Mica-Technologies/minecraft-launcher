@@ -108,6 +108,53 @@
      * desktop show through. */
     -color-popup:             #1C2230;
     -color-popup-border:      rgba(220, 224, 240, 0.12);
+
+    /* ==== GENERATED: Material 3 colour roles (tools/theme-roles) — do not edit by hand ==== */
+    -md-primary:                   #6FCF3D;
+    -md-on-primary:                #14181F;
+    -md-primary-container:         #1E5200;
+    -md-on-primary-container:      #97FB63;
+    -md-secondary:                 #7A5C36;
+    -md-on-secondary:              #FFFFFF;
+    -md-secondary-container:       #5C421E;
+    -md-on-secondary-container:    #FFDDB7;
+    -md-error:                     #F53D3D;
+    -md-on-error:                  #410003;
+    -md-error-container:           #930011;
+    -md-on-error-container:        #FFDAD6;
+    -md-success:                   #3C8527;
+    -md-on-success:                #FFFFFF;
+    -md-success-container:         #105300;
+    -md-on-success-container:      #A7F78A;
+    -md-warning:                   #F4C025;
+    -md-on-warning:                #251A00;
+    -md-warning-container:         #594400;
+    -md-on-warning-container:      #FFDF95;
+    -md-tertiary:                  #A0CFCF;
+    -md-on-tertiary:               #003737;
+    -md-tertiary-container:        #1E4E4E;
+    -md-on-tertiary-container:     #BBEBEB;
+    -md-surface:                   rgba(0, 0, 0, 0.0);
+    -md-surface-container-lowest:  rgba(255, 255, 255, 0.02);
+    -md-surface-container-low:     rgba(255, 255, 255, 0.05);
+    -md-surface-container:         rgba(255, 255, 255, 0.08);
+    -md-surface-container-high:    rgba(255, 255, 255, 0.11);
+    -md-surface-container-highest: rgba(255, 255, 255, 0.14);
+    -md-on-surface:                #F2F4F8;
+    -md-on-surface-variant:        #B8BFCC;
+    -md-outline:                   #8B90A2;
+    -md-outline-variant:           #414756;
+    -md-inverse-surface:           #DDE2F5;
+    -md-inverse-on-surface:        #2A303F;
+    -md-inverse-primary:           #2A6C00;
+    -md-scrim:                     #000000;
+    -md-state-hover-on-surface:    rgba(242, 244, 248, 0.08);
+    -md-state-pressed-on-surface:  rgba(242, 244, 248, 0.1);
+    -md-state-hover-primary:       rgba(111, 207, 61, 0.08);
+    -md-state-pressed-primary:     rgba(111, 207, 61, 0.1);
+    -md-state-hover-on-primary:    rgba(20, 24, 31, 0.08);
+    -md-state-pressed-on-primary:  rgba(20, 24, 31, 0.1);
+    /* ==== END GENERATED ==== */
 }
 
 /* ----- Native rootPane: transparent so DWM Mica composites through -----

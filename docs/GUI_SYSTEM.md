@@ -289,6 +289,12 @@ Each screen root gets two stylesheets, from lowest to highest precedence:
 1. **`ui/ui-base.css`**: theme-agnostic component styling (font stack, cards, chips, buttons, dialogs, tables, popups). It uses only `-color-*` lookup variables, never literal colours.
 2. **Token sheet** (`ui/ui-tokens-{dark,light,bluegray,orangepurple,creeper,native,native-light}.css`): defines the `-color-*` palette. Every token sheet defines the same set of tokens. `-color-popup` and `-color-popup-border` stay opaque in every theme, because popups and dialogs are separate windows with nothing behind them.
 
+Each token sheet also carries Material 3 colour roles (`-md-primary-container`, `-md-on-surface-variant`,
+`-md-surface-container-high`, `-md-outline`, state-layer colours and so on), generated from that theme's
+own `-color-*` palette by `tools/theme-roles` (see its README). Don't edit them by hand: change the
+`-color-*` value and run `npm run generate`. `ThemeTokensTest` checks every theme defines the same tokens
+and that text colours meet WCAG AA against what they sit on.
+
 Until 2026.10 a per-theme legacy sheet (`guiStyle-<theme>.css`) loaded underneath, with its own hard-coded palette. Its still-live rules now sit, mapped to tokens, in section 0 of `ui-base.css`.
 
 `MCLauncherGuiWindow.forceThemeChange()` maps `ConfigManager.getTheme()` to a token sheet (`themeStylesheetPaths` gives the full list, and is what the snapshot test renders):
