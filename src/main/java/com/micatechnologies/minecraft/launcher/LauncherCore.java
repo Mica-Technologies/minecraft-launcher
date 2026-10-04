@@ -448,6 +448,11 @@ public class LauncherCore
             return;
         }
         var registry = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get();
+        // One ordered thread, so a slow "show the game" (RGB samples the pack logo) can't land
+        // after the "no game" of a game that ended quickly; an update already replaced by a
+        // newer one skips itself.
+        var updates = com.micatechnologies.minecraft.launcher.game.session.LatestUpdateRunner
+                .onDaemonThread( "mmcl-running-game-follower" );
         var follower = new com.micatechnologies.minecraft.launcher.game.session.RunningGameFollower(
                 new com.micatechnologies.minecraft.launcher.game.session.RunningGameFollower.Sink()
                 {
@@ -456,7 +461,7 @@ public class LauncherCore
                     {
                         // RgbIntegration and Discord each bail when switched off, and contain
                         // their own failures.
-                        SystemUtilities.spawnNewTask( () -> {
+                        updates.submit( () -> {
                             com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onPlayStarted( s.pack() );
                             DiscordRpcUtility.setGamePresence( s.pack() );
                         } );
@@ -465,7 +470,7 @@ public class LauncherCore
                     @Override
                     public void showNoGame()
                     {
-                        SystemUtilities.spawnNewTask( () -> {
+                        updates.submit( () -> {
                             com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onPlayEnded();
                             DiscordRpcUtility.setMenuPresence( LocalizationManager.get( "discordRpc.screen.selectingPack" ) );
                         } );
