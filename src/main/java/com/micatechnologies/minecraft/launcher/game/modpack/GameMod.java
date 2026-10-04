@@ -99,9 +99,26 @@ public class GameMod extends ManagedGameFile
      */
     boolean updateLocalFile( GameMode gameAppMode ) throws ModpackException
     {
-        if ( ( gameAppMode == GameMode.CLIENT && clientReq ) || ( gameAppMode == GameMode.SERVER && serverReq ) ) {
+        if ( isRequiredFor( gameAppMode ) ) {
             return super.updateLocalFile();
         }
         return true;
+    }
+
+    /**
+     * Indicates whether this mod is required for the given side (client/server). Mods that
+     * aren't required for the active side are never downloaded by
+     * {@link #updateLocalFile(GameMode)}, so anything that checks the mods folder afterwards
+     * must skip them too rather than reporting a side-only mod as missing.
+     *
+     * @param gameAppMode client/server
+     *
+     * @return true if this mod applies to the given side
+     *
+     * @since 2026.10
+     */
+    boolean isRequiredFor( GameMode gameAppMode )
+    {
+        return ( gameAppMode == GameMode.CLIENT && clientReq ) || ( gameAppMode == GameMode.SERVER && serverReq );
     }
 }

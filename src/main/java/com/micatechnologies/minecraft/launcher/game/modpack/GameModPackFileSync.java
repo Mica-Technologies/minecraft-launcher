@@ -24,6 +24,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.utilities.DownloadExecutor;
 import com.micatechnologies.minecraft.launcher.utilities.DownloadTracker;
+import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
@@ -209,9 +210,18 @@ class GameModPackFileSync
         // nothing at all was indistinguishable from a real one, and the game launched anyway.
         // This is the cheap, unconditional backstop: every mod the manifest declares must exist
         // as a non-empty file before we hand the classpath to the JVM. Hash correctness is the
-        // verify layer's job; this only catches "the file isn't even there."
+        // verify layer's job; this only catches "the file isn't even there." Mods not required on
+        // this side (e.g. server-only mods on a client) were skipped by updateLocalFile on purpose,
+        // so they're excluded here too — otherwise every client launch of a pack with server-only
+        // mods would abort.
+        final GameMode currentMode = GameModeManager.getCurrentGameMode();
         final List< String > missingMods = new ArrayList<>();
+        int requiredModCount = 0;
         for ( GameMod mod : metadata.packMods ) {
+            if ( !mod.isRequiredFor( currentMode ) ) {
+                continue;
+            }
+            requiredModCount++;
             mod.setLocalPathPrefix( modLocalPathPrefix );
             File modFile = SynchronizedFileManager.getSynchronizedFile( mod.getFullLocalFilePath() );
             if ( modFile == null || !modFile.isFile() || modFile.length() == 0L ) {
@@ -220,12 +230,12 @@ class GameModPackFileSync
         }
         if ( !missingMods.isEmpty() ) {
             throw new ModpackException( "Mod sync for \"" + metadata.getPackName() + "\" finished but "
-                    + missingMods.size() + " of " + metadata.packMods.size()
+                    + missingMods.size() + " of " + requiredModCount
                     + " manifest-declared mod file(s) are missing or empty on disk: " + missingMods
                     + ". Refusing to launch with an incomplete mod set." );
         }
         Logger.logDebug( "Mod existence check passed for \"" + metadata.getPackName() + "\": "
-                                 + metadata.packMods.size() + " file(s) present." );
+                                 + requiredModCount + " file(s) present." );
     }
 
     /**
