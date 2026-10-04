@@ -398,19 +398,17 @@
 }
 
 /* Reusable card */
+/* Cards are Material 3 filled cards: they stand out by sitting one surface level
+ * above what's behind them, not by a border or shadow. Shadows are kept for things
+ * that float: menus, tooltips, dropdowns, dialogs and the modpack detail window. */
 .card {
-    -fx-background-color: -color-surface;
+    -fx-background-color: -md-surface-container;
     -fx-background-radius: 12;
-    -fx-border-color: -color-border;
-    -fx-border-radius: 12;
-    -fx-border-width: 1;
     -fx-padding: 16;
-    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 12, 0.10, 0, 4);
 }
 
 .card.elevated {
-    -fx-background-color: -color-surface-elevated;
-    -fx-effect: dropshadow(gaussian, -color-shadow, 18, 0.18, 0, 8);
+    -fx-background-color: -md-surface-container-high;
 }
 
 
@@ -513,11 +511,10 @@
  * ===================================================================== */
 
 .crashDiagnosisCard {
-    -fx-background-color: -color-surface-elevated;
+    -fx-background-color: -md-surface-container-high;
     -fx-background-radius: 12;
     -fx-border-radius: 12;
     -fx-border-width: 1 1 1 4;
-    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 10, 0.18, 0, 3);
 }
 
 .crashDiagnosisTitle {
@@ -579,20 +576,15 @@
  * The shell handles the outer rounded border and drop shadow; the inner image
  * box has its own top-only rounding so the image clips cleanly to the card. */
 .heroCardShell {
-    -fx-background-color: -color-surface-elevated;
+    -fx-background-color: -md-surface-container-high;
     -fx-background-radius: 16;
-    -fx-border-color: -color-border;
-    -fx-border-radius: 16;
-    -fx-border-width: 1;
-    -fx-effect: dropshadow(gaussian, -color-shadow, 14, 0.22, 0, 4);
 }
 
-/* Keep the shadow stable on hover — changing the dropshadow radius/spread on
- * hover invalidates the card's bitmap cache (setCache(true) in MCLauncherMainGui),
- * forcing a full re-rasterize of the gaussian blur on every hover-in/out. The
- * border-color shift gives enough visual feedback without the perf hit. */
+/* Hover lays Material's state layer over the card. The card is bitmap-cached
+ * (setCache(true) in MCLauncherMainGui), so a hover change re-rasterizes it; with
+ * no gaussian shadow behind it any more, that's a cheap redraw. */
 .heroCardShell:hover {
-    -fx-border-color: -color-primary;
+    -fx-background-color: -md-surface-container-high, -md-state-hover-on-surface;
 }
 
 /* Top half of the card — modpack background image. Top corners rounded; bottom
@@ -1047,12 +1039,10 @@
 
 /* Section panels inside the modal body — soft surface, padded, separates the
  * Quick Actions / Stats / Update Log / Coming Soon groups visually. */
+/* Sections sit one level below the detail window's surface (recessed). */
 .modpackDetailSection {
-    -fx-background-color: -color-bg-soft;
+    -fx-background-color: -md-surface-container-low;
     -fx-background-radius: 12;
-    -fx-border-color: -color-border;
-    -fx-border-width: 1;
-    -fx-border-radius: 12;
     -fx-padding: 14;
 }
 
@@ -1807,9 +1797,6 @@
     -fx-padding: 4 8 4 8;
 }
 
-.packLogo {
-    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 6, 0.20, 0, 2);
-}
 
 .packName {
     -fx-font-weight: 600;
