@@ -312,8 +312,7 @@
 .heading-h3 { -fx-font-weight: 600; -fx-font-size: 16px; -fx-text-fill: -color-text; -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif; }
 
 .text-mono {
-    -fx-font-family: "JetBrains Mono", "Cascadia Code", "Cascadia Mono",
-                     "Consolas", "Menlo", monospace;
+    -fx-font-family: "JetBrains Mono", "Consolas", "Menlo", monospace;
 }
 
 /* ---- Type scale ----
@@ -655,49 +654,47 @@
 
 /* =====================================================================
  *  Crash diagnosis card
- *  Rendered above the game-console log area when CrashReportAnalyzer
- *  returns a non-UNKNOWN diagnosis. Severity-tinted left border + a
- *  matching color accent on the title, calmer body text below.
+ *  Above the game log when CrashReportAnalyzer has a diagnosis. Material 3
+ *  containers by severity: critical on the error container, warning on the
+ *  warning container, info on a plain tonal surface.
  * ===================================================================== */
 
 .crashDiagnosisCard {
     -fx-background-color: -md-surface-container-high;
-    -fx-background-radius: 12;
-    -fx-border-radius: 12;
-    -fx-border-width: 1 1 1 4;
+    -fx-background-radius: 16;
+    -fx-border-width: 0;
 }
 
 .crashDiagnosisTitle {
-    -fx-font-weight: 700;
+    -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
 .crashDiagnosisSummary {
-    -fx-text-fill: -color-text;
+    -fx-text-fill: -md-on-surface;
     -fx-font-size: 14px;
 }
 
-/* Severity tints. Critical is the default we expect 99% of the time
- * (most crashes can't be recovered without action). Warning + Info are
- * reserved for future cues. */
-.crashDiagnosisCard.crashSeverityCritical {
-    -fx-border-color: -color-border -color-border -color-border -color-danger;
-}
-.crashDiagnosisCard.crashSeverityCritical .crashDiagnosisTitle {
-    -fx-text-fill: -color-danger;
-}
+.crashDiagnosisCard.crashSeverityCritical { -fx-background-color: -md-error-container; }
+.crashDiagnosisCard.crashSeverityCritical .crashDiagnosisTitle,
+.crashDiagnosisCard.crashSeverityCritical .crashDiagnosisSummary,
+.crashDiagnosisCard.crashSeverityCritical .muted { -fx-text-fill: -md-on-error-container; }
 
-.crashDiagnosisCard.crashSeverityWarning {
-    -fx-border-color: -color-border -color-border -color-border -color-warning;
-}
-.crashDiagnosisCard.crashSeverityWarning .crashDiagnosisTitle {
-    -fx-text-fill: -color-warning;
-}
+.crashDiagnosisCard.crashSeverityWarning { -fx-background-color: -md-warning-container; }
+.crashDiagnosisCard.crashSeverityWarning .crashDiagnosisTitle,
+.crashDiagnosisCard.crashSeverityWarning .crashDiagnosisSummary,
+.crashDiagnosisCard.crashSeverityWarning .muted { -fx-text-fill: -md-on-warning-container; }
 
-.crashDiagnosisCard.crashSeverityInfo {
-    -fx-border-color: -color-border -color-border -color-border -color-primary;
+.crashDiagnosisCard.crashSeverityInfo .crashDiagnosisTitle { -fx-text-fill: -md-text-primary; }
+
+/* On the error container the main fix is a filled error button, not the primary
+ * colour (green on red clashed). */
+.crashDiagnosisCard.crashSeverityCritical .mfx-button.primary {
+    -fx-background-color: -md-error;
 }
-.crashDiagnosisCard.crashSeverityInfo .crashDiagnosisTitle {
-    -fx-text-fill: -color-primary;
+.crashDiagnosisCard.crashSeverityCritical .mfx-button.primary .text { -fx-fill: -md-on-error; }
+.crashDiagnosisCard.crashSeverityCritical .mfx-button.primary:hover {
+    -fx-background-color: -md-error, -md-state-hover-on-primary;
 }
 
 
@@ -1642,8 +1639,7 @@
 
 .text-area.text-mono,
 .text-area.text-mono .content {
-    -fx-font-family: "JetBrains Mono", "Cascadia Code", "Cascadia Mono",
-                     "Consolas", "Menlo", monospace;
+    -fx-font-family: "JetBrains Mono", "Consolas", "Menlo", monospace;
 }
 
 .hyperlink {
@@ -2594,6 +2590,58 @@
     -fx-background-color: -color-bg;
 }
 
+/* Running Games pane (GameSessionPane), Material 3: a tonal header strip, a filled
+ * status chip by phase, the log on one tonal surface (no nested border), and an
+ * error-tonal Kill. */
+.sessionHeader {
+    -fx-background-color: -md-surface-container-low;
+    -fx-background-radius: 16;
+    -fx-padding: 12 16 12 16;
+}
+.stat-chip.sessionStatusChip {
+    -fx-background-color: -md-surface-container-highest;
+    -fx-border-color: transparent;
+    -fx-text-fill: -md-on-surface-variant;
+    -fx-padding: 4 12 4 12;
+}
+.stat-chip.sessionStatusChip.sessionStatus-running   { -fx-background-color: -md-success-container; -fx-text-fill: -md-on-success-container; }
+.stat-chip.sessionStatusChip.sessionStatus-preparing { -fx-background-color: -md-warning-container; -fx-text-fill: -md-on-warning-container; }
+.stat-chip.sessionStatusChip.sessionStatus-crashed,
+.stat-chip.sessionStatusChip.sessionStatus-failed    { -fx-background-color: -md-error-container; -fx-text-fill: -md-on-error-container; }
+
+.text-area.sessionLog {
+    -fx-background-color: -md-surface-container-lowest;
+    -fx-background-radius: 16;
+    -fx-border-width: 0;
+    -fx-padding: 8 4 8 8;
+    -fx-text-fill: -md-on-surface;
+    -fx-highlight-fill: -md-active-indicator;
+    -fx-highlight-text-fill: -md-on-active-indicator;
+}
+.text-area.sessionLog:focused { -fx-background-color: -md-surface-container-lowest; -fx-border-width: 0; }
+.text-area.sessionLog .content {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+}
+.text-area.sessionLog .scroll-pane { -fx-background-color: transparent; }
+
+/* The launch steps while a game is preparing, on a tonal card like the header. */
+.sessionSteps {
+    -fx-background-color: -md-surface-container-low;
+    -fx-background-radius: 16;
+    -fx-padding: 16 20 20 20;
+}
+
+/* Error-tonal button: a destructive action that shouldn't shout (Kill). */
+.mfx-button.errorTonalBtn {
+    -fx-background-color: -md-error-container;
+    -fx-text-fill: -md-on-error-container;
+}
+.mfx-button.errorTonalBtn .text { -fx-fill: -md-on-error-container; }
+.mfx-button.errorTonalBtn:hover {
+    -fx-background-color: -md-error-container, -md-state-hover-on-surface;
+}
+
 
 
 /* =====================================================================
@@ -2612,8 +2660,7 @@
 .label.type-italic             { -fx-font-style: italic; }
 
 .label.text-mono {
-    -fx-font-family: "JetBrains Mono", "Cascadia Code", "Cascadia Mono",
-                     "Consolas", "Menlo", monospace;
+    -fx-font-family: "JetBrains Mono", "Consolas", "Menlo", monospace;
 }
 
 /* One scan acknowledgement in the detail modal's Advanced section. */

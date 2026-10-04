@@ -34,11 +34,9 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -85,9 +83,10 @@ final class GameSessionPane
     private final VBox      logView;
     private final VBox      diagnosisCard = new VBox( 6 );
     private final TextArea  logArea = new TextArea();
-    private final TextField search = new TextField();
+    private final io.github.palexdev.materialfx.controls.MFXTextField search =
+            new io.github.palexdev.materialfx.controls.MFXTextField();
     private final Label     searchStatus = new Label();
-    private final CheckBox  autoScroll = new CheckBox( LocalizationManager.get( "console.autoPin.label" ) );
+    private final FilterChip autoScroll = new FilterChip( LocalizationManager.get( "console.autoPin.label" ) );
     private final Label     truncated = new Label();
     private final Hyperlink openFileLink = new Hyperlink( LocalizationManager.get( "console.openLogLink.text" ) );
     private final MFXButton crashToggle = new MFXButton();
@@ -135,17 +134,20 @@ final class GameSessionPane
         }
         Region spacer = new Region();
         HBox.setHgrow( spacer, Priority.ALWAYS );
-        statusChip.getStyleClass().add( "stat-chip" );
+        statusChip.getStyleClass().addAll( "stat-chip", "sessionStatusChip" );
         uptime.getStyleClass().add( "muted" );
         header.getChildren().addAll( titles, spacer, uptime, statusChip );
-        header.setPadding( new Insets( 0, 0, 12, 0 ) );
+        header.getStyleClass().add( "sessionHeader" );
+        BorderPane.setMargin( header, new Insets( 0, 0, 12, 0 ) );
 
         // ---- Preparing: the launch steps ----
         Label preparing = new Label( LocalizationManager.get( "session.preparing.heading" ) );
         preparing.getStyleClass().add( "heading-h3" );
         cancelBtn.setOnAction( e -> session.cancel() );
         progressView = new VBox( 14, preparing, stepsBox, cancelBtn );
-        progressView.setPadding( new Insets( 8 ) );
+        progressView.getStyleClass().add( "sessionSteps" );
+        progressView.setMaxHeight( javafx.scene.layout.Region.USE_PREF_SIZE );
+        StackPane.setAlignment( progressView, Pos.TOP_LEFT );
 
         // ---- Running: the log ----
         diagnosisCard.getStyleClass().addAll( "card", "crashDiagnosisCard" );
@@ -153,12 +155,20 @@ final class GameSessionPane
         diagnosisCard.setManaged( false );
 
         search.setPromptText( LocalizationManager.get( "console.search.placeholder" ) );
+        search.setFloatMode( io.github.palexdev.materialfx.enums.FloatMode.DISABLED );
+        search.getStyleClass().add( "no-floating-label" );
+        search.setMinHeight( 40 );
+        search.setMaxWidth( Double.MAX_VALUE );
+        SearchFields.decorate( search );
         HBox.setHgrow( search, Priority.ALWAYS );
         search.setOnAction( e -> find( true ) );
         MFXButton prev = new MFXButton( LocalizationManager.get( "console.search.prev" ) );
         prev.setOnAction( e -> find( false ) );
+        IconButtons.decorate( prev, LauncherIcons.ARROW_UP, LocalizationManager.get( "session.search.previousMatch" ) );
         MFXButton next = new MFXButton( LocalizationManager.get( "console.search.next" ) );
         next.setOnAction( e -> find( true ) );
+        IconButtons.decorate( next, LauncherIcons.ARROW_DOWN, LocalizationManager.get( "session.search.nextMatch" ) );
+        crashToggle.getStyleClass().add( "tonalBtn" );
         searchStatus.getStyleClass().add( "muted" );
         autoScroll.setSelected( true );
         crashToggle.setVisible( false );
@@ -169,8 +179,7 @@ final class GameSessionPane
 
         logArea.setEditable( false );
         logArea.setWrapText( true );
-        logArea.getStyleClass().add( "text-mono" );
-        logArea.getStyleClass().add( "type-body-small" );
+        logArea.getStyleClass().addAll( "text-mono", "type-body-small", "sessionLog" );
         VBox.setVgrow( logArea, Priority.ALWAYS );
 
         truncated.getStyleClass().add( "subtle" );
@@ -192,9 +201,11 @@ final class GameSessionPane
             content.putString( logArea.getText() );
             Clipboard.getSystemClipboard().setContent( content );
         } );
+        IconButtons.decorate( copyBtn, LauncherIcons.COPY, null );
         fileBtn.setOnAction( e -> openLogFile() );
+        fileBtn.getStyleClass().add( "textBtn" );
         stopBtn.setOnAction( e -> session.stop( false ) );
-        killBtn.getStyleClass().add( "dangerZone" );
+        killBtn.getStyleClass().add( "errorTonalBtn" );
         killBtn.setOnAction( e -> session.stop( true ) );
         Region footerSpacer = new Region();
         HBox.setHgrow( footerSpacer, Priority.ALWAYS );
@@ -484,9 +495,33 @@ final class GameSessionPane
             searchStatus.setText( LocalizationManager.get( "session.search.noMatches" ) );
             return;
         }
-        searchStatus.setText( "" );
+        int[] position = matchPosition( lowerHay, lowerNeedle, idx );
+        searchStatus.setText( LocalizationManager.format( "session.search.matchCount", position[ 0 ], position[ 1 ] ) );
         autoScroll.setSelected( false );
         logArea.selectRange( idx, idx + needle.length() );
+    }
+
+    /**
+     * Which match a search landed on, and how many there are: {ordinal (1-based), total}. Matches
+     * don't overlap. Pure, for testing.
+     *
+     * @param hay    the text searched
+     * @param needle the search text, non-empty
+     * @param at     where the current match starts
+     *
+     * @return {ordinal, total}
+     */
+    static int[] matchPosition( String hay, String needle, int at )
+    {
+        int total = 0;
+        int ordinal = 0;
+        for ( int i = hay.indexOf( needle ); i >= 0; i = hay.indexOf( needle, i + needle.length() ) ) {
+            total++;
+            if ( i <= at ) {
+                ordinal = total;
+            }
+        }
+        return new int[]{ Math.max( 1, ordinal ), total };
     }
 
     private void openLogFile()
@@ -524,6 +559,7 @@ final class GameSessionPane
             Label t = new Label( diagnosis.title() );
             t.getStyleClass().addAll( "heading-h3", "crashDiagnosisTitle" );
             Label s = new Label( diagnosis.summary() );
+            s.getStyleClass().add( "crashDiagnosisSummary" );
             s.setWrapText( true );
             HBox actions = new HBox( 6 );
             actions.setAlignment( Pos.CENTER_LEFT );

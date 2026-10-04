@@ -36,7 +36,11 @@ import java.io.InputStream;
  */
 public final class BundledFonts
 {
-    private static final String[] FACES = { "Inter-Regular", "Inter-Italic", "Inter-SemiBold", "Inter-Bold" };
+    /** Faces under {@code /fonts/}: Inter for the UI, JetBrains Mono for game logs. JavaFX uses only
+     *  the first family a CSS font list names, so the log's monospace font is bundled rather than
+     *  left to whatever the system has. */
+    private static final String[] FACES = { "inter/Inter-Regular", "inter/Inter-Italic", "inter/Inter-SemiBold",
+                                            "inter/Inter-Bold", "jetbrains-mono/JetBrainsMono-Regular" };
 
     private static volatile boolean loaded;
 
@@ -58,7 +62,7 @@ public final class BundledFonts
                 return;
             }
             for ( String face : FACES ) {
-                try ( InputStream in = BundledFonts.class.getResourceAsStream( "/fonts/inter/" + face + ".ttf" ) ) {
+                try ( InputStream in = BundledFonts.class.getResourceAsStream( "/fonts/" + face + ".ttf" ) ) {
                     if ( in == null || Font.loadFont( in, 12 ) == null ) {
                         Logger.logWarningSilent( "Bundled font not loaded: " + face );
                     }
