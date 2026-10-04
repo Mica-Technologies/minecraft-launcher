@@ -1112,10 +1112,27 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             heading = new Label( LocalizationManager.get( "main.empty.none.heading" ) );
             sub = new Label( LocalizationManager.get( "main.empty.none.sub" ) );
         }
-        heading.getStyleClass().add( "heading-h1" );
+        heading.getStyleClass().add( "heading-h2" );
         sub.getStyleClass().add( "muted" );
+        sub.setWrapText( true );
+        sub.setMaxWidth( 480 );
+        sub.setTextAlignment( javafx.scene.text.TextAlignment.CENTER );
 
-        box.getChildren().addAll( heading, sub );
+        boolean filtered = hasAnyInstalled && filtersActive;
+        box.getChildren().addAll( EmptyStates.badge( filtered ? LauncherIcons.SEARCH : LauncherIcons.GAME ), heading, sub );
+        if ( !filtered && libraryBtn != null ) {
+            // Nothing installed: point the way to Browse.
+            MFXButton browse = new MFXButton( LocalizationManager.get( "main.navbar.browse" ) );
+            browse.getStyleClass().add( "primary" );
+            javafx.scene.shape.SVGPath browseGlyph = new javafx.scene.shape.SVGPath();
+            browseGlyph.setContent( LauncherIcons.BROWSE );
+            browseGlyph.getStyleClass().add( "playBtnIcon" );
+            browse.setGraphic( browseGlyph );
+            browse.setGraphicTextGap( 6 );
+            browse.setOnAction( e -> libraryBtn.fire() );
+            VBox.setMargin( browse, new javafx.geometry.Insets( 8, 0, 0, 0 ) );
+            box.getChildren().add( browse );
+        }
         return box;
     }
 

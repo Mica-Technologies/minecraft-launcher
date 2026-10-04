@@ -1319,9 +1319,11 @@
 }
 
 /* Keyboard focus: a primary outline, no glow (a primary-coloured halo read as
- * a green beacon in the grass-green themes). */
-.mfx-button:focused {
-    -fx-border-color: -md-outline;
+ * a green beacon in the grass-green themes). Only for keyboard focus
+ * (:focus-visible): a screen focusing its first button on open, or a click,
+ * shouldn't draw a ring. */
+.mfx-button:focus-visible {
+    -fx-border-color: -md-primary;
 }
 
 .mfx-button .ripple-generator {
@@ -2322,12 +2324,10 @@
 .settingsRow .spinner {
     -fx-max-width: 360;
 }
-/* Destructive sections (sign out) sit on the error container. */
+/* Destructive sections (sign out) are ordinary tiles: the filled error button
+ * carries the warning. (A whole tile on the error container shouted.) */
 .settingsGroup.dangerZone .settingsRow {
-    -fx-background-color: -md-error-container;
-}
-.settingsGroup.dangerZone .settingsRow .label {
-    -fx-text-fill: -md-on-error-container;
+    -fx-background-color: -md-surface-container;
 }
 .label.settingsSectionTitle {
     -fx-padding: 8 4 0 4;
@@ -2930,3 +2930,71 @@
     -fx-background-color: -md-surface-container-low;
     -fx-border-width: 0;
 }
+
+
+/* =============================================================================
+ * Secondary screens, Material 3 (second refresh pass).
+ * ============================================================================= */
+
+/* Tile lists (Runtime Management): a ListView drawn as a grouped list. Each cell is a
+ * tonal tile with the grouped-list corners of its position, 2 px apart; the selected
+ * tile uses the active-indicator tone. */
+.list-view.tileList {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+}
+.list-view.tileList .virtual-flow .clipped-container .sheet .list-cell.tileListCell {
+    -fx-background-color: -md-surface-container;
+    -fx-background-insets: 0 0 2 0;
+    -fx-background-radius: 4;
+    -fx-padding: 12 16 14 16;
+}
+.list-view.tileList .virtual-flow .clipped-container .sheet .list-cell.tileListCell.tileOnly  { -fx-background-radius: 16; }
+.list-view.tileList .virtual-flow .clipped-container .sheet .list-cell.tileListCell.tileFirst { -fx-background-radius: 16 16 4 4; }
+.list-view.tileList .virtual-flow .clipped-container .sheet .list-cell.tileListCell.tileLast  { -fx-background-radius: 4 4 16 16; }
+.list-view.tileList .virtual-flow .clipped-container .sheet .list-cell.tileListCell:hover {
+    -fx-background-color: -md-surface-container, -md-state-hover-on-surface;
+}
+.list-view.tileList .virtual-flow .clipped-container .sheet .list-cell.tileListCell:selected {
+    -fx-background-color: -md-active-indicator;
+}
+.list-view.tileList .list-cell.tileListCell:selected .label { -fx-text-fill: -md-on-active-indicator; }
+.list-view.tileList .virtual-flow .clipped-container .sheet .list-cell:empty { -fx-background-color: transparent; }
+.tileListBadge {
+    -fx-background-color: -md-secondary-container;
+    -fx-background-radius: 999;
+    -fx-min-width: 40;
+    -fx-min-height: 40;
+    -fx-max-width: 40;
+    -fx-max-height: 40;
+}
+.tileListGlyph { -fx-fill: -md-on-secondary-container; }
+
+/* Empty states: a large tonal badge with a glyph above the heading and body. */
+.emptyStateBadge {
+    -fx-background-color: -md-surface-container-high;
+    -fx-background-radius: 28;
+    -fx-min-width: 72;
+    -fx-min-height: 72;
+    -fx-max-width: 72;
+    -fx-max-height: 72;
+}
+.emptyStateGlyph {
+    -fx-fill: -md-on-surface-variant;
+    -fx-scale-x: 1.5;
+    -fx-scale-y: 1.5;
+}
+
+/* A destructive text button (Delete All): error-coloured text, error state layer. */
+.mfx-button.textBtn.errorTextBtn .text { -fx-fill: -md-error; }
+.mfx-button.textBtn.errorTextBtn:hover { -fx-background-color: -md-state-hover-on-surface; }
+
+/* Connected button group (Modpack Editor's version bumps): M3 Expressive pills 2 px
+ * apart, round outer ends and tight inner corners. */
+.connectedGroup .mfx-button.tileFirst,
+.connectedGroup .mfx-button.tileFirst:hover  { -fx-background-radius: 999 4 4 999; -fx-border-radius: 999 4 4 999; -fx-padding: 6 14 6 16; }
+.connectedGroup .mfx-button.tileMiddle,
+.connectedGroup .mfx-button.tileMiddle:hover { -fx-background-radius: 4; -fx-border-radius: 4; -fx-padding: 6 14 6 14; }
+.connectedGroup .mfx-button.tileLast,
+.connectedGroup .mfx-button.tileLast:hover   { -fx-background-radius: 4 999 999 4; -fx-border-radius: 4 999 999 4; -fx-padding: 6 16 6 14; }

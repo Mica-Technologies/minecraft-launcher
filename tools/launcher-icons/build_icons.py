@@ -222,6 +222,7 @@ def build():
         ('BROWSE', m('explore'), 'Browse: Material Symbols "explore".'),
         ('OPEN_EXTERNAL', m('open_in_new'), 'Open external: Material Symbols "open_in_new".'),
         ('EMPTY_BOX', m('inventory_2'), 'Empty box: Material Symbols "inventory_2".'),
+        ('RUNTIME', m('coffee'), 'Java runtime: Material Symbols "coffee".'),
     ]
     header = (HERE.parent.parent / 'src/main/java/com/micatechnologies/minecraft/launcher/gui/ShapeScale.java').read_text()
     header = header[:header.index('package ')]

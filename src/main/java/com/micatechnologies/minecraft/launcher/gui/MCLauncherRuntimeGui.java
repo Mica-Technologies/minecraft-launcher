@@ -110,7 +110,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    ListView< String > runtimeListView;
+    ListView< Map< String, String > > runtimeListView;
 
     /**
      * Button that re-scans and reloads the installed-runtime list.
@@ -212,6 +212,8 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
      */
     @Override
     void setup() {
+        runtimeListView.getStyleClass().add( "tileList" );
+        runtimeListView.setCellFactory( list -> new RuntimeCell() );
         AnnouncementBanners.show( announcement, announcementRow,
                                   com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager.getAnnouncementConfig() );
         // Configure window close -- X button closes the app
@@ -392,14 +394,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
     private void refreshRuntimeList() {
         currentRuntimes = RuntimeManager.getInstalledRuntimes();
 
-        ObservableList< String > items = FXCollections.observableArrayList();
-        for ( Map< String, String > rt : currentRuntimes ) {
-            String version = rt.get( "version" );
-            items.add( version == null || version.isBlank()
-                       ? LocalizationManager.format( "runtime.list.entryNoVersion", rt.get( "component" ), rt.get( "sizeMB" ) )
-                       : LocalizationManager.format( "runtime.list.entry", rt.get( "component" ), version,
-                                                     rt.get( "sizeMB" ) ) );
-        }
+        ObservableList< Map< String, String > > items = FXCollections.observableArrayList( currentRuntimes );
 
         GUIUtilities.JFXPlatformRun( () -> {
             runtimeListView.setItems( items );
@@ -422,7 +417,15 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
      *  this is safe to call on every refresh. */
     private void ensureEmptyPlaceholder()
     {
-        if ( runtimeListView.getPlaceholder() != null ) return;
+        if ( runtimeListView.getPlaceholder() == null ) {
+            runtimeListView.setPlaceholder( emptyPlaceholder() );
+        }
+    }
+
+    /** The empty state: a tonal badge with an empty-box glyph, a heading and a hint. */
+    static javafx.scene.layout.VBox emptyPlaceholder()
+    {
+        javafx.scene.layout.StackPane emptyBadge = EmptyStates.badge( LauncherIcons.EMPTY_BOX );
         javafx.scene.control.Label heading = new javafx.scene.control.Label( LocalizationManager.get( "runtime.empty.heading" ) );
         heading.getStyleClass().add( "heading-h3" );
         javafx.scene.control.Label body = new javafx.scene.control.Label(
@@ -431,9 +434,57 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
         body.setWrapText( true );
         body.setMaxWidth( 420 );
         body.setTextAlignment( javafx.scene.text.TextAlignment.CENTER );
-        javafx.scene.layout.VBox box = new javafx.scene.layout.VBox( 8, heading, body );
+        javafx.scene.layout.VBox box = new javafx.scene.layout.VBox( 8, emptyBadge, heading, body );
         box.setAlignment( javafx.geometry.Pos.CENTER );
         box.setPadding( new javafx.geometry.Insets( 24 ) );
-        runtimeListView.setPlaceholder( box );
+        return box;
+    }
+
+    /**
+     * One installed runtime as a Material list tile: a runtime glyph, "Java 21.0.3" (or the
+     * component name when the version is unknown), and the component and size below. Tiles take
+     * the grouped-list corners of their position; the selected one uses the active-indicator tone.
+     */
+    static final class RuntimeCell extends javafx.scene.control.ListCell< Map< String, String > >
+    {
+        private final Label title = new Label();
+        private final Label detail = new Label();
+        private final javafx.scene.layout.HBox row;
+
+        RuntimeCell()
+        {
+            javafx.scene.shape.SVGPath glyph = new javafx.scene.shape.SVGPath();
+            glyph.setContent( LauncherIcons.RUNTIME );
+            glyph.getStyleClass().add( "tileListGlyph" );
+            javafx.scene.layout.StackPane badge = new javafx.scene.layout.StackPane( glyph );
+            badge.getStyleClass().add( "tileListBadge" );
+            title.getStyleClass().add( "type-title-small" );
+            detail.getStyleClass().add( "settingsHint" );
+            javafx.scene.layout.VBox text = new javafx.scene.layout.VBox( 2, title, detail );
+            row = new javafx.scene.layout.HBox( 14, badge, text );
+            row.setAlignment( javafx.geometry.Pos.CENTER_LEFT );
+        }
+
+        @Override
+        protected void updateItem( Map< String, String > rt, boolean empty )
+        {
+            super.updateItem( rt, empty );
+            getStyleClass().removeAll( SettingsNavTile.POSITIONS );
+            getStyleClass().remove( "tileListCell" );
+            if ( empty || rt == null ) {
+                setGraphic( null );
+                setText( null );
+                return;
+            }
+            String version = rt.get( "version" );
+            boolean known = version != null && !version.isBlank();
+            title.setText( known ? LocalizationManager.format( "runtime.list.title", version ) : rt.get( "component" ) );
+            detail.setText( known ? LocalizationManager.format( "runtime.list.detail", rt.get( "component" ), rt.get( "sizeMB" ) )
+                                  : LocalizationManager.format( "runtime.list.size", rt.get( "sizeMB" ) ) );
+            getStyleClass().addAll( "tileListCell",
+                                    SettingsNavTile.positionClass( getIndex(), getListView().getItems().size() ) );
+            setText( null );
+            setGraphic( row );
+        }
     }
 }

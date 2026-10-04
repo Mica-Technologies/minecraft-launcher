@@ -84,9 +84,9 @@
             <Label fx:id="statusLabel" text="%runtime.status.selectAPrompt" styleClass="muted"/>
             <Pane HBox.hgrow="ALWAYS"/>
             <MFXButton minWidth="-Infinity" fx:id="refreshBtn" prefHeight="28.0" text="%runtime.refreshBtn"/>
-            <MFXButton minWidth="-Infinity" fx:id="deleteBtn" prefHeight="28.0" styleClass="dangerZone"
+            <MFXButton minWidth="-Infinity" fx:id="deleteBtn" prefHeight="28.0" styleClass="errorTonalBtn"
                        text="%runtime.deleteBtn"/>
-            <MFXButton minWidth="-Infinity" fx:id="deleteAllBtn" prefHeight="28.0" styleClass="dangerZone"
+            <MFXButton minWidth="-Infinity" fx:id="deleteAllBtn" prefHeight="28.0" styleClass="textBtn, errorTextBtn"
                        text="%runtime.deleteAllBtn"/>
         </HBox>
     </VBox>

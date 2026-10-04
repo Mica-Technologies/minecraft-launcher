@@ -1755,7 +1755,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         box.setAlignment( Pos.CENTER );
         box.setPrefHeight( 280 );
         Label heading = new Label( LocalizationManager.get( "library.empty.heading" ) );
-        heading.getStyleClass().add( "heading-h1" );
+        heading.getStyleClass().add( "heading-h2" );
         Label sub;
         if ( !search.isEmpty() ) {
             sub = new Label( LocalizationManager.format( "library.empty.sub.search", type, status, search ) );
@@ -1764,7 +1764,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             sub = new Label( LocalizationManager.get( "library.empty.sub.noSearch" ) );
         }
         sub.getStyleClass().add( "muted" );
-        box.getChildren().addAll( heading, sub );
+        sub.setWrapText( true );
+        sub.setMaxWidth( 480 );
+        sub.setTextAlignment( javafx.scene.text.TextAlignment.CENTER );
+        box.getChildren().addAll( EmptyStates.badge( search.isEmpty() ? LauncherIcons.BROWSE : LauncherIcons.SEARCH ),
+                                  heading, sub );
         return box;
     }
 
