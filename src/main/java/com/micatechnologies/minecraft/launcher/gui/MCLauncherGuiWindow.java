@@ -495,6 +495,8 @@ public class MCLauncherGuiWindow extends Application
         if ( previous == null || current == null || previous.equals( current ) ) {
             return;
         }
+        // A different display may have less room for the minimum size.
+        applyScaledMinSize();
 
         final double x = stage.getX();
         stage.setX( x + 1 );
@@ -522,15 +524,17 @@ public class MCLauncherGuiWindow extends Application
     private double baseMinWidth;
     private double baseMinHeight;
 
-    /** Sets the stage's minimum size to the screen's minimum at the current interface scale. */
+    /**
+     * Sets the stage's minimum size to the screen's minimum at the current interface scale,
+     * capped to the display the window is on so a large scale never pushes its bottom (and the
+     * login screen's buttons) off a small display.
+     */
     private void applyScaledMinSize()
     {
         if ( stage == null ) {
             return;
         }
-        double s = UiScale.get();
-        stage.setMinWidth( baseMinWidth * s );
-        stage.setMinHeight( baseMinHeight * s );
+        ScaledMinSize.apply( stage, baseMinWidth, baseMinHeight );
     }
 
     /**
