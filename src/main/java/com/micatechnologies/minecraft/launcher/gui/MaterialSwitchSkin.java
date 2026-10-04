@@ -62,9 +62,6 @@ public class MaterialSwitchSkin extends SkinBase< MFXToggleButton >
     private static final double HANDLE_PRESSED = 21;
     private static final double HALO = 30;
 
-    /** Material Icons "check", 24 px box. */
-    private static final String CHECK = "M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z";
-
     private final Label label = new Label();
     private final StackPane track = new StackPane();
     private final Region halo = new Region();
@@ -120,7 +117,7 @@ public class MaterialSwitchSkin extends SkinBase< MFXToggleButton >
         halo.setMouseTransparent( true );
         handle.getStyleClass().add( "m3-switch-handle" );
         handle.setManaged( false );
-        check.setContent( CHECK );
+        check.setContent( LauncherIcons.CHECK );
         check.getStyleClass().add( "m3-switch-icon" );
         handle.getChildren().add( check );
 

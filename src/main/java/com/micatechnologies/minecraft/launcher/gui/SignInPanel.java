@@ -58,15 +58,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 final class SignInPanel
 {
     // Icon paths from Google's Material Icons (Apache License 2.0), 24x24 viewbox.
-    private static final String ICON_SHIELD  = "M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 "
-                                               + "16-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z";
-    private static final String ICON_LOCK    = "M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 "
-                                               + "2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 "
-                                               + "2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z";
-    private static final String ICON_PEOPLE  = "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 "
-                                               + "3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 "
-                                               + "2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 "
-                                               + "1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z";
 
     private final HBox             root;
     private final WebView          webView;
@@ -105,9 +96,9 @@ final class SignInPanel
         subtitle.setWrapText( true );
 
         VBox points = new VBox( 16,
-                point( ICON_SHIELD, "signIn.point.password.title", "signIn.point.password.body" ),
-                point( ICON_LOCK, "signIn.point.device.title", "signIn.point.device.body" ),
-                point( ICON_PEOPLE, "signIn.point.accounts.title", "signIn.point.accounts.body" ) );
+                point( LauncherIcons.SECURITY, "signIn.point.password.title", "signIn.point.password.body" ),
+                point( LauncherIcons.LOCK, "signIn.point.device.title", "signIn.point.device.body" ),
+                point( LauncherIcons.PEOPLE, "signIn.point.accounts.title", "signIn.point.accounts.body" ) );
         points.setPadding( new Insets( 8, 0, 0, 0 ) );
 
         Region grow = new Region();

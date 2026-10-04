@@ -34,13 +34,6 @@ import java.util.Locale;
  */
 final class StepBadge extends StackPane
 {
-    /** Material Icons "check", "close" and "remove", 24 px box. */
-    private static final String CHECK = "M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z";
-    private static final String CROSS = "M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z";
-    private static final String DASH = "M19 13H5v-2h14v2z";
-    /** A 6 px dot, centred in the 24 px box. */
-    private static final String DOT = "M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z";
-
     private final SVGPath glyph = new SVGPath();
 
     /**
@@ -86,10 +79,10 @@ final class StepBadge extends StackPane
     {
         return switch ( state ) {
             case PENDING -> null;
-            case RUNNING -> DOT;
-            case DONE -> CHECK;
-            case FAILED -> CROSS;
-            case SKIPPED -> DASH;
+            case RUNNING -> LauncherIcons.DOT;
+            case DONE -> LauncherIcons.CHECK;
+            case FAILED -> LauncherIcons.CLOSE;
+            case SKIPPED -> LauncherIcons.REMOVE;
         };
     }
 }
