@@ -35,6 +35,9 @@ import javafx.scene.transform.Scale;
  * root: theme sheets installed on the content define their tokens on {@code .root}, and those
  * rules must still match it.</p>
  *
+ * <p>The region itself paints nothing: its content and the scene fill draw the window's
+ * background, which lets the Native theme stay transparent for Mica.</p>
+ *
  * @since 2026.10
  */
 final class ScaledRoot extends Region
@@ -53,6 +56,12 @@ final class ScaledRoot extends Region
             content.getStyleClass().add( "root" );
         }
         getStyleClass().add( "scaledRoot" );
+        // As the scene's root this region gets JavaFX's default .root rule, which paints modena's
+        // light -fx-background; the theme sheets live on the content, so they never override it
+        // here. Opaque themes cover it, but the Native theme's content is transparent so Mica can
+        // show through, and the light fill showed instead, behind dark-theme text. An inline style
+        // outranks the default stylesheet. The content and scene fill paint the real background.
+        setStyle( "-fx-background-color: transparent;" );
         getChildren().add( content );
         UiScale.scaleProperty().addListener( new WeakInvalidationListener( relayout ) );
     }
