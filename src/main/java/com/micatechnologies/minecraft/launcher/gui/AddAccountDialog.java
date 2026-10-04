@@ -86,7 +86,9 @@ public final class AddAccountDialog
             }
             if ( callback.code() == null ) {
                 Logger.logError( LocalizationManager.format( "log.login.msLoginError", callback.error() ) );
-                signIn.failAndRetry( "signIn.failed" );
+                if ( stage.isShowing() ) {
+                    signIn.failAndRetry( "signIn.failed" );
+                }
                 return;
             }
             signIn.showRedeeming();
@@ -101,7 +103,9 @@ public final class AddAccountDialog
                                                      LocalizationManager.format( "account.add.done.body",
                                                                                  result.getMinecraftUser().name() ) );
                     }
-                    else {
+                    else if ( stage.isShowing() ) {
+                        // Closed while redeeming: retrying would reload the sign-in page into
+                        // the hidden WebView, undoing the about:blank it was left on.
                         signIn.failAndRetry( result == MCLauncherAuthResult.ERROR_NOT_OWNED
                                              ? "signIn.notOwned" : "signIn.failed" );
                     }
