@@ -76,12 +76,19 @@ final class ChromaEffectTypes
     //  We pick CUSTOM2 (6) here rather than STATIC (4): CUSTOM2 is the
     //  modern path Razer points new integrations at — the deprecated
     //  STATIC enum is "may still work but don't rely on it" in their
-    //  current SDK headers. Param is still a bare COLORREF; CUSTOM2 just
-    //  bypasses Synapse's legacy preset cache.
+    //  current SDK headers. CUSTOM2's param is NOT a bare COLORREF: it is
+    //  CUSTOM_EFFECT_TYPE2 { RZCOLOR Color[MAX_LEDS2]; }, MAX_LEDS2 = 20,
+    //  and the SDK copies all 80 bytes. Passing a 4-byte block made it
+    //  read 76 bytes past our allocation on every frame, which crashed
+    //  the launcher with an access violation inside RzChromaSDK64.dll
+    //  whenever that block happened to end a mapped heap page.
     // ============================================================
 
-    /** Param = COLORREF. */
+    /** Param = COLORREF[{@link #MOUSEPAD_CUSTOM2_LEDS}]; see {@link #buildMousepadCustom2Param}. */
     static final int MOUSEPAD_STATIC = 6;
+
+    /** {@code MAX_LEDS2}: the LED count of the mousepad CUSTOM2 param. */
+    static final int MOUSEPAD_CUSTOM2_LEDS = 20;
 
     // ============================================================
     //  Headset effects — ChromaSDK::Headset::EFFECT_TYPE
@@ -126,8 +133,11 @@ final class ChromaEffectTypes
     /**
      * Allocates a 4-byte param block holding a single COLORREF.
      * Used by every {@code _STATIC} effect that takes a bare color
-     * (keyboard, mousepad, headset, keypad, chromalink). Mouse is
-     * special — see {@link #buildMouseStaticParam}.
+     * (keyboard, headset, keypad, chromalink). Mouse and mousepad are
+     * special — see {@link #buildMouseStaticParam} and
+     * {@link #buildMousepadCustom2Param}. The SDK reads as many bytes as
+     * the effect type's struct holds, whatever we allocate, so a block
+     * smaller than that struct is an out-of-bounds read in our process.
      *
      * @param packedColor the packed color value to be stored in the parameter block
      * @return a Memory object containing the parameter block
@@ -151,6 +161,22 @@ final class ChromaEffectTypes
         Memory m = new Memory( 8 );
         m.setInt( 0, 0 );             // LEDId = ALL
         m.setInt( 4, packedColor );   // Color
+        return m;
+    }
+
+    /**
+     * Mousepad CUSTOM2 param: {@link #MOUSEPAD_CUSTOM2_LEDS} COLORREFs
+     * (80 bytes), every LED set to the same color.
+     *
+     * @param packedColor the packed color value for every LED
+     * @return a Memory object containing the parameter block
+     */
+    static Memory buildMousepadCustom2Param( int packedColor )
+    {
+        Memory m = new Memory( MOUSEPAD_CUSTOM2_LEDS * 4L );
+        for ( int i = 0; i < MOUSEPAD_CUSTOM2_LEDS; i++ ) {
+            m.setInt( i * 4L, packedColor );
+        }
         return m;
     }
 
