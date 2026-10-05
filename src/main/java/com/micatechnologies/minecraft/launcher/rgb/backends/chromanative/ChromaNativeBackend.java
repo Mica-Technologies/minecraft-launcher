@@ -265,6 +265,7 @@ public final class ChromaNativeBackend implements RgbBackend
         Memory keyboardParam = ChromaEffectTypes.buildKeyboardCustomParam( grid );
         Memory staticParam   = ChromaEffectTypes.buildStaticParam( bgPacked );
         Memory mouseParam    = ChromaEffectTypes.buildMouseStaticParam( bgPacked );
+        Memory mousepadParam = ChromaEffectTypes.buildMousepadCustom2Param( bgPacked );
 
         int successes = 0;
         int attempts = 0;
@@ -302,7 +303,7 @@ public final class ChromaNativeBackend implements RgbBackend
             if ( tryFamily( "mousepad",
                              family -> RzChromaSdkLibrary.INSTANCE.CreateMousepadEffect(
                                      ChromaEffectTypes.MOUSEPAD_STATIC,
-                                     staticParam, family ) ) ) {
+                                     mousepadParam, family ) ) ) {
                 successes++;
             }
             else { lastFailure = lastResult; }
