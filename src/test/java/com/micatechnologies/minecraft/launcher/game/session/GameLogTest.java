@@ -135,6 +135,36 @@ class GameLogTest
     }
 
     @Test
+    void aCappedSubscriberGetsOnlyTheTailThenEveryLaterLine() throws Exception
+    {
+        PipedOutputStream gameOut = new PipedOutputStream();
+        PipedInputStream out = new PipedInputStream( gameOut, 1 << 16 );
+        GameLog log = new GameLog( null );
+        log.attach( out, lines() );
+
+        for ( int i = 0; i < 10; i++ ) {
+            gameOut.write( ( "early " + i + "\n" ).getBytes( StandardCharsets.UTF_8 ) );
+        }
+        gameOut.flush();
+        long deadline = System.currentTimeMillis() + 5_000;
+        while ( !log.text().contains( "early 9\n" ) && System.currentTimeMillis() < deadline ) {
+            Thread.sleep( 10 );
+        }
+
+        List< String > later = new CopyOnWriteArrayList<>();
+        GameLog.Subscription sub = log.subscribe( batch -> later.addAll( batch ), 3 );
+        assertEquals( "early 7\nearly 8\nearly 9\n", sub.snapshot() );
+        assertTrue( sub.clipped() );
+        assertEquals( new GameLog.Tail( "early 8\nearly 9\n", true ), log.tail( 2 ) );
+        assertFalse( log.tail( 50 ).clipped() );
+
+        gameOut.write( "late\n".getBytes( StandardCharsets.UTF_8 ) );
+        gameOut.close();
+        assertTrue( log.awaitClosed( 5_000 ) );
+        assertEquals( List.of( "late" ), later );
+    }
+
+    @Test
     void theInMemoryBufferIsBounded() throws Exception
     {
         GameLog log = new GameLog( null, 1_000, 500 );

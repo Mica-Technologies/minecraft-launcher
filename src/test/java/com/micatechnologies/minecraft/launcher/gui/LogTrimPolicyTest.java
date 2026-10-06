@@ -19,6 +19,8 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -246,5 +248,28 @@ class LogTrimPolicyTest
         assertEquals( text, LogTrimPolicy.tailLines( text, 0 ) );
         assertEquals( "", LogTrimPolicy.tailLines( null, 5 ) );
         assertEquals( "", LogTrimPolicy.tailLines( "", 5 ) );
+    }
+
+    @Test
+    void tailStartFindsTheLastLinesFromTheEnd()
+    {
+        assertEquals( 4, LogTrimPolicy.tailStart( "a\nb\nc\nd\n", 2 ) );
+        assertEquals( 4, LogTrimPolicy.tailStart( "a\nb\nc\nd", 2 ), "an unterminated last line counts" );
+        assertEquals( 1, LogTrimPolicy.tailStart( "\n\n\n", 2 ) );
+        assertEquals( 0, LogTrimPolicy.tailStart( "a\nb\n", 2 ) );
+        assertEquals( 0, LogTrimPolicy.tailStart( "a\nb\n", 0 ), "unlimited keeps everything" );
+        assertEquals( 0, LogTrimPolicy.tailStart( null, 3 ) );
+    }
+
+    @Test
+    void paragraphDropOffsetCountsEachDroppedLineAndItsBreak()
+    {
+        // A text control holding "ab\nc\n\nd\n" has these paragraphs.
+        List< String > paragraphs = List.of( "ab", "c", "", "d", "" );
+        assertEquals( 3, LogTrimPolicy.paragraphDropOffset( paragraphs, 1 ) );
+        assertEquals( 6, LogTrimPolicy.paragraphDropOffset( paragraphs, 3 ) );
+        assertEquals( 8, LogTrimPolicy.paragraphDropOffset( paragraphs, 99 ), "never past the text" );
+        assertEquals( 0, LogTrimPolicy.paragraphDropOffset( paragraphs, 0 ) );
+        assertEquals( 0, LogTrimPolicy.paragraphDropOffset( List.of(), 2 ) );
     }
 }

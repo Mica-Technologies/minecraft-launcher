@@ -441,9 +441,9 @@ final class GameSessionPane
                 int count = lines.size();
                 Platform.runLater( () -> append( text.toString(), count ) );
             }
-        } );
+        }, ConfigManager.getConsoleLogMaxLines() );
         unsubscribeLog = sub.cancel();
-        showLogText( sub.snapshot() );
+        showLogText( sub.snapshot(), sub.clipped() );
         // An ended log keeps only its tail in memory; the rest comes back from the file.
         if ( log.isClosed() && log.isTruncated() ) {
             loadFullLog( log );
@@ -451,19 +451,20 @@ final class GameSessionPane
     }
 
     /**
-     * Shows a whole log, cut to Settings' line limit before it reaches the text area: setting
-     * millions of characters and then deleting most of them stalls the UI thread.
+     * Shows a log already cut to Settings' line limit. Cutting happens before the text gets here
+     * (in {@link GameLog#subscribe(GameLog.Listener, int)}, {@link GameLog#tail(int)} or on a
+     * worker): copying and scanning a multi-megabyte capture on the UI thread to keep a few
+     * thousand lines stalled it.
      *
-     * @param text the log text
+     * @param shown   the lines to show
+     * @param clipped whether older lines were left out
      */
-    private void showLogText( String text )
+    private void showLogText( String shown, boolean clipped )
     {
-        int maxLines = ConfigManager.getConsoleLogMaxLines();
-        String shown = LogTrimPolicy.tailLines( text, maxLines );
         logArea.setText( shown );
         displayLines = countLines( shown );
-        if ( shown.length() < text.length() ) {
-            showTruncated( maxLines );
+        if ( clipped ) {
+            showTruncated( ConfigManager.getConsoleLogMaxLines() );
         }
         if ( autoScroll.isSelected() ) {
             logArea.positionCaret( logArea.getLength() );
@@ -471,18 +472,21 @@ final class GameSessionPane
     }
 
     /**
-     * Reads an ended log's full text from its file off the UI thread, then shows it if the pane
-     * still shows that log.
+     * Reads an ended log's full text from its file and cuts it to the line limit off the UI
+     * thread, then shows it if the pane still shows that log.
      *
      * @param log the ended log
      */
     private void loadFullLog( GameLog log )
     {
+        int maxLines = ConfigManager.getConsoleLogMaxLines();
         SystemUtilities.spawnNewTask( () -> {
             String full = log.fullText();
+            int drop = LogTrimPolicy.tailStart( full, maxLines );
+            String shown = drop > 0 ? full.substring( drop ) : full;
             Platform.runLater( () -> {
                 if ( !disposed && boundLog == log && !showingCrashReport ) {
-                    showLogText( full );
+                    showLogText( shown, drop > 0 );
                 }
             } );
         } );
@@ -514,7 +518,9 @@ final class GameSessionPane
         if ( !LogTrimPolicy.shouldTrimDisplay( displayLines, maxLines ) ) {
             return;
         }
-        int idx = LogTrimPolicy.displayDropOffset( logArea.getText(), displayLines - maxLines );
+        // Measured from the control's paragraphs: getText() would build the whole log (megabytes)
+        // as one String every time the slack fills.
+        int idx = LogTrimPolicy.paragraphDropOffset( logArea.getParagraphs(), displayLines - maxLines );
         if ( idx > 0 && idx <= logArea.getLength() ) {
             logArea.deleteText( 0, idx );
             displayLines = maxLines;
@@ -705,7 +711,13 @@ final class GameSessionPane
             crashToggle.setText( LocalizationManager.get( "console.crashReportBtn.gameLog" ) );
         }
         else {
-            showLogText( boundLog != null ? boundLog.text() : "" );
+            if ( boundLog != null ) {
+                GameLog.Tail tail = boundLog.tail( ConfigManager.getConsoleLogMaxLines() );
+                showLogText( tail.text(), tail.clipped() );
+            }
+            else {
+                showLogText( "", false );
+            }
             if ( boundLog != null && boundLog.isClosed() && boundLog.isTruncated() ) {
                 loadFullLog( boundLog );
             }

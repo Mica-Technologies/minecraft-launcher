@@ -17,6 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import java.util.List;
+
 /**
  * Pure arithmetic behind the game console's two independent log buffers.
  *
@@ -137,21 +139,69 @@ public final class LogTrimPolicy
      */
     public static String tailLines( String text, int maxLines )
     {
-        if ( text == null || text.isEmpty() || isUnlimited( maxLines ) ) {
-            return text == null ? "" : text;
+        if ( text == null ) {
+            return "";
         }
-        int lines = 0;
-        for ( int i = 0; i < text.length(); i++ ) {
-            if ( text.charAt( i ) == '\n' ) {
-                lines++;
+        int drop = tailStart( text, maxLines );
+        return drop > 0 ? text.substring( drop ) : text;
+    }
+
+    /**
+     * Where the last {@code maxLines} lines of a text start. Scans backward from the end, so the
+     * cost is the tail's length rather than the whole text's: a subscriber to a multi-megabyte
+     * capture copies only what it will show.
+     *
+     * @param text     the text, lines ending in {@code '\n'}; an unterminated last line counts
+     * @param maxLines the configured cap ({@code <= 0} means unlimited)
+     *
+     * @return the offset of the first kept character; {@code 0} when the whole text is kept
+     *
+     * @since 2026.10
+     */
+    public static int tailStart( CharSequence text, int maxLines )
+    {
+        if ( text == null || text.isEmpty() || isUnlimited( maxLines ) ) {
+            return 0;
+        }
+        int end = text.length();
+        // A final '\n' ends the last line rather than starting another.
+        if ( text.charAt( end - 1 ) == '\n' ) {
+            end--;
+        }
+        int seen = 0;
+        for ( int i = end - 1; i >= 0; i-- ) {
+            if ( text.charAt( i ) == '\n' && ++seen == maxLines ) {
+                return i + 1;
             }
         }
-        // An unterminated last line counts too.
-        if ( text.charAt( text.length() - 1 ) != '\n' ) {
-            lines++;
+        return 0;
+    }
+
+    /**
+     * Character offset marking the end of the first {@code linesToDrop} paragraphs of a text
+     * control, i.e. how much to delete from its front to drop that many lines. Works from the
+     * control's own paragraphs, so it never copies the whole text and stays in step with what the
+     * control holds even when it filtered characters out of the appended text.
+     *
+     * @param paragraphs  the control's paragraphs, each without its line break
+     * @param linesToDrop how many leading paragraphs to remove
+     *
+     * @return the offset to delete up to (exclusive); {@code 0} when nothing should be dropped
+     *
+     * @since 2026.10
+     */
+    public static int paragraphDropOffset( List< ? extends CharSequence > paragraphs, int linesToDrop )
+    {
+        if ( paragraphs == null || linesToDrop <= 0 ) {
+            return 0;
         }
-        int drop = displayDropOffset( text, lines - maxLines );
-        return drop > 0 ? text.substring( drop ) : text;
+        // Every paragraph but the last is followed by a line break.
+        int n = Math.min( linesToDrop, paragraphs.size() - 1 );
+        int offset = 0;
+        for ( int i = 0; i < n; i++ ) {
+            offset += paragraphs.get( i ).length() + 1;
+        }
+        return offset;
     }
 
     /**

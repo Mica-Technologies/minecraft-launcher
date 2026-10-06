@@ -84,8 +84,36 @@ public final class GameLog
     /** A captured line and its position in the session. */
     private record Numbered( long index, String line ) { }
 
-    /** What {@link #subscribe} returns: the text so far, after which the listener takes over. */
-    public record Subscription( String snapshot, Runnable cancel ) { }
+    /**
+     * What {@link #subscribe} returns: the text so far, after which the listener takes over.
+     *
+     * @param snapshot the text captured so far, or its tail when a line limit was asked for
+     * @param cancel   unsubscribes
+     * @param clipped  whether older lines were left out of the snapshot to meet the line limit
+     */
+    public record Subscription( String snapshot, Runnable cancel, boolean clipped )
+    {
+        /**
+         * A subscription whose snapshot holds everything captured.
+         *
+         * @param snapshot the text captured so far
+         * @param cancel   unsubscribes
+         */
+        public Subscription( String snapshot, Runnable cancel )
+        {
+            this( snapshot, cancel, false );
+        }
+    }
+
+    /**
+     * The last lines of the captured text.
+     *
+     * @param text    the tail
+     * @param clipped whether older lines were left out
+     *
+     * @since 2026.10
+     */
+    public record Tail( String text, boolean clipped ) { }
 
     private static final int TRIGGER_CHARS = 5_000_000;
     private static final int RETAIN_CHARS  = 4_000_000;
@@ -312,17 +340,53 @@ public final class GameLog
      */
     public Subscription subscribe( Listener listener )
     {
+        return subscribe( listener, 0 );
+    }
+
+    /**
+     * Like {@link #subscribe(Listener)}, but the snapshot holds only the last {@code maxLines}
+     * lines. Only that tail is copied, so a viewer that shows a few thousand lines doesn't copy a
+     * multi-megabyte capture to get them.
+     *
+     * @param listener receives lines captured after the snapshot
+     * @param maxLines how many of the latest lines the snapshot holds; {@code <= 0} for all
+     *
+     * @return the snapshot, and how to unsubscribe
+     *
+     * @since 2026.10
+     */
+    public Subscription subscribe( Listener listener, int maxLines )
+    {
         FromIndex wrapper;
         String snapshot;
+        int drop;
         synchronized ( buffer ) {
-            snapshot = buffer.toString();
+            drop = LogTrimPolicy.tailStart( buffer, maxLines );
+            snapshot = buffer.substring( drop );
             wrapper = new FromIndex( lineCount, listener );
             listeners.add( wrapper );
         }
         if ( isClosed() ) {
             listener.onClosed();
         }
-        return new Subscription( snapshot, () -> listeners.remove( wrapper ) );
+        return new Subscription( snapshot, () -> listeners.remove( wrapper ), drop > 0 );
+    }
+
+    /**
+     * The last {@code maxLines} lines held in memory, copying only those.
+     *
+     * @param maxLines how many lines; {@code <= 0} for all
+     *
+     * @return the tail, and whether older lines were left out
+     *
+     * @since 2026.10
+     */
+    public Tail tail( int maxLines )
+    {
+        synchronized ( buffer ) {
+            int drop = LogTrimPolicy.tailStart( buffer, maxLines );
+            return new Tail( buffer.substring( drop ), drop > 0 );
+        }
     }
 
     /** Passes on only lines numbered at or after the subscriber's snapshot. */
