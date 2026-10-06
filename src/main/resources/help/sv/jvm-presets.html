@@ -11,7 +11,7 @@ mods) där skräpinsamlaren måste städa upp efter tusentals chunkar som laddas
 ut. För vanilla och små modpaket fungerar vilken förinställning som helst, och
 standardvalet ”Performance” fungerar bra.</p>
 
-<h2>Performance (Aikar's Flags)</h2>
+<h2>Prestanda (Aikars flaggor)</h2>
 
 <p>Standardförinställningen och den som rekommenderas för de allra flesta användare. Använder
 skräpinsamlaren G1 med den parameterjustering som Aikar (upphovsperson bakom Minecraft-servern
@@ -22,7 +22,7 @@ hänvisar till. Utformad för att minimera hack orsakade av GC-pauser under inte
 tungt moddade paket där du har märkt återkommande ryck i bildfrekvensen
 under belastning.</p>
 
-<h2>Low Memory</h2>
+<h2>Lite minne</h2>
 
 <p>Nedbantade flaggor för system med lite ledigt RAM. Använder G1 med ett
 kortare pausmål och mindre heapregioner, och offrar en del
@@ -34,7 +34,7 @@ samtidigt som andra appar. Rekommenderas inte för stora modpaket
 (200+ mods) där Aikars flaggor frigör minne effektivare
 även med samma totala tilldelning.</p>
 
-<h2>Debug</h2>
+<h2>Felsökning</h2>
 
 <p>Flaggorna från Performance plus utförlig GC-loggning + Java-assertioner
 aktiverade. Skriver en {@code gc.log}-fil till modpaketets installationsmapp
@@ -45,7 +45,7 @@ liten konstant prestandakostnad, så låt den inte vara på vid vanligt spelande
 <p>Passar bäst för: <strong>att felsöka klagomål på GC-pauser</strong>,
 undersöka rapporter om att spelet ”slutar svara i några sekunder varje minut”.</p>
 
-<h2>None</h2>
+<h2>Ingen</h2>
 
 <p>Tom argumentlista – JVM:en använder sina egna standardvärden. Användbart för att
 testa om ett upplevt prestandaproblem orsakas av förinställningens

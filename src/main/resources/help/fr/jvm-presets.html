@@ -11,7 +11,7 @@ mods), où le GC doit faire le ménage après le chargement et le déchargement 
 milliers de chunks. Pour la version vanilla et les petits modpacks, n'importe quel préréglage convient et
 le préréglage par défaut « Performance » fonctionne bien.</p>
 
-<h2>Performance (Aikar's Flags)</h2>
+<h2>Performances (flags d'Aikar)</h2>
 
 <p>Préréglage par défaut, recommandé pour la grande majorité des utilisateurs. Il utilise
 le ramasse-miettes G1 avec les réglages publiés il y a des années par Aikar (l'auteur
@@ -22,7 +22,7 @@ pour réduire au minimum les saccades dues aux pauses du GC pendant les phases d
 les packs très moddés sur lesquels vous avez remarqué des chutes de fréquence d'images
 périodiques sous forte charge.</p>
 
-<h2>Low Memory</h2>
+<h2>Mémoire faible</h2>
 
 <p>Options allégées pour les systèmes disposant de peu de RAM libre. Il utilise G1 avec
 un objectif de pause plus court et des régions de tas plus petites, en sacrifiant un peu
@@ -34,7 +34,7 @@ ouverts en même temps que d'autres applications. Déconseillé pour les gros mo
 (plus de 200 mods), pour lesquels les options d'Aikar récupèrent la mémoire plus efficacement,
 même avec la même allocation totale.</p>
 
-<h2>Debug</h2>
+<h2>Débogage</h2>
 
 <p>Les options Performance, plus la journalisation détaillée du GC et l'activation des assertions
 Java. Écrit un fichier {@code gc.log} dans le dossier d'installation du modpack,
@@ -45,7 +45,7 @@ légère surcharge permanente : ne le laissez donc pas activé pour jouer au quo
 <p>Idéal pour : <strong>diagnostiquer des plaintes liées aux pauses du GC</strong>,
 examiner des signalements du type « le jeu ne répond plus pendant quelques secondes toutes les minutes ».</p>
 
-<h2>None</h2>
+<h2>Aucun</h2>
 
 <p>Liste d'arguments vide : la JVM utilise ses propres valeurs par défaut. Utile pour
 vérifier si un problème de performances apparent est causé par les options du

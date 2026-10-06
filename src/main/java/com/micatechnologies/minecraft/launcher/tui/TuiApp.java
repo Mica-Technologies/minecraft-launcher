@@ -45,6 +45,7 @@ import com.googlecode.lanterna.terminal.Terminal;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
+import com.micatechnologies.minecraft.launcher.gui.SettingsOptionLabels;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
@@ -717,13 +718,14 @@ public final class TuiApp
      *  light/dark look is derived from this setting — see {@link TuiTheme}). */
     private void themeRow( ActionListBox list )
     {
-        list.addItem( String.format( "%-30s %s", loc( "tui.setting.theme" ), ConfigManager.getTheme() ), () -> {
+        list.addItem( String.format( "%-30s %s", loc( "tui.setting.theme" ),
+                SettingsOptionLabels.theme( ConfigManager.getTheme() ) ), () -> {
             ActionListDialogBuilder b = new ActionListDialogBuilder().setTitle( loc( "tui.setting.theme" ) );
             for ( String opt : new String[] {
                     ConfigConstants.THEME_DARK, ConfigConstants.THEME_LIGHT, ConfigConstants.THEME_AUTOMATIC,
                     ConfigConstants.THEME_NATIVE, ConfigConstants.THEME_BLUE_GRAY,
                     ConfigConstants.THEME_ORANGE_PURPLE, ConfigConstants.THEME_CREEPER } ) {
-                b.addAction( opt, () -> {
+                b.addAction( SettingsOptionLabels.theme( opt ), () -> {
                     ConfigManager.setTheme( opt );
                     applyTheme();
                     showSettings();

@@ -406,7 +406,7 @@ public final class MCLauncherQuickStartWizard
         javafx.scene.layout.FlowPane themes = new javafx.scene.layout.FlowPane( 10, 10 );
         themes.setAlignment( Pos.TOP_LEFT );
         for ( Map.Entry< String, Color > entry : THEME_SWATCHES.entrySet() ) {
-            ToggleButton tb = new ToggleButton( entry.getKey() );
+            ToggleButton tb = new ToggleButton( SettingsOptionLabels.theme( entry.getKey() ) );
             tb.getStyleClass().add( "wizardThemeOption" );
             tb.setToggleGroup( group );
             tb.setUserData( entry.getKey() );

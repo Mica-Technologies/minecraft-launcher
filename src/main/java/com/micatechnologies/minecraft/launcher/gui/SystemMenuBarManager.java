@@ -321,15 +321,15 @@ public final class SystemMenuBarManager
     {
         Menu menu = new Menu( LocalizationManager.get( "menu.view.title" ) );
 
-        // Theme submenu — radio items mirroring the Settings screen's theme combo. Both use
-        // the raw ALLOWED_THEMES display names (the Settings combo doesn't localize them
-        // either), so a value flows straight through to ConfigManager.setTheme.
+        // Theme submenu — radio items mirroring the Settings screen's theme combo. Each item
+        // shows the localized label but keys on the ALLOWED_THEMES id, which is what
+        // ConfigManager.setTheme stores.
         Menu themeMenu = new Menu( LocalizationManager.get( "menu.view.theme" ) );
         ToggleGroup themeGroup = new ToggleGroup();
         themeItems = new LinkedHashMap<>();
         String currentTheme = ConfigManager.getTheme();
         for ( String theme : ConfigConstants.ALLOWED_THEMES ) {
-            RadioMenuItem item = new RadioMenuItem( theme );
+            RadioMenuItem item = new RadioMenuItem( SettingsOptionLabels.theme( theme ) );
             item.setToggleGroup( themeGroup );
             item.setSelected( theme.equals( currentTheme ) );
             item.setOnAction( e -> applyTheme( theme ) );

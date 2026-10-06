@@ -1156,6 +1156,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Populate theme selection dropdown
         themeSelection.getItems().clear();
         themeSelection.getItems().addAll( ConfigConstants.ALLOWED_THEMES );
+        // Items stay the saved theme ids; only the shown text is localized.
+        themeSelection.setConverter( SettingsOptionLabels.converter( SettingsOptionLabels.THEME_KEYS ) );
 
         // Populate language selection dropdown. First item is the "Use OS
         // Language (detected: <name>)" sentinel — selecting it clears the
@@ -1301,6 +1303,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // A last "Custom" entry stands for args that match no preset (generated or hand-edited).
         // Selecting it keeps whatever args are saved; only picking a real preset replaces them.
         jvmPresetSelection.getItems().add( LocalizationManager.get( "settings.jvmPreset.custom" ) );
+        jvmPresetSelection.setConverter( SettingsOptionLabels.converter( SettingsOptionLabels.JVM_PRESET_KEYS ) );
         selectJvmPresetFor( ConfigManager.getCustomJvmArgs() );
 
         // "Generate recommended args" — produces a JVM args string tuned to
