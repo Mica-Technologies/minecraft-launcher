@@ -349,12 +349,75 @@ public class SystemUtilities
     private static synchronized java.util.concurrent.ExecutorService backgroundExecutor() {
         if ( backgroundExecutor == null || backgroundExecutor.isShutdown() ) {
             backgroundExecutor = java.util.concurrent.Executors.newCachedThreadPool( r -> {
-                Thread t = new Thread( r, "mica-bg-" + BG_THREAD_SEQ.incrementAndGet() );
+                Thread t = new BackgroundWorkerThread( r, "mica-bg-" + BG_THREAD_SEQ.incrementAndGet() );
                 t.setDaemon( true );
                 return t;
             } );
         }
         return backgroundExecutor;
+    }
+
+    /** Marker type for the {@link #spawnNewTask} pool's workers, so {@link #isBackgroundWorker()} can
+     *  tell them apart from every other thread without relying on thread names. */
+    private static final class BackgroundWorkerThread extends Thread
+    {
+        BackgroundWorkerThread( Runnable task, String name )
+        {
+            super( task, name );
+        }
+    }
+
+    /**
+     * Indicates whether the calling thread is one of the {@link #spawnNewTask} pool's workers.
+     * Shutdown and restart code checks this: {@link #shutdownBackgroundExecutor(long)} interrupts
+     * the pool's own workers, so work that shuts the pool down must not run on one of them.
+     *
+     * @return {@code true} when called from a background-task worker
+     *
+     * @since 2026.10
+     */
+    public static boolean isBackgroundWorker() {
+        return Thread.currentThread() instanceof BackgroundWorkerThread;
+    }
+
+    /**
+     * Runs a step on a fresh daemon thread and waits at most {@code timeoutMillis} for it. Used
+     * at shutdown for steps that call into vendor SDKs or sockets (RGB, Discord, MCP), any of
+     * which can hang: a hung step is left behind on its daemon thread, which cannot keep the JVM
+     * alive, instead of hanging the launcher's exit. A step that throws counts as finished; its
+     * failure is passed to {@code onFailure}.
+     *
+     * @param name          names the worker thread, for thread dumps
+     * @param step          the work to run
+     * @param timeoutMillis how long to wait for the step
+     * @param onFailure     receives anything the step throws; may be {@code null}
+     *
+     * @return {@code true} when the step finished (or threw) in time, {@code false} when it was
+     *         still running when the wait ran out
+     *
+     * @since 2026.10
+     */
+    public static boolean runBounded( String name, Runnable step, long timeoutMillis,
+                                      java.util.function.Consumer< Throwable > onFailure ) {
+        Thread worker = new Thread( () -> {
+            try {
+                step.run();
+            }
+            catch ( Throwable t ) {
+                if ( onFailure != null ) {
+                    onFailure.accept( t );
+                }
+            }
+        }, "mmcl-bounded-" + name );
+        worker.setDaemon( true );
+        worker.start();
+        try {
+            worker.join( Math.max( 1L, timeoutMillis ) );
+        }
+        catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+        }
+        return !worker.isAlive();
     }
 
     /**
