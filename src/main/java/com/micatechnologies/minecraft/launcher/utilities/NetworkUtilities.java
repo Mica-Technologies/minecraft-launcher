@@ -341,7 +341,12 @@ public class NetworkUtilities
      */
     private static URLConnection openConnection( URL url ) throws IOException {
         Proxy proxy = getProxy();
-        return ( proxy == Proxy.NO_PROXY ) ? url.openConnection() : url.openConnection( proxy );
+        // Only network schemes take a proxy. The jar: and file: handlers don't implement
+        // openConnection(Proxy) and throw UnsupportedOperationException, which broke every Forge
+        // library embedded in the installer (a jar: URL) for anyone with a proxy set.
+        String protocol = url.getProtocol();
+        boolean network = "http".equalsIgnoreCase( protocol ) || "https".equalsIgnoreCase( protocol );
+        return ( proxy == Proxy.NO_PROXY || !network ) ? url.openConnection() : url.openConnection( proxy );
     }
 
     /**
