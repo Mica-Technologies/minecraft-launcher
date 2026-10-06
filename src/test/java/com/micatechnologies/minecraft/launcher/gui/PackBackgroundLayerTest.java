@@ -25,32 +25,31 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * The card background's sizing arithmetic: which part of an image covers the card (scaled to
- * cover it from the top-left corner, as the CSS it replaced rendered), and the width it is
- * decoded at.
+ * cover it and centred), and the width it is decoded at.
  *
  * @since 2026.10
  */
 class PackBackgroundLayerTest
 {
     @Test
-    void aWideImageIsCroppedAtTheRight()
+    void aWideImageIsCroppedEquallyLeftAndRight()
     {
         // A panorama into a 360x150 card: scaled to the height (150/500), 1200 px of width shows.
         Rectangle2D v = PackBackgroundLayer.coverViewport( 3000, 500, 360, 150 );
         assertEquals( 500, v.getHeight(), 1e-6 );
         assertEquals( 1200, v.getWidth(), 1e-6 );
-        assertEquals( 0, v.getMinX(), 1e-6 );
+        assertEquals( 900, v.getMinX(), 1e-6 );
         assertEquals( 0, v.getMinY(), 1e-6 );
     }
 
     @Test
-    void aTallImageIsCroppedAtTheBottom()
+    void aTallImageIsCroppedEquallyTopAndBottom()
     {
         // 1920x1080 into a 360x150 card: scaled to the width, 1920 * 150/360 = 800 px tall.
         Rectangle2D v = PackBackgroundLayer.coverViewport( 1920, 1080, 360, 150 );
         assertEquals( 1920, v.getWidth(), 1e-6 );
         assertEquals( 800, v.getHeight(), 1e-6 );
-        assertEquals( 0, v.getMinY(), 1e-6 );
+        assertEquals( 140, v.getMinY(), 1e-6 );
         assertEquals( 0, v.getMinX(), 1e-6 );
     }
 

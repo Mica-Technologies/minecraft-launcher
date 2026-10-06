@@ -42,9 +42,9 @@ import java.util.Map;
  * scale) and keeps recent decodes in a small cache, so revisiting a page or cycling back to an
  * image is free.</p>
  *
- * <p>It draws the image like the CSS it replaced: scaled to cover the layer from its top-left
- * corner (see {@link #coverViewport}), with the gradient showing until it arrives and through
- * any transparent pixels. Build and use on the FX thread.</p>
+ * <p>It draws the image scaled to cover the layer and centred on it (see
+ * {@link #coverViewport}), with the gradient showing until it arrives and through any
+ * transparent pixels. Build and use on the FX thread.</p>
  *
  * @since 2026.10
  */
@@ -177,11 +177,10 @@ final class PackBackgroundLayer extends Region
     }
 
     /**
-     * The part of an image that covers a box when scaled to fill it, anchored at the image's
-     * top-left corner. That is how the CSS this layer replaced actually drew it: its rule said
-     * {@code background-size: cover; background-position: center}, but JavaFX rendered the
-     * image from the top-left, cropping only the right and bottom, and cards have always looked
-     * that way. Pure, for testing.
+     * The part of an image that covers a box when scaled to fill it, centred, so an image of
+     * another shape loses equal amounts from both sides (or top and bottom). The CSS this layer
+     * replaced asked for that ({@code background-position: center}), but JavaFX drew it from
+     * the top-left and cropped only the right and bottom. Pure, for testing.
      *
      * @param imageW the image's width
      * @param imageH the image's height
@@ -195,7 +194,7 @@ final class PackBackgroundLayer extends Region
         double scale = Math.max( boxW / imageW, boxH / imageH );
         double vw = Math.min( imageW, boxW / scale );
         double vh = Math.min( imageH, boxH / scale );
-        return new Rectangle2D( 0, 0, vw, vh );
+        return new Rectangle2D( ( imageW - vw ) / 2, ( imageH - vh ) / 2, vw, vh );
     }
 
     /**
