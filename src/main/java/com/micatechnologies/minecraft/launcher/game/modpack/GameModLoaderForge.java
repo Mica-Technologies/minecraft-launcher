@@ -136,12 +136,12 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         // Store Forge/MC information
         JsonObject forgeVersionManifest = getForgeVersionManifest();
         if ( !forgeVersionManifest.has( ForgeConstants.FORGE_VERSION_MANIFEST_ID_KEY ) ) {
-            throw new ModpackException( "Forge version manifest is missing required field: " +
-                                                ForgeConstants.FORGE_VERSION_MANIFEST_ID_KEY );
+            throw new ModpackException( LocalizationManager.format( "forge.error.manifestMissingField",
+                                                                    ForgeConstants.FORGE_VERSION_MANIFEST_ID_KEY ) );
         }
         if ( !forgeVersionManifest.has( ForgeConstants.FORGE_VERSION_MANIFEST_MAIN_CLASS_KEY ) ) {
-            throw new ModpackException( "Forge version manifest is missing required field: " +
-                                                ForgeConstants.FORGE_VERSION_MANIFEST_MAIN_CLASS_KEY );
+            throw new ModpackException( LocalizationManager.format( "forge.error.manifestMissingField",
+                                                                    ForgeConstants.FORGE_VERSION_MANIFEST_MAIN_CLASS_KEY ) );
         }
         forgeVersion = forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_ID_KEY ).getAsString();
         minecraftVersion = parseMinecraftVersion( forgeVersionManifest, forgeVersion );
@@ -783,19 +783,19 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                     futures, 30 * 60 * 1000L );
         }
         catch ( java.util.concurrent.TimeoutException e ) {
-            throw new ModpackException( "Forge library downloads did not complete within 30 minutes." );
+            throw new ModpackException( LocalizationManager.get( "forge.error.libsTimedOut" ) );
         }
         catch ( InterruptedException e ) {
             Thread.currentThread().interrupt();
-            throw new ModpackException( "Interrupted while downloading Forge libraries.", e );
+            throw new ModpackException( LocalizationManager.get( "forge.error.libsInterrupted" ), e );
         }
         catch ( java.util.concurrent.ExecutionException e ) {
             Throwable cause = e.getCause();
             if ( cause instanceof ModpackException modpackException ) {
                 throw modpackException;
             }
-            throw new ModpackException( "Failed to download a Forge library: "
-                                                + ( cause == null ? e.getMessage() : cause.getMessage() ), e );
+            throw new ModpackException( LocalizationManager.format( "forge.error.libDownloadFailed",
+                    String.valueOf( cause == null ? e.getMessage() : cause.getMessage() ) ), e );
         }
     }
 
@@ -833,7 +833,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             }
         }
         catch ( IOException e ) {
-            throw new ModpackException( "Unable to read install_profile.json from Forge installer.", e );
+            throw new ModpackException( LocalizationManager.get( "forge.error.installProfileUnreadable" ), e );
         }
 
         if ( !installProfile.has( "processors" ) || !installProfile.has( "data" ) ) {
@@ -912,13 +912,13 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                     || path.startsWith( "/" )
                     || path.startsWith( "\\" )
                     || ( path.length() >= 2 && path.charAt( 1 ) == ':' ) ) {
-                throw new ModpackException( "Refusing Forge library with unsafe path: " + path );
+                throw new ModpackException( LocalizationManager.format( "forge.error.unsafeLibraryPath", path ) );
             }
             java.nio.file.Path libsBase = new File( libsFolder ).toPath().toAbsolutePath().normalize();
             java.nio.file.Path resolved = libsBase.resolve(
                     path.replace( "/", File.separator ) ).normalize();
             if ( !resolved.startsWith( libsBase ) ) {
-                throw new ModpackException( "Refusing Forge library path that escapes libs folder: " + path );
+                throw new ModpackException( LocalizationManager.format( "forge.error.libraryEscapes", path ) );
             }
             File localFile = resolved.toFile();
 
@@ -944,13 +944,14 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                         extractEmbeddedMavenEntry( path, localFile );
                     }
                     catch ( IOException e ) {
-                        throw new ModpackException( "Failed to extract embedded library: " + path, e );
+                        throw new ModpackException(
+                                LocalizationManager.format( "forge.error.embeddedExtractFailed", path ), e );
                     }
                     if ( hasSha1 && !HashUtilities.verifySHA1( localFile, sha1 ) ) {
                         //noinspection ResultOfMethodCallIgnored
                         localFile.delete();
                         throw new ModpackException(
-                                "Embedded processor library failed hash verification: " + path );
+                                LocalizationManager.format( "forge.error.embeddedHashFailed", path ) );
                     }
                     if ( hasSha1 ) {
                         verifiedLibPaths.add( path );
@@ -963,7 +964,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             // ManagedGameFile download gate.
             int schemeEnd = url.indexOf( ':' );
             if ( schemeEnd < 0 || !"https".equalsIgnoreCase( url.substring( 0, schemeEnd ) ) ) {
-                throw new ModpackException( "Refusing Forge library with non-https URL: " + url );
+                throw new ModpackException( LocalizationManager.format( "forge.error.nonHttpsLibrary", url ) );
             }
 
             localFile.getParentFile().mkdirs();
@@ -977,7 +978,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                     NetworkUtilities.downloadFileFromURL( url, localFile );
                 }
                 catch ( IOException e ) {
-                    throw new ModpackException( "Failed to download processor library: " + url, e );
+                    throw new ModpackException(
+                            LocalizationManager.format( "forge.error.processorLibDownloadFailed", url ), e );
                 }
                 downloadAccepted = !hasSha1 || HashUtilities.verifySHA1( localFile, sha1 );
                 if ( !downloadAccepted ) {
@@ -988,9 +990,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                 }
             }
             if ( !downloadAccepted ) {
-                throw new ModpackException(
-                        "Processor library failed hash verification after " + maxAttempts + " attempts: " +
-                                path + " (from " + url + ")" );
+                throw new ModpackException( LocalizationManager.format( "forge.error.processorLibHashFailed",
+                                                                        maxAttempts, path, url ) );
             }
             if ( hasSha1 ) {
                 verifiedLibPaths.add( path );
@@ -1058,11 +1059,13 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                 mainClass = procJarFile.getManifest().getMainAttributes().getValue( "Main-Class" );
             }
             catch ( IOException e ) {
-                throw new ModpackException( "Cannot read processor JAR manifest: " + processorJar, e );
+                throw new ModpackException(
+                        LocalizationManager.format( "forge.error.processorManifestUnreadable", processorJar ), e );
             }
 
             if ( mainClass == null ) {
-                throw new ModpackException( "Processor JAR has no Main-Class: " + processorJar );
+                throw new ModpackException(
+                        LocalizationManager.format( "forge.error.processorNoMainClass", processorJar ) );
             }
 
             // Resolve args
@@ -1093,22 +1096,25 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                 boolean completed = process.waitFor( 10, java.util.concurrent.TimeUnit.MINUTES );
                 if ( !completed ) {
                     throw new ModpackException(
-                            "Forge processor timed out after 10 minutes: " + processorJar );
+                            LocalizationManager.format( "forge.error.processorTimedOut", processorJar ) );
                 }
                 int exitCode = process.exitValue();
                 if ( exitCode != 0 ) {
-                    throw new ModpackException(
-                            "Forge processor failed (exit code " + exitCode + "): " + processorJar );
+                    throw new ModpackException( LocalizationManager.format( "forge.error.processorExitCode",
+                                                                            String.valueOf( exitCode ),
+                                                                            processorJar ) );
                 }
                 succeeded = true;
             }
             catch ( InterruptedException e ) {
                 // Cancelled: keep the interrupt for the launch to see.
                 Thread.currentThread().interrupt();
-                throw new ModpackException( "Failed to run Forge processor: " + processorJar, e );
+                throw new ModpackException(
+                        LocalizationManager.format( "forge.error.processorRunFailed", processorJar ), e );
             }
             catch ( IOException e ) {
-                throw new ModpackException( "Failed to run Forge processor: " + processorJar, e );
+                throw new ModpackException(
+                        LocalizationManager.format( "forge.error.processorRunFailed", processorJar ), e );
             }
             finally {
                 if ( !succeeded ) {
@@ -1172,7 +1178,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         File artifactFile = new File( libsFolder, relativePath.replace( "/", File.separator ) );
         if ( !HashUtilities.verifySHA1( artifactFile, sha1 ) ) {
             throw new ModpackException(
-                    "Processor JAR failed hash verification before execution: " + relativePath );
+                    LocalizationManager.format( "forge.error.processorHashFailed", relativePath ) );
         }
         alreadyVerified.add( relativePath );
     }
@@ -1294,7 +1300,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                 try ( JarFile forgeJar = getForgeJarFile() ) {
                     JarEntry entry = forgeJar.getJarEntry( entryName );
                     if ( entry == null ) {
-                        throw new ModpackException( "Missing entry in Forge installer: " + entryName );
+                        throw new ModpackException(
+                                LocalizationManager.format( "forge.error.installerEntryMissing", entryName ) );
                     }
                     extractedFile.getParentFile().mkdirs();
                     try ( InputStream entryStream = forgeJar.getInputStream( entry ) ) {
@@ -1302,7 +1309,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                     }
                 }
                 catch ( IOException e ) {
-                    throw new ModpackException( "Failed to extract from Forge installer: " + entryName, e );
+                    throw new ModpackException(
+                            LocalizationManager.format( "forge.error.installerExtractFailed", entryName ), e );
                 }
             }
             return extractedFile.getAbsolutePath();

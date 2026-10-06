@@ -353,7 +353,7 @@ public class GameLibraryManifest extends ManagedGameFile
                         SystemUtilities.extractJarFile( nativeJar, localNativePath );
                     }
                     catch ( IOException e ) {
-                        throw new ModpackException( "Unable to extract native library.", e );
+                        throw new ModpackException( LocalizationManager.get( "minecraft.error.nativeExtractFailed" ), e );
                     }
                 }
 
@@ -375,7 +375,7 @@ public class GameLibraryManifest extends ManagedGameFile
             DownloadExecutor.awaitAll( threadPoolFutures, 30 * 60 * 1000L );
         }
         catch ( TimeoutException e ) {
-            throw new ModpackException( "Library downloads did not complete within 30 minutes." );
+            throw new ModpackException( LocalizationManager.get( "minecraft.error.libsTimedOut" ) );
         }
     }
 
@@ -401,10 +401,11 @@ public class GameLibraryManifest extends ManagedGameFile
             downloadVerifyLibraries( progressProvider );
         }
         catch ( InterruptedException e ) {
-            throw new ModpackException( "The download of Minecraft libraries was interrupted before completion!", e );
+            throw new ModpackException( LocalizationManager.get( "minecraft.error.libsInterrupted" ), e );
         }
         catch ( ExecutionException e ) {
-            throw new ModpackException( "Unable to execute runner to retrieve Minecraft libraries!", e );
+            throw new ModpackException( LocalizationManager.format( "minecraft.error.libsFailed",
+                                                                    String.valueOf( causeMessage( e ) ) ), e );
         }
 
         // Patch LWJGL2 natives for ARM64 if needed (replaces x86_64 dylibs/JARs with ARM64 builds)
@@ -428,10 +429,11 @@ public class GameLibraryManifest extends ManagedGameFile
             downloadMinecraftAssets( progressProvider );
         }
         catch ( InterruptedException e ) {
-            throw new ModpackException( "The download of Minecraft assets was interrupted before completion!", e );
+            throw new ModpackException( LocalizationManager.get( "minecraft.error.assetsInterrupted" ), e );
         }
         catch ( ExecutionException e ) {
-            throw new ModpackException( "Unable to execute runner to retrieve Minecraft assets!", e );
+            throw new ModpackException( LocalizationManager.format( "minecraft.error.assetsFailed",
+                                                                    String.valueOf( causeMessage( e ) ) ), e );
         }
 
         // For each asset, add to classpath
@@ -887,5 +889,21 @@ public class GameLibraryManifest extends ManagedGameFile
             }
         }
         return null;
+    }
+
+    /**
+     * Returns the message of the failure behind a download runner's {@link ExecutionException}, for
+     * inclusion in the user-facing error.
+     *
+     * @param e the exception thrown while waiting on the runner
+     *
+     * @return the underlying cause's message, or the exception's own when there is no cause
+     *
+     * @since 2026.10
+     */
+    private static String causeMessage( ExecutionException e )
+    {
+        Throwable cause = e.getCause() != null ? e.getCause() : e;
+        return cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
     }
 }

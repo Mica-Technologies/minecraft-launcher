@@ -431,8 +431,7 @@ public class ManagedGameFile
         // to arbitrary locations relative to the modpack folder.
         if ( !isContainedUnderPrefix() ) {
             throw new ModpackException(
-                    "Refusing to download managed file outside modpack folder: "
-                            + getFullLocalFilePath() );
+                    LocalizationManager.format( "managedFile.error.outsidePack", getFullLocalFilePath() ) );
         }
         File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
 
@@ -458,7 +457,7 @@ public class ManagedGameFile
                     && isJarUrlContainedInLauncher( remote );
             if ( !acceptHttps && !acceptTrustedJar ) {
                 throw new ModpackException(
-                        "Refusing managed file with non-https URL scheme: " + remote );
+                        LocalizationManager.format( "managedFile.error.nonHttps", String.valueOf( remote ) ) );
             }
             //noinspection ResultOfMethodCallIgnored
             localFile.getParentFile().mkdirs();
@@ -487,9 +486,9 @@ public class ManagedGameFile
                 localFile.delete();
                 Logger.logWarningSilent( LocalizationManager.format( "log.managedGameFile.hashRetry", attempt, maxAttempts, getFullLocalFilePath() ) );
             }
-            throw new ModpackException(
-                    "Downloaded file failed hash verification after " + maxAttempts + " attempts: " +
-                            getFullLocalFilePath() + " (from " + remote + ")" );
+            throw new ModpackException( LocalizationManager.format( "managedFile.error.hashFailed", maxAttempts,
+                                                                    getFullLocalFilePath(),
+                                                                    String.valueOf( remote ) ) );
         }
         catch ( IOException e ) {
             throw new ModpackException(
@@ -563,10 +562,7 @@ public class ManagedGameFile
             // Not marked verified: the next launch must fail the same way, not skip the check and
             // fail later with a vaguer error.
             throw new ModpackException(
-                    "Required file is missing and no remote URL is configured for it: "
-                            + getFullLocalFilePath()
-                            + ". Open the modpack in the Modpack Editor to set the loader "
-                            + "installer URL (or restore the missing file)." );
+                    LocalizationManager.format( "managedFile.error.missingNoUrl", getFullLocalFilePath() ) );
         }
         if ( !verifyLocalFile( context ) ) {
             // Offline mode: refuse to launch with a hash-mismatched file. Previously
@@ -578,11 +574,11 @@ public class ManagedGameFile
             if ( NetworkUtilities.isOffline() ) {
                 File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
                 if ( localFile.exists() && localFile.isFile() ) {
-                    throw new ModpackException(
-                            "Offline mode: file hash mismatch and we can't re-verify without internet: "
-                                    + getFullLocalFilePath() );
+                    throw new ModpackException( LocalizationManager.format(
+                            "managedFile.error.offlineHashMismatch", getFullLocalFilePath() ) );
                 }
-                throw new ModpackException( "Offline mode: missing required file: " + getFullLocalFilePath() );
+                throw new ModpackException(
+                        LocalizationManager.format( "managedFile.error.offlineMissing", getFullLocalFilePath() ) );
             }
             Logger.logWarningSilent( LocalizationManager.format( "log.managedGameFile.verifyFailedRedownload", getFullLocalFilePath() ) );
 

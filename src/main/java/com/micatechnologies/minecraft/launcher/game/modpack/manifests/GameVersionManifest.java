@@ -103,7 +103,8 @@ public class GameVersionManifest
                     catch ( IOException e ) {
                         Logger.logError( LocalizationManager.get( "log.versionManifest.downloadReadFailed" ) );
                         Logger.logThrowable( e );
-                        throw new ModpackException( "Unable to download Minecraft version manifest.", e );
+                        throw new ModpackException(
+                                LocalizationManager.get( "minecraft.error.versionManifestDownload" ), e );
                     }
                 }
             }
@@ -154,7 +155,7 @@ public class GameVersionManifest
             }
         }
 
-        throw new ModpackException( "Unable to find specified Minecraft version: " + minecraftVersion );
+        throw new ModpackException( LocalizationManager.format( "minecraft.error.versionNotFound", minecraftVersion ) );
     }
 
     /**
@@ -191,8 +192,8 @@ public class GameVersionManifest
             if ( e.getCause() instanceof ModpackException modpackException ) {
                 throw modpackException;
             }
-            throw new ModpackException( "Unable to download client.json for Minecraft " + minecraftVersion,
-                                        e.getCause() );
+            throw new ModpackException( LocalizationManager.format( "minecraft.error.clientJsonDownload",
+                                                                    minecraftVersion ), e.getCause() );
         }
     }
 
