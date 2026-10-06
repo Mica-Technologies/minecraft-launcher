@@ -1,0 +1,104 @@
+<h1>JVM-förinställningar</h1>
+
+<p>Listrutan <strong>JVM-förinställning</strong> under Inställningar → Avancerat väljer en
+namngiven uppsättning argument som startprogrammet skickar till JVM:en när den startar
+Minecraft. Argumenten finjusterar skräpinsamlaren (GC), styr storleken på heapregioner
+och slår på eller av GC-loggning – de ändrar inte hur själva spelet
+beter sig, bara hur JVM:en som kör det hanterar minnet.</p>
+
+<p>Rätt förinställning spelar störst roll för stora modpaket (200+
+mods) där skräpinsamlaren måste städa upp efter tusentals chunkar som laddas in och
+ut. För vanilla och små modpaket fungerar vilken förinställning som helst, och
+standardvalet ”Performance” fungerar bra.</p>
+
+<h2>Performance (Aikar's Flags)</h2>
+
+<p>Standardförinställningen och den som rekommenderas för de allra flesta användare. Använder
+skräpinsamlaren G1 med den parameterjustering som Aikar (upphovsperson bakom Minecraft-servern
+Paper) publicerade för flera år sedan och som många guider fortfarande
+hänvisar till. Utformad för att minimera hack orsakade av GC-pauser under intensivt spelande.</p>
+
+<p>Passar bäst för: <strong>modpaket med 6+ GB tilldelat RAM</strong>,
+tungt moddade paket där du har märkt återkommande ryck i bildfrekvensen
+under belastning.</p>
+
+<h2>Low Memory</h2>
+
+<p>Nedbantade flaggor för system med lite ledigt RAM. Använder G1 med ett
+kortare pausmål och mindre heapregioner, och offrar en del
+genomströmning för förutsägbarhet när minnet är knappt.</p>
+
+<p>Passar bäst för: <strong>system med ≤ 8 GB RAM totalt</strong>,
+bärbara datorer på batteri, eller när du vill köra flera modpaket
+samtidigt som andra appar. Rekommenderas inte för stora modpaket
+(200+ mods) där Aikars flaggor frigör minne effektivare
+även med samma totala tilldelning.</p>
+
+<h2>Debug</h2>
+
+<p>Flaggorna från Performance plus utförlig GC-loggning + Java-assertioner
+aktiverade. Skriver en {@code gc.log}-fil till modpaketets installationsmapp
+som registrerar varje GC-händelse med tidsstämplar. Främst användbart för mod-
+utvecklare och för att felsöka återkommande OOM-krascher – ger en
+liten konstant prestandakostnad, så låt den inte vara på vid vanligt spelande.</p>
+
+<p>Passar bäst för: <strong>att felsöka klagomål på GC-pauser</strong>,
+undersöka rapporter om att spelet ”slutar svara i några sekunder varje minut”.</p>
+
+<h2>None</h2>
+
+<p>Tom argumentlista – JVM:en använder sina egna standardvärden. Användbart för att
+testa om ett upplevt prestandaproblem orsakas av förinställningens
+flaggor (sällsynt men möjligt om JDK-versionen är mycket nyare
+än när Aikars flaggor skrevs).</p>
+
+<p>Passar bäst för: <strong>att verifiera grundbeteendet</strong> när en
+förinställning misstänks fungera dåligt ihop med en viss mod eller JDK-
+version.</p>
+
+<h2>Om RAM-tilldelning</h2>
+
+<p>Förinställningarna finjusterar JVM:en vid start, men startprogrammets reglage
+<strong>Minsta RAM</strong> och <strong>Högsta RAM</strong>
+under Inställningar → Konto / Spel avgör hur mycket minne JVM:en får
+använda. Rätt mängd beror på modpaketet:</p>
+
+<ul>
+    <li>Vanilla-Minecraft: 2 GB räcker gott.</li>
+    <li>Lätta modpaket (≤ 50 mods): 4 GB.</li>
+    <li>Medelstora modpaket (50–150 mods): 6 GB.</li>
+    <li>Tunga modpaket (150+ mods, shaders): 8–12 GB.</li>
+    <li>Extrema modpaket (300+ mods, anpassad världsgenerering): 12–16 GB.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Varning</div>
+    <p>Om du tilldelar mer RAM än systemet kan avvara börjar Minecraft
+    växla till disk, vilket gör hacken <em>värre</em>, inte bättre.
+    Håll högsta RAM på högst hälften av systemets totala RAM. Ett
+    system med 16 GB bör inte tilldela Minecraft mer än 8 GB.</p>
+</div>
+
+<h2>Anpassade flaggor</h2>
+
+<p>Fältet under listrutan för förinställningar i Inställningar går att redigera – du kan
+klistra in en egen argumentsträng om ingen förinställning passar dina behov.
+Vanliga tillägg:</p>
+
+<ul>
+    <li><code>-XX:+UseZGC</code> – byter till skräpinsamlaren Z
+        (korta pauser, kräver JDK 15+). Presterar ibland bättre än G1 med
+        mycket stora heapar (32 GB+) men är i allmänhet inte värt att byta till
+        från G1 i typiska Minecraft-uppsättningar.</li>
+    <li><code>-Dfile.encoding=UTF-8</code> – användbart när mods skapar
+        konfigurationsfiler med icke-ASCII-innehåll på Windows, där
+        standardteckenuppsättningen kan vara Latin-1.</li>
+    <li><code>-Xss2M</code> – ökar trådarnas stackstorlek jämfört med JVM:ens
+        standard; vissa modpaket med djupa anropskedjor (tunga mods för
+        världsgenerering, stora dimensionsgeneratorer) behöver detta.</li>
+</ul>
+
+<p>Fel i anpassade flaggor visar sig som misslyckade starter med meddelanden
+som ”Error: Could not create the Java Virtual Machine” eller
+”Unrecognized VM option”. Om du ser något av dem, byt tillbaka till
+Performance och försök igen innan du tar till det anpassade fältet.</p>

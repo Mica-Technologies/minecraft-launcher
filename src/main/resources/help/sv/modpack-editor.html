@@ -1,0 +1,57 @@
+<h1>Modpack-redigerare</h1>
+
+<p>Modpaketredigeraren är ett inbyggt verktyg för att skapa och redigera modpaketens JSON-definitionsfiler.
+Den erbjuder ett strukturerat gränssnitt med validering, inbyggd sökning och spårning av ändringar.</p>
+
+<h2>Verktygsfält</h2>
+
+<ul>
+    <li><strong>Ny</strong> – skapa en tom modpaketdefinition från en mall.</li>
+    <li><strong>Öppna fil</strong> – läs in en befintlig JSON-definition från disk.</li>
+    <li><strong>Öppna URL</strong> – hämta och läs in en definition från en fjärr-URL.</li>
+    <li><strong>Spara</strong> – skriv den aktuella definitionen till en lokal fil.</li>
+    <li><strong>Validera</strong> – kontrollera definitionen efter fel (saknade fält, ogiltiga URL:er, felaktiga kontrollsummor).</li>
+    <li><strong>Diff</strong> – jämför det aktuella läget med den senast sparade versionen för att se vad som har ändrats.</li>
+</ul>
+
+<h2>Metadatafält</h2>
+
+<p>Det översta avsnittet innehåller modpaketets grundinformation: namn, version, beskrivning, skapare,
+Minecraft-version och Forge-version. Med <strong>Forge-versionsväljaren</strong> kan du bläddra bland
+tillgängliga Forge-byggen för den valda Minecraft-versionen.</p>
+
+<h2>Filflikar</h2>
+
+<p>Filerna är ordnade i kategoriserade flikar:</p>
+
+<table class="settings-table">
+    <tr><td>Moddar</td><td>Forge-moddarnas JAR-filer som placeras i mappen <code>mods/</code>.</td></tr>
+    <tr><td>Konfigurationer</td><td>Konfigurationsfiler för moddar, placerade i <code>config/</code>.</td></tr>
+    <tr><td>Resurser</td><td>Resurspaket och andra tillgångar.</td></tr>
+    <tr><td>Shaders</td><td>Shader-paket för OptiFine eller Iris.</td></tr>
+    <tr><td>Startfiler</td><td>Filer som bara kopieras vid första installationen (t.ex. en standard-options.txt).</td></tr>
+</table>
+
+<p>Varje filpost innehåller en nedladdnings-URL och en SHA-1-kontrollsumma. Redigeraren kan
+<strong>beräkna kontrollsummor automatiskt</strong> genom att ladda ner filen och räkna ut dess kontrollsumma.</p>
+
+<h2>Sökning i Modrinth</h2>
+
+<p>Använd den inbyggda Modrinth-sökningen för att hitta moddar efter namn. Välj ett resultat för att automatiskt
+fylla i fälten för nedladdnings-URL och kontrollsumma för rätt version.</p>
+
+<h2>Höja versionen</h2>
+
+<p>Knappen <strong>Höj version</strong> räknar upp modpaketets versionsnummer, vilket gör det enkelt att
+publicera uppdateringar som startprogrammet upptäcker automatiskt.</p>
+
+<h2>Kontrollera URL:er</h2>
+
+<p>Redigeraren kan verifiera att alla filers nedladdnings-URL:er går att nå, så att du hittar trasiga
+länkar innan du publicerar.</p>
+
+<div class="tip">
+    <div class="callout-title">Tips</div>
+    <p>Använd <strong>Validera</strong> innan du sparar för att upptäcka problem tidigt. Valideraren kontrollerar
+    obligatoriska fält, giltiga URL:er och korrekt format på kontrollsummor.</p>
+</div>

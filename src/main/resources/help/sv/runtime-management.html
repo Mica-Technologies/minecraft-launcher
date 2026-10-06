@@ -1,0 +1,59 @@
+<h1>Körmiljöhantering</h1>
+
+<p>Mica Minecraft Launcher hanterar Java-körmiljöer automatiskt, så du behöver aldrig installera
+eller konfigurera Java själv.</p>
+
+<h2>Varför körmiljöer spelar roll</h2>
+
+<p>Minecraft och Forge kräver specifika Java-versioner för att fungera korrekt. Olika modpaket och
+Minecraft-versioner kan behöva olika Java-körmiljöer:</p>
+
+<ul>
+    <li><strong>Minecraft 1.16 och äldre</strong> – Java 8</li>
+    <li><strong>Minecraft 1.17 - 1.20</strong> – Java 17</li>
+    <li><strong>Minecraft 1.21+</strong> – Java 21 eller senare</li>
+</ul>
+
+<p>Startprogrammet avgör vilken körmiljö varje modpaket eller vanilla-version behöver och laddar ner den
+automatiskt vid första starten.</p>
+
+<h2>Automatiska nedladdningar</h2>
+
+<p>När du startar ett modpaket eller en vanilla-version för första gången kontrollerar startprogrammet om
+den nödvändiga körmiljön redan är installerad. Om inte laddas rätt version ner från
+Mojangs eller Libericas distributionsservrar. Varje körmiljöversion laddas bara ner en gång.</p>
+
+<div class="note">
+    <div class="callout-title">Obs</div>
+    <p>Nedladdade körmiljöer är oftast 40–80 MB och lagras i startprogrammets datakatalog,
+    åtskilda från eventuella Java-installationer i systemet.</p>
+</div>
+
+<h2>Visa installerade körmiljöer</h2>
+
+<p>Öppna <a href="help://topic/SETTINGS">Inställningar</a> och klicka på <strong>Hantera körmiljöer</strong> för att se
+en lista över alla installerade Java-körmiljöer, inklusive version, sökväg och vilka modpaket
+som använder dem.</p>
+
+<h2>Ta bort oanvända körmiljöer</h2>
+
+<p>Om du har tagit bort modpaket som använde en viss Java-version kan du ta bort
+motsvarande körmiljö för att frigöra diskutrymme. Välj en körmiljö på hanteringsskärmen och
+klicka på <strong>Ta bort</strong>.</p>
+
+<div class="warning">
+    <div class="callout-title">Varning</div>
+    <p>Om du tar bort en körmiljö som fortfarande behövs av ett installerat modpaket laddar startprogrammet
+    ner den igen nästa gång modpaketet startas.</p>
+</div>
+
+<h2>Felsöka körmiljöer</h2>
+
+<p>Om ett modpaket inte startar och visar Java-relaterade fel kan du prova följande:</p>
+
+<ol>
+    <li>Öppna Hantera körmiljöer och ta bort körmiljön som det berörda modpaketet använder.</li>
+    <li>Starta modpaketet igen – startprogrammet laddar ner en ny kopia.</li>
+    <li>Om problemet kvarstår, se <a href="help://topic/TROUBLESHOOTING">Felsökning</a> för
+        fler steg.</li>
+</ol>

@@ -1,0 +1,112 @@
+<h1>Felsökning</h1>
+
+<p>Den här sidan beskriver vanliga problem och hur du löser dem. Om ditt problem inte finns med här,
+kontrollera startprogrammets loggar för information om felet.</p>
+
+<h2>Misslyckade nedladdningar</h2>
+
+<p>Filer går inte att ladda ner eller verifieringsfel visas under starten.</p>
+
+<ul>
+    <li>Kontrollera internetanslutningen och försök igen.</li>
+    <li>Om du är på ett företags- eller skolnätverk, konfigurera en proxy i
+        <a href="help://topic/SETTINGS">Inställningar</a> under Nätverk / Proxy.</li>
+    <li>Försök starta igen – tillfälliga nätverksfel löser sig ofta vid andra försöket.</li>
+    <li>Om en viss fil misslyckas varje gång kan dess nedladdnings-URL vara trasig. Rapportera det till modpaketets skapare.</li>
+</ul>
+
+<h2>Offlineindikator</h2>
+
+<p>En röd etikett <strong>Offline</strong> visas bredvid hjälpknappen på varje huvudskärm
+när startprogrammet inte hittar någon internetanslutning. Medan du är offline:</p>
+
+<ul>
+    <li>Kan du fortfarande starta alla modpaket vars filer redan är helt nedladdade.</li>
+    <li>Kommer installationer, uppdateringar och versionsväljarna i Modpaketredigerare att misslyckas eller
+        visa inaktuella data.</li>
+    <li>Är filtren för tillgängliga paket och modladdarversioner på skärmen <a href="help://topic/BROWSE_LIBRARY">Bläddra</a>
+        tomma tills nätverket fungerar igen.</li>
+    <li>Påverkas inte autentiseringen så länge din befintliga token fortfarande är giltig (sparad
+        på disk mellan starterna).</li>
+</ul>
+
+<p>Indikatorn uppdateras när du byter skärm, så när nätverket fungerar
+igen uppdateras etiketten om du går till en annan skärm och tillbaka.</p>
+
+<h2>Spelet kraschar</h2>
+
+<p>Spelet startar men kraschar strax efteråt, eller kraschar under spelandet.</p>
+
+<ul>
+    <li>Aktivera <a href="help://topic/GAME_CONSOLE">Spelkonsol</a> i inställningarna för att se kraschutdata i realtid.</li>
+    <li>Kontrollera kraschrapporten i modpaketets mapp <code>crash-reports/</code> för detaljer om felet.</li>
+    <li>Prova att öka högsta RAM-tilldelning i <a href="help://topic/SETTINGS">Inställningar</a> – många modpaket behöver minst 4–6 GB.</li>
+    <li>Högerklicka på modpaketet på huvudskärmen och välj <strong>Öppna installationsmappen</strong>, ta sedan bort
+        mappen <code>mods/</code> och starta igen för att tvinga fram en ny nedladdning.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Varning</div>
+    <p>Att tilldela för mycket RAM (mer än systemet kan avvara) kan orsaka krascher lika
+    lätt som att tilldela för lite. Håll högsta RAM på högst hälften av systemets totala minne.</p>
+</div>
+
+<h2>Startprogrammet fastnar vid inläsning</h2>
+
+<p>Startprogrammet verkar ha frusit eller en förloppsindikator slutar röra sig.</p>
+
+<ul>
+    <li>Vänta några minuter – stora modpaket kan ta tid att verifiera filer, särskilt vid första starten.</li>
+    <li>Kontrollera startprogrammets loggar efter fel (aktivera Förbättrad loggning i inställningarna).</li>
+    <li>Som sista utväg kan du använda <strong>Återställ startprogrammet</strong> i <a href="help://topic/SETTINGS">Inställningar</a>
+        för att återgå till ett rent läge.</li>
+</ul>
+
+<h2>Offlineläge</h2>
+
+<p>Startprogrammet kräver en internetanslutning för autentisering och nedladdning av filer. Däremot
+sparas modpaketens manifest och spelfiler lokalt efter den första lyckade nedladdningen.</p>
+
+<ul>
+    <li>Om du förlorar anslutningen efter den första installationen kan spelet ändå starta med sparade filer.</li>
+    <li>Autentiseringstoken sparas i ungefär 4 timmar – om din token fortfarande är giltig kan du spela offline inom den tiden.</li>
+</ul>
+
+<h2>Prestandaproblem</h2>
+
+<p>Spelet körs men med låg FPS eller återkommande hack.</p>
+
+<ul>
+    <li>Byt till JVM-förinställningen <strong>Performance (Aikar's Flags)</strong> i
+        <a href="help://topic/SETTINGS">Inställningar</a>.</li>
+    <li>Se till att du har tilldelat tillräckligt med RAM – minst 4 GB för de flesta modpaket.</li>
+    <li>Stäng andra minneskrävande program medan du spelar.</li>
+    <li>Kontrollera att grafikdrivrutinerna är uppdaterade.</li>
+</ul>
+
+<h2>Mods eller filer saknas</h2>
+
+<p>Spelet startar men mods saknas eller konfigurationerna är fel.</p>
+
+<ul>
+    <li>Startprogrammet verifierar filernas kontrollsummor vid varje start. Om filer har ändrats manuellt laddas de ner igen så att de stämmer med modpaketets definition.</li>
+    <li>Om en mod saknas i själva modpaketet, kontakta modpaketets skapare.</li>
+    <li>Prova att ta bort modpaketet och lägga till det igen för att tvinga fram en fullständig ny nedladdning.</li>
+</ul>
+
+<h2>Autentiseringsproblem</h2>
+
+<p>Du kan inte logga in eller ombeds hela tiden att autentisera dig igen.</p>
+
+<ul>
+    <li>Token går ut efter ungefär 4 timmar – att behöva autentisera sig igen är normalt.</li>
+    <li>Om inloggningen misslyckas upprepade gånger, prova att rensa webbläsarens cookies för <code>login.microsoftonline.com</code>.</li>
+    <li>Se till att ditt Microsoft-konto har en aktiv Minecraft-licens.</li>
+    <li>Se <a href="help://topic/LOGIN">Inloggning</a> för mer information om autentiseringsprocessen.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Tips</div>
+    <p>När du rapporterar problem, ta alltid med: modpaketets namn och version, ditt operativsystem,
+    startprogrammets loggfil och eventuella kraschrapporter. Det gör det mycket snabbare att hitta orsaken.</p>
+</div>
