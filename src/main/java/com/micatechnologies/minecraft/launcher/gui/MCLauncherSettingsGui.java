@@ -336,7 +336,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     /** Game tab: quick-pick JVM-args preset. Items come from {@link ConfigConstants#JVM_PRESET_NAMES};
      *  selecting one writes the matching {@link ConfigConstants#JVM_PRESET_ARGS} entry as the custom
-     *  JVM args on save. */
+     *  JVM args on save. A trailing "Custom" entry stands for args matching no preset and keeps them. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXComboBox< String > jvmPresetSelection;
@@ -1293,20 +1293,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Populate JVM preset selection dropdown
         jvmPresetSelection.getItems().clear();
         jvmPresetSelection.getItems().addAll( ConfigConstants.JVM_PRESET_NAMES );
-        // Detect which preset matches the current JVM args (if any)
-        String currentArgs = ConfigManager.getCustomJvmArgs();
-        boolean matched = false;
-        for ( int i = 0; i < ConfigConstants.JVM_PRESET_ARGS.length; i++ ) {
-            if ( ConfigConstants.JVM_PRESET_ARGS[i].equals( currentArgs ) ) {
-                jvmPresetSelection.selectItem( ConfigConstants.JVM_PRESET_NAMES[i] );
-                matched = true;
-                break;
-            }
-        }
-        if ( !matched ) {
-            // Custom args that don't match any preset — show Performance as closest
-            jvmPresetSelection.selectItem( ConfigConstants.JVM_PRESET_PERFORMANCE );
-        }
+        // A last "Custom" entry stands for args that match no preset (generated or hand-edited).
+        // Selecting it keeps whatever args are saved; only picking a real preset replaces them.
+        jvmPresetSelection.getItems().add( LocalizationManager.get( "settings.jvmPreset.custom" ) );
+        selectJvmPresetFor( ConfigManager.getCustomJvmArgs() );
 
         // "Generate recommended args" — produces a JVM args string tuned to
         // the host's CPU + total-RAM + the launcher's max-heap setting via
@@ -1333,11 +1323,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 int maxRam = currentMaxRamGb();
                 String generated = com.micatechnologies.minecraft.launcher.utilities
                         .HardwareTunedJvmArgs.generate( maxRam );
-                // Persist as customJvmArgs. The combo box's current
-                // selection is left alone; the "matched" detection on
-                // next Settings load will show "Performance" since the
-                // generated string differs from every static preset.
+                // Persist as customJvmArgs and point the preset picker at what was
+                // saved (normally "Custom"), so a later Save keeps the generated args
+                // instead of overwriting them with the previously selected preset.
                 ConfigManager.setCustomJvmArgs( generated );
+                GUIUtilities.JFXPlatformRun( () -> selectJvmPresetFor( generated ) );
                 com.micatechnologies.minecraft.launcher.utilities.NotificationManager.success(
                         LocalizationManager.get( "notification.settings.jvmArgsGenerated.title" ),
                         LocalizationManager.get( "notification.settings.jvmArgsGenerated.body" ) );
@@ -2619,16 +2609,85 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
         NetworkUtilities.reloadProxy();
 
-        // Store JVM preset selection
-        String selectedPreset = jvmPresetSelection.getSelectedItem();
-        if ( selectedPreset != null ) {
-            for ( int i = 0; i < ConfigConstants.JVM_PRESET_NAMES.length; i++ ) {
-                if ( ConfigConstants.JVM_PRESET_NAMES[i].equals( selectedPreset ) ) {
-                    ConfigManager.setCustomJvmArgs( ConfigConstants.JVM_PRESET_ARGS[i] );
-                    break;
-                }
+        // Store JVM preset selection: only a preset the user actually picked replaces the
+        // saved args; "Custom" keeps generated or hand-edited args as they are.
+        String argsToSave = jvmArgsToPersist( jvmPresetIndexOf( jvmPresetSelection.getSelectedItem() ),
+                                              ConfigManager.getCustomJvmArgs() );
+        if ( argsToSave != null ) {
+            ConfigManager.setCustomJvmArgs( argsToSave );
+        }
+    }
+
+    /**
+     * Selects the preset whose args equal {@code args}, or the "Custom" entry when none does.
+     * Must run on the FX thread.
+     *
+     * @param args the saved JVM args
+     */
+    private void selectJvmPresetFor( String args ) {
+        int index = jvmPresetIndexForArgs( args );
+        jvmPresetSelection.selectItem( index >= 0
+                                       ? ConfigConstants.JVM_PRESET_NAMES[ index ]
+                                       : LocalizationManager.get( "settings.jvmPreset.custom" ) );
+    }
+
+    /**
+     * Finds the preset whose args string equals {@code args}. Pure, for testing.
+     *
+     * @param args JVM args (may be null)
+     *
+     * @return the index into {@link ConfigConstants#JVM_PRESET_ARGS}, or {@code -1} when the args
+     *         match no preset (they are custom)
+     *
+     * @since 2026.10
+     */
+    static int jvmPresetIndexForArgs( String args ) {
+        for ( int i = 0; i < ConfigConstants.JVM_PRESET_ARGS.length; i++ ) {
+            if ( ConfigConstants.JVM_PRESET_ARGS[ i ].equals( args ) ) {
+                return i;
             }
         }
+        return -1;
+    }
+
+    /**
+     * Maps a preset-picker label to its index in {@link ConfigConstants#JVM_PRESET_NAMES}. Pure,
+     * for testing.
+     *
+     * @param selectedName the picker's selected label (may be null)
+     *
+     * @return the preset's index, or {@code -1} for "Custom", nothing selected, or an unknown label
+     *
+     * @since 2026.10
+     */
+    static int jvmPresetIndexOf( String selectedName ) {
+        for ( int i = 0; i < ConfigConstants.JVM_PRESET_NAMES.length; i++ ) {
+            if ( ConfigConstants.JVM_PRESET_NAMES[ i ].equals( selectedName ) ) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Decides what a save writes to the custom JVM args. Pure, for testing; Save and the
+     * unsaved-changes check both use it, so they cannot disagree.
+     *
+     * @param selectedPresetIndex the picked preset (see {@link #jvmPresetIndexOf}), or {@code -1}
+     *                            for "Custom"
+     * @param savedArgs           the JVM args currently saved
+     *
+     * @return the args to write, or {@code null} when nothing changes: "Custom" is selected, or the
+     *         selected preset's args are already the saved ones
+     *
+     * @since 2026.10
+     */
+    static String jvmArgsToPersist( int selectedPresetIndex, String savedArgs ) {
+        if ( selectedPresetIndex < 0 || selectedPresetIndex >= ConfigConstants.JVM_PRESET_ARGS.length ) {
+            return null;
+        }
+        String presetArgs = ConfigConstants.JVM_PRESET_ARGS[ selectedPresetIndex ];
+        return presetArgs.equals( savedArgs ) ? null : presetArgs;
     }
 
     /**
@@ -2744,15 +2803,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             }
         }
 
-        // JVM preset — persistSettings maps the selected preset name to its args string.
-        String selectedPreset = jvmPresetSelection.getSelectedItem();
-        if ( selectedPreset != null ) {
-            for ( int i = 0; i < ConfigConstants.JVM_PRESET_NAMES.length; i++ ) {
-                if ( ConfigConstants.JVM_PRESET_NAMES[ i ].equals( selectedPreset ) ) {
-                    if ( !ConfigConstants.JVM_PRESET_ARGS[ i ].equals( ConfigManager.getCustomJvmArgs() ) ) return true;
-                    break;
-                }
-            }
+        // JVM preset — dirty only when a save would write different args ("Custom" never does).
+        if ( jvmArgsToPersist( jvmPresetIndexOf( jvmPresetSelection.getSelectedItem() ),
+                               ConfigManager.getCustomJvmArgs() ) != null ) {
+            return true;
         }
 
         // Language override (BCP-47 tag, or empty for OS detection).
