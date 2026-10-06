@@ -1,0 +1,43 @@
+<h1>Connexion</h1>
+
+<p>Mica Minecraft Launcher utilise l'<strong>authentification officielle de Microsoft</strong> pour vérifier votre
+compte Minecraft. Il s'agit du même processus de connexion que celui du lanceur Minecraft officiel.</p>
+
+<h2>Fonctionnement</h2>
+
+<ol class="steps">
+    <li>Cliquez sur <strong>Se connecter</strong> sur l'écran de connexion. Une fenêtre de navigateur s'ouvre sur la page de connexion Microsoft.</li>
+    <li>Saisissez les identifiants de votre compte Microsoft et approuvez la connexion.</li>
+    <li>Une fois l'authentification réussie, la fenêtre du navigateur se ferme et le lanceur passe à
+        l'<a href="help://topic/MAIN_SCREEN">Écran principal</a>.</li>
+</ol>
+
+<h2>Mise en cache du jeton</h2>
+
+<p>Après une connexion réussie, votre jeton d'authentification est mis en cache localement grâce à un
+<strong>chiffrement AES-256-GCM</strong> utilisant une clé dérivée de la machine. Cela signifie que :</p>
+
+<ul>
+    <li>vous n'aurez pas besoin de vous reconnecter pendant environ <strong>4 heures</strong> ;</li>
+    <li>le jeton en cache est chiffré et lié à votre machine : il ne peut être ni transféré ni réutilisé ailleurs ;</li>
+    <li>une fois le cache expiré, le lanceur vous invite à vous reconnecter.</li>
+</ul>
+
+<h2>Résoudre les problèmes de connexion</h2>
+
+<div class="warning">
+    <div class="callout-title">Connexion Internet requise</div>
+    <p>Une connexion Internet active est nécessaire pour la première connexion. Le lanceur ne peut pas
+    vous authentifier en mode entièrement hors ligne.</p>
+</div>
+
+<p>Si vous avez du mal à vous connecter :</p>
+
+<ul>
+    <li><strong>Le navigateur ne s'ouvre pas</strong> — vérifiez qu'un navigateur par défaut est configuré sur votre système.</li>
+    <li><strong>La connexion expire</strong> — vérifiez votre connexion Internet et réessayez.</li>
+    <li><strong>Compte non reconnu</strong> — assurez-vous d'utiliser le compte Microsoft qui possède Minecraft.</li>
+    <li><strong>Demandes de connexion répétées</strong> — le jeton en cache a peut-être expiré. C'est normal après 4 heures d'inactivité.</li>
+</ul>
+
+<p>Si le problème persiste, consultez <a href="help://topic/TROUBLESHOOTING">Dépannage</a>.</p>

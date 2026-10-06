@@ -1,0 +1,59 @@
+<h1>Gestion des environnements Java</h1>
+
+<p>Mica Minecraft Launcher gère automatiquement les runtimes Java : vous n'avez jamais besoin d'installer
+ni de configurer Java vous-même.</p>
+
+<h2>Pourquoi les runtimes sont importants</h2>
+
+<p>Minecraft et Forge nécessitent des versions précises de Java pour fonctionner correctement. Des modpacks et
+des versions de Minecraft différents peuvent nécessiter des runtimes Java différents :</p>
+
+<ul>
+    <li><strong>Minecraft 1.16 et versions antérieures</strong> — Java 8</li>
+    <li><strong>Minecraft 1.17 à 1.20</strong> — Java 17</li>
+    <li><strong>Minecraft 1.21 et versions ultérieures</strong> — Java 21 ou version ultérieure</li>
+</ul>
+
+<p>Le lanceur détecte le runtime requis par chaque modpack ou version vanilla et le télécharge
+automatiquement au premier lancement.</p>
+
+<h2>Téléchargements automatiques</h2>
+
+<p>Lorsque vous lancez un modpack ou une version vanilla pour la première fois, le lanceur vérifie si
+le runtime requis est déjà installé. Si ce n'est pas le cas, il télécharge la bonne version depuis
+les serveurs de distribution de Mojang ou de Liberica. Ce téléchargement n'a lieu qu'une seule fois par version de runtime.</p>
+
+<div class="note">
+    <div class="callout-title">Remarque</div>
+    <p>Les runtimes téléchargés pèsent généralement entre 40 et 80 Mo et sont stockés dans le répertoire de données
+    du lanceur, séparément de toute installation de Java présente sur votre système.</p>
+</div>
+
+<h2>Consulter les runtimes installés</h2>
+
+<p>Ouvrez les <a href="help://topic/SETTINGS">Paramètres</a> et cliquez sur <strong>Gestion des runtimes</strong> pour afficher
+la liste de tous les runtimes Java installés, avec leur version, leur chemin et les modpacks
+qui les utilisent.</p>
+
+<h2>Supprimer les runtimes inutilisés</h2>
+
+<p>Si vous avez supprimé les modpacks qui utilisaient une version de Java donnée, vous pouvez supprimer
+le runtime correspondant pour libérer de l'espace disque. Sélectionnez un runtime dans l'écran de gestion et
+cliquez sur <strong>Supprimer</strong>.</p>
+
+<div class="warning">
+    <div class="callout-title">Avertissement</div>
+    <p>Si vous supprimez un runtime encore nécessaire à un modpack installé, le lanceur
+    le retéléchargera au prochain lancement de ce modpack.</p>
+</div>
+
+<h2>Résoudre les problèmes de runtime</h2>
+
+<p>Si un modpack ne parvient pas à se lancer en raison d'erreurs liées à Java, essayez ce qui suit :</p>
+
+<ol>
+    <li>Ouvrez la Gestion des runtimes et supprimez le runtime utilisé par le modpack concerné.</li>
+    <li>Relancez le modpack : le lanceur retéléchargera une copie neuve.</li>
+    <li>Si le problème persiste, consultez <a href="help://topic/TROUBLESHOOTING">Dépannage</a> pour
+        d'autres étapes.</li>
+</ol>
