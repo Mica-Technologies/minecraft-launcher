@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.mcp.approval;
 
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.mcp.tools.McpCallContext;
 import com.micatechnologies.minecraft.launcher.mcp.tools.McpTool;
@@ -213,7 +214,7 @@ public final class LauncherMcpAuthorizer implements McpAuthorizer
         }
         catch ( Exception e ) {
             // A settings or grant read that blew up has not granted anything.
-            Logger.logError( "MCP could not resolve approval for tool " + tool.name() + "; denying" );
+            Logger.logError( LocalizationManager.format( "log.mcpAuthorizer.resolveFailed", tool.name() ) );
             Logger.logThrowable( e );
             return false;
         }
@@ -223,7 +224,7 @@ public final class LauncherMcpAuthorizer implements McpAuthorizer
             return true;
         }
         if ( decision == McpApprovalDecision.DENY ) {
-            Logger.logStd( "MCP denied " + context.clientName() + " -> " + tool.name() );
+            Logger.logStd( LocalizationManager.format( "log.mcpAuthorizer.denied", context.clientName(), tool.name() ) );
             return false;
         }
 
@@ -234,7 +235,7 @@ public final class LauncherMcpAuthorizer implements McpAuthorizer
             answer = prompt.ask( tool, context, arguments, offerSessionGrant );
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP consent prompt failed for tool " + tool.name() + "; denying" );
+            Logger.logError( LocalizationManager.format( "log.mcpConsent.promptFailed", tool.name() ) );
             Logger.logThrowable( e );
             return false;
         }
@@ -247,8 +248,7 @@ public final class LauncherMcpAuthorizer implements McpAuthorizer
                           now + McpApprovalEngine.DEFAULT_GRANT_TTL_MS );
         }
         boolean allowed = answer != Answer.DENY;
-        Logger.logStd( "MCP " + ( allowed ? "allowed" : "denied" ) + " " + context.clientName()
-                               + " -> " + tool.name() + " (" + answer + ")" );
+        Logger.logStd( LocalizationManager.format( allowed ? "log.mcpAuthorizer.allowedAnswer" : "log.mcpAuthorizer.deniedAnswer", context.clientName(), tool.name(), answer ) );
         return allowed;
     }
 }

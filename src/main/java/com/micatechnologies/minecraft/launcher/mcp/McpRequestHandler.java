@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.mcp;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpAuthorizer;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpRiskClass;
@@ -142,7 +143,7 @@ public final class McpRequestHandler
         // protocol violation, and an unknown notification is explicitly not an error.
         if ( message.isNotification() ) {
             if ( McpMethods.NOTIFICATIONS_INITIALIZED.equals( method ) ) {
-                Logger.logDebug( "MCP client initialized: " + session.getClientName() );
+                Logger.logDebug( LocalizationManager.format( "log.mcpRequestHandler.clientInitialized", session.getClientName() ) );
             }
             return null;
         }
@@ -243,12 +244,12 @@ public final class McpRequestHandler
             rejection = tool.validateBeforeApproval( arguments );
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP pre-approval validation failed for tool " + name + "; refusing" );
+            Logger.logError( LocalizationManager.format( "log.mcpRequestHandler.preApprovalFailed", name ) );
             Logger.logThrowable( e );
             rejection = "The request could not be validated.";
         }
         if ( rejection != null ) {
-            Logger.logStd( "MCP refused " + name + " before approval: " + rejection );
+            Logger.logStd( LocalizationManager.format( "log.mcpRequestHandler.refusedBeforeApproval", name, rejection ) );
             activityLog.record( System.currentTimeMillis(), context.clientName(), name,
                                 McpActivityLog.Decision.REFUSED, rejection );
             return JsonRpcCodec.error( message.id(), McpErrors.INVALID_PARAMS, rejection );
@@ -260,7 +261,7 @@ public final class McpRequestHandler
         }
         catch ( Exception e ) {
             // Fail closed: an authorizer that blew up has not granted anything.
-            Logger.logError( "MCP approval check failed for tool " + name + "; denying" );
+            Logger.logError( LocalizationManager.format( "log.mcpRequestHandler.toolApprovalFailed", name ) );
             Logger.logThrowable( e );
             allowed = false;
         }
@@ -287,7 +288,7 @@ public final class McpRequestHandler
             // The exception's own message is deliberately not returned. It routinely carries
             // absolute paths, and could carry command lines; the log is where the detail
             // belongs, not the wire.
-            Logger.logError( "MCP tool " + name + " failed" );
+            Logger.logError( LocalizationManager.format( "log.mcpRequestHandler.toolFailed", name ) );
             Logger.logThrowable( e );
             // The exception's message is not recorded either: the activity view is shown in
             // Settings, and exception text carries paths and can carry command lines.
@@ -337,7 +338,7 @@ public final class McpRequestHandler
         }
         catch ( Exception e ) {
             // Fail closed, exactly as for a tool call.
-            Logger.logError( "MCP approval check failed for resource " + uri + "; denying" );
+            Logger.logError( LocalizationManager.format( "log.mcpRequestHandler.resourceApprovalFailed", uri ) );
             Logger.logThrowable( e );
             allowed = false;
         }
@@ -353,7 +354,7 @@ public final class McpRequestHandler
             text = match.resource().read( match.params() );
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP resource read failed: " + uri );
+            Logger.logError( LocalizationManager.format( "log.mcpRequestHandler.resourceReadFailed", uri ) );
             Logger.logThrowable( e );
             activityLog.record( System.currentTimeMillis(), context.clientName(), gate.name(),
                                 McpActivityLog.Decision.FAILED, detail );

@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.mcp.tools;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
@@ -68,7 +69,7 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
             return Outcome.ok( "Installed the modpack from " + url + "." );
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP install failed for " + url );
+            Logger.logError( LocalizationManager.format( "log.mcpActions.installFailed", url ) );
             Logger.logThrowable( e );
             return Outcome.failed( "The install failed. The URL may not point at a valid modpack "
                                            + "manifest, or the download may have been interrupted." );
@@ -86,7 +87,7 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
             return Outcome.ok( "Uninstalled \"" + friendlyName + "\" and deleted its files." );
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP uninstall failed for " + friendlyName );
+            Logger.logError( LocalizationManager.format( "log.mcpActions.uninstallFailed", friendlyName ) );
             Logger.logThrowable( e );
             return Outcome.failed( "The uninstall failed. Some files may still be on disk." );
         }
@@ -115,7 +116,7 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
                     LauncherCore.playAs( pack, forcedAccount );
                 }
                 catch ( Exception e ) {
-                    Logger.logError( "MCP-initiated launch of " + friendlyName + " failed" );
+                    Logger.logError( LocalizationManager.format( "log.mcpActions.launchFailed", friendlyName ) );
                     Logger.logThrowable( e );
                 }
             } );
@@ -125,7 +126,7 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
                                        + "launcher's Running Games window; call list_running_games to follow it." );
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP could not start a launch of " + friendlyName );
+            Logger.logError( LocalizationManager.format( "log.mcpActions.launchStartFailed", friendlyName ) );
             Logger.logThrowable( e );
             return Outcome.failed( "The launch could not be started." );
         }
@@ -201,7 +202,7 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
             return Outcome.failed( "\"" + friendlyName + "\" is not running." );
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP could not stop the running game" );
+            Logger.logError( LocalizationManager.get( "log.mcpActions.stopGameFailed" ) );
             Logger.logThrowable( e );
             return Outcome.failed( "The game could not be stopped." );
         }
@@ -227,7 +228,7 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
             return installAuthored( document, "Created" );
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP could not create modpack " + name );
+            Logger.logError( LocalizationManager.format( "log.mcpActions.createFailed", name ) );
             Logger.logThrowable( e );
             return Outcome.failed( "The modpack could not be created." );
         }
@@ -246,7 +247,7 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
                     + "\" into" );
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP could not fork " + sourceFriendlyName );
+            Logger.logError( LocalizationManager.format( "log.mcpActions.forkFailed", sourceFriendlyName ) );
             Logger.logThrowable( e );
             return Outcome.failed( "The fork failed." );
         }
@@ -336,7 +337,7 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
             return outcome;
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP could not edit the manifest for " + friendlyName );
+            Logger.logError( LocalizationManager.format( "log.mcpActions.editManifestFailed", friendlyName ) );
             Logger.logThrowable( e );
             return Outcome.failed( "The manifest could not be updated." );
         }
@@ -498,7 +499,7 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
             GameModPackManager.fetchModPackInfo();
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "MCP could not refresh the modpack list after an edit" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.mcpActions.refreshAfterEditFailed" ) );
         }
     }
 

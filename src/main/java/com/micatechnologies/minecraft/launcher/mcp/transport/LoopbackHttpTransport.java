@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.mcp.transport;
 
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.JsonRpcCodec;
 import com.sun.net.httpserver.HttpExchange;
@@ -305,7 +306,7 @@ public final class LoopbackHttpTransport
             sendJson( exchange, response.status(), JsonRpcCodec.encode( response.json() ) );
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP transport failed while serving a request" );
+            Logger.logError( LocalizationManager.get( "log.mcpTransport.serveFailed" ) );
             Logger.logThrowable( e );
             sendEmpty( exchange, 500 );
         }
