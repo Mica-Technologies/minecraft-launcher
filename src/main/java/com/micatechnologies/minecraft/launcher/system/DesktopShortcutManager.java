@@ -58,7 +58,7 @@ public class DesktopShortcutManager
         String shortcutName = sanitizeFileName( packName );
         File desktopDir = getDesktopDirectory();
         if ( desktopDir == null || !desktopDir.isDirectory() ) {
-            throw new IOException( "Unable to locate the desktop directory." );
+            throw new IOException( LocalizationManager.get( "shortcut.error.noDesktop" ) );
         }
 
         // Resolve the launcher executable path and build the launch command
@@ -511,7 +511,7 @@ public class DesktopShortcutManager
                             + LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " " + safePackArg;
             }
             catch ( Exception e ) {
-                throw new IOException( "Unable to resolve JAR path for shortcut.", e );
+                throw new IOException( LocalizationManager.get( "shortcut.error.resolveJar" ), e );
             }
         }
 
@@ -559,7 +559,7 @@ public class DesktopShortcutManager
             // Bound the wait so a hung PowerShell can't stall shortcut creation forever.
             if ( !process.waitFor( 30, java.util.concurrent.TimeUnit.SECONDS ) ) {
                 process.destroyForcibly();
-                throw new IOException( "PowerShell shortcut creation timed out." );
+                throw new IOException( LocalizationManager.get( "shortcut.error.timedOut" ) );
             }
             drain.join( 1000 );
             int exitCode = process.exitValue();
@@ -568,14 +568,14 @@ public class DesktopShortcutManager
                 synchronized ( outputBuf ) {
                     output = outputBuf.toString();
                 }
-                throw new IOException( "PowerShell shortcut creation failed (exit " + exitCode + "): "
-                                               + output.trim() );
+                throw new IOException( LocalizationManager.format( "shortcut.error.powershellFailed",
+                                                                   String.valueOf( exitCode ), output.trim() ) );
             }
         }
         catch ( InterruptedException e ) {
             process.destroyForcibly();
             Thread.currentThread().interrupt();
-            throw new IOException( "Shortcut creation was interrupted.", e );
+            throw new IOException( LocalizationManager.get( "shortcut.error.interrupted" ), e );
         }
     }
 
