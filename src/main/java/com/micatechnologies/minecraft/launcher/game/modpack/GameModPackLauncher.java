@@ -122,7 +122,10 @@ class GameModPackLauncher
      */
     void checkCancelled() throws ModpackException
     {
-        if ( cancellationCheck.getAsBoolean() ) {
+        // A parallel branch checks its own launch's flag, captured when the branch started:
+        // the shared field is reset when the launch ends, and replaced by the next launch's.
+        java.util.function.BooleanSupplier branch = BRANCH_CANCELLED.get();
+        if ( ( branch != null ? branch : cancellationCheck ).getAsBoolean() ) {
             throw new ModpackException( "Launch cancelled by user" );
         }
     }
@@ -141,6 +144,79 @@ class GameModPackLauncher
      * and, on low-core machines, effectively serializes the "parallel" branches
      * and starves any other {@code parallelStream} user during a launch.
      */
+    /** How long a cancelled or failed launch waits for its parallel branches to stop before it
+     *  returns, so a relaunch of the same pack doesn't run alongside the leftovers. */
+    private static final long BRANCH_STOP_WAIT_MS = 10_000;
+
+    /** The cancellation check of the launch a {@link #LAUNCH_IO_POOL} branch belongs to; set for
+     *  the branch's duration. See {@link #checkCancelled()}. */
+    private static final ThreadLocal< java.util.function.BooleanSupplier > BRANCH_CANCELLED = new ThreadLocal<>();
+
+    /**
+     * The parallel branches of one launch: lets the launch stop them for real. Cancelling a
+     * {@code CompletableFuture} only marks it; the branch kept downloading, and once the launch
+     * ended (resetting the shared cancellation check) it saw "not cancelled" at every
+     * checkpoint, so a relaunch of the same pack ran alongside it in the same folder.
+     */
+    static final class Branches
+    {
+        private final java.util.concurrent.atomic.AtomicBoolean abort = new java.util.concurrent.atomic.AtomicBoolean();
+        private final java.util.Set< Thread > threads = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        private final java.util.concurrent.CountDownLatch done;
+        private final java.util.function.BooleanSupplier cancelled;
+
+        Branches( int count, java.util.function.BooleanSupplier launchCancelled )
+        {
+            done = new java.util.concurrent.CountDownLatch( count );
+            cancelled = () -> abort.get() || launchCancelled.getAsBoolean();
+        }
+
+        /** Starts a branch on the launch I/O pool. */
+        < T > java.util.concurrent.CompletableFuture< T > start( LaunchStep< T > body )
+        {
+            return java.util.concurrent.CompletableFuture.supplyAsync( () -> {
+                Thread self = Thread.currentThread();
+                threads.add( self );
+                BRANCH_CANCELLED.set( cancelled );
+                try {
+                    return body.run();
+                }
+                catch ( Throwable t ) {
+                    throw rethrowAsCompletion( t );
+                }
+                finally {
+                    BRANCH_CANCELLED.remove();
+                    threads.remove( self );
+                    Thread.interrupted();  // don't hand an interrupt on to the pool's next task
+                    done.countDown();
+                }
+            }, LAUNCH_IO_POOL );
+        }
+
+        /** Stops every branch still running (each sees the abort at its next checkpoint, and a
+         *  blocking wait is interrupted) and waits a bounded time for them to finish. Keeps the
+         *  caller's interrupt status. */
+        void abortAndWait()
+        {
+            abort.set( true );
+            threads.forEach( Thread::interrupt );
+            boolean interrupted = Thread.interrupted();
+            try {
+                if ( !done.await( BRANCH_STOP_WAIT_MS, java.util.concurrent.TimeUnit.MILLISECONDS ) ) {
+                    Logger.logWarningSilent( LocalizationManager.get( "log.gameModPackLauncher.branchesStillRunning" ) );
+                }
+            }
+            catch ( InterruptedException e ) {
+                interrupted = true;
+            }
+            finally {
+                if ( interrupted ) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
     private static final java.util.concurrent.ExecutorService LAUNCH_IO_POOL =
             java.util.concurrent.Executors.newCachedThreadPool( r -> {
                 Thread t = new Thread( r, "mica-launch-io" );
@@ -418,35 +494,15 @@ class GameModPackLauncher
             final StepProgressHandle jreH = handleFor( bridge,
                     LaunchProgressTracker.StepId.JRE_INSTALL );
 
-            java.util.concurrent.CompletableFuture< Void > branchModpackContent =
-                    java.util.concurrent.CompletableFuture.runAsync( () -> {
-                        try {
-                            doModpackContent( modpackContentH );
-                        }
-                        catch ( Throwable t ) {
-                            throw rethrowAsCompletion( t );
-                        }
-                    }, LAUNCH_IO_POOL );
-
+            final Branches branches = new Branches( 3, cancellationCheck );
+            java.util.concurrent.CompletableFuture< Void > branchModpackContent = branches.start( () -> {
+                doModpackContent( modpackContentH );
+                return null;
+            } );
             java.util.concurrent.CompletableFuture< String > branchForgeLibs =
-                    java.util.concurrent.CompletableFuture.supplyAsync( () -> {
-                        try {
-                            return doForgeLibs( forgeLibsH );
-                        }
-                        catch ( Throwable t ) {
-                            throw rethrowAsCompletion( t );
-                        }
-                    }, LAUNCH_IO_POOL );
-
+                    branches.start( () -> doForgeLibs( forgeLibsH ) );
             java.util.concurrent.CompletableFuture< McLibsAndJreResult > branchMcLibsJre =
-                    java.util.concurrent.CompletableFuture.supplyAsync( () -> {
-                        try {
-                            return doMcLibsThenJre( mcLibsH, jreH );
-                        }
-                        catch ( Throwable t ) {
-                            throw rethrowAsCompletion( t );
-                        }
-                    }, LAUNCH_IO_POOL );
+                    branches.start( () -> doMcLibsThenJre( mcLibsH, jreH ) );
 
             try {
                 java.util.concurrent.CompletableFuture.allOf( branchModpackContent,
@@ -466,6 +522,7 @@ class GameModPackLauncher
                 // may finish in the background, but the user has already moved on.
                 Thread.currentThread().interrupt();
                 cancelSiblings( branchModpackContent, branchForgeLibs, branchMcLibsJre );
+                branches.abortAndWait();
                 throw new ModpackException( "Pre-launch cancelled", ie );
             }
             catch ( java.util.concurrent.ExecutionException ee ) {
@@ -473,10 +530,12 @@ class GameModPackLauncher
                 // half-cancelled progress card finish three more steps after the X
                 // already appeared on the failed row.
                 cancelSiblings( branchModpackContent, branchForgeLibs, branchMcLibsJre );
+                branches.abortAndWait();
                 throw unwrapModpackException( ee );
             }
             catch ( java.util.concurrent.CompletionException ce ) {
                 cancelSiblings( branchModpackContent, branchForgeLibs, branchMcLibsJre );
+                branches.abortAndWait();
                 throw unwrapModpackException( ce );
             }
 
