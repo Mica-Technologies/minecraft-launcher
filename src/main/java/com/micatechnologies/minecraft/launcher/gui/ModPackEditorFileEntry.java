@@ -18,7 +18,9 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
@@ -92,14 +94,14 @@ public class ModPackEditorFileEntry
     private final StringProperty modrinthSlug = new SimpleStringProperty( "" );
 
     /**
-     * Transient, UI-only result of the editor's "Check URLs" action (e.g. "OK",
-     * "404", "ERR"). NOT part of the persisted modpack document: it is never read by
-     * the editor's collectFieldsToDocument() and is reset on each check. Empty when
-     * the entry's URL has not been checked.
+     * Transient, UI-only result of the editor's "Check URLs" action. NOT part of the
+     * persisted modpack document: it is never read by the editor's
+     * collectFieldsToDocument() and is reset on each check. {@code null} when the
+     * entry's URL has not been checked.
      *
      * @since 3.0
      */
-    private final StringProperty urlStatus = new SimpleStringProperty( "" );
+    private final ObjectProperty< UrlCheck > urlStatus = new SimpleObjectProperty<>( null );
 
     /**
      * Round-trip preservation for the OTHER hash types (i.e. the ones not currently
@@ -375,33 +377,46 @@ public class ModPackEditorFileEntry
     public void setModrinthSlug( String value ) { modrinthSlug.set( value != null ? value : "" ); }
 
     /**
-     * Returns the JavaFX property backing the transient URL-check status, for TableView cell binding.
+     * One result of the editor's "Check URLs" action: whether the URL was reachable, plus the
+     * text the status column shows for it (a localized "OK", an HTTP status code, or a localized
+     * error marker). Callers decide reachable/unreachable from {@link #ok()}, never by comparing
+     * the label, which is localized.
      *
-     * @return the URL status property
+     * @param ok    whether the URL answered with a 2xx/3xx status
+     * @param label the display text for the status column
      *
-     * @since 3.0
+     * @since 2026.10
      */
-    public StringProperty urlStatusProperty() { return urlStatus; }
+    public record UrlCheck( boolean ok, String label ) { }
 
     /**
-     * Returns the transient result of the editor's "Check URLs" action for this entry (e.g.
-     * {@code "OK"}, {@code "404"}, {@code "ERR"}), or the empty string when not yet checked.
+     * Returns the JavaFX property backing the transient URL-check result, for TableView cell
+     * binding. Holds {@code null} while the URL has not been checked.
      *
-     * @return the URL-check status string
+     * @return the URL check property
      *
      * @since 3.0
      */
-    public String getUrlStatus() { return urlStatus.get(); }
+    public ObjectProperty< UrlCheck > urlStatusProperty() { return urlStatus; }
 
     /**
-     * Sets the transient URL-check status for this entry. {@code null} is coalesced to the empty
-     * string.
+     * Returns the transient result of the editor's "Check URLs" action for this entry, or
+     * {@code null} when not yet checked.
      *
-     * @param value the new URL-check status; {@code null} clears it to the empty string
+     * @return the URL-check result, or {@code null}
      *
      * @since 3.0
      */
-    public void setUrlStatus( String value ) { urlStatus.set( value != null ? value : "" ); }
+    public UrlCheck getUrlStatus() { return urlStatus.get(); }
+
+    /**
+     * Sets the transient URL-check result for this entry.
+     *
+     * @param value the new URL-check result; {@code null} marks the URL as unchecked
+     *
+     * @since 3.0
+     */
+    public void setUrlStatus( UrlCheck value ) { urlStatus.set( value ); }
 
     /**
      * Stores a non-primary hash for round-trip preservation. {@code algo} is
