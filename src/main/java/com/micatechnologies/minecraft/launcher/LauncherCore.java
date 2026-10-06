@@ -171,7 +171,10 @@ public class LauncherCore
         // Before anything that can fail: the main log only exists once the session starts, so a
         // launch that ends earlier would otherwise leave no trace (see StartupDiagnostics).
         StartupDiagnostics.installUncaughtExceptionHandler();
-        StartupDiagnostics.recordLaunch( args );
+        // Not the --mcp relay: MCP clients spawn it often, and it would crowd out the launches.
+        if ( args.length == 0 || !LauncherConstants.PROGRAM_ARG_MCP.equalsIgnoreCase( args[ 0 ] ) ) {
+            StartupDiagnostics.recordLaunch( args );
+        }
 
         // Raise the per-host keep-alive connection cap for the legacy
         // HttpURLConnection stack (JDK default is 5). The launcher fans out
@@ -372,9 +375,11 @@ public class LauncherCore
             return;
         }
 
-        String message = result == SingleInstanceLock.ForwardResult.DELIVERED_NO_WINDOW
-                         ? LocalizationManager.get( "startup.alreadyRunning.noWindow" )
-                         : LocalizationManager.format( "startup.portUnavailable", String.valueOf( port ), reason );
+        String message = switch ( result ) {
+            case DELIVERED_NO_WINDOW -> LocalizationManager.get( "startup.alreadyRunning.noWindow" );
+            case REJECTED -> LocalizationManager.get( "startup.alreadyRunning.unreachable" );
+            default -> LocalizationManager.format( "startup.portUnavailable", String.valueOf( port ), reason );
+        };
         if ( tui || java.awt.GraphicsEnvironment.isHeadless() ) {
             System.err.println( message );
         }
