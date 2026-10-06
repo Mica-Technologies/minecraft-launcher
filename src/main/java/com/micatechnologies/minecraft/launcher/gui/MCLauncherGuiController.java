@@ -44,8 +44,9 @@ public class MCLauncherGuiController
     /** Whether {@link #startGui()} has successfully constructed the window; gates
      *  every accessor so off-thread callers never see a partially-initialized GUI. */
     private static final AtomicBoolean       startSuccess = new AtomicBoolean( false );
-    /** The launcher's single GUI window, or {@code null} before start / after exit. */
-    private static       MCLauncherGuiWindow guiWindow    = null;
+    /** The launcher's single GUI window, or {@code null} before start / after exit. Volatile:
+     *  read from any thread (every error dialog asks for the top stage) while exit() clears it. */
+    private static volatile MCLauncherGuiWindow guiWindow = null;
 
     /**
      * Returns the launcher's top-level {@link Stage}, or {@code null} when the
@@ -56,7 +57,9 @@ public class MCLauncherGuiController
      * @since 1.0
      */
     public static Stage getTopStageOrNull() {
-        return startSuccess.get() && guiWindow != null ? guiWindow.getStage() : null;
+        // Read once: exit() can clear the field between a check and a second read.
+        MCLauncherGuiWindow window = guiWindow;
+        return startSuccess.get() && window != null ? window.getStage() : null;
     }
 
     /**

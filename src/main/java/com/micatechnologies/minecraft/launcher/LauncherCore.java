@@ -555,7 +555,14 @@ public class LauncherCore
                         } );
                     }
                 } );
-        registry.addListener( () -> follower.update( registry.sessions() ) );
+        // Snapshot inside the follower's lock (update is synchronized on it): taken outside, two
+        // changes on different threads (one game exiting as another starts) could apply their
+        // snapshots out of order and leave Discord and RGB showing no game while one runs.
+        registry.addListener( () -> {
+            synchronized ( follower ) {
+                follower.update( registry.sessions() );
+            }
+        } );
     }
 
     /**
