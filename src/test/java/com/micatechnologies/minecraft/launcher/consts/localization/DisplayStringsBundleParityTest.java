@@ -423,4 +423,44 @@ class DisplayStringsBundleParityTest
         }
         assertTrue( found.isEmpty(), "XML entities: " + found );
     }
+
+    /**
+     * A plural pattern ({@code {0,choice,...}}) must parse and resolve in every bundle.
+     * {@link LocalizationManager#format} swallows a malformed pattern and falls back to the
+     * raw template, so a broken choice in one translation would otherwise fail silently and
+     * show the pattern syntax to the user. Formats each one through the same apostrophe
+     * escaping {@code format} applies, for a zero, a singular and a plural count.
+     */
+    @Test
+    void choicePatternsFormatInEveryBundle()
+            throws IOException
+    {
+        java.util.List< String > broken = new ArrayList<>();
+        java.util.Map< String, Properties > bundles = new java.util.LinkedHashMap<>();
+        bundles.put( "en", english );
+        for ( SupportedLocales.Entry entry : SupportedLocales.ENTRIES ) {
+            bundles.put( entry.tag(), loadShippedLocaleFile( entry ) );
+        }
+        for ( var bundle : bundles.entrySet() ) {
+            for ( String key : bundle.getValue().stringPropertyNames() ) {
+                String value = bundle.getValue().getProperty( key );
+                if ( !value.contains( ",choice," ) ) {
+                    continue;
+                }
+                for ( int n : new int[]{ 0, 1, 5 } ) {
+                    try {
+                        String out = new MessageFormat( LocalizationManager.escapeApostrophes( value ), Locale.ROOT )
+                                .format( new Object[]{ n } );
+                        if ( out.contains( "{" ) || out.contains( "|" ) || !out.contains( String.valueOf( n ) ) ) {
+                            broken.add( bundle.getKey() + ":" + key + " n=" + n + " -> " + out );
+                        }
+                    }
+                    catch ( IllegalArgumentException e ) {
+                        broken.add( bundle.getKey() + ":" + key + " n=" + n + " -> " + e.getMessage() );
+                    }
+                }
+            }
+        }
+        assertTrue( broken.isEmpty(), "Choice patterns that don't format: " + broken );
+    }
 }

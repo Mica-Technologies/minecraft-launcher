@@ -244,15 +244,36 @@ public final class MCLauncherImportConfirmDialog
      */
     private static String buildTotalsText( int mods, int configs, int rps, int sps, int other, long totalBytes )
     {
-        StringBuilder sb = new StringBuilder();
-        sb.append( LocalizationManager.format( mods == 1 ? "importConfirm.totals.mod" : "importConfirm.totals.mods", mods ) );
-        if ( configs > 0 ) sb.append( ", " ).append( LocalizationManager.format( configs == 1 ? "importConfirm.totals.config" : "importConfirm.totals.configs", configs ) );
-        if ( rps > 0 )     sb.append( ", " ).append( LocalizationManager.format( rps == 1 ? "importConfirm.totals.resourcePack" : "importConfirm.totals.resourcePacks", rps ) );
-        if ( sps > 0 )     sb.append( ", " ).append( LocalizationManager.format( sps == 1 ? "importConfirm.totals.shaderPack" : "importConfirm.totals.shaderPacks", sps ) );
-        if ( other > 0 )   sb.append( ", " ).append( LocalizationManager.format( other == 1 ? "importConfirm.totals.otherFile" : "importConfirm.totals.otherFiles", other ) );
+        // Each count key is a MessageFormat choice pattern, so the plural form is chosen per
+        // language in the bundle rather than by an English "== 1" test here. The list separator
+        // and the size separator are keys too, since both differ by script (、 / ، / ,).
+        String text = LocalizationManager.format( "importConfirm.totals.mods", mods );
+        text = appendCount( text, "importConfirm.totals.configs", configs );
+        text = appendCount( text, "importConfirm.totals.resourcePacks", rps );
+        text = appendCount( text, "importConfirm.totals.shaderPacks", sps );
+        text = appendCount( text, "importConfirm.totals.otherFiles", other );
         String size = formatBytes( totalBytes );
-        if ( size != null ) sb.append( "  ·  " ).append( LocalizationManager.format( "importConfirm.totals.size", size ) );
-        return sb.toString();
+        if ( size != null ) {
+            text = LocalizationManager.format( "importConfirm.totals.withSize", text,
+                                               LocalizationManager.format( "importConfirm.totals.size", size ) );
+        }
+        return text;
+    }
+
+    /**
+     * Appends one localized category count to the totals list, or returns the list unchanged
+     * when the count is zero.
+     *
+     * @param list  the totals text so far
+     * @param key   the category's choice-pattern key
+     * @param count the number of entries in the category
+     * @return the list with the count joined on, localized
+     * @since 2026.10
+     */
+    private static String appendCount( String list, String key, int count )
+    {
+        if ( count <= 0 ) return list;
+        return LocalizationManager.format( "importConfirm.totals.join", list, LocalizationManager.format( key, count ) );
     }
 
     /**
