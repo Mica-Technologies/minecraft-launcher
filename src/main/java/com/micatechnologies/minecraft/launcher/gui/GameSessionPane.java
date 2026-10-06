@@ -50,7 +50,10 @@ import javafx.scene.shape.Circle;
 import javafx.util.Duration;
 
 import java.awt.Desktop;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -77,7 +80,11 @@ final class GameSessionPane
     private final VBox   progressView;
     private       LaunchProgressTracker boundTracker;
     private final LaunchProgressTracker.Listener trackerListener = step -> queueStepsRefresh();
-    private       boolean stepsRefreshQueued;
+    /** Set while a steps refresh is queued on the FX thread; tracker events arrive off it. */
+    private final AtomicBoolean stepsRefreshQueued = new AtomicBoolean();
+    /** The bound tracker's rows, built once per tracker and updated in place. */
+    private final Map< LaunchProgressTracker.StepId, StepRow > stepRows =
+            new EnumMap<>( LaunchProgressTracker.StepId.class );
 
     // Running and after
     private final VBox      logView;
@@ -336,62 +343,82 @@ final class GameSessionPane
             boundTracker.removeListener( trackerListener );
         }
         boundTracker = tracker;
+        // The tracker's step list is fixed, so its rows are built once here and only updated
+        // afterwards: rebuilding them per event made fresh labels and an animated bar each time.
+        stepsBox.getChildren().clear();
+        stepRows.clear();
         if ( tracker != null ) {
+            for ( LaunchProgressTracker.Step step : tracker.steps() ) {
+                StepRow row = new StepRow( step );
+                stepRows.put( step.id(), row );
+                stepsBox.getChildren().add( row.container );
+            }
             tracker.addListener( trackerListener );
         }
         refreshSteps();
     }
 
-    /** Coalesces a burst of tracker updates into one repaint. */
+    /**
+     * Coalesces a burst of tracker updates into one repaint. Called off the FX thread; only the
+     * first event since the last repaint posts one, the rest are picked up by it.
+     */
     private void queueStepsRefresh()
     {
-        Platform.runLater( () -> {
-            if ( stepsRefreshQueued ) {
-                return;
-            }
-            stepsRefreshQueued = true;
+        if ( stepsRefreshQueued.compareAndSet( false, true ) ) {
             Platform.runLater( () -> {
-                stepsRefreshQueued = false;
+                stepsRefreshQueued.set( false );
                 refreshSteps();
             } );
-        } );
+        }
     }
 
     private void refreshSteps()
     {
-        if ( disposed ) {
-            return;
-        }
-        stepsBox.getChildren().clear();
-        if ( boundTracker == null ) {
+        if ( disposed || boundTracker == null ) {
             return;
         }
         for ( LaunchProgressTracker.Step step : boundTracker.steps() ) {
-            stepsBox.getChildren().add( stepRow( step ) );
+            StepRow row = stepRows.get( step.id() );
+            if ( row != null ) {
+                row.render( step );
+            }
         }
     }
 
-    private static HBox stepRow( LaunchProgressTracker.Step step )
+    /** One launch step's row: its badge, label, detail line and (while running) progress bar. */
+    private static final class StepRow
     {
-        StepBadge icon = new StepBadge( step.state() );
-        Label label = new Label( step.displayLabel() );
-        VBox text = new VBox( 2, label );
-        String detail = step.state() == LaunchProgressTracker.State.FAILED ? step.errorMessage() : step.subText();
-        if ( detail != null && !detail.isBlank() ) {
-            Label sub = new Label( detail );
+        final HBox            container;
+        final StepBadge       icon;
+        final Label           sub = new Label();
+        final WavyProgressBar bar = new WavyProgressBar();
+
+        StepRow( LaunchProgressTracker.Step step )
+        {
+            icon = new StepBadge( step.state() );
+            Label label = new Label( step.displayLabel() );
             sub.getStyleClass().add( "muted" );
             sub.setWrapText( true );
-            text.getChildren().add( sub );
-        }
-        if ( step.state() == LaunchProgressTracker.State.RUNNING ) {
-            WavyProgressBar bar = new WavyProgressBar( step.progress() > 0 ? step.progress() : -1 );
             bar.setMaxWidth( Double.MAX_VALUE );
-            text.getChildren().add( bar );
+            VBox text = new VBox( 2, label, sub, bar );
+            HBox.setHgrow( text, Priority.ALWAYS );
+            container = new HBox( 10, icon, text );
+            container.setAlignment( Pos.TOP_LEFT );
         }
-        HBox.setHgrow( text, Priority.ALWAYS );
-        HBox row = new HBox( 10, icon, text );
-        row.setAlignment( Pos.TOP_LEFT );
-        return row;
+
+        void render( LaunchProgressTracker.Step step )
+        {
+            icon.setState( step.state() );
+            String detail = step.state() == LaunchProgressTracker.State.FAILED ? step.errorMessage() : step.subText();
+            boolean hasDetail = detail != null && !detail.isBlank();
+            sub.setText( hasDetail ? detail : "" );
+            setShown( sub, hasDetail );
+            boolean running = step.state() == LaunchProgressTracker.State.RUNNING;
+            if ( running ) {
+                bar.setProgress( step.progress() > 0 ? step.progress() : -1 );
+            }
+            setShown( bar, running );
+        }
     }
 
     // ------------------------------------------------------------------ log
