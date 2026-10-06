@@ -326,6 +326,25 @@ public class Logger
     }
 
     /**
+     * Logs an error and shows it on the GUI without waiting for the user to dismiss it. Use this
+     * instead of {@link #logError} wherever the caller may hold a lock: {@code logError} blocks
+     * until the dialog closes, and the dialog itself needs the FX thread, which may in turn be
+     * waiting on that lock (the dialog's theming reads the config, for one). That froze the
+     * launcher for good on, for example, a config write error.
+     *
+     * @param errorLog error to log
+     *
+     * @since 2026.10
+     */
+    public static void logErrorAsync( String errorLog ) {
+        logErrorSilent( errorLog );
+        Stage jfxStage = MCLauncherGuiController.getTopStageOrNull();
+        if ( jfxStage != null ) {
+            javafx.application.Platform.runLater( () -> GUIUtilities.showErrorMessage( errorLog, jfxStage ) );
+        }
+    }
+
+    /**
      * Variant of {@link #logError} for errors whose user-facing message was
      * deliberately structured across multiple lines (bullet lists, paragraph
      * breaks). Routes through {@link GUIUtilities#showErrorMessageMultiline}
@@ -411,6 +430,12 @@ public class Logger
      */
     private static volatile boolean configBackedDebugReady = false;
 
+    /** The user's debug-logging setting, cached so {@link #logDebug} never takes the config locks.
+     *  Reading it through ConfigManager on every debug line made the config writer (which logs
+     *  while holding ConfigStore's lock) take ConfigManager's lock, the reverse of every config
+     *  getter's order: an intermittent deadlock. Kept current by {@link #setDebugLoggingEnabled}. */
+    private static volatile boolean debugLoggingEnabled = false;
+
     /**
      * Marks the launcher as past the game-mode bootstrap so {@link #logDebug}
      * is safe to consult {@link ConfigManager#getDebugLogging()}. Must be
@@ -418,7 +443,19 @@ public class Logger
      * config-path resolver uses the right per-mode folder.
      */
     public static void enableConfigBackedDebugLogging() {
+        debugLoggingEnabled = ConfigManager.getDebugLogging();
         configBackedDebugReady = true;
+    }
+
+    /**
+     * Updates the cached debug-logging setting. Called when the setting is saved.
+     *
+     * @param enabled whether debug lines are logged
+     *
+     * @since 2026.10
+     */
+    public static void setDebugLoggingEnabled( boolean enabled ) {
+        debugLoggingEnabled = enabled;
     }
 
     /**
@@ -441,7 +478,7 @@ public class Logger
         if ( !configBackedDebugReady ) {
             return;
         }
-        if ( ConfigManager.getDebugLogging() ) {
+        if ( debugLoggingEnabled ) {
             System.out.println( logDebugPrefix + SensitiveDataRedactor.redact( debugLog ) );
         }
     }

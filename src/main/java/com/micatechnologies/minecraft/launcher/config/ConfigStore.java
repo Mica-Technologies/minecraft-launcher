@@ -534,7 +534,7 @@ public final class ConfigStore
             // the user (or support) can dig through the broken JSON to recover
             // settings or diagnose the corruption.
             preserveCorruptConfigFile( configFile );
-            Logger.logError( LocalizationManager.CONFIG_EXISTS_CORRUPT_RESET_ERROR_TEXT );
+            Logger.logErrorAsync( LocalizationManager.CONFIG_EXISTS_CORRUPT_RESET_ERROR_TEXT );
             if ( parseError != null ) {
                 Logger.logThrowable( parseError );
             }
@@ -628,7 +628,7 @@ public final class ConfigStore
      */
     private static synchronized void writeNow() {
         if ( json == null ) {
-            Logger.logError( LocalizationManager.CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT );
+            Logger.logErrorAsync( LocalizationManager.CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT );
             return;
         }
         // The atomic write below goes through a FileChannel, which is an
@@ -653,7 +653,7 @@ public final class ConfigStore
                     wasInterrupted = true;
                     Thread.interrupted();  // clear the flag the interrupt re-set, then retry
                     if ( attempt >= 2 ) {
-                        Logger.logError( LocalizationManager.CONFIG_SAVE_ERROR_TEXT );
+                        Logger.logErrorAsync( LocalizationManager.CONFIG_SAVE_ERROR_TEXT );
                         Logger.logThrowable( ie );
                         return;
                     }
@@ -775,7 +775,7 @@ public final class ConfigStore
             throw ie;
         }
         catch ( Exception e ) {
-            Logger.logError( LocalizationManager.CONFIG_SAVE_ERROR_TEXT );
+            Logger.logErrorAsync( LocalizationManager.CONFIG_SAVE_ERROR_TEXT );
             Logger.logThrowable( e );
             // Best-effort cleanup of the temp file so a failed write
             // doesn't leave .tmp debris that confuses the next launch.
