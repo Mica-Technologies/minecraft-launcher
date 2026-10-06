@@ -28,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 
+import static com.micatechnologies.minecraft.launcher.consts.localization.LocalizedMessages.assertFromKey;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -99,7 +100,7 @@ class BoundedZipExtractionTest
         IOException ex = assertThrows( IOException.class,
                                         () -> BoundedZipExtraction.copyCapped(
                                                 new ByteArrayInputStream( data ), target, 1000L ) );
-        assertTrue( ex.getMessage().contains( "total decompressed-size cap" ) );
+        assertFromKey( "importer.error.archiveTooLarge", ex.getMessage() );
     }
 
     @Test
@@ -117,7 +118,7 @@ class BoundedZipExtractionTest
         IOException ex = assertThrows( IOException.class,
                                         () -> BoundedZipExtraction.copyCapped(
                                                 new ByteArrayInputStream( data ), target, budget ) );
-        assertTrue( ex.getMessage().contains( "total decompressed-size cap" ) );
+        assertFromKey( "importer.error.archiveTooLarge", ex.getMessage() );
     }
 
     @Test

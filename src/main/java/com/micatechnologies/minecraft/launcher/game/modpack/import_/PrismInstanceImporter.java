@@ -122,13 +122,12 @@ public final class PrismInstanceImporter
     public static String importInstance( File instanceDir ) throws ImportException
     {
         if ( instanceDir == null || !instanceDir.isDirectory() ) {
-            throw new ImportException( "Pick a Prism Launcher / MultiMC instance folder." );
+            throw new ImportException( LocalizationManager.get( "prismImporter.error.pickFolder" ) );
         }
         File instanceCfg = new File( instanceDir, "instance.cfg" );
         File mmcPackJson = new File( instanceDir, "mmc-pack.json" );
         if ( !instanceCfg.isFile() || !mmcPackJson.isFile() ) {
-            throw new ImportException( "This folder doesn't look like a Prism / MultiMC instance "
-                                               + "(missing instance.cfg or mmc-pack.json)." );
+            throw new ImportException( LocalizationManager.get( "prismImporter.error.notInstance" ) );
         }
         // .minecraft/ is the Prism convention; MultiMC legacy used
         // minecraft/. Accept either.
@@ -137,7 +136,7 @@ public final class PrismInstanceImporter
             mcFolder = new File( instanceDir, "minecraft" );
         }
         if ( !mcFolder.isDirectory() ) {
-            throw new ImportException( "Instance folder is missing the .minecraft/ subfolder." );
+            throw new ImportException( LocalizationManager.get( "prismImporter.error.noMinecraftFolder" ) );
         }
 
         Properties instanceProps = readInstanceCfg( instanceCfg );
@@ -195,7 +194,8 @@ public final class PrismInstanceImporter
             Files.writeString( manifestPath, manifest.toString(), StandardCharsets.UTF_8 );
         }
         catch ( IOException e ) {
-            throw new ImportException( "Couldn't write the imported manifest: " + e.getMessage() );
+            throw new ImportException( LocalizationManager.format( "prismImporter.error.writeManifestFailed",
+                                                                   String.valueOf( e.getMessage() ) ) );
         }
 
         String manifestUrl = manifestPath.toUri().toString();
@@ -207,7 +207,8 @@ public final class PrismInstanceImporter
             GameModPackManager.installModPackByURL( manifestUrl );
         }
         catch ( Exception e ) {
-            throw new ImportException( "Couldn't register the imported pack: " + e.getMessage() );
+            throw new ImportException( LocalizationManager.format( "importer.error.registerFailed",
+                                                                   String.valueOf( e.getMessage() ) ) );
         }
 
         // Find the freshly-installed pack so we know its root folder.
@@ -222,8 +223,7 @@ public final class PrismInstanceImporter
             }
         }
         if ( installedPack == null ) {
-            throw new ImportException( "Install reported success but couldn't locate the pack to copy "
-                                               + "content into." );
+            throw new ImportException( LocalizationManager.get( "prismImporter.error.packNotFound" ) );
         }
 
         // Copy .minecraft/ contents into the pack root. Skip the
@@ -235,8 +235,8 @@ public final class PrismInstanceImporter
             copyTreeSkipBin( mcFolder.toPath(), Path.of( installedPack.getPackRootFolder() ) );
         }
         catch ( IOException e ) {
-            throw new ImportException( "Pack registered but couldn't copy .minecraft/ contents: "
-                                               + e.getMessage() );
+            throw new ImportException( LocalizationManager.format( "prismImporter.error.copyFailed",
+                                                                   String.valueOf( e.getMessage() ) ) );
         }
 
         Logger.logStd( LocalizationManager.format( "log.prismImporter.copiedContents", packName ) );
@@ -257,7 +257,8 @@ public final class PrismInstanceImporter
     private static Properties readInstanceCfg( File cfg ) throws ImportException
     {
         if ( cfg.length() > MAX_METADATA_BYTES ) {
-            throw new ImportException( "instance.cfg is suspiciously large; refusing to import." );
+            throw new ImportException( LocalizationManager.format( "prismImporter.error.fileTooLarge",
+                                                                   "instance.cfg" ) );
         }
         // instance.cfg is loose INI: optional [General] header then
         // key=value lines. Properties handles the key=value part
@@ -268,7 +269,8 @@ public final class PrismInstanceImporter
             return p;
         }
         catch ( IOException e ) {
-            throw new ImportException( "Couldn't read instance.cfg: " + e.getMessage() );
+            throw new ImportException( LocalizationManager.format( "prismImporter.error.readCfgFailed",
+                                                                   String.valueOf( e.getMessage() ) ) );
         }
     }
 
@@ -296,7 +298,8 @@ public final class PrismInstanceImporter
     private static ParsedComponents parseMmcPackJson( File f ) throws ImportException
     {
         if ( f.length() > MAX_METADATA_BYTES ) {
-            throw new ImportException( "mmc-pack.json is suspiciously large; refusing to import." );
+            throw new ImportException( LocalizationManager.format( "prismImporter.error.fileTooLarge",
+                                                                   "mmc-pack.json" ) );
         }
         JsonObject root;
         try {
@@ -304,10 +307,11 @@ public final class PrismInstanceImporter
             root = JsonParser.parseString( body ).getAsJsonObject();
         }
         catch ( Exception e ) {
-            throw new ImportException( "mmc-pack.json isn't valid JSON: " + e.getMessage() );
+            throw new ImportException( LocalizationManager.format( "prismImporter.error.invalidPackJson",
+                                                                   String.valueOf( e.getMessage() ) ) );
         }
         if ( !root.has( "components" ) || !root.get( "components" ).isJsonArray() ) {
-            throw new ImportException( "mmc-pack.json is missing the components array." );
+            throw new ImportException( LocalizationManager.get( "prismImporter.error.noComponents" ) );
         }
 
         String mcVersion = null;
@@ -344,7 +348,7 @@ public final class PrismInstanceImporter
             }
         }
         if ( mcVersion == null || mcVersion.isBlank() ) {
-            throw new ImportException( "Couldn't find a Minecraft version in mmc-pack.json." );
+            throw new ImportException( LocalizationManager.get( "prismImporter.error.noMcVersion" ) );
         }
 
         String installerUrl = null;

@@ -17,6 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack.import_;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -76,12 +78,13 @@ final class BoundedZipExtraction
             while ( ( n = in.read( buf ) ) != -1 ) {
                 written += n;
                 if ( written > MAX_ENTRY_BYTES ) {
-                    throw new IOException( "Archive entry exceeds the per-entry size cap ("
-                                                   + MAX_ENTRY_BYTES + " bytes): " + target.getFileName() );
+                    throw new IOException( LocalizationManager.format( "importer.error.entryTooLarge",
+                                                                       String.valueOf( target.getFileName() ),
+                                                                       MAX_ENTRY_BYTES ) );
                 }
                 if ( written > remainingTotal ) {
-                    throw new IOException( "Archive exceeds the total decompressed-size cap ("
-                                                   + MAX_TOTAL_BYTES + " bytes) — refusing to extract." );
+                    throw new IOException( LocalizationManager.format( "importer.error.archiveTooLarge",
+                                                                       MAX_TOTAL_BYTES ) );
                 }
                 out.write( buf, 0, n );
             }

@@ -33,6 +33,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
+import static com.micatechnologies.minecraft.launcher.consts.localization.LocalizedMessages.assertFromKey;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -142,7 +143,7 @@ class TechnicServerZipImporterTest
         Path dest = Files.createDirectory( tempDir.resolve( "extract-root-1" ) );
         try ( ZipFile zf = new ZipFile( zip ) ) {
             IOException ex = assertThrows( IOException.class, () -> invokeExtractContents( zf, dest, new ArrayList<>() ) );
-            assertTrue( ex.getMessage().contains( "escapes target folder" ) );
+            assertFromKey( "importer.error.entryEscapes", ex.getMessage() );
         }
     }
 
@@ -153,7 +154,7 @@ class TechnicServerZipImporterTest
         Path dest = Files.createDirectory( tempDir.resolve( "extract-root-2" ) );
         try ( ZipFile zf = new ZipFile( zip ) ) {
             IOException ex = assertThrows( IOException.class, () -> invokeExtractContents( zf, dest, new ArrayList<>() ) );
-            assertTrue( ex.getMessage().contains( "escapes target folder" ) );
+            assertFromKey( "importer.error.entryEscapes", ex.getMessage() );
         }
     }
 
@@ -165,7 +166,7 @@ class TechnicServerZipImporterTest
         Path dest = Files.createDirectory( tempDir.resolve( "extract-root-3" ) );
         try ( ZipFile zf = new ZipFile( zip ) ) {
             IOException ex = assertThrows( IOException.class, () -> invokeExtractContents( zf, dest, new ArrayList<>() ) );
-            assertTrue( ex.getMessage().contains( "escapes target folder" ) );
+            assertFromKey( "importer.error.entryEscapes", ex.getMessage() );
         }
         assertFalse( Files.exists( victim ), "Absolute-path ZIP entry must never be written to disk" );
     }
@@ -183,7 +184,7 @@ class TechnicServerZipImporterTest
         Path dest = Files.createDirectory( tempDir.resolve( "extract-root-4" ) );
         try ( ZipFile zf = new ZipFile( zip ) ) {
             IOException ex = assertThrows( IOException.class, () -> invokeExtractContents( zf, dest, new ArrayList<>() ) );
-            assertTrue( ex.getMessage().contains( "escapes target folder" ) );
+            assertFromKey( "importer.error.entryEscapes", ex.getMessage() );
         }
     }
 

@@ -32,6 +32,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
+import static com.micatechnologies.minecraft.launcher.consts.localization.LocalizedMessages.assertFromKey;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -93,7 +94,7 @@ class ModpackZipImporterTest
         Path dest = Files.createDirectory( tempDir.resolve( "extract-root-1" ) );
         try ( ZipFile zf = new ZipFile( zip ) ) {
             IOException ex = assertThrows( IOException.class, () -> invokeExtractZipContents( zf, dest ) );
-            assertTrue( ex.getMessage().contains( "escapes target folder" ) );
+            assertFromKey( "importer.error.entryEscapes", ex.getMessage() );
         }
     }
 
@@ -107,7 +108,7 @@ class ModpackZipImporterTest
         Path dest = Files.createDirectory( tempDir.resolve( "extract-root-2" ) );
         try ( ZipFile zf = new ZipFile( zip ) ) {
             IOException ex = assertThrows( IOException.class, () -> invokeExtractZipContents( zf, dest ) );
-            assertTrue( ex.getMessage().contains( "escapes target folder" ) );
+            assertFromKey( "importer.error.entryEscapes", ex.getMessage() );
         }
     }
 
@@ -128,7 +129,7 @@ class ModpackZipImporterTest
         Path dest = Files.createDirectory( tempDir.resolve( "extract-root-3" ) );
         try ( ZipFile zf = new ZipFile( zip ) ) {
             IOException ex = assertThrows( IOException.class, () -> invokeExtractZipContents( zf, dest ) );
-            assertTrue( ex.getMessage().contains( "escapes target folder" ) );
+            assertFromKey( "importer.error.entryEscapes", ex.getMessage() );
         }
         assertFalse( Files.exists( victim ), "Absolute-path ZIP entry must never be written to disk" );
     }
@@ -198,7 +199,7 @@ class ModpackZipImporterTest
     {
         ModpackZipImporter.ImportException ex =
                 assertThrows( ModpackZipImporter.ImportException.class, () -> ModpackZipImporter.importZip( null ) );
-        assertTrue( ex.getMessage().contains( "existing ZIP file" ) );
+        assertFromKey( "importer.error.pickZipFile", ex.getMessage() );
     }
 
     @Test
@@ -207,7 +208,7 @@ class ModpackZipImporterTest
         File missing = tempDir.resolve( "does-not-exist.zip" ).toFile();
         ModpackZipImporter.ImportException ex =
                 assertThrows( ModpackZipImporter.ImportException.class, () -> ModpackZipImporter.importZip( missing ) );
-        assertTrue( ex.getMessage().contains( "existing ZIP file" ) );
+        assertFromKey( "importer.error.pickZipFile", ex.getMessage() );
     }
 
     @Test
@@ -216,7 +217,7 @@ class ModpackZipImporterTest
         File dir = Files.createDirectory( tempDir.resolve( "a-directory.zip" ) ).toFile();
         ModpackZipImporter.ImportException ex =
                 assertThrows( ModpackZipImporter.ImportException.class, () -> ModpackZipImporter.importZip( dir ) );
-        assertTrue( ex.getMessage().contains( "existing ZIP file" ) );
+        assertFromKey( "importer.error.pickZipFile", ex.getMessage() );
     }
 
     @Test
@@ -250,7 +251,7 @@ class ModpackZipImporterTest
         File zip = createZip( "no-marker-empty.zip", new LinkedHashMap<>() );
         ModpackZipImporter.ImportException ex =
                 assertThrows( ModpackZipImporter.ImportException.class, () -> ModpackZipImporter.importZip( zip ) );
-        assertTrue( ex.getMessage().contains( "isn't a Mica modpack export" ) );
+        assertFromKey( "zipImporter.error.notMicaExport", ex.getMessage() );
     }
 
     @Test
@@ -263,7 +264,7 @@ class ModpackZipImporterTest
         File zip = createZip( "unrelated.zip", entries( "readme.txt", "hello there" ) );
         ModpackZipImporter.ImportException ex =
                 assertThrows( ModpackZipImporter.ImportException.class, () -> ModpackZipImporter.importZip( zip ) );
-        assertTrue( ex.getMessage().contains( "isn't a Mica modpack export" ) );
+        assertFromKey( "zipImporter.error.notMicaExport", ex.getMessage() );
     }
 
     @Test
@@ -272,7 +273,7 @@ class ModpackZipImporterTest
         File zip = createZip( "corrupt-marker.zip", entries( ModpackExporter.MARKER_FILENAME, "{ not valid json" ) );
         ModpackZipImporter.ImportException ex =
                 assertThrows( ModpackZipImporter.ImportException.class, () -> ModpackZipImporter.importZip( zip ) );
-        assertTrue( ex.getMessage().contains( "Marker file is corrupt" ) );
+        assertFromKey( "zipImporter.error.markerCorrupt", ex.getMessage() );
     }
 
     @Test
@@ -282,7 +283,7 @@ class ModpackZipImporterTest
                                entries( ModpackExporter.MARKER_FILENAME, "{\"format\":\"some-other-tool-v1\"}" ) );
         ModpackZipImporter.ImportException ex =
                 assertThrows( ModpackZipImporter.ImportException.class, () -> ModpackZipImporter.importZip( zip ) );
-        assertTrue( ex.getMessage().contains( "Unrecognized export format" ) );
+        assertFromKey( "zipImporter.error.unknownFormat", ex.getMessage() );
     }
 
     @Test
@@ -293,7 +294,7 @@ class ModpackZipImporterTest
                                         "{\"format\":\"" + ModpackExporter.EXPORT_FORMAT_V2 + "\"}" ) );
         ModpackZipImporter.ImportException ex =
                 assertThrows( ModpackZipImporter.ImportException.class, () -> ModpackZipImporter.importZip( zip ) );
-        assertTrue( ex.getMessage().contains( "doesn't include a pack manifest" ) );
+        assertFromKey( "zipImporter.error.noManifest", ex.getMessage() );
     }
 
     @Test
@@ -305,7 +306,7 @@ class ModpackZipImporterTest
         File zip = createZip( "corrupt-manifest.zip", entries );
         ModpackZipImporter.ImportException ex =
                 assertThrows( ModpackZipImporter.ImportException.class, () -> ModpackZipImporter.importZip( zip ) );
-        assertTrue( ex.getMessage().contains( "Embedded manifest is corrupt" ) );
+        assertFromKey( "zipImporter.error.manifestCorrupt", ex.getMessage() );
     }
 
     @Test
@@ -317,7 +318,7 @@ class ModpackZipImporterTest
         File zip = createZip( "no-packname.zip", entries );
         ModpackZipImporter.ImportException ex =
                 assertThrows( ModpackZipImporter.ImportException.class, () -> ModpackZipImporter.importZip( zip ) );
-        assertTrue( ex.getMessage().contains( "no packName" ) );
+        assertFromKey( "zipImporter.error.noPackName", ex.getMessage() );
     }
 
     // ===================================================================
