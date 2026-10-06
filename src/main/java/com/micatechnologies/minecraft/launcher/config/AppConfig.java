@@ -124,6 +124,7 @@ public final class AppConfig
     public static synchronized void setDebugLogging( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.LOG_DEBUG_ENABLE_KEY, enable );
         ConfigStore.scheduleWrite();
+        com.micatechnologies.minecraft.launcher.files.Logger.setDebugLoggingEnabled( enable );
     }
 
     /** Whether enhanced (more verbose) logging is enabled. */

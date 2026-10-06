@@ -54,7 +54,9 @@ public class GameModPackManager
      *
      * @since 1.0
      */
-    private static List< GameModPack > availableGameModPacks = null;
+    /** Volatile for the same reason as {@link #installedGameModPacks}: the FX thread reads it
+     *  through {@link #getAvailableModPacksIfReady()} without the class monitor. */
+    private static volatile List< GameModPack > availableGameModPacks = null;
 
     /**
      * List containing the mod packs that are currently installed.
@@ -224,7 +226,7 @@ public class GameModPackManager
         }
         catch ( IOException e ) {
             Logger.logThrowable( e );
-            Logger.logError( LocalizationManager.UNABLE_FETCH_INFO_INSTALLABLE_MOD_PACKS_TEXT );
+            Logger.logErrorAsync( LocalizationManager.UNABLE_FETCH_INFO_INSTALLABLE_MOD_PACKS_TEXT );
             return;
         }
 
@@ -455,7 +457,7 @@ public class GameModPackManager
                     }
                 }
                 catch ( Exception e ) {
-                    Logger.logError( LocalizationManager.UNABLE_CREATE_OBJ_FOR_INSTALLED_MOD_PACK_FROM_TEXT
+                    Logger.logErrorAsync( LocalizationManager.UNABLE_CREATE_OBJ_FOR_INSTALLED_MOD_PACK_FROM_TEXT
                                              + " " + manifestUrl );
                     Logger.logThrowable( e );
                 }
@@ -486,17 +488,17 @@ public class GameModPackManager
                         Logger.logStd( "Modpack manifest revalidation complete." );
                     }
                     catch ( TimeoutException e ) {
-                        Logger.logError( "Modpack manifest revalidation did not finish within "
+                        Logger.logErrorAsync( "Modpack manifest revalidation did not finish within "
                                                  + REVALIDATE_BLOCK_TIMEOUT_SECONDS + " seconds. "
                                                  + "Proceeding with the last cached manifest data — "
                                                  + "the launch may use an out-of-date mod set." );
                     }
                     catch ( InterruptedException e ) {
                         Thread.currentThread().interrupt();
-                        Logger.logError( "Interrupted while waiting for modpack manifest revalidation." );
+                        Logger.logErrorAsync( "Interrupted while waiting for modpack manifest revalidation." );
                     }
                     catch ( Exception e ) {
-                        Logger.logError( "Modpack manifest revalidation failed; proceeding with the "
+                        Logger.logErrorAsync( "Modpack manifest revalidation failed; proceeding with the "
                                                  + "last cached manifest data." );
                         Logger.logThrowable( e );
                     }
@@ -506,7 +508,7 @@ public class GameModPackManager
         else if ( blockUntilRevalidated ) {
             // No refresh ran at all. That is a genuine risk for an auto-launch caller, so say so
             // rather than letting it look like a successful up-to-date load.
-            Logger.logError( "Modpack manifests were NOT revalidated before launch ("
+            Logger.logErrorAsync( "Modpack manifests were NOT revalidated before launch ("
                                      + ( NetworkUtilities.isOffline() ? "launcher is in offline mode"
                                                                       : "no modpacks installed" )
                                      + "). Any launch will use cached manifest data." );
@@ -782,11 +784,12 @@ public class GameModPackManager
      *
      * @since 3.5
      */
-    public synchronized static List< GameModPack > getAvailableModPacksIfReady() {
-        if ( availableGameModPacks == null ) {
-            return Collections.emptyList();
-        }
-        return availableGameModPacks;
+    public static List< GameModPack > getAvailableModPacksIfReady() {
+        // Lock-free, like getInstalledModPacks(): the Library screen calls this on the FX
+        // thread, and the class monitor is held through whole network fetches, installs and
+        // uninstalls, which froze the screen for their duration.
+        List< GameModPack > snapshot = availableGameModPacks;
+        return snapshot == null ? Collections.emptyList() : snapshot;
     }
 
     /**
@@ -837,18 +840,11 @@ public class GameModPackManager
      *
      * @since 1.0
      */
-    public synchronized static List< String > getInstalledModPackURLs() {
-        // Populate lists if not already done. Only installed packs are needed here, so
-        // we deliberately skip the availableGameModPacks null check — that list lazy-loads
-        // in the background after startup and would otherwise spuriously trigger a full
-        // fetchModPackInfo() re-fetch on every call until the background task settles.
-        if ( installedGameModPacks == null ) {
-            fetchModPackInfo();
-        }
-
-        // Populate list of installed mod pack manifest URLs and return
+    public static List< String > getInstalledModPackURLs() {
+        // Lock-free like getInstalledModPacks(), which also populates the list on first use.
+        // Only installed packs are needed here, so the available list isn't consulted.
         List< String > installedModPackUrls = new ArrayList<>();
-        for ( GameModPack gameModPack : installedGameModPacks ) {
+        for ( GameModPack gameModPack : getInstalledModPacks() ) {
             installedModPackUrls.add( gameModPack.getManifestUrl() );
         }
         return installedModPackUrls;
@@ -900,15 +896,10 @@ public class GameModPackManager
      *
      * @since 1.0
      */
-    public synchronized static List< String > getInstalledModPackFriendlyNames() {
-        // Populate lists if not already done
-        if ( installedGameModPacks == null ) {
-            fetchModPackInfo();
-        }
-
-        // Populate list of installed mod pack manifest URLs and return
+    public static List< String > getInstalledModPackFriendlyNames() {
+        // Lock-free like getInstalledModPacks(), which also populates the list on first use.
         List< String > installedModPackFriendlyNames = new ArrayList<>();
-        for ( GameModPack gameModPack : installedGameModPacks ) {
+        for ( GameModPack gameModPack : getInstalledModPacks() ) {
             if ( gameModPack.getFriendlyName() != null ) {
                 installedModPackFriendlyNames.add( gameModPack.getFriendlyName() );
             }
@@ -1123,7 +1114,7 @@ public class GameModPackManager
             fetchModPackInfo();
         }
         else {
-            Logger.logError( LocalizationManager.UNABLE_TO_UNINSTALL_MOD_PACK_TEXT + " " + gameModPack.getPackName() );
+            Logger.logErrorAsync( LocalizationManager.UNABLE_TO_UNINSTALL_MOD_PACK_TEXT + " " + gameModPack.getPackName() );
         }
     }
 
@@ -1192,7 +1183,7 @@ public class GameModPackManager
             fetchModPackInfo();
         }
         else {
-            Logger.logError( LocalizationManager.format( "log.gameModPackManager.unableToInstallModPack", gameModPack.getPackName() ) );
+            Logger.logErrorAsync( LocalizationManager.format( "log.gameModPackManager.unableToInstallModPack", gameModPack.getPackName() ) );
         }
     }
 
@@ -1222,7 +1213,7 @@ public class GameModPackManager
 
             // Install mod pack
             if ( locatedGameModPack == null ) {
-                Logger.logError( LocalizationManager.UNABLE_TO_INSTALL_TEXT +
+                Logger.logErrorAsync( LocalizationManager.UNABLE_TO_INSTALL_TEXT +
                                          " " +
                                          friendlyName +
                                          " " +
@@ -1233,7 +1224,7 @@ public class GameModPackManager
             }
         }
         catch ( Exception e ) {
-            Logger.logError( LocalizationManager.UNABLE_TO_INSTALL_TEXT + " " + friendlyName );
+            Logger.logErrorAsync( LocalizationManager.UNABLE_TO_INSTALL_TEXT + " " + friendlyName );
             Logger.logThrowable( e );
         }
     }

@@ -572,7 +572,7 @@ public final class AccountManager
                 catch ( IOException e ) {
                     // Keep the sign-in usable for this session even though it won't survive
                     // a restart; the next sign-in tries to persist again.
-                    Logger.logError( LocalizationManager.format( "log.accountStore.persistFailed", e.getMessage() ) );
+                    Logger.logErrorAsync( LocalizationManager.format( "log.accountStore.persistFailed", e.getMessage() ) );
                     session.remembered = false;
                     session.memoryAuthFile = gzippedAuthFile;
                 }
@@ -780,7 +780,7 @@ public final class AccountManager
                             persist( renewal.user(), renewal.gzippedAuthFile(), now, session.lastUsedMs );
                         }
                         catch ( IOException e ) {
-                            Logger.logError( LocalizationManager.format( "log.accountStore.persistFailed",
+                            Logger.logErrorAsync( LocalizationManager.format( "log.accountStore.persistFailed",
                                                                          e.getMessage() ) );
                         }
                     }

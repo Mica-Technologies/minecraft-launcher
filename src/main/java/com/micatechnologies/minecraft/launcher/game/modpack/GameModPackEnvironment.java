@@ -184,7 +184,7 @@ class GameModPackEnvironment
         }
         catch ( Exception e ) {
             didCacheImages = false;
-            Logger.logError( "Unable to download image assets for mod pack: " + metadata.getFriendlyName() );
+            Logger.logErrorAsync( "Unable to download image assets for mod pack: " + metadata.getFriendlyName() );
             Logger.logThrowable( e );
         }
     }
