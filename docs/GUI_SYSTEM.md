@@ -202,23 +202,41 @@ gone. `cleanup()` also unsubscribes every card, both shown and pooled, from
 
 ## Running Games Window
 
-`RunningGamesWindow` is a lazily created singleton `Stage` with a `TabPane` and one tab per
-`GameSession`. When there are no tabs, an empty-state label shows instead. All its static methods
-can be called from any thread:
+`RunningGamesWindow` is a lazily created singleton holding a `TabPane` with one tab per
+`GameSession`. When there are no tabs, an empty-state label shows instead.
+
+The view lives in its own `Stage` by default, or **docked** along the bottom of the main window.
+A header above the tabs switches between the two: in its own window it has a *Dock in the main
+window* button; docked, it shows the title, a count of games, collapse/expand and a pop-out
+button, and clicking the header strip collapses or expands it. The choice is saved
+(`ConfigManager.getRunningGamesDocked()`, default off). Docked with no games, the dock takes no
+room at all.
+
+Docking works through `ScaledRoot`, the `UiScale` wrapper every screen's scene has. It can hold a
+dock along its bottom edge and makes room for it. Each screen has its own scene, so
+`MCLauncherGuiWindow.setScene` calls `RunningGamesWindow.followScreen( scene )` on every screen
+change to move the dock into the new screen's wrapper. Expanded, the dock always gets the tab
+strip plus the selected game's pane at its minimum (so Stop and Kill always show), and asks for
+42% of the window. If that squeezes the screen below its own minimum, the screen is clipped at the
+dock's edge. The body (header and tabs) carries the theme sheets and the `root` style class, so
+the theme tokens resolve in both hosts.
+
+All its static methods can be called from any thread:
 
 | Method | Use |
 |---|---|
-| `showSession( session )` | Select that game's tab and show the window. `LauncherCore` calls it when a launch starts, on a crash, and when a launch is refused because the pack is already running. The Play buttons on Home and in the detail modal call it too. |
+| `showSession( session )` | Select that game's tab and show the view: its window, or the dock expanded (bringing the main window forward). `LauncherCore` calls it when a launch starts, on a crash, and when a launch is refused because the pack is already running. The Play buttons on Home and in the detail modal call it too. |
 | `showWindow()` | The Home "N running" button |
-| `hideUnlessPreparing()` | Called when "Show console on launch" (`ConfigManager.getInGameConsoleEnable()`) is off. The window hides once the game is up, unless another game is still preparing. |
-| `shutdown()` | Called from `MCLauncherGuiController.exit()`. Detaches from the registry, disposes the panes and closes the window. |
+| `hideUnlessPreparing()` | Called when "Show console on launch" (`ConfigManager.getInGameConsoleEnable()`) is off. Once the game is up, unless another game is still preparing, the window hides or the dock collapses to its header. |
+| `followScreen( scene )` | FX thread, package-private. Called by the main window on every screen change; moves a docked view into the new screen. |
+| `shutdown()` | Called from `MCLauncherGuiController.exit()`. Detaches from the registry, disposes the panes, undocks and closes the window. |
 
 The window is driven by `GameSessionRegistry` listeners. `sync()` adds tabs for new sessions and
 removes tabs for dismissed ones. `refreshTab()` draws the tab graphic: a status dot styled
 `sessionStatus-<phase>` and a 16 px avatar.
 
 The window's behaviour:
-- Closing the window only **hides** it. The games keep running and keep being logged.
+- Closing the window, or collapsing the dock, only **hides** the view. The games keep running and keep being logged.
 - A tab cannot be closed while its session's `phase().isActive()`. Closing an ended tab calls `GameSessionRegistry.dismiss( id )`.
 
 ### GameSessionPane

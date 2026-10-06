@@ -38,6 +38,13 @@ import javafx.scene.transform.Scale;
  * <p>The region itself paints nothing: its content and the scene fill draw the window's
  * background, which lets the Native theme stay transparent for Mica.</p>
  *
+ * <p>It can also hold a dock: a region along the bottom edge, zoomed the same way, that the
+ * content makes room for. The main window docks the Running Games view here; since each screen
+ * has its own scene and wrapper, the dock moves to the new wrapper on every screen change (see
+ * {@link #setDock(Region)}). The dock gets its preferred height when the content can spare it,
+ * and always at least the dock's own minimum, even when that squeezes the content below its
+ * minimum; the content is then clipped at the dock's edge.</p>
+ *
  * @since 2026.10
  */
 final class ScaledRoot extends Region
@@ -45,6 +52,9 @@ final class ScaledRoot extends Region
     private final Parent content;
     private final Scale zoom = new Scale( 1, 1, 0, 0 );
     private final InvalidationListener relayout = o -> requestLayout();
+    private final Scale dockZoom = new Scale( 1, 1, 0, 0 );
+    private final javafx.scene.shape.Rectangle contentClip = new javafx.scene.shape.Rectangle();
+    private Region dock;
 
     ScaledRoot( Parent content )
     {
@@ -64,6 +74,62 @@ final class ScaledRoot extends Region
         setStyle( "-fx-background-color: transparent;" );
         getChildren().add( content );
         UiScale.scaleProperty().addListener( new WeakInvalidationListener( relayout ) );
+        dockZoom.xProperty().bind( UiScale.scaleProperty() );
+        dockZoom.yProperty().bind( UiScale.scaleProperty() );
+    }
+
+    /**
+     * Docks a region along the bottom edge, or removes the current one. A dock that is invisible
+     * takes no room.
+     *
+     * @param newDock the region to dock, or {@code null} for none
+     */
+    void setDock( Region newDock )
+    {
+        if ( dock == newDock ) {
+            return;
+        }
+        if ( dock != null ) {
+            dock.getTransforms().remove( dockZoom );
+            getChildren().remove( dock );
+        }
+        dock = newDock;
+        if ( dock != null ) {
+            // A node has one parent: take it from whichever screen it was docked in.
+            if ( dock.getParent() instanceof ScaledRoot previous ) {
+                previous.setDock( null );
+            }
+            dock.getTransforms().add( dockZoom );
+            getChildren().add( dock );
+        }
+        requestLayout();
+    }
+
+    /** @return the docked region, or {@code null} */
+    Region dock()
+    {
+        return dock;
+    }
+
+    /**
+     * The dock's height in this region's (scaled) pixels for a given height: its preferred
+     * height, held between its minimum and what the content can spare. Package-private for tests.
+     *
+     * @param height this region's inner height
+     *
+     * @return the dock's height, or 0 when there is no visible dock
+     */
+    double dockHeight( double height )
+    {
+        if ( dock == null || !dock.isVisible() ) {
+            return 0;
+        }
+        double scale = s();
+        double width = ( getWidth() - getInsets().getLeft() - getInsets().getRight() ) / scale;
+        double min = dock.minHeight( width ) * scale;
+        double spare = height - content.minHeight( -1 ) * scale;
+        double wanted = dock.prefHeight( width ) * scale;
+        return Math.min( height, Math.max( min, Math.min( wanted, spare ) ) );
     }
 
     /** @return the window's own root */
@@ -83,7 +149,21 @@ final class ScaledRoot extends Region
         Insets in = getInsets();
         double w = getWidth() - in.getLeft() - in.getRight();
         double h = getHeight() - in.getTop() - in.getBottom();
-        content.resizeRelocate( in.getLeft(), in.getTop(), w / s(), h / s() );
+        double docked = dockHeight( h );
+        content.resizeRelocate( in.getLeft(), in.getTop(), w / s(), ( h - docked ) / s() );
+        if ( dock != null ) {
+            dock.resizeRelocate( in.getLeft(), in.getTop() + h - docked, w / s(), docked / s() );
+        }
+        // Squeezed below its minimum, the content would spill under the dock (and show through
+        // it in the Native theme); clip it to its own area while a dock takes room.
+        if ( docked > 0 ) {
+            contentClip.setWidth( w / s() );
+            contentClip.setHeight( ( h - docked ) / s() );
+            content.setClip( contentClip );
+        }
+        else if ( content.getClip() == contentClip ) {
+            content.setClip( null );
+        }
     }
 
     @Override

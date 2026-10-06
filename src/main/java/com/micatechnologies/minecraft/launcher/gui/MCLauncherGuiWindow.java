@@ -627,6 +627,8 @@ public class MCLauncherGuiWindow extends Application
             // Set scene, fading the new screen in (Material's fade-through).
             stage.setScene( gui.scene );
             Motion.fadeThrough( gui.rootPane );
+            // A docked Running Games view lives in the screen's wrapper; bring it along.
+            RunningGamesWindow.followScreen( gui.scene );
 
             // macOS hidden-inset title bar: the traffic lights float over the top-left of
             // the content, so drop this scene's redundant in-window brand lockup (the OS

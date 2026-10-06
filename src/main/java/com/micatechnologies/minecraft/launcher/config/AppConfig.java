@@ -282,6 +282,31 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /**
+     * Returns whether the Running Games view is docked in the main window.
+     *
+     * @return {@code true} when docked, {@code false} when it has its own window
+     *
+     * @since 2026.10
+     */
+    public static synchronized boolean getRunningGamesDocked() {
+        return ConfigStore.getOrInitBoolean( ConfigConstants.RUNNING_GAMES_DOCKED_KEY,
+                                             ConfigConstants.RUNNING_GAMES_DOCKED_DEFAULT );
+    }
+
+    /**
+     * Sets whether the Running Games view is docked in the main window, and schedules a debounced
+     * disk flush.
+     *
+     * @param docked {@code true} to dock it, {@code false} for its own window
+     *
+     * @since 2026.10
+     */
+    public static synchronized void setRunningGamesDocked( boolean docked ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.RUNNING_GAMES_DOCKED_KEY, docked );
+        ConfigStore.scheduleWrite();
+    }
+
     /** Visible-log-line cap for the in-game console TextArea. 0 means
      *  unlimited (no trimming). Read on each line-batch flush so the
      *  user can change the setting mid-session without restarting. */

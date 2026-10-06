@@ -471,6 +471,21 @@ public class ConfigConstants
     public static final boolean INGAME_CONSOLE_ENABLE_DEFAULT = false;
 
     /**
+     * Key for whether the Running Games view is docked in the main window rather than in its own
+     * window.
+     *
+     * @since 2026.10
+     */
+    public static final String RUNNING_GAMES_DOCKED_KEY = "runningGamesDocked";
+
+    /**
+     * The default for the Running Games view being docked: its own window.
+     *
+     * @since 2026.10
+     */
+    public static final boolean RUNNING_GAMES_DOCKED_DEFAULT = false;
+
+    /**
      * Maximum number of log lines retained in the in-game console's
      * visible TextArea. When the running log exceeds this count the
      * oldest lines are dropped from the view and a "showing last N
