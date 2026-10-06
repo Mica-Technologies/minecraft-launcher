@@ -1,0 +1,59 @@
+<h1>Çalışma Zamanı Yönetimi</h1>
+
+<p>Mica Minecraft Launcher, Java çalışma ortamlarını otomatik olarak yönetir; böylece Java'yı hiçbir zaman
+kendiniz yüklemeniz veya yapılandırmanız gerekmez.</p>
+
+<h2>Çalışma Ortamları Neden Önemlidir</h2>
+
+<p>Minecraft ve Forge'un düzgün çalışması için belirli Java sürümleri gerekir. Farklı mod paketleri ve
+Minecraft sürümleri farklı Java çalışma ortamlarına ihtiyaç duyabilir:</p>
+
+<ul>
+    <li><strong>Minecraft 1.16 ve öncesi</strong> — Java 8</li>
+    <li><strong>Minecraft 1.17 - 1.20</strong> — Java 17</li>
+    <li><strong>Minecraft 1.21+</strong> — Java 21 veya üstü</li>
+</ul>
+
+<p>Başlatıcı, her mod paketinin veya vanilla sürümünün hangi çalışma ortamını gerektirdiğini algılar ve ilk başlatmada
+bunu otomatik olarak indirir.</p>
+
+<h2>Otomatik İndirmeler</h2>
+
+<p>Bir mod paketini veya vanilla sürümünü ilk kez başlattığınızda başlatıcı, gerekli çalışma ortamının
+zaten yüklü olup olmadığını kontrol eder. Yüklü değilse doğru sürümü Mojang'ın veya
+Liberica'nın dağıtım sunucularından indirir. Bu, her çalışma ortamı sürümü için tek seferlik bir indirmedir.</p>
+
+<div class="note">
+    <div class="callout-title">Not</div>
+    <p>Çalışma ortamı indirmeleri genellikle 40 - 80 MB boyutundadır ve sisteminizdeki herhangi bir Java kurulumundan
+    ayrı olarak başlatıcının veri dizininde saklanır.</p>
+</div>
+
+<h2>Yüklü Çalışma Ortamlarını Görüntüleme</h2>
+
+<p><a href="help://topic/SETTINGS">Ayarlar</a>'ı açın ve sürümleri, yolları ve hangi mod paketlerinin kullandığı dahil
+tüm yüklü Java çalışma ortamlarının listesini görmek için <strong>Çalışma Ortamı Yönetimi</strong>'ne
+tıklayın.</p>
+
+<h2>Kullanılmayan Çalışma Ortamlarını Silme</h2>
+
+<p>Belirli bir Java sürümünü kullanan mod paketlerini kaldırdıysanız disk alanı açmak için
+ilgili çalışma ortamını silebilirsiniz. Yönetim ekranında bir çalışma ortamı seçin ve
+<strong>Sil</strong>'e tıklayın.</p>
+
+<div class="warning">
+    <div class="callout-title">Uyarı</div>
+    <p>Yüklü bir mod paketinin hâlâ ihtiyaç duyduğu bir çalışma ortamını silerseniz başlatıcı,
+    o mod paketinin bir sonraki başlatılışında onu yeniden indirir.</p>
+</div>
+
+<h2>Çalışma Ortamı Sorunlarını Giderme</h2>
+
+<p>Bir mod paketi Java ile ilgili hatalar nedeniyle başlatılamıyorsa şunları deneyin:</p>
+
+<ol>
+    <li>Çalışma Ortamı Yönetimi'ni açın ve sorunlu mod paketinin kullandığı çalışma ortamını silin.</li>
+    <li>Mod paketini yeniden başlatın; başlatıcı yeni bir kopyasını indirir.</li>
+    <li>Sorun devam ederse ek adımlar için <a href="help://topic/TROUBLESHOOTING">Sorun Giderme</a>
+        konusuna bakın.</li>
+</ol>

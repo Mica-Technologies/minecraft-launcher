@@ -1,0 +1,109 @@
+<h1>Göz At</h1>
+
+<p>Göz At ekranı, yükleme ve yönetim alanınızdır. Buradan genel manifestteki yeni mod paketlerini
+yükleyebilir, saf vanilla Minecraft sürümlerini yükleyebilir, boş Forge / NeoForge /
+Fabric başlangıç paketleri kurabilir, sahip olduğunuz paketleri düzenleyebilir ve artık istemediklerinizi kaldırabilirsiniz.</p>
+
+<h2>Kartlar ve Filtre Çubuğu</h2>
+
+<p>Her giriş; logo, rozet, ad, etiketler (yükleyici / Minecraft sürümü), bir durum satırı ve eylem düğmeleri içeren
+büyük bir kart olarak gösterilir. Üstteki filtre çubuğu görünümü daraltmanızı sağlar.</p>
+
+<ul>
+    <li><strong>Ara</strong> — kart başlıklarında serbest metin eşleştirmesi. Siz yazarken güncellenir
+        (düzeni gereksiz yere yeniden çizmemesi için kısa bir gecikmeyle).</li>
+    <li><strong>Tür</strong> — Tümü, Mod Paketleri veya sürüm kataloglarından biri:
+        Vanilla (Tam Sürümler / Snapshot'lar / Eski Beta / Eski Alfa) ve Forge / NeoForge / Fabric sürümleri.
+        Yükleyici sürümü filtreleri bilerek "Tümü" içine <em>dahil edilmemiştir</em>; birleşik liste
+        binlerce girişten oluşurdu ve "her şeyi göster" aramasında istenen bu değildir.</li>
+    <li><strong>Durum</strong> — Tümü, Yüklü veya Kullanılabilir. "Kullanılabilir" henüz yüklemediğiniz
+        öğeleri, "Yüklü" ise zaten diskte olanları gösterir.</li>
+    <li><strong>Sırala</strong> — Varsayılan, Ad (A–Z / Z–A), Yayın Tarihi, Son Oynanan, En Çok Oynanan,
+        Son Güncellenen. Oynama / güncelleme geçmişine dayanan sıralamalar (Son Oynanan, En Çok Oynanan,
+        Son Güncellenen), mod paketi olmayan girişleri kafa karıştırıcı biçimde araya karıştırmak yerine
+        en alta taşır.</li>
+</ul>
+
+<h2>Yüklü Mod Paketleri</h2>
+
+<p>Diskte zaten bulunan paketlerin kartlarında iki düğme vardır:</p>
+
+<ul>
+    <li><strong>Kaldır</strong> — kurulum klasörünün de silinip silinmeyeceğini sorar. "Kaldır
+        (Dosyaları Koru)" seçeneği, başlatıcı artık paketi tanımasa bile dünyalarınızı, yapılandırmalarınızı ve modlarınızı
+        korur; aynı paketi daha sonra yeniden yüklemeyi planlıyorsanız kullanışlıdır.</li>
+    <li><strong>Düzenle</strong> — paketin yerel manifestiyle <a href="help://topic/MODPACK_EDITOR">Mod Paketi Düzenleyici</a>'yi
+        açar. Değişiklikler diske yazılır ve bir sonraki başlatmada uygulanır.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">İpucu</div>
+    <p>Ana menünün sunduğu bağlam menüsünün aynısı için yüklü bir mod paketi kartına sağ tıklayın:
+    paket klasörünü açma, mods klasörünü açma, masaüstü kısayolu oluşturma, oynama istatistiklerini görüntüleme ve
+    kaldırma.</p>
+</div>
+
+<h2>Kullanılabilir Mod Paketleri</h2>
+
+<p>Genel manifestte bulunan ve henüz sahip olmadığınız paketlerin kartlarında bir <strong>Yükle</strong> düğmesi bulunur.
+Bu düğmeye tıklamak manifesti indirir, mod paketini yükler ve bir sonraki yeniden oluşturmada kartı Yüklü
+grubuna taşır. Yükleme sürerken filtreleri kullanmaya devam edebilirsiniz; yüklenmekte olan
+kart, yükleme bitene kadar ızgaranın en üstünde sabit kalır.</p>
+
+<h2>Vanilla Sürümleri</h2>
+
+<p>Mojang'ın eksiksiz tam sürüm / snapshot / beta / alfa kataloğu. Her kart, o Minecraft sürümünü tam olarak
+ana menüden doğrudan oynayabileceğiniz yapay, boş bir mod paketi olarak yükler. Eski
+betalar ve alfalar da çalıştırılabilir; başlatıcı her sürüm için uygun Java çalışma ortamını
+otomatik olarak indirir.</p>
+
+<h2>Forge / NeoForge / Fabric Sürümleri</h2>
+
+<p>Yükleyici sürümü filtreleri, her projenin sürüm hizmetinin duyurduğu tüm sürümleri gösterir:
+Forge önerilen sürümleri, NeoForge maven meta verileri ve Fabric meta API'si. Bunlardan birinde Yükle'ye
+tıklamak, yapılandırma klasörünüze yapay bir "boş mod paketi" manifesti yazar ve bunu başlatıcıya
+kaydeder; böylece sonuç, diğer tüm yüklü mod paketleri gibi davranır:</p>
+
+<ul>
+    <li>ana menünün büyük kartlarında görünür;</li>
+    <li>Mod Paketi Düzenleyici'de düzenlenebilir (kendi paketinizi oluşturmak için üzerine mod ekleyebilirsiniz);</li>
+    <li>diğer tüm paketler gibi kaldırılabilir;</li>
+    <li>normal bir mod paketiyle aynı otomatik güncelleme altyapısını kullanır.</li>
+</ul>
+
+<div class="note">
+    <div class="callout-title">Not</div>
+    <p>Kartlar, başlatıcı yerel olarak önbelleğe aldığında her projenin resmî logosunu gösterir.
+    Bir yükleyici filtresine ilk girişte, gerçek logolar arka planda inerken markanın rengindeki
+    yer tutucu gösterilir; önbelleğe alındıktan sonraki ziyaretler anında açılır.</p>
+</div>
+
+<h2>URL ile Ekleme</h2>
+
+<p>Alt çubuktaki <strong>URL'den Ekle</strong> düğmesi, barındırılan bir
+<code>installable.json</code> manifestinin doğrudan URL'sini alır ve kullanılabilir paket kartlarıyla aynı şekilde yükler.
+Bunu genel manifest dışında dağıtılan mod paketleri için kullanın: bağlantıyı yapıştırın, düğmeye tıklayın;
+manifestin meta verileri yükleme başlamadan önce indirilip doğrulanır.</p>
+
+<h2>Mod Paketi Düzenleyici</h2>
+
+<p>Alt çubuktaki <strong>Mod Paketi Düzenleyicisi</strong> düğmesi,
+<a href="help://topic/MODPACK_EDITOR">Mod Paketi Düzenleyici</a>'yi boş bir manifestle açar; böylece sıfırdan
+yeni bir paket oluşturabilir, yükleyiciyi (Forge / NeoForge / Fabric / vanilla), Minecraft sürümünü,
+mod listesini vb. ayarlayabilirsiniz. Düzenleyici, mevcut bir paketin kartındaki <strong>Düzenle</strong>
+düğmesiyle de açılabilir.</p>
+
+<h2>Barındırma Manifesti Oluşturma</h2>
+
+<p>Alt çubuktaki <strong>Barındırma Manifesti Oluştur</strong> düğmesi, düzenleyicide açık olan mod paketi için
+herhangi bir web sunucusunda veya dosya paylaşım hizmetinde barındırılmaya hazır bir
+<code>installable.json</code> oluşturur. Ortaya çıkan URL'ye sahip herkes paketinizi URL'den Ekle ile
+yükleyebilir.</p>
+
+<h2>Sayfalandırma</h2>
+
+<p>Uzun listeler sayfalara bölünür. Sayfalar arasında geçiş yapmak için sayfalandırma çubuğundaki (kartların üstünde)
+<strong>Önceki</strong> / <strong>Sonraki</strong> düğmelerini, sayfa boyutunu ayarlamak için ise
+<strong>Sayfa başına</strong> açılır listesini kullanın: 24, 48, 72 veya 96. Varsayılan 48 değeri tipik bir yüklü
+kitaplığı tek sayfaya sığdırır; 96'ya çıkarmak yükleyici sürümü filtrelerini tek bir
+sayfada kaydırılabilir tutar.</p>
