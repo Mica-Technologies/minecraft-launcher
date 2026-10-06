@@ -121,7 +121,7 @@ public class GameModPack extends GameModPackMetadata
      *
      * @return the per-pack {@link GameModPackEnvironment}; never {@code null}
      */
-    private GameModPackEnvironment getEnvironment()
+    private synchronized GameModPackEnvironment getEnvironment()
     {
         if ( environment == null ) {
             environment = new GameModPackEnvironment( this );
@@ -706,7 +706,7 @@ public class GameModPack extends GameModPackMetadata
      *
      * @return absolute path to the cached primary logo image file
      */
-    public synchronized String getPackLogoFilepath()
+    public String getPackLogoFilepath()
     {
         return getEnvironment().getPackLogoFilepath();
     }
@@ -716,7 +716,7 @@ public class GameModPack extends GameModPackMetadata
      *
      * @return absolute path to the cached primary background image file
      */
-    public synchronized String getPackBackgroundFilepath()
+    public String getPackBackgroundFilepath()
     {
         return getEnvironment().getPackBackgroundFilepath();
     }
@@ -730,7 +730,7 @@ public class GameModPack extends GameModPackMetadata
      * @return ordered list of cached logo paths; never {@code null}, possibly empty
      * @since 3.6
      */
-    public synchronized java.util.List< String > getPackLogoFilepaths()
+    public java.util.List< String > getPackLogoFilepaths()
     {
         return getEnvironment().getPackLogoFilepaths();
     }
@@ -741,7 +741,7 @@ public class GameModPack extends GameModPackMetadata
      * @return ordered list of cached background paths; never {@code null}, possibly empty
      * @since 3.6
      */
-    public synchronized java.util.List< String > getPackBackgroundFilepaths()
+    public java.util.List< String > getPackBackgroundFilepaths()
     {
         return getEnvironment().getPackBackgroundFilepaths();
     }
@@ -757,7 +757,7 @@ public class GameModPack extends GameModPackMetadata
      *
      * @since 2026.3
      */
-    public synchronized String getPackLogoFilepathRaw()
+    public String getPackLogoFilepathRaw()
     {
         return getEnvironment().getRawLogoFilePath();
     }
@@ -769,7 +769,7 @@ public class GameModPack extends GameModPackMetadata
      *
      * @since 2026.3
      */
-    public synchronized String getPackBackgroundFilepathRaw()
+    public String getPackBackgroundFilepathRaw()
     {
         return getEnvironment().getRawBackgroundFilePath();
     }
@@ -782,7 +782,7 @@ public class GameModPack extends GameModPackMetadata
      * @return ordered list of cached logo paths; never {@code null}, possibly empty
      * @since 3.6
      */
-    public synchronized java.util.List< String > getPackLogoFilepathsRaw()
+    public java.util.List< String > getPackLogoFilepathsRaw()
     {
         return getEnvironment().getRawLogoFilePaths();
     }
@@ -793,7 +793,7 @@ public class GameModPack extends GameModPackMetadata
      * @return ordered list of cached background paths; never {@code null}, possibly empty
      * @since 3.6
      */
-    public synchronized java.util.List< String > getPackBackgroundFilepathsRaw()
+    public java.util.List< String > getPackBackgroundFilepathsRaw()
     {
         return getEnvironment().getRawBackgroundFilePaths();
     }
@@ -923,8 +923,12 @@ public class GameModPack extends GameModPackMetadata
      * for the modpack cards). Delegates to
      * {@link GameModPackEnvironment#cacheImages()}.
      */
-    public synchronized void cacheImages()
+    public void cacheImages()
     {
+        // Not synchronized on the pack: the environment serializes its own image work. Holding
+        // the pack's monitor across the downloads made every image-path read on the FX thread
+        // (the detail view, the cards) wait for them, and an error dialog raised inside froze the
+        // launcher for good. Only creating the environment needs the pack's lock.
         getEnvironment().cacheImages();
     }
 
