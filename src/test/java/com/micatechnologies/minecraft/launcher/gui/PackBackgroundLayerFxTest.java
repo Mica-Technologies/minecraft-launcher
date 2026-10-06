@@ -53,13 +53,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Draws pack background images the old way (an inline CSS {@code -fx-background-image} with the
- * card rule's {@code cover} / {@code center}, which JavaFX renders from the top-left) and the
- * new way ({@link PackBackgroundLayer}) side by side at the
+ * Draws pack background images with {@link PackBackgroundLayer} beside a reference, at the
  * main-menu card, library card and detail-modal hero sizes, for a 1080p image, a 4K image, a
  * panorama, a small image and one with transparent pixels, and checks the two look the same.
- * Writes {@code build/target/snapshots/pack-backgrounds.png} for review: old on the left, new on
- * the right.
+ * The reference draws the full-size image, scaled to cover the box and centred, onto a canvas
+ * over the same gradient; the layer decodes a smaller copy in the background. Writes
+ * {@code build/target/snapshots/pack-backgrounds.png} for review: reference on the left, layer
+ * on the right.
  *
  * <p>Opt-in like the other TestFX tests ({@code MMCL_RUN_TESTFX=true}).</p>
  */
@@ -83,7 +83,7 @@ class PackBackgroundLayerFxTest
     }
 
     @Test
-    void layerLooksLikeTheCssBackgroundItReplaced( FxRobot robot ) throws Exception
+    void layerLooksLikeACentredCoverBackground( FxRobot robot ) throws Exception
     {
         File dir = new File( "build/target/pack-background-images" );
         dir.mkdirs();
@@ -102,11 +102,9 @@ class PackBackgroundLayerFxTest
                 HBox row = new HBox( 8 );
                 for ( double[] size : SIZES ) {
                     StackPane old = box( size );
-                    Region css = new Region();
-                    css.setStyle( GRADIENT + " -fx-background-image: url('" + url + "');"
-                                  + " -fx-background-size: cover; -fx-background-position: center;"
-                                  + " -fx-background-repeat: no-repeat;" );
-                    old.getChildren().add( css );
+                    Region under = new Region();
+                    under.setStyle( GRADIENT );
+                    old.getChildren().addAll( under, centredCover( new javafx.scene.image.Image( url ), size ) );
 
                     StackPane now = box( size );
                     Region gradient = new Region();
@@ -143,7 +141,7 @@ class PackBackgroundLayerFxTest
                 b.set( pair[ 1 ].snapshot( null, null ) );
             } );
             double diff = meanDifference( a.get(), b.get() );
-            assertTrue( diff < 4.0, "old and new differ by " + diff + " per channel at "
+            assertTrue( diff < 4.0, "reference and layer differ by " + diff + " per channel at "
                                     + pair[ 0 ].getWidth() + "x" + pair[ 0 ].getHeight() );
         }
 
@@ -157,6 +155,21 @@ class PackBackgroundLayerFxTest
             first.show( null );
             assertNull( ( (javafx.scene.image.ImageView) first.getChildrenUnmodifiable().get( 0 ) ).getImage() );
         } );
+    }
+
+    /** The reference: the whole image scaled to cover the box, centred, worked out here
+     *  independently of {@link PackBackgroundLayer#coverViewport}. */
+    private static javafx.scene.canvas.Canvas centredCover( javafx.scene.image.Image image, double[] size )
+    {
+        double w = size[ 0 ];
+        double h = size[ 1 ];
+        double scale = Math.max( w / image.getWidth(), h / image.getHeight() );
+        double drawnW = image.getWidth() * scale;
+        double drawnH = image.getHeight() * scale;
+        javafx.scene.canvas.Canvas canvas = new javafx.scene.canvas.Canvas( w, h );
+        canvas.getGraphicsContext2D().setImageSmoothing( true );
+        canvas.getGraphicsContext2D().drawImage( image, ( w - drawnW ) / 2, ( h - drawnH ) / 2, drawnW, drawnH );
+        return canvas;
     }
 
     private static StackPane box( double[] size )
