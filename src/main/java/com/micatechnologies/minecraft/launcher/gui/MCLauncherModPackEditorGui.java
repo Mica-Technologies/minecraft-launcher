@@ -435,12 +435,17 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         } );
 
         // Create file list tabs (all 5 types)
-        Tab modsTab = createFileListTab( "Mods", ModPackDocument.FileList.MODS );
+        // The FileList is the tab's identity; the name is display text only.
+        Tab modsTab = createFileListTab( LocalizationManager.get( "editor.tab.mods" ), ModPackDocument.FileList.MODS );
         editorTabPane.getTabs().add( modsTab );
-        editorTabPane.getTabs().add( createFileListTab( "Configs", ModPackDocument.FileList.CONFIGS ) );
-        editorTabPane.getTabs().add( createFileListTab( "Resources", ModPackDocument.FileList.RESOURCE_PACKS ) );
-        editorTabPane.getTabs().add( createFileListTab( "Shaders", ModPackDocument.FileList.SHADER_PACKS ) );
-        editorTabPane.getTabs().add( createFileListTab( "Initial Files", ModPackDocument.FileList.INITIAL_FILES ) );
+        editorTabPane.getTabs().add( createFileListTab( LocalizationManager.get( "editor.tab.configs" ),
+                                                        ModPackDocument.FileList.CONFIGS ) );
+        editorTabPane.getTabs().add( createFileListTab( LocalizationManager.get( "editor.tab.resources" ),
+                                                        ModPackDocument.FileList.RESOURCE_PACKS ) );
+        editorTabPane.getTabs().add( createFileListTab( LocalizationManager.get( "editor.tab.shaders" ),
+                                                        ModPackDocument.FileList.SHADER_PACKS ) );
+        editorTabPane.getTabs().add( createFileListTab( LocalizationManager.get( "editor.tab.initialFiles" ),
+                                                        ModPackDocument.FileList.INITIAL_FILES ) );
 
         // Add Modrinth search button to the Mods tab toolbar
         BorderPane modsContent = ( BorderPane ) modsTab.getContent();
@@ -1738,7 +1743,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
 
         // URL-check status column (read-only, transient). Populated by the "Check URLs"
         // toolbar action; blank until a check is run. Never persisted to the document.
-        TableColumn< ModPackEditorFileEntry, String > urlStatusCol =
+        TableColumn< ModPackEditorFileEntry, ModPackEditorFileEntry.UrlCheck > urlStatusCol =
                 new TableColumn<>( LocalizationManager.get( "editor.column.urlStatus" ) );
         urlStatusCol.setCellValueFactory( c -> c.getValue().urlStatusProperty() );
         urlStatusCol.setEditable( false );
@@ -1748,25 +1753,24 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         urlStatusCol.setCellFactory( col -> new TableCell<>()
         {
             /**
-             * Renders a string list cell, clearing it when empty.
+             * Renders a URL-check result, clearing the cell when empty or unchecked.
              *
-             * @param value the cell value, or {@code null}
+             * @param value the check result, or {@code null} when unchecked
              * @param empty whether this is an empty cell
              */
             @Override
-            protected void updateItem( String value, boolean empty )
+            protected void updateItem( ModPackEditorFileEntry.UrlCheck value, boolean empty )
             {
                 super.updateItem( value, empty );
-                if ( empty || value == null || value.isBlank() ) {
+                getStyleClass().removeAll( "urlStatusOk", "urlStatusFailed" );
+                if ( empty || value == null ) {
                     setText( null );
-                    getStyleClass().removeAll( "urlStatusOk", "urlStatusFailed" );
                 }
                 else {
-                    setText( value );
-                    // Green when the URL is reachable, red otherwise.
-                    boolean ok = LocalizationManager.get( "editor.urlStatus.ok" ).equals( value );
-                    getStyleClass().removeAll( "urlStatusOk", "urlStatusFailed" );
-                    getStyleClass().add( ok ? "urlStatusOk" : "urlStatusFailed" );
+                    setText( value.label() );
+                    // Green when the URL is reachable, red otherwise. Decided by the
+                    // result's flag, never by comparing the localized label.
+                    getStyleClass().add( value.ok() ? "urlStatusOk" : "urlStatusFailed" );
                 }
             }
         } );
@@ -1873,7 +1877,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             // Clear any prior status markers on the FX thread before re-checking.
             GUIUtilities.JFXPlatformRun( () -> {
                 for ( ModPackEditorFileEntry entry : snapshot ) {
-                    entry.setUrlStatus( "" );
+                    entry.setUrlStatus( null );
                 }
             } );
             SystemUtilities.spawnNewTask( () -> {
@@ -1910,7 +1914,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     // Record the per-entry result in the transient status column on the FX
                     // thread; the property is bound into a table cell so must not be set
                     // off-thread.
-                    final String entryStatus = status;
+                    final ModPackEditorFileEntry.UrlCheck entryStatus =
+                            new ModPackEditorFileEntry.UrlCheck( !broken, status );
                     GUIUtilities.JFXPlatformRun( () -> entry.setUrlStatus( entryStatus ) );
                 }
                 final int finalChecked = checked;
