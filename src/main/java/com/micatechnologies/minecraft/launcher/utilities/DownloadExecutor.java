@@ -84,7 +84,8 @@ public final class DownloadExecutor
      */
     public static < T > Future< T > submit( Callable< T > task )
     {
-        return POOL.submit( task );
+        // Carry the submitter's download scope, so this download's progress goes to its launch.
+        return POOL.submit( NetworkUtilities.inCurrentScope( task ) );
     }
 
     /**
