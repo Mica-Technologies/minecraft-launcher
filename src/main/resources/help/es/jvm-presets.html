@@ -11,7 +11,7 @@ mods), donde el GC tiene que limpiar tras la carga y descarga de miles de
 chunks. Para vanilla y modpacks pequeños cualquier preajuste sirve, y el
 predeterminado, «Rendimiento», funciona bien.</p>
 
-<h2>Performance (Aikar's Flags)</h2>
+<h2>Rendimiento (flags de Aikar)</h2>
 
 <p>Preajuste predeterminado y recomendado para la gran mayoría de los usuarios. Usa
 el recolector de basura G1 con el ajuste de parámetros que Aikar (el autor del servidor de
@@ -22,7 +22,7 @@ citando. Está diseñado para minimizar los tirones por pausas del GC durante el
 modpacks con muchos mods en los que haya notado caídas periódicas de la tasa de fotogramas
 bajo carga.</p>
 
-<h2>Low Memory</h2>
+<h2>Poca memoria</h2>
 
 <p>Parámetros reducidos para sistemas con poca RAM disponible. Usa G1 con un
 objetivo de pausa más corto y regiones del heap más pequeñas, sacrificando algo de
@@ -34,7 +34,7 @@ en ejecución junto con otras aplicaciones. No se recomienda para modpacks grand
 (más de 200 mods), donde los parámetros de Aikar recuperan la memoria de forma más eficiente
 incluso con la misma asignación total.</p>
 
-<h2>Debug</h2>
+<h2>Depuración</h2>
 
 <p>Los parámetros de Rendimiento más el registro detallado del GC y las aserciones de Java
 activadas. Escribe un archivo {@code gc.log} en la carpeta de instalación del modpack
@@ -46,7 +46,7 @@ pequeña sobrecarga constante, así que no lo deje activado para el juego diario
 investigar informes del tipo «deja de responder unos segundos cada
 minuto».</p>
 
-<h2>None</h2>
+<h2>Ninguno</h2>
 
 <p>Lista de argumentos vacía: la JVM usa sus propios valores predeterminados. Útil para
 comprobar si un problema de rendimiento aparente lo causan los propios parámetros

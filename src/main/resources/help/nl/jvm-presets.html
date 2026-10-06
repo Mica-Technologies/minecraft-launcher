@@ -11,7 +11,7 @@ mods), waar de GC moet opruimen na het laden en ontladen van duizenden chunks.
 Voor vanilla en kleine modpacks is elke voorinstelling prima en werkt de
 standaardinstelling "Performance" goed.</p>
 
-<h2>Performance (Aikar's Flags)</h2>
+<h2>Prestaties (Aikar's flags)</h2>
 
 <p>De standaardvoorinstelling, aanbevolen voor de overgrote meerderheid van de gebruikers. Gebruikt
 de G1-garbage collector met de parameterafstemming die Aikar (de auteur van de Paper
@@ -22,7 +22,7 @@ aanhalen. Ontworpen om haperingen door GC-pauzes tijdens intensief spelen te bep
 zwaar gemodde packs waarbij u onder belasting periodieke haperingen in de framerate
 hebt opgemerkt.</p>
 
-<h2>Low Memory</h2>
+<h2>Weinig geheugen</h2>
 
 <p>Uitgeklede flags voor systemen met weinig vrij RAM. Gebruikt G1 met een
 kortere pauzedoelstelling en kleinere heapregio's, en levert wat
@@ -34,7 +34,7 @@ laten draaien. Niet aanbevolen voor grote modpacks
 (200+ mods), waar Aikar's flags het geheugen efficiënter vrijmaken,
 zelfs bij dezelfde totale toewijzing.</p>
 
-<h2>Debug</h2>
+<h2>Debuggen</h2>
 
 <p>De Performance-flags plus uitgebreide GC-logboekregistratie en ingeschakelde
 Java-asserties. Schrijft een bestand {@code gc.log} naar de installatiemap van het modpack
@@ -45,7 +45,7 @@ kleine constante overhead, dus laat het niet aan voor dagelijks spelen.</p>
 <p>Geschikt voor: <strong>klachten over GC-pauzes onderzoeken</strong>,
 meldingen als "reageert elke minuut een paar seconden niet" uitzoeken.</p>
 
-<h2>None</h2>
+<h2>Geen</h2>
 
 <p>Lege argumentenlijst — de JVM gebruikt zijn eigen standaardwaarden. Handig om
 te testen of een vermeend prestatieprobleem door de flags van de voorinstelling

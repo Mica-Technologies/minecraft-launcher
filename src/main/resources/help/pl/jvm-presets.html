@@ -11,7 +11,7 @@ modów), w których GC musi sprzątać po tysiącach wczytywanych i
 zwalnianych chunków. Dla wersji vanilla i małych modpacków każdy profil się sprawdzi, a
 domyślny „Performance” działa dobrze.</p>
 
-<h2>Performance (Aikar's Flags)</h2>
+<h2>Wydajność (flagi Aikara)</h2>
 
 <p>Profil domyślny, zalecany dla zdecydowanej większości użytkowników. Używa
 odśmiecacza G1 z parametrami, które Aikar (autor serwera Minecraft Paper)
@@ -22,7 +22,7 @@ Zaprojektowany, by minimalizować przycięcia spowodowane pauzami GC podczas int
 mocno zmodowanych paczek, w których zauważasz okresowe spadki liczby klatek
 pod obciążeniem.</p>
 
-<h2>Low Memory</h2>
+<h2>Mało pamięci</h2>
 
 <p>Okrojony zestaw flag dla systemów z niewielką ilością wolnej pamięci RAM. Używa G1 z
 krótszym docelowym czasem pauzy i mniejszymi regionami sterty, poświęcając część
@@ -34,7 +34,7 @@ równolegle z innymi aplikacjami. Niezalecany dla dużych modpacków
 (ponad 200 modów), w których flagi Aikara skuteczniej odzyskują pamięć
 nawet przy takim samym łącznym przydziale.</p>
 
-<h2>Debug</h2>
+<h2>Debugowanie</h2>
 
 <p>Flagi Performance plus szczegółowy dziennik GC i włączone asercje
 Javy. Zapisuje plik {@code gc.log} w folderze instalacyjnym modpacka,
@@ -45,7 +45,7 @@ niewielki stały narzut, więc nie zostawiaj go włączonego na co dzień.</p>
 <p>Najlepszy do: <strong>diagnozowania skarg na pauzy GC</strong>,
 badania zgłoszeń typu „gra przestaje odpowiadać na kilka sekund co minutę”.</p>
 
-<h2>None</h2>
+<h2>Brak</h2>
 
 <p>Pusta lista argumentów — JVM używa własnych ustawień domyślnych. Przydatne do
 sprawdzenia, czy zauważony problem z wydajnością jest powodowany przez same flagi

@@ -11,7 +11,7 @@ mod), in cui il GC deve fare pulizia dopo il caricamento e lo scaricamento di mi
 di chunk. Per Minecraft vanilla e i modpack piccoli va bene qualsiasi preset e il
 predefinito "Performance" funziona bene.</p>
 
-<h2>Performance (Aikar's Flags)</h2>
+<h2>Prestazioni (flag di Aikar)</h2>
 
 <p>Preset predefinito e consigliato per la grande maggioranza degli utenti. Usa
 il garbage collector G1 con la configurazione dei parametri che Aikar (l'autore del server
@@ -22,7 +22,7 @@ Pensato per ridurre al minimo gli scatti dovuti alle pause del GC durante il gio
 modpack con molte mod in cui hai notato cali periodici del frame rate
 sotto carico.</p>
 
-<h2>Low Memory</h2>
+<h2>Poca memoria</h2>
 
 <p>Flag ridotti per sistemi con poca RAM libera. Usa G1 con un
 obiettivo di pausa più breve e regioni dell'heap più piccole, sacrificando un po' di
@@ -45,7 +45,7 @@ piccolo sovraccarico costante, quindi non lasciarlo attivo nel gioco di tutti i 
 <p>Ideale per: <strong>analizzare problemi di pause del GC</strong>,
 indagare su segnalazioni del tipo "smette di rispondere per qualche secondo ogni minuto".</p>
 
-<h2>None</h2>
+<h2>Nessuno</h2>
 
 <p>Elenco di argomenti vuoto: la JVM usa le proprie impostazioni predefinite. Utile per
 verificare se un presunto problema di prestazioni è causato dai flag del preset

@@ -11,7 +11,7 @@ mods), em que o GC precisa limpar a memória depois de milhares de chunks sendo 
 descarregados. Para o vanilla e modpacks pequenos, qualquer predefinição serve, e o
 padrão "Performance" funciona bem.</p>
 
-<h2>Performance (Aikar's Flags)</h2>
+<h2>Desempenho (flags do Aikar)</h2>
 
 <p>A predefinição padrão e a recomendada para a grande maioria dos usuários. Usa
 o coletor de lixo G1 com o ajuste de parâmetros que Aikar (autor do servidor
@@ -22,7 +22,7 @@ citam. Foi pensada para minimizar os engasgos causados por pausas do GC durante 
 modpacks com muitos mods em que você notou quedas periódicas de taxa de quadros
 sob carga.</p>
 
-<h2>Low Memory</h2>
+<h2>Pouca memória</h2>
 
 <p>Flags enxutas para sistemas com pouca RAM sobrando. Usa o G1 com uma
 meta de pausa menor e regiões de heap menores, sacrificando um pouco de
@@ -34,7 +34,7 @@ rodando junto com outros aplicativos. Não é recomendada para modpacks grandes
 (200+ mods), em que as flags do Aikar recuperam memória com mais eficiência
 mesmo com a mesma alocação total.</p>
 
-<h2>Debug</h2>
+<h2>Depuração</h2>
 
 <p>As flags de Performance mais log detalhado do GC e asserções do Java
 ativadas. Grava um arquivo {@code gc.log} na pasta de instalação do modpack
@@ -45,7 +45,7 @@ pequena sobrecarga constante, então não a deixe ativada no dia a dia.</p>
 <p>Ideal para: <strong>diagnosticar reclamações de pausas do GC</strong>,
 investigar relatos de "para de responder por alguns segundos a cada minuto".</p>
 
-<h2>None</h2>
+<h2>Nenhum</h2>
 
 <p>Lista de argumentos vazia — a JVM usa os próprios padrões. Útil para
 testar se um problema de desempenho percebido é causado pelas próprias flags
