@@ -114,6 +114,23 @@ class RunningGameFollowerTest
     }
 
     @Test
+    void resyncShowsTheFollowedGameAgain()
+    {
+        GameSession first = start( "p1", new FakeProcess() );
+        follower.update( List.of( first ) );
+        // After a launcher restart the presence and keyboard were reset; resync re-pushes.
+        follower.resync( List.of( first ) );
+        assertEquals( List.of( "game:p1", "game:p1" ), calls );
+    }
+
+    @Test
+    void resyncWithNoGameRunningDoesNothing()
+    {
+        follower.resync( List.of() );
+        assertTrue( calls.isEmpty() );
+    }
+
+    @Test
     void preparingGamesAreNotShownAndNothingResetsBeforeAnyGameRan()
     {
         GameSession preparing = new GameSession( null, "p1", "p1", "a", null, clock::get );

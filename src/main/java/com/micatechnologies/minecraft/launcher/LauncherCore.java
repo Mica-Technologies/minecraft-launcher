@@ -557,6 +557,7 @@ public class LauncherCore
                         } );
                     }
                 } );
+        runningGameFollower = follower;
         // Snapshot inside the follower's lock (update is synchronized on it): taken outside, two
         // changes on different threads (one game exiting as another starts) could apply their
         // snapshots out of order and leave Discord and RGB showing no game while one runs.
@@ -565,6 +566,34 @@ public class LauncherCore
                 follower.update( registry.sessions() );
             }
         } );
+    }
+
+    /** The follower {@link #ensureRunningGameFollower()} installed, or {@code null} before the first launch. */
+    private static volatile com.micatechnologies.minecraft.launcher.game.session.RunningGameFollower
+            runningGameFollower;
+
+    /**
+     * Brings back what an in-process restart tore down while games kept running: the Running
+     * Games window (its tabs are rebuilt from the registry, with each game's log so far) and the
+     * running game's Discord presence and keyboard effect. Called by the session once the main
+     * window is up; does nothing when no game is launching or running.
+     *
+     * @since 2026.10
+     */
+    static void restoreRunningGamesAfterRestart() {
+        var registry = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get();
+        if ( !registry.hasActive() ) {
+            return;
+        }
+        if ( GameModeManager.isClient() && MCLauncherGuiController.shouldCreateGui() ) {
+            com.micatechnologies.minecraft.launcher.gui.RunningGamesWindow.showWindow();
+        }
+        var follower = runningGameFollower;
+        if ( follower != null ) {
+            synchronized ( follower ) {
+                follower.resync( registry.sessions() );
+            }
+        }
     }
 
     /**

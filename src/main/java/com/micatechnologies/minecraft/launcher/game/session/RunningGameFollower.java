@@ -106,4 +106,19 @@ public final class RunningGameFollower
             sink.showNoGame();
         }
     }
+
+    /**
+     * Shows the followed game again even though it has not changed. Used after an in-process
+     * launcher restart, which resets Discord presence and the keyboard while the game keeps
+     * running. Does nothing when no game is running.
+     *
+     * @param sessions all sessions
+     *
+     * @since 2026.10
+     */
+    public synchronized void resync( List< GameSession > sessions )
+    {
+        shown = null;
+        update( sessions );
+    }
 }
