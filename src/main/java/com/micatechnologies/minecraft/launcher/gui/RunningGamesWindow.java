@@ -506,14 +506,32 @@ public final class RunningGamesWindow
 
         /** The tab strip plus the selected pane's minimum. A TabPane reports a minimum of 0 and
          *  leaves its content out, so measure the parts. */
+        /** The TabPane's tab strip, found once (a lookup walks the whole subtree, and this runs
+         *  on every layout pass) and again only after the skin is replaced. */
+        private Region cachedStrip;
+        private Object cachedStripSkin;
+
+        private Region tabStrip()
+        {
+            Object skin = tabs.getSkin();
+            if ( skin == null ) {
+                return null;
+            }
+            if ( cachedStrip == null || cachedStripSkin != skin ) {
+                cachedStrip = tabs.lookup( ".tab-header-area" ) instanceof Region region ? region : null;
+                cachedStripSkin = cachedStrip == null ? null : skin;
+            }
+            return cachedStrip;
+        }
+
         private double bodyNeed( double width )
         {
             Tab selected = tabs.getSelectionModel().getSelectedItem();
             if ( selected == null || selected.getContent() == null ) {
                 return DOCK_MIN_BODY;
             }
-            Node strip = tabs.lookup( ".tab-header-area" );
-            double stripHeight = strip instanceof Region region ? region.prefHeight( width ) : 0;
+            Region strip = tabStrip();
+            double stripHeight = strip != null ? strip.prefHeight( width ) : 0;
             return Math.max( DOCK_MIN_BODY, stripHeight + selected.getContent().minHeight( width ) );
         }
     }
