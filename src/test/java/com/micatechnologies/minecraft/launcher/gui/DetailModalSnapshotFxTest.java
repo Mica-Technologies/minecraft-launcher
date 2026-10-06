@@ -27,6 +27,8 @@ import javafx.scene.image.PixelReader;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -72,7 +74,34 @@ class DetailModalSnapshotFxTest
             }
             """;
 
+    /** Folders the modal's background image caching creates. Tests run with no game mode set, so
+     *  pack paths resolve to the working directory (the repository); the ones this test creates
+     *  are removed afterwards so they don't litter the checkout. */
+    private static final String[] WORKING_DIR_FOLDERS = { "installs", "metadata" };
+    private static final List< File > createdFolders = new ArrayList<>();
+
     private Stage stage;
+
+    @BeforeAll
+    static void noteWorkingDirFolders()
+    {
+        for ( String name : WORKING_DIR_FOLDERS ) {
+            File folder = new File( name );
+            if ( !folder.exists() ) {
+                createdFolders.add( folder );
+            }
+        }
+    }
+
+    @AfterAll
+    static void removeCreatedWorkingDirFolders() throws Exception
+    {
+        // Give the modal's background downloads a moment to settle before deleting their folders.
+        WaitForAsyncUtils.sleep( 500, TimeUnit.MILLISECONDS );
+        for ( File folder : createdFolders ) {
+            org.apache.commons.io.FileUtils.deleteDirectory( folder );
+        }
+    }
 
     @Start
     private void start( Stage stage )
