@@ -151,7 +151,7 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
             };
         }
         catch ( TimeoutException e ) {
-            Logger.logStd( "MCP consent prompt timed out for " + tool.name() + "; denying" );
+            Logger.logStd( LocalizationManager.format( "log.mcpConsent.promptTimedOut", tool.name() ) );
             return LauncherMcpAuthorizer.Answer.DENY;
         }
         catch ( InterruptedException e ) {
@@ -159,7 +159,7 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
             return LauncherMcpAuthorizer.Answer.DENY;
         }
         catch ( Exception e ) {
-            Logger.logError( "MCP consent prompt failed for " + tool.name() + "; denying" );
+            Logger.logError( LocalizationManager.format( "log.mcpConsent.promptFailed", tool.name() ) );
             Logger.logThrowable( e );
             return LauncherMcpAuthorizer.Answer.DENY;
         }
@@ -250,7 +250,7 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
         catch ( Exception e ) {
             // A detail that cannot be computed must not stop the prompt: the user still needs
             // to be asked, just with less context.
-            Logger.logWarningSilent( "MCP could not build consent detail for " + tool.name() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.mcpConsent.detailFailed", tool.name() ) );
             detail = null;
         }
         return detail == null || detail.isBlank() ? summary : summary + "\n\n" + detail;

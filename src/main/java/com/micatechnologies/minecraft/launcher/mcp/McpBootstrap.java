@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.mcp;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.mcp.approval.LauncherMcpAuthorizer;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpApprovalPolicy;
@@ -105,7 +106,7 @@ public final class McpBootstrap
         }
         catch ( Exception e ) {
             // A config read that fails leaves the feature off, matching its default.
-            Logger.logWarningSilent( "Could not read the MCP server setting; leaving it disabled" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.mcpBootstrap.settingUnreadable" ) );
             return;
         }
         if ( !enabled ) {
@@ -123,7 +124,7 @@ public final class McpBootstrap
             // making deliberately rather than as a side effect.
             if ( ConfigManager.getMcpAllowStateChanges() ) {
                 MutatingTools.registerAll( tools, view, new LiveMcpLauncherActions() );
-                Logger.logStd( "MCP state-changing tools are enabled" );
+                Logger.logStd( LocalizationManager.get( "log.mcpBootstrap.writeToolsEnabled" ) );
             }
 
             McpResourceRegistry resources = new McpResourceRegistry();
@@ -140,7 +141,7 @@ public final class McpBootstrap
             server = started;
         }
         catch ( Exception e ) {
-            Logger.logError( "Could not start the MCP server; continuing without it" );
+            Logger.logError( LocalizationManager.get( "log.mcpBootstrap.startFailed" ) );
             Logger.logThrowable( e );
             server = null;
         }
@@ -161,7 +162,7 @@ public final class McpBootstrap
                 server.stop();
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "The MCP server did not stop cleanly" );
+                Logger.logWarningSilent( LocalizationManager.get( "log.mcpBootstrap.stopUnclean" ) );
             }
             server = null;
         }
@@ -257,7 +258,7 @@ public final class McpBootstrap
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Could not enumerate MCP tools for the Settings page" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.mcpBootstrap.listToolsFailed" ) );
         }
         return described;
     }
@@ -291,7 +292,7 @@ public final class McpBootstrap
     {
         String fresh = McpAccessToken.generate();
         ConfigManager.setMcpToken( fresh );
-        Logger.logStd( "MCP bearer token regenerated; existing clients must be reconfigured" );
+        Logger.logStd( LocalizationManager.get( "log.mcpBootstrap.tokenRegenerated" ) );
         refresh();
         return fresh;
     }

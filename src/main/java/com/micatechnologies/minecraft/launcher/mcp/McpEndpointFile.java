@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.mcp;
 
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.FilePermissions;
@@ -197,7 +198,7 @@ public final class McpEndpointFile
             Files.deleteIfExists( path );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Could not remove the MCP endpoint file: " + path );
+            Logger.logWarningSilent( LocalizationManager.format( "log.mcpEndpointFile.removeFailed", path ) );
         }
     }
 

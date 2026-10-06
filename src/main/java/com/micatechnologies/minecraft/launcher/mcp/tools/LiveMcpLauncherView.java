@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.mcp.tools;
 
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.crash.CrashDiagnosis;
@@ -120,7 +121,7 @@ public final class LiveMcpLauncherView implements McpLauncherView
             return ModpackExporter.loadManifestText( pack );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "MCP could not load the manifest for " + friendlyName );
+            Logger.logWarningSilent( LocalizationManager.format( "log.mcpView.manifestLoadFailed", friendlyName ) );
             return null;
         }
     }
@@ -138,7 +139,7 @@ public final class LiveMcpLauncherView implements McpLauncherView
             report = pack.getLatestCrashReport();
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "MCP could not read the crash report for " + friendlyName );
+            Logger.logWarningSilent( LocalizationManager.format( "log.mcpView.crashReportReadFailed", friendlyName ) );
             return null;
         }
         if ( report == null || report.isBlank() ) {
@@ -165,7 +166,7 @@ public final class LiveMcpLauncherView implements McpLauncherView
         catch ( Exception e ) {
             // The report itself is still worth returning even when diagnosis fails -- that is
             // the part a model can actually read.
-            Logger.logWarningSilent( "MCP could not diagnose the crash report for " + friendlyName );
+            Logger.logWarningSilent( LocalizationManager.format( "log.mcpView.crashDiagnoseFailed", friendlyName ) );
             return new CrashInfo( report, "", "", "", List.of() );
         }
     }
@@ -185,7 +186,7 @@ public final class LiveMcpLauncherView implements McpLauncherView
             return measure( root );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "MCP could not measure the footprint of " + friendlyName );
+            Logger.logWarningSilent( LocalizationManager.format( "log.mcpView.footprintFailed", friendlyName ) );
             return null;
         }
     }
@@ -276,7 +277,7 @@ public final class LiveMcpLauncherView implements McpLauncherView
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "MCP could not read the signed-in account" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.mcpView.accountReadFailed" ) );
         }
 
         int installed = 0;
@@ -334,8 +335,7 @@ public final class LiveMcpLauncherView implements McpLauncherView
             return packs == null ? List.of() : packs;
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "MCP could not list "
-                                             + ( installed ? "installed" : "available" ) + " modpacks" );
+            Logger.logWarningSilent( LocalizationManager.get( installed ? "log.mcpView.listInstalledFailed" : "log.mcpView.listAvailableFailed" ) );
             return List.of();
         }
     }

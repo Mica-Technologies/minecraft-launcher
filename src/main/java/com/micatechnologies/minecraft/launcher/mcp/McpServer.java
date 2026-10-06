@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.mcp;
 
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpAuthorizer;
 import com.micatechnologies.minecraft.launcher.mcp.protocol.JsonRpcCodec;
@@ -186,8 +187,7 @@ public final class McpServer
             // entirely. Falling back to an OS-assigned port keeps the feature working; the
             // Settings pane and the endpoint file both report the port actually bound, so the
             // user can see it differs from what they configured.
-            Logger.logWarningSilent( "MCP port " + requestedPort + " is unavailable; using an "
-                                             + "OS-assigned port instead" );
+            Logger.logWarningSilent( LocalizationManager.format( "log.mcpServer.portUnavailable", String.valueOf( requestedPort ) ) );
             try {
                 port = transport.start( 0 );
             }
@@ -212,7 +212,7 @@ public final class McpServer
             }
         }
 
-        Logger.logStd( "MCP server listening on loopback port " + port );
+        Logger.logStd( LocalizationManager.format( "log.mcpServer.listening", String.valueOf( port ) ) );
         return port;
     }
 
@@ -232,7 +232,7 @@ public final class McpServer
         shutdownInternals();
         sessions.clear();
         port = 0;
-        Logger.logStd( "MCP server stopped" );
+        Logger.logStd( LocalizationManager.get( "log.mcpServer.stopped" ) );
     }
 
     /**
@@ -369,7 +369,7 @@ public final class McpServer
                                            "Request was interrupted" );
         }
         catch ( ExecutionException | RuntimeException e ) {
-            Logger.logError( "MCP dispatch failed" );
+            Logger.logError( LocalizationManager.get( "log.mcpServer.dispatchFailed" ) );
             Logger.logThrowable( e );
             response = JsonRpcCodec.error( parse.message().id(), McpErrors.INTERNAL_ERROR,
                                            "Request failed" );
