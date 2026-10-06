@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
@@ -163,10 +164,7 @@ public final class PlaceholderLogoFactory
                     }
                 }
                 catch ( Exception ex ) {
-                    Logger.logWarningSilent(
-                            "PlaceholderLogoFactory: failed to fetch official "
-                                    + loaderType + " logo (" + url + "): "
-                                    + ex.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.placeholderLogo.officialFetchFailed", loaderType, url, ex.getMessage() ) );
                 }
                 finally {
                     inFlightFetches.remove( loaderType );
