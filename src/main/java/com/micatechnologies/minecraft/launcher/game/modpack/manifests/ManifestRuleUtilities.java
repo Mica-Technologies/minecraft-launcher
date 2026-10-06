@@ -17,6 +17,9 @@ import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -284,13 +287,21 @@ public final class ManifestRuleUtilities
      * @return {@code true} if the pattern matches within the value, {@code false} on no match or an invalid pattern
      */
     private static boolean regexMatches( String pattern, String value ) {
-        try {
-            return Pattern.compile( pattern ).matcher( value ).find();
-        }
-        catch ( PatternSyntaxException ignored ) {
-            return false;
-        }
+        Optional< Pattern > compiled = RULE_PATTERNS.computeIfAbsent( pattern, p -> {
+            try {
+                return Optional.of( Pattern.compile( p ) );
+            }
+            catch ( PatternSyntaxException ignored ) {
+                return Optional.empty();
+            }
+        } );
+        return compiled.isPresent() && compiled.get().matcher( value ).find();
     }
+
+    /** Compiled rule patterns by source, so each manifest's handful of OS-version and arch
+     *  patterns compiles once rather than once per library per evaluation. Empty for an invalid
+     *  pattern. */
+    private static final Map< String, Optional< Pattern > > RULE_PATTERNS = new ConcurrentHashMap<>();
 
     /**
      * Compares an OS version string against a versionRange object with optional min and max fields. Version components
