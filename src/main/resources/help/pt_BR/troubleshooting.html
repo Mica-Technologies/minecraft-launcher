@@ -1,0 +1,112 @@
+<h1>Solução de problemas</h1>
+
+<p>Esta página aborda problemas comuns e suas soluções. Se o seu problema não estiver listado aqui,
+consulte os logs do launcher para ver os detalhes do erro.</p>
+
+<h2>Falhas de download</h2>
+
+<p>Arquivos não são baixados ou aparecem erros de verificação durante a inicialização.</p>
+
+<ul>
+    <li>Verifique sua conexão com a internet e tente de novo.</li>
+    <li>Se você estiver em uma rede corporativa ou escolar, configure um proxy em
+        <a href="help://topic/SETTINGS">Configurações</a>, na seção Rede / Proxy.</li>
+    <li>Tente iniciar de novo — erros de rede temporários costumam se resolver na segunda tentativa.</li>
+    <li>Se um arquivo específico falhar sempre, a URL de download dele pode estar quebrada. Informe isso ao autor do modpack.</li>
+</ul>
+
+<h2>Indicador offline</h2>
+
+<p>Um chip vermelho <strong>Offline</strong> aparece ao lado do botão de ajuda em todas as telas principais
+quando o launcher detecta que não há conexão com a internet. Enquanto estiver offline:</p>
+
+<ul>
+    <li>Você ainda pode iniciar qualquer modpack cujos arquivos já estejam totalmente baixados.</li>
+    <li>Instalações, atualizações e as caixas de diálogo de escolha de versão do Editor de modpacks vão falhar ou
+        mostrar dados desatualizados.</li>
+    <li>Os filtros de modpacks disponíveis e de versões de loader da tela <a href="help://topic/BROWSE_LIBRARY">Explorar</a>
+        ficarão vazios até a rede voltar.</li>
+    <li>A autenticação não é afetada enquanto o seu token atual ainda for válido (ele fica em cache
+        no disco entre as execuções).</li>
+</ul>
+
+<p>O indicador é atualizado quando você navega entre as telas; então, quando a rede voltar a
+funcionar, basta ir para outra tela e voltar para atualizar o chip.</p>
+
+<h2>Travamentos do jogo</h2>
+
+<p>O jogo inicia, mas trava logo depois, ou trava durante a partida.</p>
+
+<ul>
+    <li>Ative o <a href="help://topic/GAME_CONSOLE">Console do jogo</a> nas configurações para ver a saída do travamento em tempo real.</li>
+    <li>Consulte o relatório de travamento na pasta <code>crash-reports/</code> do modpack para ver os detalhes específicos do erro.</li>
+    <li>Tente aumentar a alocação máxima de RAM em <a href="help://topic/SETTINGS">Configurações</a> — muitos modpacks precisam de pelo menos 4 - 6 GB.</li>
+    <li>Clique com o botão direito no modpack na tela principal e selecione <strong>Abrir pasta de instalação</strong>; depois exclua
+        a pasta <code>mods/</code> e inicie de novo para forçar um novo download.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Aviso</div>
+    <p>Alocar RAM demais (mais do que o sistema pode ceder) pode causar travamentos com a mesma
+    facilidade que alocar de menos. Mantenha a RAM máxima em no máximo metade da memória total do sistema.</p>
+</div>
+
+<h2>Launcher parado no carregamento</h2>
+
+<p>O launcher parece congelado ou uma barra de progresso para de se mover.</p>
+
+<ul>
+    <li>Aguarde alguns minutos — modpacks grandes podem demorar para verificar os arquivos, especialmente na primeira execução.</li>
+    <li>Consulte os logs do launcher em busca de erros (ative o Log detalhado nas configurações).</li>
+    <li>Como último recurso, use <strong>Redefinir launcher</strong> em <a href="help://topic/SETTINGS">Configurações</a>
+        para voltar a um estado limpo.</li>
+</ul>
+
+<h2>Modo offline</h2>
+
+<p>O launcher precisa de conexão com a internet para a autenticação e para baixar arquivos. Porém,
+os manifestos dos modpacks e os arquivos do jogo ficam em cache local depois do primeiro download bem-sucedido.</p>
+
+<ul>
+    <li>Se você perder a conexão depois da configuração inicial, o jogo ainda pode iniciar usando os arquivos em cache.</li>
+    <li>Os tokens de autenticação ficam em cache por aproximadamente 4 horas — se o seu token ainda for válido, você pode jogar offline dentro desse período.</li>
+</ul>
+
+<h2>Problemas de desempenho</h2>
+
+<p>O jogo funciona, mas com FPS baixo ou engasgos frequentes.</p>
+
+<ul>
+    <li>Mude para a predefinição da JVM <strong>Performance (Aikar's Flags)</strong> em
+        <a href="help://topic/SETTINGS">Configurações</a>.</li>
+    <li>Confira se você alocou RAM suficiente — pelo menos 4 GB para a maioria dos modpacks.</li>
+    <li>Feche outros aplicativos que usam muita memória enquanto joga.</li>
+    <li>Verifique se os drivers da placa de vídeo estão atualizados.</li>
+</ul>
+
+<h2>Mods ou arquivos ausentes</h2>
+
+<p>O jogo inicia, mas faltam mods ou as configurações estão erradas.</p>
+
+<ul>
+    <li>O launcher verifica os hashes dos arquivos a cada inicialização. Se algum arquivo foi modificado manualmente, ele será baixado de novo para corresponder à definição do modpack.</li>
+    <li>Se um mod estiver faltando no próprio modpack, entre em contato com o autor do modpack.</li>
+    <li>Tente remover o modpack e adicioná-lo de novo para forçar um novo download completo.</li>
+</ul>
+
+<h2>Problemas de autenticação</h2>
+
+<p>Não é possível fazer login ou o launcher pede a autenticação repetidamente.</p>
+
+<ul>
+    <li>Os tokens expiram após aproximadamente 4 horas — autenticar de novo é normal.</li>
+    <li>Se o login falhar repetidamente, tente limpar os cookies do navegador de <code>login.microsoftonline.com</code>.</li>
+    <li>Confira se a sua conta da Microsoft tem uma licença ativa do Minecraft.</li>
+    <li>Veja <a href="help://topic/LOGIN">Login</a> para mais detalhes sobre o processo de autenticação.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Dica</div>
+    <p>Ao relatar problemas, inclua sempre: o nome e a versão do modpack, seu sistema operacional,
+    o arquivo de log do launcher e os relatórios de travamento. Isso ajuda a diagnosticar os problemas muito mais rápido.</p>
+</div>

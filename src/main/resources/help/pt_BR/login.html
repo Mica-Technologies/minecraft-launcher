@@ -1,0 +1,43 @@
+<h1>Login</h1>
+
+<p>O Mica Minecraft Launcher usa a <strong>autenticação oficial da Microsoft</strong> para verificar sua
+conta do Minecraft. É o mesmo processo de login usado pelo launcher oficial do Minecraft.</p>
+
+<h2>Como funciona</h2>
+
+<ol class="steps">
+    <li>Clique em <strong>Fazer login</strong> na tela de login. Uma janela do navegador abre na página de login da Microsoft.</li>
+    <li>Digite as credenciais da sua conta da Microsoft e aprove o login.</li>
+    <li>Depois da autenticação, a janela do navegador fecha e o launcher segue para a
+        <a href="help://topic/MAIN_SCREEN">Tela principal</a>.</li>
+</ol>
+
+<h2>Cache do token</h2>
+
+<p>Depois de um login bem-sucedido, seu token de autenticação é armazenado em cache localmente com
+<strong>criptografia AES-256-GCM</strong>, usando uma chave derivada do computador. Isso significa que:</p>
+
+<ul>
+    <li>Você não precisará fazer login de novo por aproximadamente <strong>4 horas</strong>.</li>
+    <li>O token em cache é criptografado e vinculado ao seu computador — ele não pode ser transferido nem reutilizado em outro lugar.</li>
+    <li>Quando o cache expirar, o launcher pedirá que você faça login novamente.</li>
+</ul>
+
+<h2>Solução de problemas de login</h2>
+
+<div class="warning">
+    <div class="callout-title">Internet necessária</div>
+    <p>É preciso ter uma conexão ativa com a internet para o primeiro login. O launcher não consegue
+    autenticar em modo totalmente offline.</p>
+</div>
+
+<p>Se você estiver com dificuldades para fazer login:</p>
+
+<ul>
+    <li><strong>O navegador não abre</strong> — verifique se há um navegador padrão configurado no seu sistema.</li>
+    <li><strong>O login expira</strong> — verifique sua conexão com a internet e tente de novo.</li>
+    <li><strong>A conta não é reconhecida</strong> — confira se você está usando a conta da Microsoft que tem o Minecraft.</li>
+    <li><strong>Pedidos de login repetidos</strong> — o token em cache pode ter expirado. Isso é normal após 4 horas de inatividade.</li>
+</ul>
+
+<p>Para problemas persistentes, veja <a href="help://topic/TROUBLESHOOTING">Solução de problemas</a>.</p>

@@ -1,0 +1,109 @@
+<h1>Explorar</h1>
+
+<p>A tela Explorar é onde você instala e gerencia tudo. Aqui você pode instalar novos modpacks
+do manifesto público, instalar versões puras do Minecraft vanilla, instalar modpacks iniciais vazios de Forge / NeoForge /
+Fabric, editar os modpacks que já tem e desinstalar o que não quiser mais.</p>
+
+<h2>Cards &amp; a barra de filtros</h2>
+
+<p>Cada entrada aparece como um card de destaque com logotipo, selo, nome, chips (loader / versão do Minecraft),
+uma linha de status e botões de ação. A barra de filtros no topo é como você restringe a visualização.</p>
+
+<ul>
+    <li><strong>Pesquisar</strong> — busca de texto livre nos títulos dos cards. É atualizada enquanto você digita
+        (com um pequeno atraso para não ficar refazendo o layout).</li>
+    <li><strong>Tipo</strong> — Todos, Modpacks ou um dos catálogos de versões:
+        Vanilla (Releases / Snapshots / Old Beta / Old Alpha) e versões de Forge / NeoForge / Fabric.
+        Os filtros de versões de loader <em>não</em> estão incluídos em "Todos" de propósito — a lista combinada
+        teria milhares de entradas e não é o que uma busca do tipo "mostrar tudo" pretende.</li>
+    <li><strong>Status</strong> — Todos, Instalados ou Disponíveis. "Disponíveis" mostra o que você
+        ainda não instalou; "Instalados" mostra o que já está no disco.</li>
+    <li><strong>Ordenar</strong> — Padrão, Nome (A–Z / Z–A), Data de lançamento, Jogado pela última vez, Mais jogados,
+        Atualizados recentemente. As ordenações que dependem do histórico de jogo / atualização (Jogado pela última vez, Mais jogados,
+        Atualizados recentemente) mandam as entradas que não são modpacks para o final, em vez de misturá-las
+        de forma confusa.</li>
+</ul>
+
+<h2>Modpacks instalados</h2>
+
+<p>Os cards de modpacks que já estão no disco mostram dois botões:</p>
+
+<ul>
+    <li><strong>Desinstalar</strong> — pergunta se a pasta de instalação também deve ser excluída. "Desinstalar
+        (manter arquivos)" preserva seus mundos, configurações e mods, mesmo que o launcher deixe de conhecer
+        o modpack — útil se você pretende reinstalar o mesmo modpack mais tarde.</li>
+    <li><strong>Editar</strong> — abre o <a href="help://topic/MODPACK_EDITOR">Editor de modpacks</a>
+        no manifesto local do modpack. As alterações são gravadas no disco e valem a partir da próxima inicialização.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Dica</div>
+    <p>Clique com o botão direito no card de um modpack instalado para abrir o mesmo menu de contexto do menu principal:
+    abrir a pasta do modpack, abrir a pasta de mods, criar um atalho na área de trabalho, ver as estatísticas de jogo e
+    desinstalar.</p>
+</div>
+
+<h2>Modpacks disponíveis</h2>
+
+<p>Os cards do manifesto público que você ainda não tem mostram um botão <strong>Instalar</strong>.
+Clicar nele baixa o manifesto, instala o modpack e move o card para o grupo de instalados
+na próxima atualização da lista. Você pode continuar usando os filtros enquanto uma instalação está em andamento — o
+card em andamento fica fixado no topo da grade até a instalação terminar.</p>
+
+<h2>Versões vanilla</h2>
+
+<p>O catálogo completo da Mojang de releases / snapshots / betas / alphas. Cada card instala exatamente essa
+versão do Minecraft como um modpack sintético vazio que você pode jogar direto do menu principal. Betas
+e alphas antigas também funcionam — o launcher baixa automaticamente o runtime Java adequado para cada
+versão.</p>
+
+<h2>Versões de Forge / NeoForge / Fabric</h2>
+
+<p>Os filtros de versões de loader mostram todas as versões anunciadas pelo serviço de versões de cada projeto:
+as promoções do Forge, os metadados Maven do NeoForge e a API meta do Fabric. Clicar em Instalar em uma delas
+grava um manifesto sintético de "modpack vazio" na sua pasta de configuração e o registra no
+launcher — assim, o resultado se comporta como qualquer outro modpack instalado:</p>
+
+<ul>
+    <li>aparece nos cards de destaque do menu principal;</li>
+    <li>pode ser editado no Editor de modpacks (para você adicionar mods e montar seu próprio modpack);</li>
+    <li>pode ser desinstalado como qualquer outro modpack;</li>
+    <li>usa o mesmo mecanismo de atualização automática de um modpack normal.</li>
+</ul>
+
+<div class="note">
+    <div class="callout-title">Observação</div>
+    <p>Os cards mostram o logotipo oficial de cada projeto quando o launcher já o tem em cache local. Na
+    primeira visita a um filtro de loader, aparece um marcador de posição nas cores da marca enquanto os logotipos reais
+    são baixados em segundo plano — depois de armazenados em cache, as visitas seguintes são instantâneas.</p>
+</div>
+
+<h2>Adicionar por URL</h2>
+
+<p>O botão <strong>Adicionar por URL</strong> da barra inferior recebe uma URL direta para um manifesto
+<code>installable.json</code> hospedado e o instala da mesma forma que os cards de modpacks disponíveis.
+Use-o para modpacks distribuídos fora do manifesto público — cole o link, clique no botão
+e os metadados do manifesto são baixados e validados antes de a instalação começar.</p>
+
+<h2>Editor de modpacks</h2>
+
+<p>O botão <strong>Editor de modpacks</strong> da barra inferior abre o
+<a href="help://topic/MODPACK_EDITOR">Editor de modpacks</a> com um manifesto em branco para você montar
+um modpack novo do zero — defina o loader (Forge / NeoForge / Fabric / vanilla), a versão do Minecraft,
+a lista de mods etc. O Editor também pode ser aberto em um modpack existente pelo botão <strong>Editar</strong>
+do card dele.</p>
+
+<h2>Gerar manifesto de hospedagem</h2>
+
+<p>O botão <strong>Gerar manifesto de hospedagem</strong> da barra inferior cria um
+<code>installable.json</code> para o modpack que está aberto no editor, pronto para ser hospedado em qualquer
+servidor web ou serviço de compartilhamento de arquivos. Qualquer pessoa com a URL resultante pode instalar seu modpack por Adicionar por
+URL.</p>
+
+<h2>Paginação</h2>
+
+<p>Listas longas são paginadas. Use os botões <strong>Anterior</strong> / <strong>Próximo</strong> na
+barra de paginação (acima dos cards) para trocar de página e o menu suspenso <strong>Por página</strong>
+para definir o tamanho da página — 24, 48, 72 ou 96. O padrão de 48 cabe em uma página para a biblioteca
+instalada típica; aumentar para 96 mantém os filtros de versões de loader navegáveis em uma única
+página.</p>
