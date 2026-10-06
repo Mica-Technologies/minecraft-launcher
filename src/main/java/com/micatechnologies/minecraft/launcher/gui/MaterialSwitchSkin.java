@@ -39,10 +39,11 @@ import javafx.scene.shape.SVGPath;
 import javafx.util.Duration;
 
 /**
- * A Material 3 switch for MaterialFX toggle buttons, drawn the way Android 16 draws it: an outlined track
- * with a small handle when off; a filled primary track with a large handle carrying a check mark
- * when on. The label sits on the left and the switch at the right edge, as in Android's settings
- * rows. The handle slides and grows with Material's emphasized easing, and swells while pressed.
+ * A Material 3 switch for MaterialFX toggle buttons, drawn the way Android 16 draws its switch with
+ * icons: an outlined track with a handle carrying an X when off; a filled primary track with a
+ * handle carrying a check mark when on. The handle is the same size in both states. The label sits on the left and the switch at the right edge, as in Android's settings
+ * rows. The handle slides with Material's emphasized easing, its icon cross-fading from the X to the
+ * check, and swells while pressed.
  * Sized at three quarters of Material's mobile switch (52 x 32), a better fit for a desktop window.
  *
  * <p>{@code ui-base.css} installs it on every {@code MFXToggleButton} with {@code -fx-skin}, so no
@@ -57,8 +58,7 @@ public class MaterialSwitchSkin extends SkinBase< MFXToggleButton >
     static final double TRACK_WIDTH = 40;
     static final double TRACK_HEIGHT = 24;
     private static final double GAP = 16;
-    private static final double HANDLE_OFF = 12;
-    private static final double HANDLE_ON = 18;
+    private static final double HANDLE = 18;
     private static final double HANDLE_PRESSED = 21;
     private static final double HALO = 30;
 
@@ -67,6 +67,7 @@ public class MaterialSwitchSkin extends SkinBase< MFXToggleButton >
     private final Region halo = new Region();
     private final StackPane handle = new StackPane();
     private final SVGPath check = new SVGPath();
+    private final SVGPath cross = new SVGPath();
 
     /** 0 = off, 1 = on, animated between. */
     private final DoubleProperty position = new SimpleDoubleProperty();
@@ -119,7 +120,9 @@ public class MaterialSwitchSkin extends SkinBase< MFXToggleButton >
         handle.setManaged( false );
         check.setContent( LauncherIcons.CHECK );
         check.getStyleClass().add( "m3-switch-icon" );
-        handle.getChildren().add( check );
+        cross.setContent( LauncherIcons.CLOSE );
+        cross.getStyleClass().add( "m3-switch-icon-off" );
+        handle.getChildren().addAll( cross, check );
 
         getChildren().setAll( label, track, halo, handle );
 
@@ -171,15 +174,14 @@ public class MaterialSwitchSkin extends SkinBase< MFXToggleButton >
         track.resizeRelocate( switchX, trackY, TRACK_WIDTH, TRACK_HEIGHT );
 
         double p = position.get();
-        double size = armed ? HANDLE_PRESSED : HANDLE_OFF + ( HANDLE_ON - HANDLE_OFF ) * p;
+        double size = armed ? HANDLE_PRESSED : HANDLE;
         // Handle centre runs from the left end of the track (off) to the right end (on).
         double cx = switchX + TRACK_HEIGHT / 2 + ( TRACK_WIDTH - TRACK_HEIGHT ) * p;
         double cy = trackY + TRACK_HEIGHT / 2;
         handle.resizeRelocate( cx - size / 2, cy - size / 2, size, size );
-        check.setOpacity( p );
-        // 24 px icon drawn at 12 px inside the on-state handle.
-        check.setScaleX( 12.0 / 24 * Math.max( p, 0.01 ) );
-        check.setScaleY( 12.0 / 24 * Math.max( p, 0.01 ) );
+        // 24 px icons drawn at 12 px inside the handle, the X shrinking out as the check grows in.
+        showIcon( check, p );
+        showIcon( cross, 1 - p );
         halo.resizeRelocate( cx - HALO / 2, cy - HALO / 2, HALO, HALO );
         halo.setVisible( !getSkinnable().isDisabled()
                          && ( getSkinnable().isHover() || getSkinnable().isFocused() || armed ) );
@@ -188,6 +190,13 @@ public class MaterialSwitchSkin extends SkinBase< MFXToggleButton >
         track.pseudoClassStateChanged( javafx.css.PseudoClass.getPseudoClass( "on" ), on );
         handle.pseudoClassStateChanged( javafx.css.PseudoClass.getPseudoClass( "on" ), on );
         halo.pseudoClassStateChanged( javafx.css.PseudoClass.getPseudoClass( "on" ), on );
+    }
+
+    private static void showIcon( SVGPath icon, double amount )
+    {
+        icon.setOpacity( amount );
+        icon.setScaleX( 12.0 / 24 * Math.max( amount, 0.01 ) );
+        icon.setScaleY( 12.0 / 24 * Math.max( amount, 0.01 ) );
     }
 
     @Override
