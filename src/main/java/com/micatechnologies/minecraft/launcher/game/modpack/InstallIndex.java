@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Single-file persistent summary of every installed modpack — name, version,
@@ -106,8 +107,31 @@ public final class InstallIndex
         public boolean packCustomDiscordRpc;
         /** Epoch millis of the last successful refresh. Surfaces as a "refreshed
          *  X minutes ago" hint and lets us age out entries whose URL has long
-         *  since been removed from the installed list. */
+         *  since been removed from the installed list. An unchanged entry's stamp is
+         *  renewed at most daily (see {@link #upsertAndSave}). */
         public long updatedAt;
+
+        /**
+         * Whether another entry holds the same pack details, ignoring {@link #updatedAt}.
+         *
+         * @param o the other entry
+         *
+         * @return {@code true} when every detail but the refresh stamp matches
+         */
+        boolean sameContent( Entry o )
+        {
+            return o != null
+                    && Objects.equals( packName, o.packName )
+                    && Objects.equals( packVersion, o.packVersion )
+                    && Objects.equals( packURL, o.packURL )
+                    && Objects.equals( packLogoURL, o.packLogoURL )
+                    && Objects.equals( packLogoSha1, o.packLogoSha1 )
+                    && Objects.equals( packBackgroundURL, o.packBackgroundURL )
+                    && Objects.equals( packBackgroundSha1, o.packBackgroundSha1 )
+                    && Objects.equals( packMinRAMGB, o.packMinRAMGB )
+                    && packUnstable == o.packUnstable
+                    && packCustomDiscordRpc == o.packCustomDiscordRpc;
+        }
     }
 
     // ===== load / save =====
@@ -285,9 +309,21 @@ public final class InstallIndex
     {
         if ( manifestUrl == null || manifestUrl.isBlank() || pack == null ) return;
         InstallIndex idx = load();
+        Entry before = idx.get( manifestUrl );
         idx.upsert( manifestUrl, pack );
+        // Every installed pack upserts on every start; rewriting the whole index for each when
+        // nothing changed is wasted I/O under this lock. The refresh stamp is still renewed
+        // once it is a day old.
+        Entry after = idx.get( manifestUrl );
+        if ( before != null && before.sameContent( after )
+                && after.updatedAt - before.updatedAt < UPDATED_AT_REFRESH_MS ) {
+            return;
+        }
         idx.save();
     }
+
+    /** How stale an unchanged entry's {@link Entry#updatedAt} may get before an upsert rewrites it. */
+    static final long UPDATED_AT_REFRESH_MS = 24L * 60 * 60 * 1000;
 
     /**
      * Atomic load-remove-save counterpart of {@link #upsertAndSave}. Use on uninstall so

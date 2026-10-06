@@ -143,4 +143,21 @@ class InstallIndexConcurrencyTest
             assertEquals( 0, temps, "all unique temp files should have been moved into place" );
         }
     }
+
+    @Test
+    void anUnchangedUpsertLeavesTheFileAloneButAChangeIsSaved() throws Exception
+    {
+        String url = "https://host/pack/1";
+        InstallIndex.upsertAndSave( url, pack( 1 ) );
+        String first = Files.readString( indexFile, StandardCharsets.UTF_8 );
+
+        InstallIndex.upsertAndSave( url, pack( 1 ) );
+        assertEquals( first, Files.readString( indexFile, StandardCharsets.UTF_8 ),
+                      "the same details again must not rewrite the index" );
+
+        GameModPack changed = pack( 1 );
+        changed.packVersion = "2.0";
+        InstallIndex.upsertAndSave( url, changed );
+        assertEquals( "2.0", InstallIndex.load().get( url ).packVersion );
+    }
 }
