@@ -19,12 +19,14 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.game.session.GameSession;
 import com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -64,8 +66,10 @@ import java.util.Map;
  */
 public final class RunningGamesWindow
 {
-    /** Share of the main window's height the expanded dock asks for. */
-    private static final double DOCK_SHARE = 0.42;
+    /** Least and most share of the main window's height the expanded dock can be dragged to;
+     *  its content's minimum and the screen above it limit it further. */
+    static final double DOCK_SHARE_MIN = 0.10;
+    static final double DOCK_SHARE_MAX = 0.90;
 
     /** Least height the expanded dock takes below its header, in unscaled pixels; more if the
      *  selected game's pane needs it, so Stop and Kill are never cut off. */
@@ -98,6 +102,13 @@ public final class RunningGamesWindow
     private       String               appliedThemeKey = ConfigManager.getTheme() + ":" + GUIUtilities.isOsDark();
     private       boolean              docked   = ConfigManager.getRunningGamesDocked();
     private       boolean              expanded = true;
+    /** Share of the main window's height the expanded dock asks for; the user sets it by
+     *  dragging {@link #resizeGrip}. */
+    private       double               dockShare = clampShare( ConfigManager.getRunningGamesDockHeight() / 1000.0 );
+    /** Along the docked view's top edge: drag to resize it, double-click for the default. */
+    private final StackPane            resizeGrip = new StackPane();
+    private       double               dragStartScreenY;
+    private       double               dragStartHeight;
 
     private RunningGamesWindow()
     {
@@ -127,11 +138,15 @@ public final class RunningGamesWindow
             }
         } );
 
-        body = new VBox( header, content );
+        // The resize grip lies over the header's top edge; it is inside the body so the theme
+        // sheets installed there reach it.
+        StackPane headerLayer = new StackPane( header, resizeGrip );
+        body = new VBox( headerLayer, content );
         // The theme sheets define their tokens on .root; the body carries it so they resolve both
         // in this window and docked inside the main window's screens.
         body.getStyleClass().addAll( "root", "rootPane", "runningGamesBody" );
         MCLauncherGuiWindow.installCurrentThemeStylesheets( body );
+        buildResizeGrip();
 
         tabs.setTabClosingPolicy( TabPane.TabClosingPolicy.ALL_TABS );
         // Switching games fades the selected game's pane in (Material's fade-through).
@@ -388,12 +403,115 @@ public final class RunningGamesWindow
         boolean showContent = !docked || expanded;
         content.setVisible( showContent );
         content.setManaged( showContent );
+        resizeGrip.setVisible( docked && expanded );
         // Docked with nothing running, there is nothing to dock: take no room at all.
         dockHolder.setVisible( docked && !none );
         dockHolder.requestLayout();
         if ( dockHolder.getParent() != null ) {
             dockHolder.getParent().requestLayout();
         }
+    }
+
+    /** Sets up {@link #resizeGrip}: a strip over the dock's top edge with a small handle. */
+    private void buildResizeGrip()
+    {
+        Region handle = new Region();
+        handle.getStyleClass().add( "runningGamesResizeHandle" );
+        handle.setMouseTransparent( true );
+        resizeGrip.getChildren().add( handle );
+        resizeGrip.getStyleClass().add( "runningGamesResizeGrip" );
+        resizeGrip.setCursor( Cursor.V_RESIZE );
+        resizeGrip.setMaxHeight( Region.USE_PREF_SIZE );
+        StackPane.setAlignment( resizeGrip, Pos.TOP_CENTER );
+        TooltipManager.install( resizeGrip, LocalizationManager.get( "session.dock.resize" ) );
+        // The grip is layered over the header, not inside it, so its clicks never collapse it.
+        resizeGrip.setOnMousePressed( e -> {
+            if ( e.getButton() == MouseButton.PRIMARY ) {
+                dragStartScreenY = e.getScreenY();
+                dragStartHeight = dockHolder.getHeight();
+            }
+            e.consume();
+        } );
+        resizeGrip.setOnMouseDragged( e -> {
+            if ( e.getButton() == MouseButton.PRIMARY ) {
+                double room = dockHolder.getParent() instanceof ScaledRoot screen ? screen.dockRoom() : Double.MAX_VALUE;
+                setDockShare( dragShare( dragStartHeight, ( dragStartScreenY - e.getScreenY() ) / UiScale.get(),
+                                         windowHeight(), room ) );
+            }
+            e.consume();
+        } );
+        resizeGrip.setOnMouseReleased( e -> {
+            if ( e.getButton() == MouseButton.PRIMARY ) {
+                ConfigManager.setRunningGamesDockHeight( ( int ) Math.round( dockShare * 1000 ) );
+            }
+            e.consume();
+        } );
+        resizeGrip.setOnMouseClicked( e -> {
+            if ( e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2 ) {
+                setDockShare( ConfigConstants.RUNNING_GAMES_DOCK_HEIGHT_DEFAULT / 1000.0 );
+                ConfigManager.setRunningGamesDockHeight( ConfigConstants.RUNNING_GAMES_DOCK_HEIGHT_DEFAULT );
+            }
+            e.consume();
+        } );
+    }
+
+    private void setDockShare( double share )
+    {
+        dockShare = share;
+        dockHolder.requestLayout();
+        if ( dockHolder.getParent() != null ) {
+            dockHolder.getParent().requestLayout();
+        }
+    }
+
+    /** @return the main window's height in unscaled pixels, or 0 before the dock is shown */
+    private double windowHeight()
+    {
+        Scene scene = dockHolder.getScene();
+        return scene == null ? 0 : scene.getHeight() / UiScale.get();
+    }
+
+    /**
+     * The dock's height share after a drag. Pure, for testing.
+     *
+     * @param startHeight  the dock's height when the drag began, in unscaled pixels
+     * @param draggedUp    how far the pointer has moved up since, in unscaled pixels (down is
+     *                     negative)
+     * @param windowHeight the main window's height, in unscaled pixels
+     * @param room         the most height the screen above can give the dock, in unscaled pixels
+     *
+     * @return the new share of the window's height, within {@link #DOCK_SHARE_MIN} and
+     *         {@link #DOCK_SHARE_MAX}
+     *
+     * @since 2026.10
+     */
+    static double dragShare( double startHeight, double draggedUp, double windowHeight, double room )
+    {
+        if ( windowHeight <= 0 ) {
+            return clampShare( Double.NaN );   // not shown yet: the default
+        }
+        // Held to the room first: a share above what the screen can spare would show no change
+        // while dragging further, then leave the grip unresponsive on the way back down.
+        double height = Math.min( startHeight + draggedUp, room );
+        return clampShare( height / windowHeight );
+    }
+
+    /**
+     * Holds a saved or dragged share within {@link #DOCK_SHARE_MIN} and {@link #DOCK_SHARE_MAX}.
+     * Pure, for testing.
+     *
+     * @param share a share of the window's height
+     *
+     * @return the share, clamped; the default for a value that isn't a number
+     *
+     * @since 2026.10
+     */
+    static double clampShare( double share )
+    {
+        if ( Double.isNaN( share ) ) {
+            return ConfigConstants.RUNNING_GAMES_DOCK_HEIGHT_DEFAULT / 1000.0;
+        }
+        return Math.max( DOCK_SHARE_MIN, Math.min( DOCK_SHARE_MAX, share ) );
     }
 
     private static boolean isInButton( Node node )
@@ -501,7 +619,7 @@ public final class RunningGamesWindow
             }
             Scene scene = getScene();
             double windowHeight = scene == null ? 0 : scene.getHeight() / UiScale.get();
-            return Math.max( need, windowHeight * DOCK_SHARE );
+            return Math.max( need, windowHeight * dockShare );
         }
 
         /** The tab strip plus the selected pane's minimum. A TabPane reports a minimum of 0 and

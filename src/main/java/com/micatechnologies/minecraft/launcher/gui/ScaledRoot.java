@@ -105,6 +105,19 @@ final class ScaledRoot extends Region
         requestLayout();
     }
 
+    /**
+     * The most height the dock can take without squeezing the content below its minimum, in
+     * the dock's own (unscaled) pixels.
+     *
+     * @return the room the content can spare, never negative
+     */
+    double dockRoom()
+    {
+        double scale = s();
+        double height = getHeight() - getInsets().getTop() - getInsets().getBottom();
+        return Math.max( 0, ( height - content.minHeight( -1 ) * scale ) / scale );
+    }
+
     /** @return the docked region, or {@code null} */
     Region dock()
     {

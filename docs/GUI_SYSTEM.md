@@ -217,8 +217,11 @@ dock along its bottom edge and makes room for it. Each screen has its own scene,
 `MCLauncherGuiWindow.setScene` calls `RunningGamesWindow.followScreen( scene )` on every screen
 change to move the dock into the new screen's wrapper. Expanded, the dock always gets the tab
 strip plus the selected game's pane at its minimum (so Stop and Kill always show), and asks for
-42% of the window. If that squeezes the screen below its own minimum, the screen is clipped at the
-dock's edge. The body (header and tabs) carries the theme sheets and the `root` style class, so
+a share of the window's height: 42% by default. Dragging the grip along the dock's top edge
+changes the share, up to what the screen above can spare, and a double-click resets it. The share
+is saved in thousandths (`ConfigManager.getRunningGamesDockHeight()`), so the dock keeps its
+proportion when the window is resized. If the dock's minimum squeezes the screen below its own
+minimum, the screen is clipped at the dock's edge. The body (header and tabs) carries the theme sheets and the `root` style class, so
 the theme tokens resolve in both hosts.
 
 All its static methods can be called from any thread:
