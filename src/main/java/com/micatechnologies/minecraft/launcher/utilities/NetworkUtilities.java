@@ -91,8 +91,93 @@ public class NetworkUtilities
      *
      * @since 2026.3
      */
-    private static final java.util.List< java.util.function.Consumer< String > > retryNoticeListeners =
+    private static final java.util.List< ScopedListener > retryNoticeListeners =
             new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Which launch the current thread's downloads belong to, or {@code null} when they belong to
+     * none. Launches run at the same time now, and a download notice used to go to every launch's
+     * listener, so each preparing pack's rows showed the other pack's file names, progress and
+     * retries. The launch sets its scope on its worker thread; {@link #inCurrentScope} carries it
+     * onto the pool threads that do the downloading.
+     */
+    private static final ThreadLocal< Object > DOWNLOAD_SCOPE = new ThreadLocal<>();
+
+    /** A listener and the launch it belongs to ({@code null}: every download), with its own
+     *  progress throttle so one launch's updates can't starve another's. */
+    private record ScopedListener( Object scope, java.util.function.Consumer< String > listener,
+                                   java.util.concurrent.atomic.AtomicLong lastFireMs )
+    {
+        ScopedListener( Object scope, java.util.function.Consumer< String > listener )
+        {
+            this( scope, listener, new java.util.concurrent.atomic.AtomicLong( 0 ) );
+        }
+
+        /** Whether a notice from a download in {@code downloadScope} is for this listener. A
+         *  download with no scope reaches every listener, as all downloads used to. */
+        boolean hears( Object downloadScope )
+        {
+            return scope == null || downloadScope == null || scope == downloadScope;
+        }
+    }
+
+    /**
+     * Returns the current thread's download scope.
+     *
+     * @return the scope, or {@code null}
+     *
+     * @since 2026.10
+     */
+    public static Object currentDownloadScope()
+    {
+        return DOWNLOAD_SCOPE.get();
+    }
+
+    /**
+     * Sets the current thread's download scope.
+     *
+     * @param scope the owning launch's token, or {@code null} to clear it
+     *
+     * @since 2026.10
+     */
+    public static void setDownloadScope( Object scope )
+    {
+        if ( scope == null ) {
+            DOWNLOAD_SCOPE.remove();
+        }
+        else {
+            DOWNLOAD_SCOPE.set( scope );
+        }
+    }
+
+    /**
+     * Wraps a task so it runs in the submitting thread's download scope, for handing work to a
+     * pool. The pool thread's own scope is restored afterwards.
+     *
+     * @param task the task
+     * @param <T>  its result type
+     *
+     * @return the wrapped task
+     *
+     * @since 2026.10
+     */
+    public static < T > java.util.concurrent.Callable< T > inCurrentScope( java.util.concurrent.Callable< T > task )
+    {
+        Object scope = DOWNLOAD_SCOPE.get();
+        if ( scope == null ) {
+            return task;
+        }
+        return () -> {
+            Object previous = DOWNLOAD_SCOPE.get();
+            DOWNLOAD_SCOPE.set( scope );
+            try {
+                return task.call();
+            }
+            finally {
+                setDownloadScope( previous );
+            }
+        };
+    }
 
     /**
      * Adds a listener that fires when a download retry occurs. See
@@ -104,8 +189,25 @@ public class NetworkUtilities
      */
     public static Runnable addRetryNoticeListener( java.util.function.Consumer< String > listener )
     {
-        retryNoticeListeners.add( listener );
-        return () -> retryNoticeListeners.remove( listener );
+        return addRetryNoticeListener( null, listener );
+    }
+
+    /**
+     * Adds a listener for retries of the downloads in one launch's scope.
+     *
+     * @param scope    the launch's scope token (see {@link #setDownloadScope}), or {@code null}
+     *                 for every download
+     * @param listener the notice consumer
+     *
+     * @return removes the listener again
+     *
+     * @since 2026.10
+     */
+    public static Runnable addRetryNoticeListener( Object scope, java.util.function.Consumer< String > listener )
+    {
+        ScopedListener entry = new ScopedListener( scope, listener );
+        retryNoticeListeners.add( entry );
+        return () -> retryNoticeListeners.remove( entry );
     }
 
     /**
@@ -118,7 +220,7 @@ public class NetworkUtilities
      *
      * @since 2026.7
      */
-    private static final java.util.List< java.util.function.Consumer< String > > downloadProgressListeners =
+    private static final java.util.List< ScopedListener > downloadProgressListeners =
             new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /**
@@ -131,19 +233,31 @@ public class NetworkUtilities
      */
     public static Runnable addDownloadProgressListener( java.util.function.Consumer< String > listener )
     {
-        downloadProgressListeners.add( listener );
-        return () -> downloadProgressListeners.remove( listener );
+        return addDownloadProgressListener( null, listener );
     }
 
-    /** Minimum interval between download-progress listener fires (ms). Shared across all
-     *  concurrent downloads via {@link #lastDownloadProgressFireMs} so a burst of parallel
-     *  transfers can't collectively flood the UI thread. ~8 updates/sec is smooth enough. */
-    private static final long DOWNLOAD_PROGRESS_MIN_INTERVAL_MS = 120;
+    /**
+     * Adds a progress listener for the downloads in one launch's scope.
+     *
+     * @param scope    the launch's scope token (see {@link #setDownloadScope}), or {@code null}
+     *                 for every download
+     * @param listener the progress-line consumer
+     *
+     * @return removes the listener again
+     *
+     * @since 2026.10
+     */
+    public static Runnable addDownloadProgressListener( Object scope, java.util.function.Consumer< String > listener )
+    {
+        ScopedListener entry = new ScopedListener( scope, listener );
+        downloadProgressListeners.add( entry );
+        return () -> downloadProgressListeners.remove( entry );
+    }
 
-    /** Wall-clock of the last download-progress fire; CAS-gated so only one of many
-     *  concurrent download threads fires per interval. */
-    private static final java.util.concurrent.atomic.AtomicLong lastDownloadProgressFireMs =
-            new java.util.concurrent.atomic.AtomicLong( 0 );
+    /** Minimum interval between one listener's download-progress fires (ms), shared across
+     *  all of that launch's concurrent downloads so a burst of parallel transfers can't flood
+     *  the UI thread. ~8 updates/sec is smooth enough. */
+    private static final long DOWNLOAD_PROGRESS_MIN_INTERVAL_MS = 120;
 
     /**
      * Fires the download-progress listener (when installed) with a live line for the file
@@ -161,20 +275,25 @@ public class NetworkUtilities
         if ( downloadProgressListeners.isEmpty() ) {
             return;
         }
+        Object scope = DOWNLOAD_SCOPE.get();
         long now = System.currentTimeMillis();
-        long last = lastDownloadProgressFireMs.get();
-        if ( now - last < DOWNLOAD_PROGRESS_MIN_INTERVAL_MS ) {
-            return;
-        }
-        // Only the thread that wins the CAS fires this interval — the rest skip, so N
-        // concurrent downloads still produce ~one update per interval, not N.
-        if ( !lastDownloadProgressFireMs.compareAndSet( last, now ) ) {
-            return;
-        }
-        String line = formatDownloadProgress( destination, bytesSoFar, contentLength, tracker );
-        for ( java.util.function.Consumer< String > l : downloadProgressListeners ) {
+        String line = null;
+        for ( ScopedListener l : downloadProgressListeners ) {
+            if ( !l.hears( scope ) ) {
+                continue;
+            }
+            // Each listener is throttled on its own: only the thread that wins its CAS fires
+            // this interval, so N concurrent downloads in a launch still give ~one update per
+            // interval, and one launch's updates don't hold back another's.
+            long last = l.lastFireMs().get();
+            if ( now - last < DOWNLOAD_PROGRESS_MIN_INTERVAL_MS || !l.lastFireMs().compareAndSet( last, now ) ) {
+                continue;
+            }
+            if ( line == null ) {
+                line = formatDownloadProgress( destination, bytesSoFar, contentLength, tracker );
+            }
             try {
-                l.accept( line );
+                l.listener().accept( line );
             }
             catch ( Throwable ignored ) {
                 // A listener fault must never poison the download path.
@@ -239,14 +358,18 @@ public class NetworkUtilities
 
     /** Fires the retry-notice listener if one's installed. Safe to call from
      *  any thread; null-checks the listener atomically via the volatile read. */
-    private static void notifyRetry( URL source, int attempt, int maxRetries )
+    static void notifyRetry( URL source, int attempt, int maxRetries )
     {
         if ( retryNoticeListeners.isEmpty() ) return;
         String notice = LocalizationManager.format( "network.download.retrying", attempt, maxRetries,
                                                     urlFileName( source ) );
-        for ( java.util.function.Consumer< String > l : retryNoticeListeners ) {
+        Object scope = DOWNLOAD_SCOPE.get();
+        for ( ScopedListener l : retryNoticeListeners ) {
+            if ( !l.hears( scope ) ) {
+                continue;
+            }
             try {
-                l.accept( notice );
+                l.listener().accept( notice );
             }
             catch ( Throwable ignored ) { /* listener faults shouldn't poison the retry path */ }
         }

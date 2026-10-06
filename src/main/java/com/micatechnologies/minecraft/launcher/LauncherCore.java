@@ -926,10 +926,13 @@ public class LauncherCore
 
                 // Download retries and live byte progress land as sub-text on whichever of
                 // this launch's rows are running. Each launch adds its own listeners and
-                // removes them below.
+                // removes them below. The session is this launch's download scope: the worker's
+                // downloads (and the pools it hands them to) carry it, and the listeners hear
+                // only those, so packs preparing at once don't show each other's progress.
+                com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.setDownloadScope( session );
                 final Runnable removeRetryListener =
                         com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.addRetryNoticeListener(
-                                notice -> {
+                                session, notice -> {
                                     if ( session.isCancelled() ) return;
                                     for ( var s : tracker.runningSteps() ) {
                                         tracker.setSubText( s.id(), notice );
@@ -937,7 +940,7 @@ public class LauncherCore
                                 } );
                 final Runnable removeProgressListener =
                         com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.addDownloadProgressListener(
-                                notice -> {
+                                session, notice -> {
                                     if ( session.isCancelled() ) return;
                                     for ( var s : tracker.runningSteps() ) {
                                         tracker.setSubText( s.id(), notice );
@@ -950,6 +953,7 @@ public class LauncherCore
                 finally {
                     removeRetryListener.run();
                     removeProgressListener.run();
+                    com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.setDownloadScope( null );
                     // Release the progress provider now that preparation is done. Swap rather
                     // than set(null) so the cached launcher survives.
                     gameModPack.swapProgressProviderTransiently( null );

@@ -406,7 +406,12 @@ public class RuntimeManager
                         java.util.concurrent.Executors.newFixedThreadPool( poolSize );
                 List< java.util.concurrent.Future< Void > > futures;
                 try {
-                    futures = filePool.invokeAll( fileTasks );
+                    // Carry this launch's download scope onto the pool threads.
+                    List< java.util.concurrent.Callable< Void > > scoped = new ArrayList<>();
+                    for ( java.util.concurrent.Callable< Void > task : fileTasks ) {
+                        scoped.add( NetworkUtilities.inCurrentScope( task ) );
+                    }
+                    futures = filePool.invokeAll( scoped );
                 }
                 catch ( InterruptedException ie ) {
                     filePool.shutdownNow();

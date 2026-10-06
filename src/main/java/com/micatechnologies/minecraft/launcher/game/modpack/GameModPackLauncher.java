@@ -174,10 +174,14 @@ class GameModPackLauncher
         /** Starts a branch on the launch I/O pool. */
         < T > java.util.concurrent.CompletableFuture< T > start( LaunchStep< T > body )
         {
+            // The launch's download scope, so the branch's downloads report to this launch.
+            final Object downloadScope = com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities
+                    .currentDownloadScope();
             return java.util.concurrent.CompletableFuture.supplyAsync( () -> {
                 Thread self = Thread.currentThread();
                 threads.add( self );
                 BRANCH_CANCELLED.set( cancelled );
+                com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.setDownloadScope( downloadScope );
                 try {
                     return body.run();
                 }
@@ -186,6 +190,7 @@ class GameModPackLauncher
                 }
                 finally {
                     BRANCH_CANCELLED.remove();
+                    com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.setDownloadScope( null );
                     threads.remove( self );
                     Thread.interrupted();  // don't hand an interrupt on to the pool's next task
                     done.countDown();
