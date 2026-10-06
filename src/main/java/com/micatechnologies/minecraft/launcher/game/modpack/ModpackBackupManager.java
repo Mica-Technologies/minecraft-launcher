@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
 import java.io.BufferedOutputStream;
@@ -130,7 +131,7 @@ public final class ModpackBackupManager
 
         File backupsDir = new File( rootDir, BACKUPS_DIR );
         if ( !backupsDir.exists() && !backupsDir.mkdirs() ) {
-            Logger.logWarningSilent( "Couldn't create backups dir at " + backupsDir.getAbsolutePath() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modpackBackup.createDirFailed", backupsDir.getAbsolutePath() ) );
             return null;
         }
         File zipFile = new File( backupsDir, TS_FORMAT.format( new Date() ) + ".zip" );
@@ -142,7 +143,7 @@ public final class ModpackBackupManager
             }
         }
         catch ( IOException ex ) {
-            Logger.logWarningSilent( "Pack backup failed: " + ex.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modpackBackup.backupFailed", ex.getMessage() ) );
             // Best-effort cleanup of the partial zip; if delete fails the
             // next backup attempt will overwrite it.
             //noinspection ResultOfMethodCallIgnored
@@ -150,8 +151,7 @@ public final class ModpackBackupManager
             return null;
         }
 
-        Logger.logStd( "Created backup before update: " + zipFile.getName()
-                               + " (" + humanSize( zipFile.length() ) + ")" );
+        Logger.logStd( LocalizationManager.format( "log.modpackBackup.created", zipFile.getName(), humanSize( zipFile.length() ) ) );
         pruneOldBackups( pack );
         return zipFile;
     }
@@ -189,13 +189,12 @@ public final class ModpackBackupManager
                     deleted++;
                 }
                 else {
-                    Logger.logWarningSilent( "Couldn't delete old backup: " + backup.getName() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.modpackBackup.deleteOldFailed", backup.getName() ) );
                 }
             }
         }
         if ( deleted > 0 ) {
-            Logger.logStd( "Pruned " + deleted + " old pack backup(s) for "
-                                   + pack.getPackName() );
+            Logger.logStd( LocalizationManager.format( "log.modpackBackup.pruned", deleted, pack.getPackName() ) );
         }
     }
 

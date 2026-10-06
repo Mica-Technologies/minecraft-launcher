@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
@@ -234,8 +235,7 @@ class GameModPackFileSync
                     + " manifest-declared mod file(s) are missing or empty on disk: " + missingMods
                     + ". Refusing to launch with an incomplete mod set." );
         }
-        Logger.logDebug( "Mod existence check passed for \"" + metadata.getPackName() + "\": "
-                                 + requiredModCount + " file(s) present." );
+        Logger.logDebug( LocalizationManager.format( "log.gameModPackFileSync.modCheckPassed", metadata.getPackName(), requiredModCount ) );
     }
 
     /**
@@ -427,10 +427,7 @@ class GameModPackFileSync
         // mod list to compare against. A genuinely empty (non-null) list is still a valid
         // "remove all floating mods" instruction and is allowed through.
         if ( metadata.packMods == null ) {
-            Logger.logWarningSilent(
-                    "Skipping floating-mod cleanup: no manifest mod list is loaded for this pack "
-                            + "(manifest fetch failed or pack not fully loaded). Refusing to delete "
-                            + "existing mods." );
+            Logger.logWarningSilent( LocalizationManager.get( "log.gameModPackFileSync.floatingCleanupSkipped" ) );
             return;
         }
 
@@ -459,7 +456,7 @@ class GameModPackFileSync
                 if ( !validModPaths.contains( modFile.getPath() ) && modFile.isFile() ) {
                     boolean delete = modFile.delete();
                     if ( !delete ) {
-                        Logger.logError( "Unable to delete file during mod folder sanitization." );
+                        Logger.logError( LocalizationManager.get( "log.gameModPackFileSync.sanitizeDeleteFailed" ) );
                     }
                 }
             }

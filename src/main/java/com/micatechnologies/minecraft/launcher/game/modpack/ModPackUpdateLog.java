@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
 import java.io.File;
@@ -129,8 +130,7 @@ public final class ModPackUpdateLog
             }
             catch ( Exception e ) {
                 // Failure here must never break manifest fetching — just log and bail.
-                Logger.logWarningSilent( "Unable to update modpack update-log for "
-                                                 + pack.getPackName() + ": " + e.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.modPackUpdateLog.writeFailed", pack.getPackName(), e.getMessage() ) );
             }
         }
     }
@@ -157,8 +157,7 @@ public final class ModPackUpdateLog
             }
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Unable to read update log for " + pack.getPackName()
-                                             + ": " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modPackUpdateLog.readFailed", pack.getPackName(), e.getMessage() ) );
             return Collections.emptyList();
         }
         Collections.reverse( entries );

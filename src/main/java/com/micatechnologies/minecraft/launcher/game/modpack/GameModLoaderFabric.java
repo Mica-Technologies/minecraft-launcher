@@ -22,6 +22,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.ManifestRuleUtilities;
@@ -380,7 +381,7 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
             if ( cp.length() > 0 ) cp.append( File.pathSeparator );
             cp.append( entry );
         }
-        Logger.logStd( "Fabric: " + classpathEntries.size() + " library/libraries on classpath." );
+        Logger.logStd( LocalizationManager.format( "log.gameModLoaderFabric.classpathCount", classpathEntries.size() ) );
         return cp.toString();
     }
 

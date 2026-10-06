@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -184,7 +185,7 @@ class GameModPackEnvironment
         }
         catch ( Exception e ) {
             didCacheImages = false;
-            Logger.logErrorAsync( "Unable to download image assets for mod pack: " + metadata.getFriendlyName() );
+            Logger.logErrorAsync( LocalizationManager.format( "log.gameModPackEnvironment.imageDownloadFailed", metadata.getFriendlyName() ) );
             Logger.logThrowable( e );
         }
     }
@@ -380,8 +381,7 @@ class GameModPackEnvironment
             }
             catch ( IOException e ) {
                 lastError = e;
-                Logger.logWarningSilent( "Mod pack " + label + ": source URL failed (" + url + "): "
-                                                 + e.getMessage() + " — skipping this image." );
+                Logger.logWarningSilent( LocalizationManager.format( isLogo ? "log.gameModPackEnvironment.logoSourceFailed" : "log.gameModPackEnvironment.backgroundSourceFailed", metadata.getPackName(), url, e.getMessage() ) );
             }
         }
 
@@ -542,7 +542,7 @@ class GameModPackEnvironment
                 imageCache = JSONUtilities.getGson().fromJson( json, ImageCacheInfo.class );
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "Unable to read image cache for " + metadata.getPackName() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackEnvironment.imageCacheReadFailed", metadata.getPackName() ) );
             }
         }
         if ( imageCache == null ) {
@@ -570,7 +570,7 @@ class GameModPackEnvironment
             imageCache = cache;
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Unable to save image cache for " + metadata.getPackName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackEnvironment.imageCacheSaveFailed", metadata.getPackName() ) );
         }
     }
 

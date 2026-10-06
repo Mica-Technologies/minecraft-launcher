@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
 import java.io.BufferedOutputStream;
@@ -185,8 +186,7 @@ public final class ModpackExporter
             return true;
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "ModpackExporter: manifest parse failed during mode classification — "
-                                              + t.getClass().getSimpleName() + ": " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modpackExporter.classifyParseFailed", t.getClass().getSimpleName(), t.getMessage() ) );
             return false;
         }
     }
@@ -302,8 +302,7 @@ public final class ModpackExporter
 
                 @Override
                 public FileVisitResult visitFileFailed( Path file, IOException exc ) {
-                    Logger.logWarningSilent( "Skipping unreadable file in export: " + file
-                                                     + " (" + exc.getMessage() + ")" );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.modpackExporter.skipUnreadable", file, exc.getMessage() ) );
                     return FileVisitResult.CONTINUE;
                 }
             } );
@@ -357,9 +356,7 @@ public final class ModpackExporter
     {
         String body = GameModPackFetcher.loadManifestText( pack.getManifestUrl() );
         if ( body == null || body.isBlank() ) {
-            Logger.logWarningSilent( "ModpackExporter: no manifest body available for "
-                                              + pack.getPackName() + " — ZIP will lack "
-                                              + MANIFEST_FILENAME + " entry." );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modpackExporter.noManifestBody", pack.getPackName(), MANIFEST_FILENAME ) );
             return;
         }
         ZipEntry entry = new ZipEntry( MANIFEST_FILENAME );
