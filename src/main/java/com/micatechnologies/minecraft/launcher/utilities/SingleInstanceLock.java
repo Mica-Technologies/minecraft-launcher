@@ -478,8 +478,7 @@ public class SingleInstanceLock
                 Logger.logWarningSilent( LocalizationManager.get( "log.singleInstance.badToken" ) );
                 // Say so, rather than hang up: a bare hang-up reads as an older launcher that took
                 // the request, and the sender would exit with nothing shown.
-                writer.write( REPLY_REJECTED + "\n" );
-                writer.flush();
+                reply( writer, REPLY_REJECTED );
                 return;
             }
 
@@ -493,8 +492,7 @@ public class SingleInstanceLock
             // starting, or stuck before the main window appeared) the sender says so, rather
             // than leaving the user with a click that seemingly did nothing.
             boolean hasWindow = MCLauncherGuiController.getTopStageOrNull() != null;
-            writer.write( REPLY_OK + " " + ( hasWindow ? REPLY_WINDOW : REPLY_NO_WINDOW ) + "\n" );
-            writer.flush();
+            reply( writer, REPLY_OK + " " + ( hasWindow ? REPLY_WINDOW : REPLY_NO_WINDOW ) );
 
             // Surface the launcher window before dispatching the URI. The user just clicked
             // a deep-link expecting to land here — if the existing window were buried under
@@ -519,6 +517,22 @@ public class SingleInstanceLock
         }
         catch ( IOException ignored ) {
             // Best-effort — a malformed or aborted connection isn't actionable.
+        }
+    }
+
+    /**
+     * Sends the one-line reply, best-effort. A sender that has already hung up (an older launcher
+     * does, right after writing) makes the write fail; that must not stop the request it sent
+     * from being handled.
+     */
+    private static void reply( OutputStreamWriter writer, String line )
+    {
+        try {
+            writer.write( line + "\n" );
+            writer.flush();
+        }
+        catch ( IOException ignored ) {
+            // The sender is gone; carry on with its request.
         }
     }
 
