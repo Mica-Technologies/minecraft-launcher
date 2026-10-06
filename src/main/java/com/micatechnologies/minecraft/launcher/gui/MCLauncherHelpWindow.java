@@ -40,6 +40,7 @@ import netscape.javascript.JSObject;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -432,6 +433,39 @@ public class MCLauncherHelpWindow
      *              {@link #refreshTheme()} can re-render it
      * @since 2.0
      */
+    /**
+     * Picks the help page for the UI language. Translations live beside the English pages in a
+     * folder named like the resource bundles: {@code help/pt_BR/settings.html}, then
+     * {@code help/pt/settings.html}, falling back to the English {@code help/settings.html}.
+     * Package-private for tests.
+     *
+     * @param englishPath the English page, e.g. {@code help/settings.html}
+     * @param locale      the UI language
+     * @param exists      whether a resource path exists
+     *
+     * @return the path to load
+     */
+    static String localizedPagePath( String englishPath, Locale locale, java.util.function.Predicate< String > exists )
+    {
+        int slash = englishPath.lastIndexOf( '/' );
+        if ( locale == null || slash < 0 || locale.getLanguage().isEmpty() ) {
+            return englishPath;
+        }
+        String folder = englishPath.substring( 0, slash + 1 );
+        String file = englishPath.substring( slash + 1 );
+        java.util.List< String > candidates = new java.util.ArrayList<>();
+        if ( !locale.getCountry().isEmpty() ) {
+            candidates.add( folder + locale.getLanguage() + "_" + locale.getCountry() + "/" + file );
+        }
+        candidates.add( folder + locale.getLanguage() + "/" + file );
+        for ( String candidate : candidates ) {
+            if ( exists.test( candidate ) ) {
+                return candidate;
+            }
+        }
+        return englishPath;
+    }
+
     private static void loadTopic( HelpTopic topic )
     {
         currentTopic = topic;
@@ -442,11 +476,14 @@ public class MCLauncherHelpWindow
         }
 
         try {
-            URL contentUrl = MCLauncherHelpWindow.class.getClassLoader().getResource( topic.getResourcePath() );
+            String pagePath = localizedPagePath( topic.getResourcePath(), LocalizationManager.currentLocale(),
+                                                 path -> MCLauncherHelpWindow.class.getClassLoader()
+                                                                                   .getResource( path ) != null );
+            URL contentUrl = MCLauncherHelpWindow.class.getClassLoader().getResource( pagePath );
             if ( contentUrl != null ) {
                 String html;
                 try ( java.io.InputStream in = Objects.requireNonNull(
-                        MCLauncherHelpWindow.class.getClassLoader().getResourceAsStream( topic.getResourcePath() ) ) ) {
+                        MCLauncherHelpWindow.class.getClassLoader().getResourceAsStream( pagePath ) ) ) {
                     html = new String( in.readAllBytes(), StandardCharsets.UTF_8 );
                 }
 
