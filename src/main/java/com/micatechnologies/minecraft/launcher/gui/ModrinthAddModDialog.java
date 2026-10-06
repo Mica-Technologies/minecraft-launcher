@@ -118,7 +118,7 @@ public final class ModrinthAddModDialog
                 mcVersion[ 0 ] = pack.getMinecraftVersion();
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "AddMod: could not resolve MC version: " + t.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.addMod.mcVersionUnresolved", t.getMessage() ) );
             }
         } );
 
@@ -261,7 +261,7 @@ public final class ModrinthAddModDialog
                                                 hit.title() == null ? hit.slug() : hit.title() ) );
         }
         catch ( Exception ex ) {
-            Logger.logWarningSilent( "AddMod: download failed for " + hit.slug() + ": " + ex.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.addMod.downloadFailed", hit.slug(), ex.getMessage() ) );
             Platform.runLater( () -> {
                 addBtn.setDisable( false );
                 addBtn.setText( LocalizationManager.get( "addMod.add" ) );

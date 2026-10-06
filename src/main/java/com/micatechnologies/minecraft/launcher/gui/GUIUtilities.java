@@ -614,8 +614,7 @@ public class GUIUtilities
                 // the no-GUI modes there is nothing meaningful to do on an FX thread, so
                 // skip the runnable entirely rather than risk the deadlock.
                 if ( !fxGuiIntendedThisSession() ) {
-                    Logger.logWarningSilent(
-                            "Skipping FX task; JavaFX toolkit not started (headless/server/TUI session)." );
+                    Logger.logWarningSilent( LocalizationManager.get( "log.guiUtilities.fxTaskSkippedNoToolkit" ) );
                     return;
                 }
                 try {
@@ -629,8 +628,7 @@ public class GUIUtilities
                     } );
                 }
                 catch ( Exception startupFailed ) {
-                    Logger.logWarningSilent( "Could not bootstrap JavaFX toolkit for FX task; skipping.",
-                                             startupFailed );
+                    Logger.logWarningSilent( LocalizationManager.get( "log.guiUtilities.fxToolkitBootstrap" ), startupFailed );
                     return;
                 }
             }
@@ -648,8 +646,7 @@ public class GUIUtilities
                 // to wait. Restore the interrupt flag for any caller that wants to act
                 // on it, and log silently.
                 Thread.currentThread().interrupt();
-                Logger.logWarningSilent(
-                        "Interrupted while awaiting FX task; continuing without blocking." );
+                Logger.logWarningSilent( LocalizationManager.get( "log.guiUtilities.fxTaskWaitInterrupted" ) );
             }
         }
     }
@@ -735,7 +732,7 @@ public class GUIUtilities
                 }
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Alert chrome theming", t );
+                Logger.logWarningSilent( LocalizationManager.get( "log.guiUtilities.alertChromeTheming" ), t );
             }
         } );
     }

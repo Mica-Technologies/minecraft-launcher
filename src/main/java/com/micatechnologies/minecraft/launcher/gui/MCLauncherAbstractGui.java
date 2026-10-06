@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -91,7 +92,7 @@ public abstract class MCLauncherAbstractGui
                 UiScale.install( scene );
             }
             catch ( Exception e ) {
-                Logger.logError( "Unable to build FXML loader for the application GUI." );
+                Logger.logError( LocalizationManager.get( "log.abstractGui.fxmlLoaderFailed" ) );
                 Logger.logThrowable( e );
                 scene = null;
             }
@@ -135,7 +136,7 @@ public abstract class MCLauncherAbstractGui
                 UiScale.install( scene );
             }
             catch ( Exception e ) {
-                Logger.logError( "Unable to build FXML loader for the application GUI." );
+                Logger.logError( LocalizationManager.get( "log.abstractGui.fxmlLoaderFailed" ) );
                 Logger.logThrowable( e );
                 scene = null;
             }

@@ -3216,7 +3216,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
         catch ( Exception e ) {
             // A snippet that cannot be built is not worth failing the whole settings pane over.
-            Logger.logWarningSilent( "Could not build the MCP client setup snippet" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.settings.mcpSnippetFailed" ) );
             mcpSetupSnippet.setText( "" );
         }
         if ( mcpCopySetupBtn != null ) {

@@ -18,6 +18,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import javafx.scene.text.Font;
 
@@ -64,11 +65,11 @@ public final class BundledFonts
             for ( String face : FACES ) {
                 try ( InputStream in = BundledFonts.class.getResourceAsStream( "/fonts/" + face + ".ttf" ) ) {
                     if ( in == null || Font.loadFont( in, 12 ) == null ) {
-                        Logger.logWarningSilent( "Bundled font not loaded: " + face );
+                        Logger.logWarningSilent( LocalizationManager.format( "log.bundledFonts.notLoaded", face ) );
                     }
                 }
                 catch ( Exception e ) {
-                    Logger.logWarningSilent( "Bundled font not loaded: " + face, e );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.bundledFonts.loading", face ), e );
                 }
             }
             loaded = true;

@@ -654,8 +654,7 @@ public final class MCLauncherQuickStartWizard
             return Math.max( 1L, bytes / ( 1024L * 1024L * 1024L ) );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent(
-                    "Couldn't detect system RAM for quick-start wizard: " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.quickStart.ramDetectFailed", t.getMessage() ) );
             return 8L;
         }
     }
