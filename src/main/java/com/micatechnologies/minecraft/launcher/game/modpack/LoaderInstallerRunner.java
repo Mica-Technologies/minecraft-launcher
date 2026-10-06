@@ -206,7 +206,7 @@ public final class LoaderInstallerRunner
 
         Process started = null;
         try {
-            Logger.logStd( "LoaderInstallerRunner: running " + String.join( " ", pb.command() ) );
+            Logger.logStd( LocalizationManager.format( "log.loaderInstallerRunner.running", String.join( " ", pb.command() ) ) );
             Process proc = pb.start();
             started = proc;
 
@@ -318,7 +318,7 @@ public final class LoaderInstallerRunner
         if ( !local.isFile() || local.length() == 0 ) {
             throw new IOException( LocalizationManager.get( "officialExport.loader.unverifiable" ) );
         }
-        Logger.logDebug( "LoaderInstallerRunner: using verified installer at " + local );
+        Logger.logDebug( LocalizationManager.format( "log.loaderInstallerRunner.verifiedInstaller", local ) );
         return local;
     }
 

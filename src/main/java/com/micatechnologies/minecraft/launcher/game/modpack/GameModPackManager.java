@@ -482,24 +482,20 @@ public class GameModPackManager
             if ( blockUntilRevalidated ) {
                 CompletableFuture< Void > pending = installedRevalidateFuture;
                 if ( pending != null ) {
-                    Logger.logStd( "Waiting for modpack manifest revalidation to complete before launch..." );
+                    Logger.logStd( LocalizationManager.get( "log.gameModPackManager.waitingRevalidation" ) );
                     try {
                         pending.get( REVALIDATE_BLOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS );
-                        Logger.logStd( "Modpack manifest revalidation complete." );
+                        Logger.logStd( LocalizationManager.get( "log.gameModPackManager.revalidationComplete" ) );
                     }
                     catch ( TimeoutException e ) {
-                        Logger.logErrorAsync( "Modpack manifest revalidation did not finish within "
-                                                 + REVALIDATE_BLOCK_TIMEOUT_SECONDS + " seconds. "
-                                                 + "Proceeding with the last cached manifest data — "
-                                                 + "the launch may use an out-of-date mod set." );
+                        Logger.logErrorAsync( LocalizationManager.format( "log.gameModPackManager.revalidationTimedOut", REVALIDATE_BLOCK_TIMEOUT_SECONDS ) );
                     }
                     catch ( InterruptedException e ) {
                         Thread.currentThread().interrupt();
-                        Logger.logErrorAsync( "Interrupted while waiting for modpack manifest revalidation." );
+                        Logger.logErrorAsync( LocalizationManager.get( "log.gameModPackManager.revalidationInterrupted" ) );
                     }
                     catch ( Exception e ) {
-                        Logger.logErrorAsync( "Modpack manifest revalidation failed; proceeding with the "
-                                                 + "last cached manifest data." );
+                        Logger.logErrorAsync( LocalizationManager.get( "log.gameModPackManager.revalidationFailed" ) );
                         Logger.logThrowable( e );
                     }
                 }
@@ -508,10 +504,7 @@ public class GameModPackManager
         else if ( blockUntilRevalidated ) {
             // No refresh ran at all. That is a genuine risk for an auto-launch caller, so say so
             // rather than letting it look like a successful up-to-date load.
-            Logger.logErrorAsync( "Modpack manifests were NOT revalidated before launch ("
-                                     + ( NetworkUtilities.isOffline() ? "launcher is in offline mode"
-                                                                      : "no modpacks installed" )
-                                     + "). Any launch will use cached manifest data." );
+            Logger.logErrorAsync( LocalizationManager.get( NetworkUtilities.isOffline() ? "log.gameModPackManager.notRevalidatedOffline" : "log.gameModPackManager.notRevalidatedNoPacks" ) );
         }
 
         // Update progress window
@@ -614,8 +607,7 @@ public class GameModPackManager
                         // unlaunchable one, so a transient network blip would break the next launch.
                         // Keep the cached entry instead and let the caller see stale-but-valid data.
                         if ( fresh == null || fresh.isFailedLoad() ) {
-                            Logger.logWarningSilent( "Revalidate for " + manifestUrl
-                                    + " did not return a usable manifest; keeping the cached copy." );
+                            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackManager.revalidateUnusable", manifestUrl ) );
                             return;
                         }
                         // Walk the live list and replace the matching entry. CopyOnWriteArrayList

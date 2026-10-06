@@ -295,8 +295,7 @@ public class ManagedGameFile
         // folder when joined to localPathPrefix. Refuse to even stat the file
         // unless the resolved path is contained inside the prefix.
         if ( !isContainedUnderPrefix() ) {
-            Logger.logError( "Refusing managed file outside modpack folder: "
-                                     + getFullLocalFilePath() );
+            Logger.logError( LocalizationManager.format( "log.managedGameFile.outsidePackFolder", getFullLocalFilePath() ) );
             return false;
         }
         File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
@@ -338,8 +337,7 @@ public class ManagedGameFile
             // reach here.
             if ( !md5OnlyWarned ) {
                 md5OnlyWarned = true;
-                Logger.logDebug( "Verifying with MD5 only (no SHA-256/SHA-1 declared) for "
-                                         + getFullLocalFilePath() );
+                Logger.logDebug( LocalizationManager.format( "log.managedGameFile.md5Only", getFullLocalFilePath() ) );
             }
             return verifyWithCache( localFile, md5, "md5", HashUtilities::verifyMD5 );
         }
@@ -487,9 +485,7 @@ public class ManagedGameFile
                 }
                 //noinspection ResultOfMethodCallIgnored
                 localFile.delete();
-                Logger.logWarningSilent(
-                        "Downloaded file failed hash verification (attempt " + attempt + " of " + maxAttempts +
-                                "): " + getFullLocalFilePath() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.managedGameFile.hashRetry", attempt, maxAttempts, getFullLocalFilePath() ) );
             }
             throw new ModpackException(
                     "Downloaded file failed hash verification after " + maxAttempts + " attempts: " +
@@ -588,7 +584,7 @@ public class ManagedGameFile
                 }
                 throw new ModpackException( "Offline mode: missing required file: " + getFullLocalFilePath() );
             }
-            Logger.logWarningSilent( "FILE FAILED VERIFICATION, RE-DOWNLOADING: " + getFullLocalFilePath() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.managedGameFile.verifyFailedRedownload", getFullLocalFilePath() ) );
 
             // Audit: when an existing file is being re-downloaded, capture its hash before and
             // after so the per-pack audit log can spot files that re-download every launch

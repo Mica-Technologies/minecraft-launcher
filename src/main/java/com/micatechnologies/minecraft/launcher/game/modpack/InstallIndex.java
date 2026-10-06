@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
@@ -207,16 +208,14 @@ public final class InstallIndex
             InstallIndex parsed = JSONUtilities.getGson().fromJson( json, InstallIndex.class );
             if ( parsed == null ) return new InstallIndex();
             if ( parsed.version > CURRENT_SCHEMA_VERSION ) {
-                Logger.logWarningSilent( "Install index version " + parsed.version
-                                                 + " is newer than this launcher supports ("
-                                                 + CURRENT_SCHEMA_VERSION + "). Treating as empty." );
+                Logger.logWarningSilent( LocalizationManager.format( "log.installIndex.versionTooNew", String.valueOf( parsed.version ), String.valueOf( CURRENT_SCHEMA_VERSION ) ) );
                 return new InstallIndex();
             }
             if ( parsed.packs == null ) parsed.packs = new LinkedHashMap<>();
             return parsed;
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Could not read install index: " + e.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.installIndex.readFailed", e.getClass().getSimpleName() ) );
             return new InstallIndex();
         }
     }
@@ -243,8 +242,7 @@ public final class InstallIndex
             if ( parent != null ) Files.createDirectories( parent );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Could not create install-index parent dir "
-                                             + parent + ": " + e.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.installIndex.createParentFailed", parent, e.getClass().getSimpleName() ) );
             return;
         }
 
@@ -278,9 +276,7 @@ public final class InstallIndex
                 Files.writeString( p, json, StandardCharsets.UTF_8 );
             }
             catch ( IOException directFail ) {
-                Logger.logWarningSilent( "Could not write install index: "
-                                                 + directFail.getClass().getSimpleName()
-                                                 + " — " + directFail.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.installIndex.writeFailed", directFail.getClass().getSimpleName(), directFail.getMessage() ) );
             }
         }
     }

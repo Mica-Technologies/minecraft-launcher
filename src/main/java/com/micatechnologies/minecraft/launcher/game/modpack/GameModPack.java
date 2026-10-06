@@ -560,14 +560,14 @@ public class GameModPack extends GameModPackMetadata
         // bundled artifact / class itself doesn't change. Falls back to a
         // commented placeholder line when the inner hash couldn't be computed.
         if ( innerSha != null && !innerSha.isBlank() ) {
-            Logger.logStd( "    // Recommended — survives outer-mod updates." );
+            Logger.logStd( "    // " + LocalizationManager.get( "log.gameModPack.silenceHintRecommended" ) );
             Logger.logStd( "    \"innerSha256\": \"" + jsonEscape( innerSha ) + "\"," );
         }
         else {
-            Logger.logStd( "    // Inner-element hash unavailable for this finding." );
+            Logger.logStd( "    // " + LocalizationManager.get( "log.gameModPack.silenceHintInnerUnavailable" ) );
         }
         if ( fileSha != null && !fileSha.isBlank() ) {
-            Logger.logStd( "    // Alternative — strict outer-JAR pinning, breaks on mod updates." );
+            Logger.logStd( "    // " + LocalizationManager.get( "log.gameModPack.silenceHintAlternative" ) );
             Logger.logStd( "    // \"fileSha256\": \"" + jsonEscape( fileSha ) + "\"," );
         }
         Logger.logStd( "    \"kind\":        \"" + jsonEscape( kindName ) + "\"," );

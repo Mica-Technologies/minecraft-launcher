@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 
@@ -121,9 +122,7 @@ public final class VerifyState
             return JSONUtilities.getGson().fromJson( json, VerifyState.class );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Could not read verify state for pack "
-                                             + pack.getPackName() + ": "
-                                             + e.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.verifyState.readFailed", pack.getPackName(), e.getClass().getSimpleName() ) );
             return null;
         }
     }
@@ -146,9 +145,7 @@ public final class VerifyState
             Files.writeString( p, json, StandardCharsets.UTF_8 );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Could not write verify state for pack "
-                                             + pack.getPackName() + ": "
-                                             + e.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.verifyState.writeFailed", pack.getPackName(), e.getClass().getSimpleName() ) );
         }
     }
 

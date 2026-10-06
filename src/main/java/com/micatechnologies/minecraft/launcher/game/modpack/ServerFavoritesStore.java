@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 
@@ -151,8 +152,7 @@ public final class ServerFavoritesStore
             return out;
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Failed to read server favorites for " + pack.getPackName()
-                                             + ": " + e.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.serverFavorites.readFailed", pack.getPackName(), e.getClass().getSimpleName() ) );
             return Collections.emptyList();
         }
     }

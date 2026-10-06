@@ -16,6 +16,7 @@ import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.consts.RuntimeConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
@@ -62,7 +63,7 @@ public class VanillaVersionManager
             GameVersionManifest.ensureManifestDownloaded();
         }
         catch ( ModpackException e ) {
-            Logger.logError( "Failed to download Minecraft version manifest." );
+            Logger.logError( LocalizationManager.get( "log.vanillaVersionManager.downloadFailed" ) );
             Logger.logThrowable( e );
             return allVersions;
         }
@@ -79,7 +80,7 @@ public class VanillaVersionManager
             }
         }
         catch ( Exception e ) {
-            Logger.logError( "Failed to load Minecraft version manifest for vanilla versions." );
+            Logger.logError( LocalizationManager.get( "log.vanillaVersionManager.loadFailed" ) );
             Logger.logThrowable( e );
         }
 

@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 
@@ -120,7 +121,7 @@ public final class ModPackAuditLog
             appendLine( packRoot, entry.toString() );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Failed to write modpack audit log entry: " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modPackAuditLog.writeFailed", t.getMessage() ) );
         }
     }
 
@@ -255,7 +256,7 @@ public final class ModPackAuditLog
             }
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Failed to read modpack audit log: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modPackAuditLog.readFailed", e.getMessage() ) );
             return problems;
         }
 

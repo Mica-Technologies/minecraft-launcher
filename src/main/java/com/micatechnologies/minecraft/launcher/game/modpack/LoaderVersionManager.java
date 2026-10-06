@@ -21,6 +21,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.import_.MrpackImporter;
@@ -212,7 +213,7 @@ public final class LoaderVersionManager
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "LoaderVersionManager: failed to fetch Forge promotions", e );
+            Logger.logWarningSilent( LocalizationManager.get( "log.loaderVersionManager.fetchForge" ), e );
         }
         return forgeCache;
     }
@@ -272,7 +273,7 @@ public final class LoaderVersionManager
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "LoaderVersionManager: failed to fetch NeoForge versions", e );
+            Logger.logWarningSilent( LocalizationManager.get( "log.loaderVersionManager.fetchNeoForge" ), e );
         }
         return neoForgeCache;
     }
@@ -378,7 +379,7 @@ public final class LoaderVersionManager
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "LoaderVersionManager: failed to fetch Fabric versions", e );
+            Logger.logWarningSilent( LocalizationManager.get( "log.loaderVersionManager.fetchFabric" ), e );
         }
         return fabricCache;
     }
@@ -430,8 +431,7 @@ public final class LoaderVersionManager
             Files.createDirectories( manifestPath.getParent() );
             Files.writeString( manifestPath, JSONUtilities.getGson().toJson( manifest ),
                                 StandardCharsets.UTF_8 );
-            Logger.logStd( "LoaderVersionManager: wrote manifest for " + version.displayName()
-                                   + " at " + manifestPath );
+            Logger.logStd( LocalizationManager.format( "log.loaderVersionManager.wroteManifest", version.displayName(), manifestPath ) );
         }
         String manifestUrl = manifestPath.toUri().toString();
         // Register with the modpack manager so it shows in the

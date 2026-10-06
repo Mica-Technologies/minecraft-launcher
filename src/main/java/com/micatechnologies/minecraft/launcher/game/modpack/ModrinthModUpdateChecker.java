@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
@@ -163,8 +164,7 @@ public final class ModrinthModUpdateChecker
                 out.put( jar.getName(), checkOne( jar ) );
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Modrinth update check failed for " + jar.getName()
-                                                 + ": " + t.getClass().getSimpleName() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.modrinthUpdateChecker.checkFailed", jar.getName(), t.getClass().getSimpleName() ) );
                 out.put( jar.getName(), ModUpdate.notOnModrinth() );
             }
         }
