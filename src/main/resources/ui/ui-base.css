@@ -1825,10 +1825,11 @@
  * 6. Toggle / Checkbox
  * ===================================================================== */
 
-/* Toggles are Material 3 switches (MaterialSwitchSkin): an outlined track with a
- * small handle when off; a primary track with a large handle and a check mark
- * when on, as Android draws them. The label sits left, the switch at the right
- * edge. Colours come from the generated Material roles. */
+/* Toggles are Material 3 switches with icons (MaterialSwitchSkin): an outlined
+ * track with an X on the handle when off; a primary track with a check mark on
+ * the handle when on, as Android draws them. The handle is one size in both.
+ * The label sits left, the switch at the right edge. Colours come from the
+ * generated Material roles. */
 .mfx-toggle-button {
     -fx-skin: "com.micatechnologies.minecraft.launcher.gui.MaterialSwitchSkin";
     -fx-background-color: transparent;
@@ -1859,6 +1860,9 @@
 }
 .mfx-toggle-button .m3-switch-icon {
     -fx-fill: -md-primary;
+}
+.mfx-toggle-button .m3-switch-icon-off {
+    -fx-fill: -md-surface-container-highest;
 }
 /* Hover / focus / press halo around the handle: Material's state layer. */
 .mfx-toggle-button .m3-switch-halo {

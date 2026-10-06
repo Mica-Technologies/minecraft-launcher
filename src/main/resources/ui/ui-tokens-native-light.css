@@ -196,3 +196,12 @@
 
 
 
+
+/* ----- Switch: an opaque X on the off handle -----
+ *
+ * Material colours the X with surface-container-highest, which is a
+ * translucent tint in the Native themes and vanishes on the grey handle.
+ * -color-popup is the opaque surface. */
+.mfx-toggle-button .m3-switch-icon-off {
+    -fx-fill: -color-popup;
+}
