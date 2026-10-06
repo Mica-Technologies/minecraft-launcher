@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * different from the saved override, then appears, and a robot click fires its
  * action. It drives a minimal stand-in scene (a {@link ComboBox} + the button)
  * wired to the <em>real</em> decision seam
- * {@link MCLauncherSettingsGui#isLanguageChangePending(String, String)} and the
+ * {@link MCLauncherSettingsGui#isLanguageChangePending(int, String)} and the
  * same visible+managed toggling the live controller uses — exercising the FX
  * selection-listener → decision → visibility path through real JavaFX events,
  * without standing up the heavyweight Settings controller (ConfigManager /
@@ -53,10 +53,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @EnabledIfEnvironmentVariable( named = "MMCL_RUN_TESTFX", matches = "true" )
 class SettingsLanguageButtonFxTest
 {
-    /** The OS-default dropdown entry's composite label (never a SupportedLocales
-     *  display name), so it resolves to the empty override tag. */
-    private static final String OS_DEFAULT_LABEL =
-            SupportedLocales.OS_DEFAULT_LABEL_PREFIX + " (detected: English)";
+    /** Stand-in for the OS-default dropdown entry (item 0), which maps to the empty
+     *  override tag by its index, whatever its localized label says. */
+    private static final String OS_DEFAULT_LABEL = "Use OS Language (detected: English)";
 
     private ComboBox< String > languageCombo;
     private Button saveRestartBtn;
@@ -91,9 +90,10 @@ class SettingsLanguageButtonFxTest
 
         // Same wiring the live controller installs: recompute visibility from the
         // real decision seam on every selection change.
-        languageCombo.getSelectionModel().selectedItemProperty().addListener(
+        languageCombo.getSelectionModel().selectedIndexProperty().addListener(
                 ( obs, oldV, newV ) -> {
-                    boolean pending = MCLauncherSettingsGui.isLanguageChangePending( newV, savedOverrideTag );
+                    boolean pending = MCLauncherSettingsGui.isLanguageChangePending( newV.intValue(),
+                                                                                     savedOverrideTag );
                     saveRestartBtn.setVisible( pending );
                     saveRestartBtn.setManaged( pending );
                 } );
