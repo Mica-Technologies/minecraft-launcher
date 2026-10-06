@@ -121,10 +121,10 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
                 GUIUtilities.showQuestionMessage(
                         LocalizationManager.get( "dialog.mcp.consent.title" ),
                         LocalizationManager.format( "dialog.mcp.consent.header",
-                                                    context.clientName(), tool.title() ),
+                                                    context.clientName(), tool.displayTitle() ),
                         LocalizationManager.format( "dialog.mcp.consent.body",
                                                     context.clientName(), tool.name(),
-                                                    tool.description(),
+                                                    tool.displayDescription(),
                                                     detailedArguments( tool, arguments ) ),
                         LocalizationManager.get( "dialog.mcp.consent.button.allowOnce" ),
                         // The question helper folds a second label equal to its own Cancel

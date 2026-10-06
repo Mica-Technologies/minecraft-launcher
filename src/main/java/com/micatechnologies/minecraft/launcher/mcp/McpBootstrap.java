@@ -222,7 +222,7 @@ public final class McpBootstrap
      * One tool as the Settings page needs to describe it.
      *
      * @param name      the tool's wire name, and the key its policy is stored under
-     * @param title     the human-readable title
+     * @param title     the title in the UI language ({@code McpTool.displayTitle()})
      * @param riskClass how much damage the tool can do, which sets its default
      *
      * @since 3.0
@@ -254,7 +254,7 @@ public final class McpBootstrap
             // so the Settings page can show and pre-configure their policies either way.
             MutatingTools.registerAll( registry, view, new LiveMcpLauncherActions() );
             for ( McpTool tool : registry.all() ) {
-                described.add( new ToolDescriptor( tool.name(), tool.title(), tool.riskClass() ) );
+                described.add( new ToolDescriptor( tool.name(), tool.displayTitle(), tool.riskClass() ) );
             }
         }
         catch ( Exception e ) {

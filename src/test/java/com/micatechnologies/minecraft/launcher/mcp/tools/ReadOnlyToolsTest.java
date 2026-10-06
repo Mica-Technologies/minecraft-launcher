@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.mcp.tools;
 
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpRiskClass;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import org.junit.jupiter.api.BeforeEach;
@@ -105,6 +106,20 @@ class ReadOnlyToolsTest
     }
 
     // region registration
+
+    @Test
+    void everyToolHasALocalizedTitleAndDescription()
+    {
+        // The consent dialog and the Settings list show these; a tool without them would fall
+        // back to English in every language.
+        assertFalse( registry.all().isEmpty() );
+        for ( McpTool tool : registry.all() ) {
+            assertNotNull( LocalizationManager.getOr( "mcp.tool." + tool.name() + ".title", null ),
+                           tool.name() + " has no localized title" );
+            assertNotNull( LocalizationManager.getOr( "mcp.tool." + tool.name() + ".description", null ),
+                           tool.name() + " has no localized description" );
+        }
+    }
 
     @Test
     void everyReadOnlyToolRegisters()
