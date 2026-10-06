@@ -880,6 +880,38 @@ public class NetworkUtilities
         // can't sneak a plaintext body into a flow the caller thinks is end-to-
         // end HTTPS. Then walk up to MAX_REDIRECTS hops manually, requiring each
         // hop to also be HTTPS.
+        URLConnection connection = openHttpsWithoutDowngrade( source );
+        assertAcceptableJsonContentType( connection.getContentType(), connection.getURL() );
+        try ( InputStream is = connection.getInputStream();
+              ByteArrayOutputStream out = new ByteArrayOutputStream() ) {
+            byte[] buffer = new byte[8192];
+            long total = 0;
+            int read;
+            while ( ( read = is.read( buffer ) ) != -1 ) {
+                total += read;
+                if ( total > maxBytes ) {
+                    throw new IOException(
+                            "Response from " + source + " exceeded max-bytes cap (" + maxBytes + ")" );
+                }
+                out.write( buffer, 0, read );
+            }
+            noteNetworkSuccess();
+            return out.toString( StandardCharsets.UTF_8 );
+        }
+    }
+
+    /**
+     * Opens {@code source} through the configured proxy with the default timeouts, following
+     * up to {@link #MAX_REDIRECTS} redirects by hand and requiring every hop to be HTTPS, so a
+     * redirect can't downgrade the fetch to plaintext. Returns the connection for the final,
+     * non-redirect response (its status already read).
+     *
+     * @param source the HTTPS URL to open
+     * @return the connection for the final response
+     * @throws IOException if a hop isn't HTTPS, a redirect has no Location, there are too many
+     *                     redirects, or the request fails
+     */
+    private static URLConnection openHttpsWithoutDowngrade( URL source ) throws IOException {
         URL current = source;
         for ( int hop = 0; hop <= MAX_REDIRECTS; hop++ ) {
             if ( !"https".equalsIgnoreCase( current.getProtocol() ) ) {
@@ -903,10 +935,41 @@ public class NetworkUtilities
                     continue;
                 }
             }
-            assertAcceptableJsonContentType( connection.getContentType(), current );
+            return connection;
+        }
+        throw new IOException( "Too many redirects following " + source );
+    }
+
+    /**
+     * Downloads an HTTPS resource into {@code destination}, refusing to write more than
+     * {@code maxBytes}. For binary archives that must not fill the disk: a declared
+     * {@code Content-Length} over the cap is refused before reading, and the copy aborts as
+     * soon as the body passes the cap whatever the header said. Uses the configured proxy and
+     * the default connect/read timeouts, and never follows a redirect to plain HTTP. On any
+     * failure the partially written destination is deleted.
+     *
+     * @param source      the HTTPS URL to fetch
+     * @param destination the file to write (replaced if it exists)
+     * @param maxBytes    the most bytes the body may contain
+     * @throws IOException if the fetch fails, isn't HTTPS, or the body exceeds {@code maxBytes}
+     * @since 2026.10
+     */
+    public static void downloadFileFromURLBounded( URL source, File destination, long maxBytes ) throws IOException {
+        boolean complete = false;
+        URLConnection connection = null;
+        try {
+            connection = openHttpsWithoutDowngrade( source );
+            if ( connection instanceof HttpURLConnection http && http.getResponseCode() >= 400 ) {
+                throw new IOException( "HTTP " + http.getResponseCode() + " from " + source );
+            }
+            long declared = connection.getContentLengthLong();
+            if ( declared > maxBytes ) {
+                throw new IOException( "Response from " + source + " declares " + declared
+                                               + " bytes, over the max-bytes cap (" + maxBytes + ")" );
+            }
             try ( InputStream is = connection.getInputStream();
-                  ByteArrayOutputStream out = new ByteArrayOutputStream() ) {
-                byte[] buffer = new byte[8192];
+                  OutputStream os = new BufferedOutputStream( new FileOutputStream( destination ) ) ) {
+                byte[] buffer = new byte[ DOWNLOAD_BUFFER_SIZE ];
                 long total = 0;
                 int read;
                 while ( ( read = is.read( buffer ) ) != -1 ) {
@@ -915,13 +978,21 @@ public class NetworkUtilities
                         throw new IOException(
                                 "Response from " + source + " exceeded max-bytes cap (" + maxBytes + ")" );
                     }
-                    out.write( buffer, 0, read );
+                    os.write( buffer, 0, read );
                 }
-                noteNetworkSuccess();
-                return out.toString( StandardCharsets.UTF_8 );
+            }
+            noteNetworkSuccess();
+            complete = true;
+        }
+        finally {
+            if ( connection instanceof HttpURLConnection http ) {
+                http.disconnect();
+            }
+            if ( !complete ) {
+                //noinspection ResultOfMethodCallIgnored
+                destination.delete();
             }
         }
-        throw new IOException( "Too many redirects following " + source );
     }
 
     /** Cap on the number of HTTPS-only redirect hops a bounded fetch will follow.

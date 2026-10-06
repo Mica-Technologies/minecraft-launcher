@@ -296,4 +296,17 @@ class NetworkUtilitiesTest
         assertThrows( IOException.class,
                 () -> NetworkUtilities.assertAcceptableJsonContentType( "TEXT/HTML", u ) );
     }
+
+    @Test
+    void boundedFileDownload_refusesPlainHttpAndRemovesTheDestination( @TempDir Path dir )
+            throws Exception
+    {
+        // Refused before any connection is opened, so no network is touched. The caller's
+        // pre-created temp file must not be left behind on the failure path.
+        File dest = dir.resolve( "pack.mrpack" ).toFile();
+        assertTrue( dest.createNewFile() );
+        assertThrows( IOException.class, () -> NetworkUtilities.downloadFileFromURLBounded(
+                new URL( "http://example.invalid/pack.mrpack" ), dest, 1024 ) );
+        assertTrue( !dest.exists(), "partial destination should be deleted on failure" );
+    }
 }

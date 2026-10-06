@@ -251,23 +251,21 @@ public final class MrpackImporter
      *  @throws ImportException if the download fails or exceeds the byte cap */
     private static Path downloadMrpack( String url ) throws ImportException
     {
+        Path dest = null;
         try {
-            Path dest = Files.createTempFile( "mica-mrpack-", ".mrpack" );
-            try ( InputStream is = new URL( url ).openStream() ) {
-                long copied = Files.copy( is, dest, StandardCopyOption.REPLACE_EXISTING );
-                if ( copied > MAX_MRPACK_BYTES ) {
-                    Files.deleteIfExists( dest );
-                    throw new ImportException( "Pack archive exceeded the " + MAX_MRPACK_BYTES
-                                                       + "-byte cap; aborting." );
-                }
-            }
+            dest = Files.createTempFile( "mica-mrpack-", ".mrpack" );
+            // Bounded, https-only, proxy-aware and with timeouts: the copy aborts as soon as the
+            // body passes the cap rather than streaming it all to disk first, and the helper
+            // deletes the partial file on any failure.
+            NetworkUtilities.downloadFileFromURLBounded( new URL( url ), dest.toFile(), MAX_MRPACK_BYTES );
             return dest;
         }
-        catch ( ImportException e ) {
-            throw e;
-        }
         catch ( IOException e ) {
-            throw new ImportException( "Could not download the pack archive: " + e.getMessage(), e );
+            if ( dest != null ) {
+                try { Files.deleteIfExists( dest ); } catch ( IOException ignored ) { }
+            }
+            throw new ImportException( LocalizationManager.format( "mrpackImporter.error.downloadFailed",
+                                                                   String.valueOf( e.getMessage() ) ), e );
         }
     }
 
