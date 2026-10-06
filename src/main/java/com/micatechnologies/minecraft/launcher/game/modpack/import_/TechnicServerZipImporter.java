@@ -218,7 +218,7 @@ public final class TechnicServerZipImporter
     public static String importZip( File zipFile ) throws ImportException
     {
         if ( zipFile == null || !zipFile.isFile() ) {
-            throw new ImportException( "Pick an existing ZIP file." );
+            throw new ImportException( LocalizationManager.get( "importer.error.pickZipFile" ) );
         }
 
         // Derive name + version from the filename. Falls back to "TechnicPack"
@@ -305,11 +305,13 @@ public final class TechnicServerZipImporter
             return manifestUrl;
         }
         catch ( IOException ioe ) {
-            throw new ImportException( "Couldn't read the ZIP file: " + ioe.getMessage() );
+            throw new ImportException( LocalizationManager.format( "importer.error.readZipFailed",
+                                                                   String.valueOf( ioe.getMessage() ) ) );
         }
         catch ( Throwable t ) {
             Logger.logErrorSilent( LocalizationManager.format( "log.technicImporter.unexpectedFailure", t.getMessage() ) );
-            throw new ImportException( "Unexpected error during import: " + t.getMessage() );
+            throw new ImportException( LocalizationManager.format( "importer.error.unexpected",
+                                                                   String.valueOf( t.getMessage() ) ) );
         }
     }
 
@@ -345,8 +347,8 @@ public final class TechnicServerZipImporter
         while ( entries.hasMoreElements() ) {
             ZipEntry entry = entries.nextElement();
             if ( ++entryCount > BoundedZipExtraction.MAX_ENTRIES ) {
-                throw new IOException( "ZIP has too many entries (>" + BoundedZipExtraction.MAX_ENTRIES
-                                               + ") — refusing to extract." );
+                throw new IOException( LocalizationManager.format( "importer.error.tooManyEntries",
+                                                                   BoundedZipExtraction.MAX_ENTRIES ) );
             }
             String name = entry.getName().replace( '\\', '/' );
 
@@ -357,7 +359,7 @@ public final class TechnicServerZipImporter
 
             Path target = destNormalized.resolve( name ).normalize();
             if ( !target.startsWith( destNormalized ) ) {
-                throw new IOException( "ZIP entry escapes target folder: " + name );
+                throw new IOException( LocalizationManager.format( "importer.error.entryEscapes", name ) );
             }
             if ( entry.isDirectory() ) {
                 Files.createDirectories( target );

@@ -87,11 +87,11 @@ public final class MmcjsonImporter
     public static String importMmcjsonFile( File mmcjsonFile ) throws ImportException
     {
         if ( mmcjsonFile == null || !mmcjsonFile.isFile() ) {
-            throw new ImportException( "Pick an existing .mmcjson file." );
+            throw new ImportException( LocalizationManager.get( "mmcjsonImporter.error.pickFile" ) );
         }
         if ( mmcjsonFile.length() > MAX_MANIFEST_BYTES ) {
-            throw new ImportException( "Modpack manifest is suspiciously large ("
-                                               + mmcjsonFile.length() + " bytes); refusing to import." );
+            throw new ImportException( LocalizationManager.format( "mmcjsonImporter.error.tooLarge",
+                                                                   mmcjsonFile.length() ) );
         }
 
         String body;
@@ -99,7 +99,8 @@ public final class MmcjsonImporter
             body = Files.readString( mmcjsonFile.toPath(), StandardCharsets.UTF_8 );
         }
         catch ( IOException e ) {
-            throw new ImportException( "Couldn't read the .mmcjson file: " + e.getMessage() );
+            throw new ImportException( LocalizationManager.format( "mmcjsonImporter.error.readFailed",
+                                                                   String.valueOf( e.getMessage() ) ) );
         }
 
         // Parse + minimal-shape check before we copy anything to disk.
@@ -112,13 +113,13 @@ public final class MmcjsonImporter
             manifest = JsonParser.parseString( body ).getAsJsonObject();
         }
         catch ( Exception e ) {
-            throw new ImportException( "This file isn't valid Mica modpack JSON." );
+            throw new ImportException( LocalizationManager.get( "mmcjsonImporter.error.invalidJson" ) );
         }
         String packName = manifest.has( "packName" ) && manifest.get( "packName" ).isJsonPrimitive()
                           ? manifest.get( "packName" ).getAsString()
                           : null;
         if ( packName == null || packName.isBlank() ) {
-            throw new ImportException( "Manifest is missing the required \"packName\" field." );
+            throw new ImportException( LocalizationManager.get( "mmcjsonImporter.error.noPackName" ) );
         }
 
         Path manifestPath;
@@ -130,8 +131,8 @@ public final class MmcjsonImporter
             Files.writeString( manifestPath, body, StandardCharsets.UTF_8 );
         }
         catch ( IOException e ) {
-            throw new ImportException( "Couldn't write the manifest into imported-manifests/: "
-                                               + e.getMessage() );
+            throw new ImportException( LocalizationManager.format( "mmcjsonImporter.error.writeFailed",
+                                                                   String.valueOf( e.getMessage() ) ) );
         }
 
         String manifestUrl = manifestPath.toUri().toString();
@@ -141,7 +142,8 @@ public final class MmcjsonImporter
             GameModPackManager.installModPackByURL( manifestUrl );
         }
         catch ( Exception e ) {
-            throw new ImportException( "Couldn't register the imported pack: " + e.getMessage() );
+            throw new ImportException( LocalizationManager.format( "importer.error.registerFailed",
+                                                                   String.valueOf( e.getMessage() ) ) );
         }
         return manifestUrl;
     }

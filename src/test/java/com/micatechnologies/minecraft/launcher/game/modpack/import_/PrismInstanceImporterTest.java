@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static com.micatechnologies.minecraft.launcher.consts.localization.LocalizedMessages.assertFromKey;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -66,7 +67,7 @@ class PrismInstanceImporterTest
     {
         PrismInstanceImporter.ImportException ex = assertThrows( PrismInstanceImporter.ImportException.class,
                                                                    () -> PrismInstanceImporter.importInstance( null ) );
-        assertTrue( ex.getMessage().contains( "Prism Launcher" ) );
+        assertFromKey( "prismImporter.error.pickFolder", ex.getMessage() );
     }
 
     @Test
@@ -76,7 +77,7 @@ class PrismInstanceImporterTest
         assertTrue( notADir.createNewFile() );
         PrismInstanceImporter.ImportException ex = assertThrows( PrismInstanceImporter.ImportException.class,
                                                                    () -> PrismInstanceImporter.importInstance( notADir ) );
-        assertTrue( ex.getMessage().contains( "Prism Launcher" ) );
+        assertFromKey( "prismImporter.error.pickFolder", ex.getMessage() );
     }
 
     @Test
@@ -87,7 +88,7 @@ class PrismInstanceImporterTest
         PrismInstanceImporter.ImportException ex = assertThrows(
                 PrismInstanceImporter.ImportException.class,
                 () -> PrismInstanceImporter.importInstance( dir.toFile() ) );
-        assertTrue( ex.getMessage().contains( "instance.cfg" ) );
+        assertFromKey( "prismImporter.error.notInstance", ex.getMessage() );
     }
 
     @Test
@@ -98,7 +99,7 @@ class PrismInstanceImporterTest
         PrismInstanceImporter.ImportException ex = assertThrows(
                 PrismInstanceImporter.ImportException.class,
                 () -> PrismInstanceImporter.importInstance( dir.toFile() ) );
-        assertTrue( ex.getMessage().contains( "mmc-pack.json" ) );
+        assertFromKey( "prismImporter.error.notInstance", ex.getMessage() );
     }
 
     @Test
@@ -110,7 +111,7 @@ class PrismInstanceImporterTest
         PrismInstanceImporter.ImportException ex = assertThrows(
                 PrismInstanceImporter.ImportException.class,
                 () -> PrismInstanceImporter.importInstance( dir.toFile() ) );
-        assertTrue( ex.getMessage().contains( ".minecraft" ) );
+        assertFromKey( "prismImporter.error.noMinecraftFolder", ex.getMessage() );
     }
 
     @Test
@@ -125,7 +126,7 @@ class PrismInstanceImporterTest
                 PrismInstanceImporter.ImportException.class,
                 () -> PrismInstanceImporter.importInstance( dir.toFile() ) );
         assertTrue( ex.getMessage().contains( "instance.cfg" ) );
-        assertTrue( ex.getMessage().contains( "large" ) );
+        assertFromKey( "prismImporter.error.fileTooLarge", ex.getMessage() );
     }
 
     @Test
@@ -139,7 +140,7 @@ class PrismInstanceImporterTest
                 PrismInstanceImporter.ImportException.class,
                 () -> PrismInstanceImporter.importInstance( dir.toFile() ) );
         assertTrue( ex.getMessage().contains( "mmc-pack.json" ) );
-        assertTrue( ex.getMessage().contains( "large" ) );
+        assertFromKey( "prismImporter.error.fileTooLarge", ex.getMessage() );
     }
 
     @Test
@@ -152,7 +153,7 @@ class PrismInstanceImporterTest
         PrismInstanceImporter.ImportException ex = assertThrows(
                 PrismInstanceImporter.ImportException.class,
                 () -> PrismInstanceImporter.importInstance( dir.toFile() ) );
-        assertTrue( ex.getMessage().contains( "isn't valid JSON" ) );
+        assertFromKey( "prismImporter.error.invalidPackJson", ex.getMessage() );
     }
 
     @Test
@@ -165,7 +166,7 @@ class PrismInstanceImporterTest
         PrismInstanceImporter.ImportException ex = assertThrows(
                 PrismInstanceImporter.ImportException.class,
                 () -> PrismInstanceImporter.importInstance( dir.toFile() ) );
-        assertTrue( ex.getMessage().contains( "components array" ) );
+        assertFromKey( "prismImporter.error.noComponents", ex.getMessage() );
     }
 
     @Test
@@ -180,7 +181,7 @@ class PrismInstanceImporterTest
         PrismInstanceImporter.ImportException ex = assertThrows(
                 PrismInstanceImporter.ImportException.class,
                 () -> PrismInstanceImporter.importInstance( dir.toFile() ) );
-        assertTrue( ex.getMessage().contains( "Minecraft version" ) );
+        assertFromKey( "prismImporter.error.noMcVersion", ex.getMessage() );
     }
 
     @Test
@@ -200,7 +201,7 @@ class PrismInstanceImporterTest
         // If the folder check had failed we'd see the ".minecraft" message
         // instead — getting the JSON-parse failure proves the legacy
         // "minecraft/" folder name was accepted.
-        assertTrue( ex.getMessage().contains( "isn't valid JSON" ) );
+        assertFromKey( "prismImporter.error.invalidPackJson", ex.getMessage() );
     }
 
     // ===================================================================

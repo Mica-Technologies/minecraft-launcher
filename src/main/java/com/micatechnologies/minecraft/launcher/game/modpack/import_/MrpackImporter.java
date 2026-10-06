@@ -174,7 +174,7 @@ public final class MrpackImporter
     public static Result importMrpack( String mrpackDownloadUrl, String projectSlug, String iconUrl ) throws ImportException
     {
         if ( mrpackDownloadUrl == null || mrpackDownloadUrl.isBlank() ) {
-            throw new ImportException( "No download URL was provided for the pack." );
+            throw new ImportException( LocalizationManager.get( "mrpackImporter.error.noUrl" ) );
         }
 
         Path tempMrpack = null;
@@ -190,8 +190,7 @@ public final class MrpackImporter
             Logger.logStd( LocalizationManager.get( "log.mrpackImporter.parsing" ) );
             ModrinthIndex index = parseIndex( tempMrpack );
             if ( index == null ) {
-                throw new ImportException( "The downloaded archive doesn't look like a Modrinth modpack "
-                                                   + "(no modrinth.index.json inside)." );
+                throw new ImportException( LocalizationManager.get( "mrpackImporter.error.notMrpack" ) );
             }
             Logger.logStd( LocalizationManager.format( "log.mrpackImporter.parsed", index.name, index.versionId,
                                    ( index.files == null ? 0 : index.files.size() ) ) );
@@ -201,13 +200,12 @@ public final class MrpackImporter
             if ( loader == null ) {
                 Logger.logStd( LocalizationManager.format( "log.mrpackImporter.unsupportedLoader",
                                        String.valueOf( index.dependencies ) ) );
-                throw new ImportException( "This pack uses a mod loader the launcher can't import yet. "
-                                                   + "Supported in this version: Forge." );
+                throw new ImportException( LocalizationManager.get( "mrpackImporter.error.unsupportedLoader" ) );
             }
             String loaderVersion = index.dependencies.get( loader );
             String mcVersion = index.dependencies.get( "minecraft" );
             if ( mcVersion == null || mcVersion.isBlank() ) {
-                throw new ImportException( "Pack manifest is missing a Minecraft version." );
+                throw new ImportException( LocalizationManager.get( "mrpackImporter.error.noMcVersion" ) );
             }
             Logger.logStd( LocalizationManager.format( "log.mrpackImporter.target", mcVersion, loader, loaderVersion ) );
 
@@ -230,8 +228,9 @@ public final class MrpackImporter
             throw e;
         }
         catch ( Throwable t ) {
-            throw new ImportException( "Import failed: " + t.getClass().getSimpleName()
-                                               + " — " + t.getMessage(), t );
+            throw new ImportException( LocalizationManager.format( "mrpackImporter.error.failed",
+                                                                   t.getClass().getSimpleName(),
+                                                                   String.valueOf( t.getMessage() ) ), t );
         }
         finally {
             if ( tempMrpack != null ) {
@@ -290,8 +289,8 @@ public final class MrpackImporter
             }
         }
         catch ( IOException e ) {
-            throw new ImportException( "Couldn't read modrinth.index.json from the archive: "
-                                               + e.getMessage(), e );
+            throw new ImportException( LocalizationManager.format( "mrpackImporter.error.readIndexFailed",
+                                                                   String.valueOf( e.getMessage() ) ), e );
         }
     }
 
@@ -391,10 +390,8 @@ public final class MrpackImporter
         else {
             installerHash = computeForgeInstallerSha1( installerUrl );
             if ( installerHash == null ) {
-                throw new ImportException( "Couldn't fetch the " + loaderType + " installer at "
-                                                   + installerUrl + " to compute its hash. Check the "
-                                                   + "Minecraft / " + loaderType + " versions in the "
-                                                   + "pack." );
+                throw new ImportException( LocalizationManager.format( "mrpackImporter.error.installerFetchFailed",
+                                                                       loaderType, installerUrl ) );
             }
         }
         manifest.addProperty( "packModLoader", loaderType );
@@ -660,8 +657,8 @@ public final class MrpackImporter
             return manifestPath;
         }
         catch ( IOException e ) {
-            throw new ImportException( "Couldn't write the translated manifest to disk: "
-                                               + e.getMessage(), e );
+            throw new ImportException( LocalizationManager.format( "mrpackImporter.error.writeManifestFailed",
+                                                                   String.valueOf( e.getMessage() ) ), e );
         }
     }
 

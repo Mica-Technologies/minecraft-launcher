@@ -100,7 +100,7 @@ public final class ModpackZipImporter
     public static String importZip( File zipFile ) throws ImportException
     {
         if ( zipFile == null || !zipFile.isFile() ) {
-            throw new ImportException( "Pick an existing ZIP file." );
+            throw new ImportException( LocalizationManager.get( "importer.error.pickZipFile" ) );
         }
 
         try ( ZipFile zip = new ZipFile( zipFile ) ) {
@@ -120,13 +120,8 @@ public final class ModpackZipImporter
                         throw new ImportException( tex.getMessage() );
                     }
                 }
-                throw new ImportException( "This ZIP isn't a Mica modpack export or a "
-                                                    + "recognized Technic Server Download — no "
-                                                    + ModpackExporter.MARKER_FILENAME
-                                                    + " marker found at the archive root, and "
-                                                    + "the structure doesn't match the Technic "
-                                                    + "server pack layout (mods/ + launch script + "
-                                                    + "top-level server JAR)." );
+                throw new ImportException( LocalizationManager.format( "zipImporter.error.notMicaExport",
+                                                                       ModpackExporter.MARKER_FILENAME ) );
             }
             String markerJson;
             try ( InputStream in = zip.getInputStream( markerEntry ) ) {
@@ -138,12 +133,13 @@ public final class ModpackZipImporter
                 format = markerObj.has( "format" ) ? markerObj.get( "format" ).getAsString() : null;
             }
             catch ( Throwable t ) {
-                throw new ImportException( "Marker file is corrupt: " + t.getMessage() );
+                throw new ImportException( LocalizationManager.format( "zipImporter.error.markerCorrupt",
+                                                                       String.valueOf( t.getMessage() ) ) );
             }
             if ( format == null || !format.startsWith( "mica-export-v" ) ) {
-                throw new ImportException( "Unrecognized export format: " + format
-                                                    + ". This launcher only knows how to import "
-                                                    + ModpackExporter.EXPORT_FORMAT_V2 + " or compatible ZIPs." );
+                throw new ImportException( LocalizationManager.format( "zipImporter.error.unknownFormat",
+                                                                       String.valueOf( format ),
+                                                                       ModpackExporter.EXPORT_FORMAT_V2 ) );
             }
 
             // Step 2: read the embedded manifest. v1 exports didn't include
@@ -151,9 +147,7 @@ public final class ModpackZipImporter
             // of silently failing partway through extraction.
             ZipEntry manifestEntry = zip.getEntry( ModpackExporter.MANIFEST_FILENAME );
             if ( manifestEntry == null ) {
-                throw new ImportException( "This ZIP doesn't include a pack manifest. "
-                                                    + "Older exports (mica-export-v1) didn't embed one — "
-                                                    + "ask the sender to re-export with the current launcher." );
+                throw new ImportException( LocalizationManager.get( "zipImporter.error.noManifest" ) );
             }
             String manifestBody;
             try ( InputStream in = zip.getInputStream( manifestEntry ) ) {
@@ -167,10 +161,11 @@ public final class ModpackZipImporter
                         ? manifestObj.get( "packName" ).getAsString() : null;
             }
             catch ( Throwable t ) {
-                throw new ImportException( "Embedded manifest is corrupt: " + t.getMessage() );
+                throw new ImportException( LocalizationManager.format( "zipImporter.error.manifestCorrupt",
+                                                                       String.valueOf( t.getMessage() ) ) );
             }
             if ( packName == null || packName.isBlank() ) {
-                throw new ImportException( "Embedded manifest has no packName — can't determine install folder." );
+                throw new ImportException( LocalizationManager.get( "zipImporter.error.noPackName" ) );
             }
 
             // Step 3: compute install folder. Mirrors GameModPack.getPackSanitizedName
@@ -211,11 +206,13 @@ public final class ModpackZipImporter
             throw ie;
         }
         catch ( IOException ioe ) {
-            throw new ImportException( "Couldn't read the ZIP file: " + ioe.getMessage() );
+            throw new ImportException( LocalizationManager.format( "importer.error.readZipFailed",
+                                                                   String.valueOf( ioe.getMessage() ) ) );
         }
         catch ( Throwable t ) {
             Logger.logErrorSilent( LocalizationManager.format( "log.zipImporter.unexpectedFailure", t.getMessage() ) );
-            throw new ImportException( "Unexpected error during import: " + t.getMessage() );
+            throw new ImportException( LocalizationManager.format( "importer.error.unexpected",
+                                                                   String.valueOf( t.getMessage() ) ) );
         }
     }
 
@@ -243,8 +240,8 @@ public final class ModpackZipImporter
         while ( entries.hasMoreElements() ) {
             ZipEntry entry = entries.nextElement();
             if ( ++entryCount > BoundedZipExtraction.MAX_ENTRIES ) {
-                throw new IOException( "ZIP has too many entries (>" + BoundedZipExtraction.MAX_ENTRIES
-                                               + ") — refusing to extract." );
+                throw new IOException( LocalizationManager.format( "importer.error.tooManyEntries",
+                                                                   BoundedZipExtraction.MAX_ENTRIES ) );
             }
             String name = entry.getName();
             // Skip the two book-keeping entries; they belong with the
@@ -257,7 +254,7 @@ public final class ModpackZipImporter
             if ( !target.startsWith( destNormalized ) ) {
                 // Path traversal attempt — bail loudly rather than silently
                 // skip so the user knows something is off with the ZIP.
-                throw new IOException( "ZIP entry escapes target folder: " + name );
+                throw new IOException( LocalizationManager.format( "importer.error.entryEscapes", name ) );
             }
             if ( entry.isDirectory() ) {
                 Files.createDirectories( target );

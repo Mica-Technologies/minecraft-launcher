@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack.import_;
 
 import org.junit.jupiter.api.Test;
 
+import static com.micatechnologies.minecraft.launcher.consts.localization.LocalizedMessages.assertFromKey;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -54,7 +55,7 @@ class MrpackImporterTest
     {
         MrpackImporter.ImportException ex = assertThrows( MrpackImporter.ImportException.class,
                                                             () -> MrpackImporter.importMrpack( "", "slug", null ) );
-        assertTrue( ex.getMessage().contains( "No download URL" ) );
+        assertFromKey( "mrpackImporter.error.noUrl", ex.getMessage() );
     }
 
     @Test
@@ -62,7 +63,7 @@ class MrpackImporterTest
     {
         MrpackImporter.ImportException ex = assertThrows( MrpackImporter.ImportException.class,
                                                             () -> MrpackImporter.importMrpack( null, "slug", null ) );
-        assertTrue( ex.getMessage().contains( "No download URL" ) );
+        assertFromKey( "mrpackImporter.error.noUrl", ex.getMessage() );
     }
 
     @Test
