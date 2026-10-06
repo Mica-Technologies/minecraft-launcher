@@ -1,0 +1,43 @@
+<h1>登入</h1>
+
+<p>Mica Minecraft 啟動器使用 <strong>Microsoft 官方驗證</strong>來確認您的
+Minecraft 帳號。這與官方 Minecraft 啟動器所使用的登入流程相同。</p>
+
+<h2>運作方式</h2>
+
+<ol class="steps">
+    <li>在登入畫面按一下<strong>登入</strong>。瀏覽器視窗會開啟 Microsoft 登入頁面。</li>
+    <li>輸入您的 Microsoft 帳號認證資訊並核准登入。</li>
+    <li>驗證完成後，瀏覽器視窗會關閉，啟動器隨即進入
+        <a href="help://topic/MAIN_SCREEN">主畫面</a>。</li>
+</ol>
+
+<h2>權杖快取</h2>
+
+<p>成功登入後，您的驗證權杖會以 <strong>AES-256-GCM 加密</strong>並搭配由本機衍生的金鑰，
+快取在本機上。這表示：</p>
+
+<ul>
+    <li>大約 <strong>4 小時</strong>內不需要再次登入。</li>
+    <li>快取的權杖經過加密，並與您這台電腦綁定，無法轉移到其他地方或重複使用。</li>
+    <li>快取過期後，啟動器會提示您重新登入。</li>
+</ul>
+
+<h2>登入問題疑難排解</h2>
+
+<div class="warning">
+    <div class="callout-title">需要網際網路</div>
+    <p>首次登入時需要有效的網際網路連線。啟動器無法在完全離線的模式下
+    進行驗證。</p>
+</div>
+
+<p>如果您無法順利登入：</p>
+
+<ul>
+    <li><strong>瀏覽器沒有開啟</strong>：請確認系統已設定預設瀏覽器。</li>
+    <li><strong>登入逾時</strong>：請檢查網際網路連線後再試一次。</li>
+    <li><strong>無法辨識帳號</strong>：請確認您使用的是擁有 Minecraft 的 Microsoft 帳號。</li>
+    <li><strong>重複出現登入提示</strong>：快取的權杖可能已過期。閒置 4 小時後出現此情況屬於正常現象。</li>
+</ul>
+
+<p>如果問題持續發生，請參閱<a href="help://topic/TROUBLESHOOTING">疑難排解</a>。</p>

@@ -1,0 +1,57 @@
+<h1>模組包編輯器</h1>
+
+<p>模組包編輯器是內建的工具，可用來建立與編輯模組包的 JSON 定義檔。
+它提供具備驗證、搜尋整合與差異追蹤功能的結構化介面。</p>
+
+<h2>工具列</h2>
+
+<ul>
+    <li><strong>新增</strong>：從範本建立空白的模組包定義。</li>
+    <li><strong>開啟檔案</strong>：從磁碟載入現有的 JSON 定義。</li>
+    <li><strong>開啟網址</strong>：從遠端網址取得並載入定義。</li>
+    <li><strong>儲存</strong>：將目前的定義寫入本機檔案。</li>
+    <li><strong>驗證</strong>：檢查定義是否有錯誤（缺少欄位、無效的網址、雜湊不符）。</li>
+    <li><strong>差異</strong>：將目前狀態與上次儲存的版本比較，查看有哪些變更。</li>
+</ul>
+
+<h2>中繼資料欄位</h2>
+
+<p>上方區段包含模組包的核心資訊：名稱、版本、說明、作者、
+Minecraft 版本與 Forge 版本。<strong>Forge 版本選擇器</strong>可讓您瀏覽
+所選 Minecraft 版本可用的 Forge 組建。</p>
+
+<h2>檔案分頁</h2>
+
+<p>檔案會依類別整理到不同的分頁中：</p>
+
+<table class="settings-table">
+    <tr><td>模組</td><td>放在 <code>mods/</code> 資料夾中的 Forge 模組 JAR。</td></tr>
+    <tr><td>設定</td><td>模組的設定檔，放在 <code>config/</code> 中。</td></tr>
+    <tr><td>資源</td><td>資源包與其他資源。</td></tr>
+    <tr><td>光影</td><td>適用於 OptiFine 或 Iris 的光影包。</td></tr>
+    <tr><td>初始檔案</td><td>僅在首次安裝時複製的檔案（例如預設的 options.txt）。</td></tr>
+</table>
+
+<p>每個檔案項目都包含下載網址與 SHA-1 雜湊。編輯器可以下載檔案並計算其總和檢查碼，
+<strong>自動計算雜湊</strong>。</p>
+
+<h2>Modrinth 搜尋</h2>
+
+<p>使用整合的 Modrinth 搜尋，依名稱尋找模組。選取搜尋結果後，會自動
+填入正確版本的下載網址與雜湊欄位。</p>
+
+<h2>提升版本</h2>
+
+<p><strong>提升版本</strong>按鈕會遞增模組包的版本號碼，讓您輕鬆
+發布啟動器能自動偵測到的更新。</p>
+
+<h2>網址檢查</h2>
+
+<p>編輯器可以確認所有檔案的下載網址是否都能連線，協助您在發布前
+找出失效的連結。</p>
+
+<div class="tip">
+    <div class="callout-title">提示</div>
+    <p>儲存前請先使用<strong>驗證</strong>，及早發現問題。驗證程式會檢查
+    必要欄位、網址是否有效，以及雜湊格式是否正確。</p>
+</div>
