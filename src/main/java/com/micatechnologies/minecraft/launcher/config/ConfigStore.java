@@ -48,9 +48,11 @@ import java.util.concurrent.TimeUnit;
  * unchanged during the migration.</p>
  *
  * <h3>Threading</h3>
- * <p>{@link #ensureLoaded()}, {@link #mutate(java.util.function.Consumer)},
- * {@link #flushNow()}, and the debounced write task are all synchronised on
- * the {@code ConfigStore} class monitor. The typed config setters in the
+ * <p>{@link #ensureLoaded()}, {@link #mutate(java.util.function.Consumer)} and the
+ * getters are synchronised on the {@code ConfigStore} class monitor. Disk writes
+ * (the debounced task and {@link #flushNow()}) are ordered by a separate write
+ * lock and hold the class monitor only while snapshotting, so a save's fsync and
+ * rename never block config reads. The write lock is always taken first. The typed config setters in the
  * per-domain slices ({@code RuntimeConfig}, {@code AppConfig}, …) currently
  * mutate the {@link JsonObject} returned by {@link #ensureLoaded()} under their
  * OWN class monitors rather than {@code ConfigStore}'s, so they are not mutually
@@ -600,14 +602,28 @@ public final class ConfigStore
      * durability before returning (config import, reset). No-op when
      * nothing is queued.
      */
-    public static synchronized void flushNow() {
-        ScheduledFuture< ? > pending = pendingWrite;
-        pendingWrite = null;
-        if ( pending != null && !pending.isDone() ) {
-            pending.cancel( false );
+    public static void flushNow() {
+        // Claim the pending write under the config lock, but write outside it: writeNow takes
+        // WRITE_LOCK first and the config lock second, so holding the config lock here would
+        // take them in the opposite order.
+        boolean due;
+        synchronized ( ConfigStore.class ) {
+            ScheduledFuture< ? > pending = pendingWrite;
+            pendingWrite = null;
+            due = pending != null && !pending.isDone();
+            if ( due ) {
+                pending.cancel( false );
+            }
+        }
+        if ( due ) {
             writeNow();
         }
     }
+
+    /** Orders disk writes. Separate from the config lock so serializing, fsyncing and renaming
+     *  the file doesn't block every config read on the FX thread for the length of a save.
+     *  Always taken before the config lock, never inside it. */
+    private static final Object WRITE_LOCK = new Object();
 
     /**
      * Actual disk-write implementation — runs on the scheduled-writer
@@ -626,10 +642,23 @@ public final class ConfigStore
      * or partial JSON file that {@link #loadFromDisk} couldn't parse
      * on the next launch, triggering the corrupt-recovery reset.</p>
      */
-    private static synchronized void writeNow() {
-        if ( json == null ) {
-            Logger.logErrorAsync( LocalizationManager.CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT );
-            return;
+    private static void writeNow() {
+        synchronized ( WRITE_LOCK ) {
+            writeNowLocked();
+        }
+    }
+
+    /** {@link #writeNow()}'s body; runs holding {@link #WRITE_LOCK} only. */
+    private static void writeNowLocked() {
+        // The snapshot is taken here, inside WRITE_LOCK, so writes land in the order their
+        // snapshots were taken: a later save can never be overwritten by an earlier one.
+        JsonObject snapshot;
+        synchronized ( ConfigStore.class ) {
+            if ( json == null ) {
+                Logger.logErrorAsync( LocalizationManager.CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT );
+                return;
+            }
+            snapshot = snapshotJson();
         }
         // The atomic write below goes through a FileChannel, which is an
         // InterruptibleChannel: if this thread's interrupt flag is set when a
@@ -646,7 +675,7 @@ public final class ConfigStore
         try {
             for ( int attempt = 1; ; attempt++ ) {
                 try {
-                    writeNowOnce();
+                    writeNowOnce( snapshot );
                     return;
                 }
                 catch ( java.nio.channels.ClosedByInterruptException ie ) {
@@ -672,25 +701,21 @@ public final class ConfigStore
      * temp file, fsync it, and atomic-rename it over the target. Lets
      * {@link java.nio.channels.ClosedByInterruptException} propagate so
      * {@link #writeNow()} can retry it; every other failure is logged and the
-     * temp file cleaned up. Must be called with the {@code ConfigStore} monitor
-     * held (it is — {@link #writeNow()} is {@code synchronized}).
+     * temp file cleaned up. Called holding {@link #WRITE_LOCK} (not the config lock), with a
+     * snapshot taken under the config lock.
+     *
+     * @param snapshot a private copy of the config to write
      */
-    private static void writeNowOnce() throws java.nio.channels.ClosedByInterruptException {
+    private static void writeNowOnce( JsonObject snapshot ) throws java.nio.channels.ClosedByInterruptException {
         String path = LocalPathManager.getLauncherConfigFolderPath()
                 + ConfigConstants.CONFIG_FILE_NAME;
         File configFile = SynchronizedFileManager.getSynchronizedFile( path );
         java.nio.file.Path target = configFile.toPath();
         java.nio.file.Path tmp = target.resolveSibling( target.getFileName() + ".tmp" );
 
-        // Snapshot the live config before serializing. The typed config setters
-        // mutate this object under their OWN class monitors (RuntimeConfig.class,
-        // AppConfig.class, ...), not ConfigStore's, so a concurrent setter can
-        // structurally modify the backing map while objectToString iterates it —
-        // a ConcurrentModificationException that writeNow would catch, dropping
-        // the debounced write (lost update). Serializing a private deep copy makes
-        // the write immune to concurrent mutation; snapshotJson retries the copy
-        // itself if a setter races the deepCopy.
-        JsonObject snapshot = snapshotJson();
+        // The caller passes a private deep copy (see snapshotJson): the typed config setters
+        // mutate the live object under their own class monitors, so serializing it directly
+        // could hit a ConcurrentModificationException and drop the write.
         try {
             // Serialize the snapshot.
             String payload = com.micatechnologies.minecraft.launcher.utilities.JSONUtilities
