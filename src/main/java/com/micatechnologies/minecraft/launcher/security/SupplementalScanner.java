@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.security;
 
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
@@ -43,6 +44,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
@@ -511,7 +513,9 @@ public final class SupplementalScanner
         // acknowledgement. A null hash (computation failure) means findings
         // CAN still be produced and shown, but no ack will ever match them —
         // safer than silently silencing on a missing key.
-        String fileSha256 = computeJarSha256( jarPath );
+        // Computed on the first finding only: most JARs produce none, and hashing re-reads the
+        // whole file.
+        Lazy fileSha256 = new Lazy( () -> computeJarSha256( jarPath ) );
 
         // If the JAR's filename itself declares it's a natives-distribution JAR
         // (Mojang's *-natives-* packaging), suppress the "native binary outside
@@ -542,7 +546,7 @@ public final class SupplementalScanner
                     // hash is paid only on a match (rare), not per-entry.
                     String innerSha = readEntrySha256( jar, entry );
                     findings.add( new Finding( Severity.HIGH, Kind.EMBEDDED_EXECUTABLE,
-                            jarPath, fileSha256, innerSha, name,
+                            jarPath, fileSha256.get(), innerSha, name,
                             "embedded executable / script entry: " + name ) );
                     break;
                 }
@@ -564,7 +568,7 @@ public final class SupplementalScanner
                                 && !hasLegitNativeFilename( normalized ) ) {
                             String innerSha = readEntrySha256( jar, entry );
                             findings.add( new Finding( Severity.MEDIUM, Kind.NATIVE_OUTSIDE_KNOWN_PATH,
-                                    jarPath, fileSha256, innerSha, name,
+                                    jarPath, fileSha256.get(), innerSha, name,
                                     "native binary outside a known natives path: " + name ) );
                         }
                         break;
@@ -577,10 +581,9 @@ public final class SupplementalScanner
             if ( lowerName.endsWith( ".class" ) ) {
                 try ( InputStream is = jar.getInputStream( entry ) ) {
                     byte[] bytes = readAll( is );
-                    // Hash the class bytes once and hand the digest to every
-                    // finding produced from this class — cheaper than rehashing
-                    // per-finding and the bytes are already in memory.
-                    String innerSha = sha256Hex( bytes );
+                    // Hash the class bytes on its first finding and hand the digest
+                    // to every later one; almost every class produces none.
+                    Lazy innerSha = new Lazy( () -> sha256Hex( bytes ) );
                     scanClassConstants( bytes, jarPath, fileSha256, innerSha, findings );
                 }
                 catch ( Exception e ) {
@@ -606,6 +609,45 @@ public final class SupplementalScanner
         }
     }
 
+    /** A hash computed the first time a finding needs it, then reused. One scan's own; not
+     *  thread-safe. */
+    private static final class Lazy
+    {
+        private final Supplier< String > compute;
+        private       boolean            computed;
+        private       String             value;
+
+        Lazy( Supplier< String > compute )
+        {
+            this.compute = compute;
+        }
+
+        String get()
+        {
+            if ( !computed ) {
+                value = compute.get();
+                computed = true;
+            }
+            return value;
+        }
+    }
+
+    /** Where a class-content finding was made: {@code owner.method}. Built only for a finding. */
+    private static String locator( ClassNode owner, MethodNode method )
+    {
+        return owner.name + "." + method.name;
+    }
+
+    /** How many '.' characters a string holds. */
+    private static int dotCount( String s )
+    {
+        int n = 0;
+        for ( int i = s.indexOf( '.' ); i >= 0; i = s.indexOf( '.', i + 1 ) ) {
+            n++;
+        }
+        return n;
+    }
+
     /** Hex-encoded SHA-256 of an in-memory byte array. Shared between the
      *  inner-entry hash path and the class-bytes hash path.
      *  Widened from {@code private} to package-private for direct unit
@@ -616,9 +658,7 @@ public final class SupplementalScanner
         try {
             java.security.MessageDigest md = java.security.MessageDigest.getInstance( "SHA-256" );
             byte[] digest = md.digest( bytes );
-            StringBuilder sb = new StringBuilder( digest.length * 2 );
-            for ( byte b : digest ) sb.append( String.format( "%02x", b ) );
-            return sb.toString();
+            return HashUtilities.bytesToHex( digest );
         }
         catch ( Exception e ) {
             return null;
@@ -647,9 +687,7 @@ public final class SupplementalScanner
                 }
             }
             byte[] digest = md.digest();
-            StringBuilder sb = new StringBuilder( digest.length * 2 );
-            for ( byte b : digest ) sb.append( String.format( "%02x", b ) );
-            return sb.toString();
+            return HashUtilities.bytesToHex( digest );
         }
         catch ( Exception e ) {
             return null;
@@ -660,8 +698,8 @@ public final class SupplementalScanner
      *  that match the IoC patterns, plus the AWT-Robot + Clipboard combination
      *  that fingerprints clipboard stealers. ASM's tree API gives us the
      *  constants directly without needing a full visitor implementation. */
-    private static void scanClassConstants( byte[] classBytes, Path jarPath, String fileSha256,
-                                             String innerSha256, List< Finding > findings )
+    private static void scanClassConstants( byte[] classBytes, Path jarPath, Lazy fileSha256,
+                                             Lazy innerSha256, List< Finding > findings )
     {
         ClassReader reader;
         try {
@@ -672,7 +710,8 @@ public final class SupplementalScanner
         }
         ClassNode node = new ClassNode();
         try {
-            reader.accept( node, 0 );
+            // Only instructions are inspected: debug info and stack-map frames are skipped.
+            reader.accept( node, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES );
         }
         catch ( Exception e ) {
             return;
@@ -709,31 +748,38 @@ public final class SupplementalScanner
         // copy server IP" features, so blocking outright would FP.
         if ( sawAwtRobot && sawClipboard ) {
             findings.add( new Finding( Severity.MEDIUM, Kind.CLIPBOARD_STEALER_PATTERN,
-                    jarPath, fileSha256, innerSha256, node.name,
+                    jarPath, fileSha256.get(), innerSha256.get(), node.name,
                     "clipboard-stealer pattern (AWT Robot + Clipboard) in " + node.name ) );
         }
     }
 
-    private static void inspectStringConstant( String s, Path jarPath, String fileSha256,
-                                                String innerSha256, ClassNode owner,
+    private static void inspectStringConstant( String s, Path jarPath, Lazy fileSha256,
+                                                Lazy innerSha256, ClassNode owner,
                                                 MethodNode method, List< Finding > findings )
     {
         if ( s == null || s.isEmpty() ) {
             return;
         }
-        String locator = owner.name + "." + method.name;
+        // Every URL pattern needs "://", and every credential file name and IPv4 literal a '.':
+        // most constants have neither, and skip every regex.
+        boolean url = s.contains( "://" );
+        if ( !url && s.indexOf( '.' ) < 0 ) {
+            return;
+        }
         // (A) Discord webhook — HIGH.
-        if ( DISCORD_WEBHOOK.matcher( s ).find() ) {
+        if ( url && DISCORD_WEBHOOK.matcher( s ).find() ) {
+            String locator = locator( owner, method );
             findings.add( new Finding( Severity.HIGH, Kind.DISCORD_WEBHOOK_URL,
-                    jarPath, fileSha256, innerSha256, locator,
+                    jarPath, fileSha256.get(), innerSha256.get(), locator,
                     "Discord webhook URL in " + locator ) );
             return; // one HIGH per class is enough; don't spam findings
         }
         // (B) Suspicious paste / file-host URL — HIGH.
-        for ( Pattern p : SUSPICIOUS_HOST_PATTERNS ) {
+        for ( Pattern p : url ? SUSPICIOUS_HOST_PATTERNS : List.< Pattern >of() ) {
             if ( p.matcher( s ).find() ) {
+                String locator = locator( owner, method );
                 findings.add( new Finding( Severity.HIGH, Kind.SUSPICIOUS_HOST_URL,
-                        jarPath, fileSha256, innerSha256, locator,
+                        jarPath, fileSha256.get(), innerSha256.get(), locator,
                         "suspicious host URL in " + locator + " (" + p.pattern() + ")" ) );
                 return;
             }
@@ -744,8 +790,9 @@ public final class SupplementalScanner
         String lowerS = s.toLowerCase( Locale.ROOT );
         for ( String credFile : LAUNCHER_CREDENTIAL_FILES ) {
             if ( lowerS.contains( credFile ) ) {
+                String locator = locator( owner, method );
                 findings.add( new Finding( Severity.HIGH, Kind.LAUNCHER_CREDENTIAL_FILE_REF,
-                        jarPath, fileSha256, innerSha256, locator,
+                        jarPath, fileSha256.get(), innerSha256.get(), locator,
                         "reference to launcher credential file '" + credFile + "' in " + locator ) );
                 return;
             }
@@ -760,10 +807,15 @@ public final class SupplementalScanner
         //          the IP, no URL context, small leading octet OR trailing-zero
         //          pad) are skipped — those are version numbers like "1.7.0.25"
         //          or "3.5.0.0" that happen to parse as IPv4.
+        // A dotted quad has at least three dots.
+        if ( dotCount( s ) < 3 ) {
+            return;
+        }
         Matcher m = IPV4_LITERAL.matcher( s );
         if ( m.find() && looksLikeRealIp( m ) && !isFalsePositiveIp( s, m ) ) {
+            String locator = locator( owner, method );
             findings.add( new Finding( Severity.MEDIUM, Kind.IPV4_LITERAL,
-                    jarPath, fileSha256, innerSha256, locator,
+                    jarPath, fileSha256.get(), innerSha256.get(), locator,
                     "hard-coded IPv4 literal in " + locator + ": " + m.group() ) );
         }
     }
