@@ -834,8 +834,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 for ( String version : versions ) {
                     String mcVersion = neoForgeMcVersionFor( version );
                     String label = mcVersion != null
-                            ? "MC " + mcVersion + " - NeoForge " + version
-                            : "NeoForge " + version;
+                            ? LocalizationManager.format( "editor.versionPick.neoForgeWithMc", mcVersion, version )
+                            : LocalizationManager.format( "editor.versionPick.neoForge", version );
                     String url = "https://maven.neoforged.net/releases/net/neoforged/neoforge/"
                             + version + "/neoforge-" + version + "-installer.jar";
                     entries.add( label );
@@ -925,7 +925,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     JsonObject obj = el.getAsJsonObject();
                     if ( obj.has( "stable" ) && !obj.get( "stable" ).getAsBoolean() ) continue;
                     String mcVersion = obj.get( "version" ).getAsString();
-                    String label = "MC " + mcVersion + " - Fabric loader " + loaderVersion;
+                    String label = LocalizationManager.format( "editor.versionPick.fabric", mcVersion,
+                                                               loaderVersion );
                     String url = "https://meta.fabricmc.net/v2/versions/loader/" + mcVersion
                             + "/" + loaderVersion + "/profile/json";
                     entries.add( label );
@@ -1045,7 +1046,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 for ( String mcVer : mcVersions ) {
                     if ( recommended.containsKey( mcVer ) ) {
                         String forgeVer = recommended.get( mcVer );
-                        String label = "MC " + mcVer + " - Forge " + forgeVer + " (recommended)";
+                        String label = LocalizationManager.format( "editor.versionPick.forgeRecommended", mcVer,
+                                                                   forgeVer );
                         String url = "https://maven.minecraftforge.net/net/minecraftforge/forge/" +
                                 mcVer + "-" + forgeVer + "/forge-" + mcVer + "-" + forgeVer + "-installer.jar";
                         entries.add( label );
@@ -1058,7 +1060,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         if ( recVer != null && recVer.equals( forgeVer ) ) {
                             continue;
                         }
-                        String label = "MC " + mcVer + " - Forge " + forgeVer + " (latest)";
+                        String label = LocalizationManager.format( "editor.versionPick.forgeLatest", mcVer,
+                                                                   forgeVer );
                         String url = "https://maven.minecraftforge.net/net/minecraftforge/forge/" +
                                 mcVer + "-" + forgeVer + "/forge-" + mcVer + "-" + forgeVer + "-installer.jar";
                         entries.add( label );

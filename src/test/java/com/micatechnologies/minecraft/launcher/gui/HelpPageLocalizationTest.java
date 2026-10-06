@@ -85,4 +85,13 @@ class HelpPageLocalizationTest
         }
         assertTrue( orphans.isEmpty(), "Translated help pages without an English original: " + orphans );
     }
+
+    @Test
+    void textInsertedIntoTheHelpPaneIsHtmlEscaped()
+    {
+        // A topic name such as "Language & Localization" must not be read as markup.
+        assertEquals( "Language &amp; Localization", MCLauncherHelpWindow.escapeHtml( "Language & Localization" ) );
+        assertEquals( "&lt;b&gt; &quot;x&quot;", MCLauncherHelpWindow.escapeHtml( "<b> \"x\"" ) );
+        assertEquals( "", MCLauncherHelpWindow.escapeHtml( null ) );
+    }
 }

@@ -524,16 +524,21 @@ public class MCLauncherHelpWindow
                 webEngine.loadContent( fullHtml );
             }
             else {
+                // Escaped: topic names and translations are plain text, and some contain "&"
+                // ("Language & Localization").
                 webEngine.loadContent(
                         "<html><body style='font-family:sans-serif;padding:20px;color:#E6E1E5;background:#1C1B1F;'>" +
-                                "<h2>" + LocalizationManager.get( "help.topic.unavailable.heading" ) + "</h2>" +
-                                "<p>" + LocalizationManager.format( "help.topic.unavailable.body", topic.getDisplayName() ) +
+                                "<h2>" + escapeHtml( LocalizationManager.get( "help.topic.unavailable.heading" ) ) +
+                                "</h2><p>" +
+                                escapeHtml( LocalizationManager.format( "help.topic.unavailable.body",
+                                                                        topic.getDisplayName() ) ) +
                                 "</p></body></html>" );
             }
         }
         catch ( Exception e ) {
             Logger.logWarningSilent( LocalizationManager.format( "log.help.loadTopicFailed", topic.getDisplayName() ) );
-            webEngine.loadContent( "<html><body><p>" + LocalizationManager.get( "help.topic.loadError" ) + "</p></body></html>" );
+            webEngine.loadContent( "<html><body><p>" + escapeHtml( LocalizationManager.get( "help.topic.loadError" ) )
+                                           + "</p></body></html>" );
         }
     }
 
@@ -636,6 +641,22 @@ public class MCLauncherHelpWindow
                               ? com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_MICA
                               : com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_NONE );
         }
+    }
+
+    /**
+     * Escapes text for insertion into the HTML the help pane loads, so a topic name or a
+     * translation containing {@code &}, {@code <} or {@code >} renders as written.
+     *
+     * @param text plain text
+     *
+     * @return the text with HTML-special characters escaped
+     * @since 2026.10
+     */
+    static String escapeHtml( String text )
+    {
+        if ( text == null ) return "";
+        return text.replace( "&", "&amp;" ).replace( "<", "&lt;" ).replace( ">", "&gt;" )
+                   .replace( "\"", "&quot;" );
     }
 
     /** Reads a classpath text resource (e.g. a help CSS sheet) into a String for inlining, or "" if
