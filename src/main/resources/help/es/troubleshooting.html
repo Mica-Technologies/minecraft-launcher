@@ -1,0 +1,112 @@
+<h1>Solución de problemas</h1>
+
+<p>Esta página trata los problemas habituales y sus soluciones. Si su problema no aparece aquí,
+consulte los registros del launcher para ver los detalles del error.</p>
+
+<h2>Errores de descarga</h2>
+
+<p>Los archivos no se descargan o aparecen errores de verificación durante el inicio.</p>
+
+<ul>
+    <li>Compruebe su conexión a Internet e inténtelo de nuevo.</li>
+    <li>Si está en una red corporativa o escolar, configure un proxy en
+        <a href="help://topic/SETTINGS">Configuración</a>, en Red.</li>
+    <li>Vuelva a intentar el inicio: los errores de red transitorios suelen resolverse en un segundo intento.</li>
+    <li>Si un archivo concreto falla siempre, puede que su URL de descarga esté rota. Comuníqueselo al autor del modpack.</li>
+</ul>
+
+<h2>Indicador sin conexión</h2>
+
+<p>Aparece una etiqueta roja <strong>Sin conexión</strong> junto al botón de ayuda en todas las pantallas principales
+cuando el launcher detecta que no hay conexión a Internet. Mientras no haya conexión:</p>
+
+<ul>
+    <li>Puede seguir iniciando cualquier modpack cuyos archivos ya estén completamente descargados.</li>
+    <li>Las instalaciones, las actualizaciones y los diálogos de selección de versión del Editor de modpacks fallarán o
+        mostrarán datos desactualizados.</li>
+    <li>Los filtros de modpacks disponibles y de versiones de cargador de la pantalla <a href="help://topic/BROWSE_LIBRARY">Explorar</a>
+        estarán vacíos hasta que vuelva la red.</li>
+    <li>La autenticación no se ve afectada mientras su token actual siga siendo válido (se guarda en caché
+        en el disco entre inicios).</li>
+</ul>
+
+<p>El indicador se actualiza al moverse entre pantallas, así que cuando su red vuelva a
+funcionar, cambiar a otra pantalla y regresar actualiza la etiqueta.</p>
+
+<h2>Fallos del juego</h2>
+
+<p>El juego se inicia pero falla poco después, o falla durante la partida.</p>
+
+<ul>
+    <li>Active la <a href="help://topic/GAME_CONSOLE">Consola del juego</a> en la configuración para ver la salida del fallo en tiempo real.</li>
+    <li>Consulte el informe de fallos en la carpeta <code>crash-reports/</code> del modpack para ver los detalles concretos del error.</li>
+    <li>Pruebe a aumentar la RAM máxima asignada en <a href="help://topic/SETTINGS">Configuración</a>: muchos modpacks necesitan al menos 4 - 6 GB.</li>
+    <li>Haga clic derecho en el modpack en la pantalla principal y seleccione <strong>Abrir carpeta de instalación</strong>; después, elimine
+        la carpeta <code>mods/</code> y vuelva a iniciar para forzar una descarga nueva.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Advertencia</div>
+    <p>Asignar demasiada RAM (más de la que su sistema puede ceder) puede causar fallos con la misma
+    facilidad que asignar demasiado poca. Mantenga la RAM máxima en la mitad de la memoria total del sistema o por debajo.</p>
+</div>
+
+<h2>El launcher se queda cargando</h2>
+
+<p>El launcher parece congelado o una barra de progreso deja de avanzar.</p>
+
+<ul>
+    <li>Espere unos minutos: los modpacks grandes pueden tardar en verificar los archivos, sobre todo en el primer inicio.</li>
+    <li>Revise los registros del launcher en busca de errores (active Registro mejorado en la configuración).</li>
+    <li>Como último recurso, use <strong>Restablecer el launcher</strong> en <a href="help://topic/SETTINGS">Configuración</a>
+        para volver a un estado limpio.</li>
+</ul>
+
+<h2>Modo sin conexión</h2>
+
+<p>El launcher necesita una conexión a Internet para la autenticación y la descarga de archivos. Sin embargo,
+los manifiestos de los modpacks y los archivos del juego se guardan en caché localmente después de la primera descarga correcta.</p>
+
+<ul>
+    <li>Si pierde la conexión después de la configuración inicial, es posible que el juego se siga iniciando con los archivos en caché.</li>
+    <li>Los tokens de autenticación se guardan en caché durante aproximadamente 4 horas: si su token sigue siendo válido, puede jugar sin conexión dentro de ese plazo.</li>
+</ul>
+
+<h2>Problemas de rendimiento</h2>
+
+<p>El juego funciona, pero con pocos FPS o tirones frecuentes.</p>
+
+<ul>
+    <li>Cambie al preajuste de JVM <strong>Performance (Aikar's Flags)</strong> en
+        <a href="help://topic/SETTINGS">Configuración</a>.</li>
+    <li>Asegúrese de haber asignado suficiente RAM: al menos 4 GB para la mayoría de los modpacks.</li>
+    <li>Cierre otras aplicaciones que consuman mucha memoria mientras juega.</li>
+    <li>Compruebe que los controladores de su tarjeta gráfica estén actualizados.</li>
+</ul>
+
+<h2>Faltan mods o archivos</h2>
+
+<p>El juego se inicia, pero faltan mods o las configuraciones son incorrectas.</p>
+
+<ul>
+    <li>El launcher verifica los hashes de los archivos en cada inicio. Si se modificaron archivos manualmente, se volverán a descargar para que coincidan con la definición del modpack.</li>
+    <li>Si falta un mod en el propio modpack, póngase en contacto con el autor del modpack.</li>
+    <li>Pruebe a quitar el modpack y volver a añadirlo para forzar una descarga completa.</li>
+</ul>
+
+<h2>Problemas de autenticación</h2>
+
+<p>No puede iniciar sesión o se le pide constantemente que vuelva a autenticarse.</p>
+
+<ul>
+    <li>Los tokens caducan después de aproximadamente 4 horas: es normal tener que volver a autenticarse.</li>
+    <li>Si el inicio de sesión falla repetidamente, pruebe a borrar las cookies de su navegador para <code>login.microsoftonline.com</code>.</li>
+    <li>Asegúrese de que su cuenta de Microsoft tiene una licencia de Minecraft activa.</li>
+    <li>Consulte <a href="help://topic/LOGIN">Inicio de sesión</a> para obtener más detalles sobre el proceso de autenticación.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Consejo</div>
+    <p>Cuando informe de un problema, incluya siempre: el nombre y la versión del modpack, su sistema operativo,
+    el archivo de registro del launcher y cualquier informe de fallos. Esto ayuda a diagnosticar los problemas mucho más rápido.</p>
+</div>

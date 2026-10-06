@@ -1,0 +1,122 @@
+<h1>Idioma y localización</h1>
+
+<p>Mica Minecraft Launcher muestra su interfaz en 17 idiomas y elige
+automáticamente el adecuado en el primer inicio. También puede reemplazar el
+idioma detectado en cualquier momento desde Configuración.</p>
+
+<h2>Cómo elige el launcher un idioma</h2>
+
+<p>Cada vez que inicia el launcher, este determina el idioma activo en el siguiente
+orden:</p>
+
+<ol class="steps">
+    <li><strong>Su selección guardada</strong>, si ha establecido una en
+        <a href="help://topic/SETTINGS">Configuración</a> &rarr; Apariencia &rarr;
+        Idioma. Esta siempre tiene prioridad.</li>
+    <li><strong>El idioma de su sistema operativo</strong>, detectado mediante la
+        configuración regional estándar de la JVM. En Windows es su configuración de Región / Idioma;
+        en macOS es Ajustes del Sistema &rarr; Idioma y región;
+        en Linux es el entorno <code>LANG</code> / <code>LC_*</code>.</li>
+    <li><strong>Inglés (Estados Unidos)</strong> como alternativa si la
+        plataforma informa de una configuración regional sin idioma (p. ej., <code>POSIX</code> o
+        <code>C</code>), o si el idioma de su sistema operativo no es uno de los 17 para los que
+        incluimos traducciones.</li>
+</ol>
+
+<div class="tip">
+    <div class="callout-title">El cambio de idioma se aplica tras reiniciar</div>
+    <p>Cambiar la selección en Configuración actualiza la preferencia de inmediato,
+    pero las pantallas que ya se están mostrando conservan el idioma anterior
+    hasta que se reinicia el launcher. La propia página de Configuración se lo recuerda
+    cuando cambia el desplegable.</p>
+</div>
+
+<h2>Establecer una selección manual</h2>
+
+<ol class="steps">
+    <li>Abra <a href="help://topic/SETTINGS">Configuración</a> desde la barra de navegación
+        (o pulse <kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Cmd</kbd>+<kbd>,</kbd>).</li>
+    <li>Cambie a la pestaña <strong>Apariencia</strong>.</li>
+    <li>Elija un idioma en el desplegable <strong>Idioma</strong>. La
+        primera entrada («Usar el idioma del sistema operativo») restablece la detección automática
+        descrita arriba y muestra entre paréntesis el idioma que resolvería el sistema
+        operativo.</li>
+    <li>Haga clic en <strong>Guardar</strong>. Reinicie el launcher para ver el nuevo
+        idioma aplicado en todas las pantallas.</li>
+</ol>
+
+<h2>Idiomas compatibles</h2>
+
+<p>El launcher incluye traducciones para los 17 idiomas más hablados
+del mundo, además del inglés:</p>
+
+<ul>
+    <li>Árabe (&#1593;&#1585;&#1576;&#1610;)</li>
+    <li>Chino simplificado (&#31616;&#20307;&#20013;&#25991;)</li>
+    <li>Chino tradicional (&#32321;&#39636;&#20013;&#25991;)</li>
+    <li>Neerlandés (Nederlands)</li>
+    <li>Inglés (idioma de origen)</li>
+    <li>Francés (Fran&ccedil;ais)</li>
+    <li>Alemán (Deutsch)</li>
+    <li>Hindi (&#2361;&#2367;&#2306;&#2342;&#2368;)</li>
+    <li>Italiano (Italiano)</li>
+    <li>Japonés (&#26085;&#26412;&#35486;)</li>
+    <li>Coreano (&#54620;&#44397;&#50612;)</li>
+    <li>Polaco (Polski)</li>
+    <li>Portugués de Brasil (Portugu&ecirc;s do Brasil)</li>
+    <li>Ruso (&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;)</li>
+    <li>Español (Espa&ntilde;ol)</li>
+    <li>Sueco (Svenska)</li>
+    <li>Turco (T&uuml;rk&ccedil;e)</li>
+</ul>
+
+<p>Cada idioma se identifica por su etiqueta BCP-47 (p. ej., <code>fr-FR</code>,
+<code>pt-BR</code>, <code>zh-CN</code>). La lista está en
+<code>SupportedLocales.ENTRIES</code> en el código fuente del launcher; los
+archivos de propiedades se encuentran junto a ella como <code>DisplayStrings_&lt;tag&gt;.properties</code>
+en <code>src/main/resources/lang/</code>.</p>
+
+<h2>Calidad de las traducciones y notificación de problemas</h2>
+
+<p>Las traducciones a idiomas distintos del inglés se generan con un script
+que llama a Google Translate a partir del paquete de origen en inglés y después
+procesa los marcadores de parámetros para que elementos como <code>{0}</code>
+se conserven intactos tras la traducción. El resultado es bueno, pero no perfecto &mdash; en
+particular, las etiquetas cortas de la interfaz (botones de una palabra, sustantivos sueltos) a veces
+pierden el contexto que tenían en inglés.</p>
+
+<p>Si encuentra una traducción incorrecta, lo mejor es abrir una incidencia en
+GitHub con el nombre de la clave (p. ej., <code>browse.filter.type.label</code>),
+su configuración regional, el texto actual y una corrección propuesta.
+Las correcciones hechas a mano se conservan en la siguiente regeneración porque el
+script, de forma predeterminada, solo completa las claves que faltan.</p>
+
+<h2>Añadir un idioma nuevo</h2>
+
+<p>Si su idioma no está en la lista anterior y quiere contribuir con
+una traducción, el proceso es el siguiente:</p>
+
+<ol>
+    <li>Añada una nueva entrada a <code>SupportedLocales.ENTRIES</code>
+        (Java) y a <code>TARGET_LOCALES</code> en
+        <code>tools/i18n/translate-locales.js</code> (Node).</li>
+    <li>Ejecute <code>cd tools/i18n &amp;&amp; npm run translate</code> &mdash; el
+        script generará el archivo inicial <code>DisplayStrings_&lt;tag&gt;.properties</code>
+        a partir del origen en inglés.</li>
+    <li>Revise el archivo generado, corrija a mano todo lo que suene
+        extraño y, a continuación, abra una pull request.</li>
+</ol>
+
+<p>El script <code>tools/i18n/translate-locales.js</code> es incremental:
+al volver a ejecutarlo solo traduce las claves que todavía no existen en el
+archivo de destino, de modo que las correcciones manuales se conservan en cada
+actualización posterior del launcher.</p>
+
+<h2>Véase también</h2>
+
+<ul>
+    <li><a href="help://topic/SETTINGS">Configuración</a> &mdash; donde se encuentra el desplegable
+        de idioma</li>
+    <li><a href="help://topic/GETTING_STARTED">Primeros pasos</a> &mdash; la
+        guía general de orientación</li>
+</ul>

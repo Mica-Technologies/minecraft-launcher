@@ -1,0 +1,43 @@
+<h1>Inicio de sesión</h1>
+
+<p>Mica Minecraft Launcher usa la <strong>autenticación oficial de Microsoft</strong> para verificar su
+cuenta de Minecraft. Es el mismo proceso de inicio de sesión que usa el launcher oficial de Minecraft.</p>
+
+<h2>Cómo funciona</h2>
+
+<ol class="steps">
+    <li>Haga clic en <strong>Iniciar sesión</strong> en la pantalla de inicio de sesión. Se abre una ventana del navegador con la página de inicio de sesión de Microsoft.</li>
+    <li>Introduzca las credenciales de su cuenta de Microsoft y apruebe el inicio de sesión.</li>
+    <li>Una vez autenticado, la ventana del navegador se cierra y el launcher pasa a la
+        <a href="help://topic/MAIN_SCREEN">Pantalla principal</a>.</li>
+</ol>
+
+<h2>Almacenamiento del token en caché</h2>
+
+<p>Después de iniciar sesión correctamente, su token de autenticación se guarda en caché localmente con
+<strong>cifrado AES-256-GCM</strong> y una clave derivada del equipo. Esto significa que:</p>
+
+<ul>
+    <li>No tendrá que volver a iniciar sesión durante aproximadamente <strong>4 horas</strong>.</li>
+    <li>El token en caché está cifrado y vinculado a su equipo concreto: no se puede transferir ni reutilizar en otro lugar.</li>
+    <li>Cuando la caché caduca, el launcher le pedirá que vuelva a iniciar sesión.</li>
+</ul>
+
+<h2>Solución de problemas de inicio de sesión</h2>
+
+<div class="warning">
+    <div class="callout-title">Se requiere conexión a Internet</div>
+    <p>Se necesita una conexión a Internet activa para el inicio de sesión inicial. El launcher no puede
+    autenticarse en modo completamente sin conexión.</p>
+</div>
+
+<p>Si tiene problemas para iniciar sesión:</p>
+
+<ul>
+    <li><strong>El navegador no se abre</strong>: compruebe que hay un navegador predeterminado configurado en su sistema.</li>
+    <li><strong>Se agota el tiempo de inicio de sesión</strong>: verifique su conexión a Internet e inténtelo de nuevo.</li>
+    <li><strong>No se reconoce la cuenta</strong>: asegúrese de usar la cuenta de Microsoft que posee Minecraft.</li>
+    <li><strong>Solicitudes repetidas de inicio de sesión</strong>: es posible que el token en caché haya caducado. Es normal después de 4 horas de inactividad.</li>
+</ul>
+
+<p>Si los problemas persisten, consulte <a href="help://topic/TROUBLESHOOTING">Solución de problemas</a>.</p>

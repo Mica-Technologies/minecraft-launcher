@@ -1,0 +1,59 @@
+<h1>Gestión de entornos de ejecución</h1>
+
+<p>Mica Minecraft Launcher administra automáticamente los entornos de ejecución de Java, de modo que nunca tiene que instalar
+ni configurar Java usted mismo.</p>
+
+<h2>Por qué importan los entornos de ejecución</h2>
+
+<p>Minecraft y Forge requieren versiones concretas de Java para funcionar correctamente. Distintos modpacks y
+versiones de Minecraft pueden necesitar distintos entornos de ejecución de Java:</p>
+
+<ul>
+    <li><strong>Minecraft 1.16 y anteriores</strong>: Java 8</li>
+    <li><strong>Minecraft 1.17 - 1.20</strong>: Java 17</li>
+    <li><strong>Minecraft 1.21+</strong>: Java 21 o posterior</li>
+</ul>
+
+<p>El launcher detecta qué entorno de ejecución necesita cada modpack o versión vanilla y lo descarga
+automáticamente en el primer inicio.</p>
+
+<h2>Descargas automáticas</h2>
+
+<p>Cuando inicia un modpack o una versión vanilla por primera vez, el launcher comprueba si
+el entorno de ejecución necesario ya está instalado. Si no lo está, descarga la versión correcta desde los
+servidores de distribución de Mojang o de Liberica. Es una descarga única por cada versión del entorno de ejecución.</p>
+
+<div class="note">
+    <div class="callout-title">Nota</div>
+    <p>Las descargas de entornos de ejecución suelen ocupar entre 40 y 80 MB y se guardan en el directorio de datos
+    del launcher, separadas de cualquier instalación de Java de su sistema.</p>
+</div>
+
+<h2>Ver los entornos de ejecución instalados</h2>
+
+<p>Abra <a href="help://topic/SETTINGS">Configuración</a> y haga clic en <strong>Gestión de entornos de ejecución</strong> para ver
+una lista de todos los entornos de ejecución de Java instalados, con su versión, su ruta y los modpacks
+que los usan.</p>
+
+<h2>Eliminar entornos de ejecución sin usar</h2>
+
+<p>Si ha quitado modpacks que usaban una versión concreta de Java, puede eliminar el
+entorno de ejecución correspondiente para liberar espacio en disco. Seleccione un entorno de ejecución en la pantalla de gestión y
+haga clic en <strong>Eliminar</strong>.</p>
+
+<div class="warning">
+    <div class="callout-title">Advertencia</div>
+    <p>Si elimina un entorno de ejecución que todavía necesita un modpack instalado, el launcher
+    lo volverá a descargar la próxima vez que inicie ese modpack.</p>
+</div>
+
+<h2>Solución de problemas de entornos de ejecución</h2>
+
+<p>Si un modpack no se inicia por errores relacionados con Java, pruebe lo siguiente:</p>
+
+<ol>
+    <li>Abra Gestión de entornos de ejecución y elimine el entorno de ejecución que usa el modpack afectado.</li>
+    <li>Vuelva a iniciar el modpack: el launcher descargará una copia nueva.</li>
+    <li>Si el problema continúa, consulte <a href="help://topic/TROUBLESHOOTING">Solución de problemas</a> para ver
+        pasos adicionales.</li>
+</ol>

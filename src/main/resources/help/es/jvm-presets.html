@@ -1,0 +1,105 @@
+<h1>Preajustes de JVM</h1>
+
+<p>El desplegable <strong>Preajuste de JVM</strong> de Configuración → Avanzado elige un
+conjunto de argumentos con nombre que el launcher pasa a la JVM al iniciar
+Minecraft. Los argumentos ajustan el recolector de basura, controlan el tamaño
+de las regiones del heap y activan o desactivan el registro del GC; no cambian el
+comportamiento del juego en sí, solo la forma en que la JVM que lo ejecuta gestiona la memoria.</p>
+
+<p>Elegir el preajuste adecuado importa sobre todo en modpacks grandes (más de 200
+mods), donde el GC tiene que limpiar tras la carga y descarga de miles de
+chunks. Para vanilla y modpacks pequeños cualquier preajuste sirve, y el
+predeterminado, «Rendimiento», funciona bien.</p>
+
+<h2>Performance (Aikar's Flags)</h2>
+
+<p>Preajuste predeterminado y recomendado para la gran mayoría de los usuarios. Usa
+el recolector de basura G1 con el ajuste de parámetros que Aikar (el autor del servidor de
+Minecraft Paper) publicó hace años y que muchos tutoriales siguen
+citando. Está diseñado para minimizar los tirones por pausas del GC durante el juego intenso.</p>
+
+<p>Ideal para: <strong>modpacks con 6 GB o más de RAM asignada</strong>,
+modpacks con muchos mods en los que haya notado caídas periódicas de la tasa de fotogramas
+bajo carga.</p>
+
+<h2>Low Memory</h2>
+
+<p>Parámetros reducidos para sistemas con poca RAM disponible. Usa G1 con un
+objetivo de pausa más corto y regiones del heap más pequeñas, sacrificando algo de
+rendimiento a cambio de previsibilidad cuando la memoria es escasa.</p>
+
+<p>Ideal para: <strong>sistemas con ≤ 8 GB de RAM total</strong>,
+portátiles con batería o cuando quiere mantener varios modpacks
+en ejecución junto con otras aplicaciones. No se recomienda para modpacks grandes
+(más de 200 mods), donde los parámetros de Aikar recuperan la memoria de forma más eficiente
+incluso con la misma asignación total.</p>
+
+<h2>Debug</h2>
+
+<p>Los parámetros de Rendimiento más el registro detallado del GC y las aserciones de Java
+activadas. Escribe un archivo {@code gc.log} en la carpeta de instalación del modpack
+que registra cada evento del GC con marcas de tiempo. Resulta útil sobre todo para los
+desarrolladores de mods y para quienes diagnostican fallos OOM reproducibles; añade una
+pequeña sobrecarga constante, así que no lo deje activado para el juego diario.</p>
+
+<p>Ideal para: <strong>diagnosticar quejas por pausas del GC</strong>,
+investigar informes del tipo «deja de responder unos segundos cada
+minuto».</p>
+
+<h2>None</h2>
+
+<p>Lista de argumentos vacía: la JVM usa sus propios valores predeterminados. Útil para
+comprobar si un problema de rendimiento aparente lo causan los propios parámetros
+del preajuste (poco frecuente, pero posible si la versión del JDK es mucho más reciente
+que cuando se escribieron los parámetros de Aikar).</p>
+
+<p>Ideal para: <strong>verificar el comportamiento de referencia</strong> cuando se
+sospecha que un preajuste interactúa mal con un mod o una versión concreta
+del JDK.</p>
+
+<h2>Notas sobre la asignación de RAM</h2>
+
+<p>Los preajustes ajustan la JVM al iniciarse, pero los controles deslizantes
+<strong>RAM mínima</strong> y <strong>RAM máxima</strong> del launcher,
+en Configuración → Cuenta / Juego, deciden cuánta memoria puede usar
+la JVM. La cantidad adecuada depende del modpack:</p>
+
+<ul>
+    <li>Minecraft vanilla: 2 GB es más que suficiente.</li>
+    <li>Modpacks ligeros (≤ 50 mods): 4 GB.</li>
+    <li>Modpacks medianos (50-150 mods): 6 GB.</li>
+    <li>Modpacks pesados (más de 150 mods, shaders): 8-12 GB.</li>
+    <li>Modpacks extremos (más de 300 mods, generación de mundos personalizada): 12-16 GB.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Advertencia</div>
+    <p>Asignar más RAM de la que su sistema puede ceder hace que Minecraft
+    use el archivo de intercambio en disco, lo que <em>empeora</em> los tirones en lugar de mejorarlos.
+    Mantenga la RAM máxima en la mitad de la RAM total del sistema o por debajo. Un
+    sistema de 16 GB no debería asignar más de 8 GB a Minecraft.</p>
+</div>
+
+<h2>Parámetros personalizados</h2>
+
+<p>El campo de Configuración situado debajo del desplegable de preajustes es editable: puede
+pegar su propia cadena de argumentos si ningún preajuste se adapta a sus necesidades.
+Añadidos habituales:</p>
+
+<ul>
+    <li><code>-XX:+UseZGC</code>: cambia al recolector de basura Z
+        (pausas cortas, requiere JDK 15 o posterior). A veces supera a G1 con
+        heaps muy grandes (32 GB o más), pero por lo general no merece la pena cambiar
+        de G1 en configuraciones típicas de Minecraft.</li>
+    <li><code>-Dfile.encoding=UTF-8</code>: útil cuando los mods generan
+        archivos de configuración con contenido no ASCII en Windows, donde el
+        juego de caracteres predeterminado puede ser Latin-1.</li>
+    <li><code>-Xss2M</code>: aumenta el tamaño de la pila de los hilos respecto al valor
+        predeterminado de la JVM; algunos modpacks con cadenas de llamadas profundas (mods pesados de generación
+        de mundos, generadores de dimensiones grandes) lo necesitan.</li>
+</ul>
+
+<p>Los errores en los parámetros personalizados se manifiestan como fallos de inicio con mensajes
+como «Error: Could not create the Java Virtual Machine» o
+«Unrecognized VM option». Si ve uno de ellos, vuelva a
+Rendimiento e inténtelo de nuevo antes de recurrir al campo personalizado.</p>
