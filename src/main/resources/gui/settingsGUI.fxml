@@ -639,7 +639,7 @@
                         <VBox styleClass="settingsRow" spacing="6">
                             <Label fx:id="aboutAppNameLabel" text="%settings.fxml.micaMinecraftLauncher" styleClass="type-title-medium"/>
                             <Label fx:id="aboutVersionLabel" text="%settings.fxml.version" wrapText="true" styleClass="settingsHint"/>
-                            <Label text="© 2021–2026 Mica Technologies" wrapText="true" styleClass="settingsHint"/>
+                            <Label text="%settings.fxml.copyright" wrapText="true" styleClass="settingsHint"/>
                         </VBox>
                         <VBox styleClass="settingsRow" spacing="6">
                             <!-- Update-check toggle. Lives in the launcher identity card
@@ -671,7 +671,7 @@
                     <VBox styleClass="settingsGroup" spacing="2">
                         <VBox styleClass="settingsRow" spacing="6">
                             <Label text="%settings.fxml.theLauncherUses" wrapText="true" styleClass="settingsHint"/>
-                            <Label text="• OpenJFX — GPLv2 with Classpath Exception&#10;• MaterialFX (palexdev) — LGPL 3.0&#10;• jthemedetecor (Dansoftowner) — Apache 2.0&#10;• FXTaskbarProgressBar (Dansoftowner) — Apache 2.0&#10;• oshi-core — MIT&#10;• JNA / JNA Platform — Apache 2.0 / LGPL 2.1&#10;• Google Gson — Apache 2.0&#10;• Apache Commons IO — Apache 2.0&#10;• Apache Commons Lang3 — Apache 2.0&#10;• SLF4J — MIT&#10;• jarchivelib — Apache 2.0&#10;• minecraft_authenticator — MIT&#10;• jarscanner — MIT" wrapText="true" styleClass="settingsHint"/>
+                            <Label text="%settings.fxml.ossLibraryList" wrapText="true" styleClass="settingsHint"/>
                             <Label text="%settings.fxml.fullLicenseTexts" wrapText="true" styleClass="settingsHint"/>
                         </VBox>
                     </VBox>
@@ -691,7 +691,7 @@
                     <VBox styleClass="settingsGroup" spacing="2">
                         <VBox styleClass="settingsRow" spacing="6">
                             <Label text="%settings.fxml.whenLwjglArm" wrapText="true" styleClass="settingsHint"/>
-                            <Label text="• MinecraftMachina/lwjgl — LWJGL2 ARM64 macOS natives (BSD)&#10;• r58Playz/jinput-m1 — jinput ARM64 macOS natives&#10;• theofficialgman/lwjgl3-binaries-arm64 — LWJGL2 / jinput ARM64 Linux natives" wrapText="true" styleClass="settingsHint"/>
+                            <Label text="%settings.fxml.arm64LibraryList" wrapText="true" styleClass="settingsHint"/>
                         </VBox>
                     </VBox>
                 </VBox>
