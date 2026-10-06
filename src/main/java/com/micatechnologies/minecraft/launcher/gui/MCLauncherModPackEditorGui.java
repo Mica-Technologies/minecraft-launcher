@@ -2164,8 +2164,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             return;
         }
         try {
-            // JavaFX Image with backgroundLoading=true loads asynchronously
-            Image image = new Image( url, true );
+            // Loads in the background, decoded to the 256 px logo box (twice the widest preview)
+            // rather than at the source's full size.
+            Image image = ModpackImageResolver.loadLogo( url );
             GUIUtilities.JFXPlatformRun( () -> imageView.setImage( image ) );
         }
         catch ( Exception e ) {

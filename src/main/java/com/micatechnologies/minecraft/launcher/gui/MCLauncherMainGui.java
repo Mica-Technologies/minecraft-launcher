@@ -1711,7 +1711,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                         if ( p == null ) return;
                         File f = new File( p );
                         if ( !f.exists() ) return;
-                        Image fresh = new Image( f.toURI().toString(), true );
+                        Image fresh = ModpackImageResolver.loadLogo( f.toURI().toString() );
                         GUIUtilities.JFXPlatformRun( () -> {
                             if ( this.pack != capturedPack ) return;
                             logo.setImage( fresh );
@@ -2338,7 +2338,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             return url;
         }
         try {
-            String path = pack.getPackLogoFilepath();
+            // The raw path: the key needs only the name, and the non-raw getter downloads the
+            // pack's images first (this runs on the FX thread).
+            String path = pack.getPackLogoFilepathRaw();
             if ( path != null && !path.isBlank() ) {
                 return path;
             }
@@ -2346,6 +2348,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         catch ( Exception ignored ) { /* fall through */ }
         return pack.getPackName();
     }
+
+    /** Decode size for logos that are only palette-sampled. The sampler reads about a 32 x 32
+     *  grid, so a 64 px decode (nearest-neighbour, so sampled colours stay real pixel colours)
+     *  gives it the same points without decoding the full image. */
+    private static final double PALETTE_DECODE_SIZE = 64;
 
     /**
      * Pre-warms the dominant-color cache for every modpack the manifest knows about, so by
@@ -2401,7 +2408,17 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     // *this* worker thread rather than spawning a JavaFX image-loader task,
                     // which is what we want because we're prefetching specifically to avoid
                     // FX-thread work later.
-                    Image img = new Image( url );
+                    // Prefer the logo already cached on disk over fetching it again, and decode
+                    // only what the sampler reads.
+                    String source = url;
+                    String raw = pack.getPackLogoFilepathRaw();
+                    if ( raw != null ) {
+                        java.io.File cachedLogo = new java.io.File( raw );
+                        if ( cachedLogo.isFile() ) {
+                            source = cachedLogo.toURI().toString();
+                        }
+                    }
+                    Image img = new Image( source, PALETTE_DECODE_SIZE, PALETTE_DECODE_SIZE, true, false, false );
                     if ( img.isError() ) continue;
                     // Compute the n-color palette directly; the 2-color
                     // cache entry derives from its first two slots so
@@ -2511,7 +2528,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         if ( logoPath == null || logoPath.isBlank() ) return null;
         java.io.File f = new java.io.File( logoPath );
         if ( !f.exists() || !f.isFile() ) return null;
-        Image img = new Image( f.toURI().toString(), false );
+        Image img = new Image( f.toURI().toString(), PALETTE_DECODE_SIZE, PALETTE_DECODE_SIZE, true, false, false );
         if ( img.isError() ) return null;
 
         Color[] palette = computeDominantColorPalette( img, count );
