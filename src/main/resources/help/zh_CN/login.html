@@ -1,0 +1,43 @@
+<h1>登录</h1>
+
+<p>Mica Minecraft Launcher 使用<strong>官方 Microsoft 身份验证</strong>来验证您的
+Minecraft 账户。这与官方 Minecraft 启动器使用的登录流程相同。</p>
+
+<h2>工作原理</h2>
+
+<ol class="steps">
+    <li>在登录界面上点击<strong>登录</strong>。浏览器窗口会打开 Microsoft 登录页面。</li>
+    <li>输入您的 Microsoft 账户凭据并确认登录。</li>
+    <li>验证通过后，浏览器窗口会关闭，启动器随即进入
+        <a href="help://topic/MAIN_SCREEN">主界面</a>。</li>
+</ol>
+
+<h2>令牌缓存</h2>
+
+<p>成功登录后，您的身份验证令牌会使用基于本机生成的密钥，
+以 <strong>AES-256-GCM 加密</strong>缓存在本地。这意味着：</p>
+
+<ul>
+    <li>大约 <strong>4 小时</strong>内您无需再次登录。</li>
+    <li>缓存的令牌经过加密，并与您的这台电脑绑定——无法转移到其他地方或在其他地方重复使用。</li>
+    <li>缓存过期后，启动器会提示您重新登录。</li>
+</ul>
+
+<h2>登录问题排查</h2>
+
+<div class="warning">
+    <div class="callout-title">需要连接互联网</div>
+    <p>首次登录需要有效的互联网连接。在完全离线的模式下，
+    启动器无法完成身份验证。</p>
+</div>
+
+<p>如果您登录时遇到问题：</p>
+
+<ul>
+    <li><strong>浏览器没有打开</strong> — 请检查系统中是否已配置默认浏览器。</li>
+    <li><strong>登录超时</strong> — 请检查网络连接后重试。</li>
+    <li><strong>无法识别账户</strong> — 请确认您使用的是拥有 Minecraft 的 Microsoft 账户。</li>
+    <li><strong>反复提示登录</strong> — 缓存的令牌可能已过期。闲置 4 小时后出现这种情况属于正常现象。</li>
+</ul>
+
+<p>如果问题持续存在，请参阅<a href="help://topic/TROUBLESHOOTING">故障排除</a>。</p>

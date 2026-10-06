@@ -1,0 +1,90 @@
+<h1>设置</h1>
+
+<p>在设置界面中，您可以自定义内存分配、外观、JVM 行为、网络
+配置等。更改会自动保存。</p>
+
+<h2>游戏内存</h2>
+
+<table class="settings-table">
+    <tr><td>最小内存</td><td>分配给游戏 JVM 的初始堆大小。除非整合包另有要求，通常保留默认值（512 MB）即可。</td></tr>
+    <tr><td>最大内存</td><td>游戏可使用的内存上限。大多数整合包在 <strong>4 - 8 GB</strong> 时表现最佳。分配超出系统可用量的内存可能导致运行不稳定。</td></tr>
+</table>
+
+<div class="tip">
+    <div class="callout-title">提示</div>
+    <p>一条实用的经验法则：最大内存不要超过系统总内存的一半。
+    例如，在 16 GB 内存的电脑上，6 - 8 GB 是合理的上限。</p>
+</div>
+
+<h2>主题</h2>
+
+<table class="settings-table">
+    <tr><td>Automatic</td><td>跟随操作系统的浅色/深色模式偏好。</td></tr>
+    <tr><td>Dark</td><td>深色背景搭配浅色文字——看起来更舒适。</td></tr>
+    <tr><td>Light</td><td>传统的浅色背景搭配深色文字。</td></tr>
+    <tr><td>Blue + Gray</td><td>冷色调的强调色主题。</td></tr>
+    <tr><td>Orange + Purple</td><td>暖色调的强调色主题。</td></tr>
+</table>
+
+<h2>高级选项</h2>
+
+<table class="settings-table">
+    <tr><td>调试模式</td><td>在启动器控制台中启用详细日志输出，用于诊断问题。</td></tr>
+    <tr><td>调整窗口大小</td><td>允许自由调整启动器窗口的大小，不受默认尺寸限制。</td></tr>
+    <tr><td>Discord 集成</td><td>以 Discord Rich Presence 状态显示您当前的整合包。</td></tr>
+    <tr><td>增强日志记录</td><td>将详细的日志文件写入磁盘，供游戏结束后分析。</td></tr>
+    <tr><td>游戏内控制台</td><td>在 Minecraft 旁打开<a href="help://topic/GAME_CONSOLE">游戏控制台</a>窗口，以查看实时输出。</td></tr>
+</table>
+
+<h2>JVM 预设</h2>
+
+<p>预先配置好的 JVM 参数组，会追加到游戏启动命令中。有关每个预设的作用、
+您可能想要添加哪些自定义参数，以及预设选择与内存分配之间的关系，
+请参阅 <a href="help://topic/JVM_PRESETS">JVM 预设</a>中的详细说明。</p>
+
+<table class="settings-table">
+    <tr><td>Performance (Aikar's Flags)</td><td><strong>推荐。</strong>经过优化的垃圾回收参数，在 Minecraft 社区中被广泛使用。对大多数整合包而言整体性能最佳。</td></tr>
+    <tr><td>Low Memory</td><td>面向内存有限的系统的保守参数。以牺牲部分吞吐量为代价降低 GC 开销。</td></tr>
+    <tr><td>Debug</td><td>启用 JVM 调试输出，包括 GC 日志。适用于诊断崩溃或性能问题。</td></tr>
+    <tr><td>None</td><td>不添加额外参数——使用 JVM 的默认值。仅当您清楚自己在做什么，或整合包有此要求时才使用。</td></tr>
+</table>
+
+<h2>网络 / 代理</h2>
+
+<p>如果您的网络要求使用代理（常见于公司或学校网络），请在此配置代理。</p>
+
+<table class="settings-table">
+    <tr><td>HTTP 代理</td><td>标准 Web 代理。请输入网络管理员提供的主机和端口。</td></tr>
+    <tr><td>SOCKS 代理</td><td>较低层级的代理协议。仅当您的网络明确要求使用 SOCKS 时才选择此项。</td></tr>
+</table>
+
+<div class="note">
+    <div class="callout-title">注意</div>
+    <p>大多数用户可以将代理设置留空。只有在受限网络中下载或
+    身份验证失败时，才需要配置这些设置。</p>
+</div>
+
+<h2>恶意软件扫描</h2>
+
+<p>启动器内置了一个扫描程序，会检查下载的 JAR 文件中是否含有
+<strong>fractureiser</strong> 的特征——这是一种于 2023 年通过被篡改的模组传播的 Minecraft 专属恶意软件。
+扫描会在每次启动游戏前自动运行。</p>
+
+<h2>重置与运行时选项</h2>
+
+<table class="settings-table">
+    <tr><td>重置启动器</td><td>将所有设置恢复为默认值并清除缓存数据。<strong>此操作无法撤消。</strong></td></tr>
+    <tr><td>运行时管理</td><td>打开<a href="help://topic/RUNTIME_MANAGEMENT">运行时管理</a>界面，查看、验证或移除已安装的 Java 运行时。</td></tr>
+</table>
+
+<div class="warning">
+    <div class="callout-title">警告</div>
+    <p>重置启动器会移除所有设置、缓存的令牌和整合包状态。
+    磁盘上的整合包文件会被保留，但您需要重新添加它们。</p>
+</div>
+
+<h2>导入 / 导出设置</h2>
+
+<p>使用<strong>导出设置</strong>将当前配置保存到文件，使用<strong>导入设置</strong>
+加载之前保存的配置。这在多台电脑之间共享设置，
+或在重置后恢复一份已知可用的配置时非常有用。</p>
