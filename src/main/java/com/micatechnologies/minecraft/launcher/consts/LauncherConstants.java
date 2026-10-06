@@ -105,7 +105,7 @@ public class LauncherConstants
         String title = LauncherCore.class.getPackage().getImplementationTitle();
         if ( title != null ) {
             // If dev mode is active but the manifest title doesn't include DEV, append it
-            if ( LAUNCHER_IS_DEV && !title.toUpperCase().contains( "DEV" ) ) {
+            if ( LAUNCHER_IS_DEV && !title.toUpperCase( java.util.Locale.ROOT ).contains( "DEV" ) ) {
                 return title + " DEV";
             }
             return title;

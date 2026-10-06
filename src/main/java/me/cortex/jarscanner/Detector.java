@@ -361,7 +361,7 @@ public class Detector {
         }
 
         // linux checks
-        if (System.getProperty("os.name").toLowerCase().contains("linux")) {
+        if (System.getProperty("os.name").toLowerCase( java.util.Locale.ROOT ).contains("linux")) {
             File file = new File("~/.config/.data/lib.jar");
             if (file.exists()) {
                 suspiciousFilesFound.add(file.getAbsolutePath());

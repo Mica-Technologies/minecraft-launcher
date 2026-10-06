@@ -777,7 +777,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     {
         SystemUtilities.spawnNewTask( () -> {
             try {
-                File tempFile = File.createTempFile( loaderLabel.toLowerCase() + "_installer_", ".jar" );
+                File tempFile = File.createTempFile( loaderLabel.toLowerCase( java.util.Locale.ROOT ) + "_installer_", ".jar" );
                 tempFile.deleteOnExit();
                 NetworkUtilities.downloadFileFromURL( new URL( url ), tempFile );
                 String sha1 = HashUtilities.getFileSHA1( tempFile );
@@ -1155,8 +1155,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             loaderFilterCombo.setPrefWidth( 150 );
             loaderFilterCombo.setMinHeight( 32 );
             String packLoader = packModLoaderTypeCombo == null ? null : packModLoaderTypeCombo.getValue();
-            if ( packLoader != null && loaderFilterCombo.getItems().contains( packLoader.toLowerCase() ) ) {
-                loaderFilterCombo.selectItem( packLoader.toLowerCase() );
+            if ( packLoader != null && loaderFilterCombo.getItems().contains( packLoader.toLowerCase( java.util.Locale.ROOT ) ) ) {
+                loaderFilterCombo.selectItem( packLoader.toLowerCase( java.util.Locale.ROOT ) );
                 loaderFilterCheck.setSelected( true );
             }
             loaderFilterCombo.disableProperty().bind( loaderFilterCheck.selectedProperty().not() );
@@ -1303,7 +1303,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 // Build facets: always filter to mods, optionally filter by game version + loader
                 String gameVersion = versionFilterCheck.isSelected() ? versionFilterField.getText().trim() : "";
                 String loaderFacet = loaderFilterCheck.isSelected() && loaderFilterCombo.getValue() != null
-                        ? loaderFilterCombo.getValue().toLowerCase() : "";
+                        ? loaderFilterCombo.getValue().toLowerCase( java.util.Locale.ROOT ) : "";
                 SystemUtilities.spawnNewTask( () -> {
                     try {
                         String encodedQuery = java.net.URLEncoder.encode( query, "UTF-8" );
@@ -1376,7 +1376,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             final String selectedGameVersion = versionFilterCheck.isSelected() ?
                     versionFilterField.getText().trim() : "";
             final String selectedLoader = loaderFilterCheck.isSelected() && loaderFilterCombo.getValue() != null
-                    ? loaderFilterCombo.getValue().toLowerCase() : "";
+                    ? loaderFilterCombo.getValue().toLowerCase( java.util.Locale.ROOT ) : "";
 
             dialog.showAndWait().ifPresent( entries -> {
                 ObservableList< ModPackEditorFileEntry > modsData = fileListData.get( "packMods" );

@@ -138,7 +138,7 @@ public class Main
                 }
 
                 // Check if file is a scannable Jar file
-                boolean isScannable = file.toString().toLowerCase().endsWith( Constants.JAR_FILE_EXTENSION );
+                boolean isScannable = file.toString().toLowerCase( java.util.Locale.ROOT ).endsWith( Constants.JAR_FILE_EXTENSION );
 
                 // If file is scannable, submit it to the executor service for scanning
                 progress[ 0 ]++;
@@ -313,14 +313,14 @@ public class Main
         // Get checkPath relative to scanPath (and parent)
         Path relativeCheckPath = scanPath.relativize( checkPath );
         Path relativeCheckPathParent = relativeCheckPath.getParent();
-        String relativeCheckPathString = relativeCheckPath.toString().toLowerCase();
-        String relativeCheckPathParentString = relativeCheckPath.toString().toLowerCase();
-        String relativeCheckPathFileName = relativeCheckPath.getFileName().toString().toLowerCase();
+        String relativeCheckPathString = relativeCheckPath.toString().toLowerCase( java.util.Locale.ROOT );
+        String relativeCheckPathParentString = relativeCheckPath.toString().toLowerCase( java.util.Locale.ROOT );
+        String relativeCheckPathFileName = relativeCheckPath.getFileName().toString().toLowerCase( java.util.Locale.ROOT );
 
         // Iterate over each exclusion pattern to check for a match
         for ( String excludePath : excludePaths ) {
             // Get the normalized and lowercase exclusion pattern
-            String normalizedExclude = normalizeExcludedPath( excludePath ).toLowerCase();
+            String normalizedExclude = normalizeExcludedPath( excludePath ).toLowerCase( java.util.Locale.ROOT );
 
             // Check if the exclusion pattern matches the exact path (case-insensitive)
             if ( normalizedExclude.equals( relativeCheckPathString ) ) {

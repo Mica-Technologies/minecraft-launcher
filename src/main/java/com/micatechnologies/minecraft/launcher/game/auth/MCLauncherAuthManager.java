@@ -803,7 +803,7 @@ public class MCLauncherAuthManager
     // MCLauncherAuthManagerExceptionClassificationTest.
     static boolean checkIfExceptionIsNoValuePresent( Exception e ) {
         String msg = e.getMessage();
-        return msg != null && msg.toLowerCase().contains( "no value present" );
+        return msg != null && msg.toLowerCase( java.util.Locale.ROOT ).contains( "no value present" );
     }
 
     /**
@@ -816,7 +816,7 @@ public class MCLauncherAuthManager
     // MCLauncherAuthManagerExceptionClassificationTest.
     static boolean checkIfExceptionIsNotBought( Exception e ) {
         String msg = e.getMessage();
-        return msg != null && msg.toLowerCase().contains( "not have bought" );
+        return msg != null && msg.toLowerCase( java.util.Locale.ROOT ).contains( "not have bought" );
     }
 
     /**
@@ -829,6 +829,6 @@ public class MCLauncherAuthManager
     // MCLauncherAuthManagerExceptionClassificationTest.
     static boolean checkIfExceptionIsInvalidCredentials( Exception e ) {
         String msg = e.getMessage();
-        return msg != null && msg.toLowerCase().contains( "invalid credentials" );
+        return msg != null && msg.toLowerCase( java.util.Locale.ROOT ).contains( "invalid credentials" );
     }
 }

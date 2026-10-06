@@ -193,7 +193,7 @@ public final class ModrinthClient
                 facetGroups.add( "[\"versions:" + mcVersion + "\"]" );
             }
             if ( loader != null && !loader.isBlank() ) {
-                facetGroups.add( "[\"categories:" + loader.toLowerCase() + "\"]" );
+                facetGroups.add( "[\"categories:" + loader.toLowerCase( java.util.Locale.ROOT ) + "\"]" );
             }
             String facets = "[" + String.join( ",", facetGroups ) + "]";
             String url = API_BASE + "/search?limit=" + Math.max( 1, Math.min( limit, 100 ) )
@@ -242,7 +242,7 @@ public final class ModrinthClient
             StringBuilder url = new StringBuilder( API_BASE )
                     .append( "/project/" ).append( projectId ).append( "/version?" );
             if ( loader != null && !loader.isBlank() ) {
-                url.append( "loaders=" ).append( enc( "[\"" + loader.toLowerCase() + "\"]" ) ).append( '&' );
+                url.append( "loaders=" ).append( enc( "[\"" + loader.toLowerCase( java.util.Locale.ROOT ) + "\"]" ) ).append( '&' );
             }
             if ( mcVersion != null && !mcVersion.isBlank() ) {
                 url.append( "game_versions=" ).append( enc( "[\"" + mcVersion + "\"]" ) );
