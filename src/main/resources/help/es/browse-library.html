@@ -1,0 +1,109 @@
+<h1>Explorar</h1>
+
+<p>La pantalla Explorar es su lugar para instalar y administrar. Desde aquí puede instalar nuevos modpacks
+desde el manifiesto público, instalar versiones puras de Minecraft vanilla, instalar modpacks iniciales vacíos de Forge / NeoForge /
+Fabric, editar los modpacks que ya tiene y desinstalar lo que ya no quiera.</p>
+
+<h2>Tarjetas y barra de filtros</h2>
+
+<p>Cada entrada aparece como una tarjeta destacada con un logotipo, una insignia, un nombre, etiquetas (cargador / versión de Minecraft),
+una línea de estado y botones de acción. La barra de filtros de la parte superior sirve para acotar la vista.</p>
+
+<ul>
+    <li><strong>Buscar</strong>: búsqueda de texto libre en los títulos de las tarjetas. Se actualiza mientras escribe
+        (con un breve retardo para no sobrecargar el diseño).</li>
+    <li><strong>Tipo</strong>: Todos, Modpacks o uno de los catálogos de versiones:
+        Vanilla (Versiones estables / Snapshots / Old Beta / Old Alpha) y las versiones de Forge / NeoForge / Fabric.
+        Los filtros de versiones de cargador <em>no</em> se incluyen a propósito en «Todos»: la lista combinada
+        tendría miles de entradas y no es lo que se busca al pedir «mostrarlo todo».</li>
+    <li><strong>Estado</strong>: Todos, Instalados o Disponibles. «Disponibles» muestra lo que
+        todavía no ha instalado; «Instalados» muestra lo que ya está en el disco.</li>
+    <li><strong>Ordenar</strong>: Predeterminado, Nombre (A–Z / Z–A), Fecha de publicación, Última partida, Más jugado,
+        Actualizado recientemente. Los criterios que dependen del historial de juego o de actualizaciones (Última partida, Más jugado,
+        Actualizado recientemente) envían al final las entradas que no son modpacks en lugar de mezclarlas
+        de forma confusa.</li>
+</ul>
+
+<h2>Modpacks instalados</h2>
+
+<p>Las tarjetas de los modpacks que ya están en el disco muestran dos botones:</p>
+
+<ul>
+    <li><strong>Desinstalar</strong>: pregunta si también se debe eliminar la carpeta de instalación. «Desinstalar
+        (conservar archivos)» conserva sus mundos, configuraciones y mods aunque el launcher deje de conocer
+        el modpack; resulta útil si piensa volver a instalar el mismo modpack más adelante.</li>
+    <li><strong>Editar</strong>: abre el <a href="help://topic/MODPACK_EDITOR">Editor de modpacks</a>
+        con el manifiesto local del modpack. Los cambios se escriben en el disco y se aplican en el siguiente inicio.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Consejo</div>
+    <p>Haga clic derecho en la tarjeta de un modpack instalado para abrir el mismo menú contextual que ofrece el menú principal:
+    abrir la carpeta del modpack, abrir la carpeta de mods, crear un acceso directo en el escritorio, ver las estadísticas de juego y
+    desinstalar.</p>
+</div>
+
+<h2>Modpacks disponibles</h2>
+
+<p>Las tarjetas del manifiesto público que todavía no tiene muestran un botón <strong>Instalar</strong>.
+Al hacer clic en él se descarga el manifiesto, se instala el modpack y la tarjeta pasa al grupo de Instalados
+en la siguiente reconstrucción. Puede seguir usando los filtros mientras hay una instalación en curso: la
+tarjeta en proceso permanece fijada en la parte superior de la cuadrícula hasta que termina la instalación.</p>
+
+<h2>Versiones vanilla</h2>
+
+<p>El catálogo completo de Mojang de versiones estables, snapshots, betas y alfas. Cada tarjeta instala esa versión exacta de
+Minecraft como un modpack sintético vacío al que puede jugar directamente desde el menú principal. Las betas y alfas
+antiguas también se pueden ejecutar: el launcher obtiene automáticamente el entorno de ejecución de Java adecuado para cada
+versión.</p>
+
+<h2>Versiones de Forge / NeoForge / Fabric</h2>
+
+<p>Los filtros de versiones de cargador muestran todas las versiones publicadas por el servicio de versiones de cada proyecto:
+las promociones de Forge, los metadatos de Maven de NeoForge y la API meta de Fabric. Al hacer clic en Instalar en una de
+ellas se escribe un manifiesto sintético de «modpack vacío» en su carpeta de configuración y se registra en
+el launcher, de modo que el resultado se comporta como cualquier otro modpack instalado:</p>
+
+<ul>
+    <li>aparece en las tarjetas destacadas del menú principal;</li>
+    <li>se puede editar en el Editor de modpacks (para añadir mods encima y crear su propio modpack);</li>
+    <li>se puede desinstalar como cualquier otro modpack;</li>
+    <li>comparte el mismo mecanismo de actualización automática que un modpack normal.</li>
+</ul>
+
+<div class="note">
+    <div class="callout-title">Nota</div>
+    <p>Las tarjetas muestran el logotipo oficial de cada proyecto cuando el launcher lo tiene en la caché local. La
+    primera vez que abre un filtro de cargador se muestra un marcador de posición con los colores de la marca mientras los logotipos reales
+    se descargan en segundo plano; una vez en caché, las visitas posteriores son instantáneas.</p>
+</div>
+
+<h2>Agregar por URL</h2>
+
+<p>El botón <strong>Agregar desde URL</strong> de la barra inferior acepta una URL directa a un manifiesto
+<code>installable.json</code> alojado y lo instala del mismo modo que las tarjetas de modpacks disponibles.
+Úselo para modpacks distribuidos fuera del manifiesto público: pegue el enlace, haga clic en el botón
+y los metadatos del manifiesto se descargarán y validarán antes de que comience la instalación.</p>
+
+<h2>Editor de modpacks</h2>
+
+<p>El botón <strong>Editor de modpacks</strong> de la barra inferior abre el
+<a href="help://topic/MODPACK_EDITOR">Editor de modpacks</a> con un manifiesto en blanco para que pueda crear
+un modpack nuevo desde cero: defina el cargador (Forge / NeoForge / Fabric / vanilla), la versión de Minecraft,
+la lista de mods, etc. El Editor también se puede abrir sobre un modpack existente con el botón <strong>Editar</strong>
+de su tarjeta.</p>
+
+<h2>Generar manifiesto de hosting</h2>
+
+<p>El botón <strong>Generar manifiesto de hosting</strong> de la barra inferior crea un
+<code>installable.json</code> para el modpack que está abierto en el editor, listo para alojarlo en cualquier servidor
+web o servicio para compartir archivos. Cualquiera que tenga la URL resultante puede instalar su modpack mediante Agregar desde
+URL.</p>
+
+<h2>Paginación</h2>
+
+<p>Las listas largas se paginan. Use los botones <strong>Anterior</strong> / <strong>Siguiente</strong> de la
+barra de paginación (encima de las tarjetas) para moverse entre páginas, y el desplegable <strong>Por página</strong>
+para fijar el tamaño de página: 24, 48, 72 o 96. El valor predeterminado de 48 permite ver en una sola página la biblioteca
+instalada habitual; si lo sube a 96, los filtros de versiones de cargador se pueden recorrer en una sola
+página.</p>
