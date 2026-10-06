@@ -1,0 +1,104 @@
+<h1>Ustawienia wstępne JVM</h1>
+
+<p>Lista <strong>Profil JVM</strong> w Ustawienia → Zaawansowane wybiera
+nazwany zestaw argumentów, które launcher przekazuje do JVM podczas uruchamiania
+Minecrafta. Argumenty dostrajają odśmiecacz pamięci (GC), sterują rozmiarem
+regionów sterty i włączają lub wyłączają dziennik GC — nie zmieniają działania samej gry,
+a jedynie sposób, w jaki JVM, na której działa gra, zarządza pamięcią.</p>
+
+<p>Wybór właściwego profilu ma największe znaczenie przy dużych modpackach (ponad 200
+modów), w których GC musi sprzątać po tysiącach wczytywanych i
+zwalnianych chunków. Dla wersji vanilla i małych modpacków każdy profil się sprawdzi, a
+domyślny „Performance” działa dobrze.</p>
+
+<h2>Performance (Aikar's Flags)</h2>
+
+<p>Profil domyślny, zalecany dla zdecydowanej większości użytkowników. Używa
+odśmiecacza G1 z parametrami, które Aikar (autor serwera Minecraft Paper)
+opublikował lata temu i które wciąż przywołuje wiele poradników.
+Zaprojektowany, by minimalizować przycięcia spowodowane pauzami GC podczas intensywnej gry.</p>
+
+<p>Najlepszy dla: <strong>modpacków z przydzielonymi co najmniej 6 GB RAM</strong>,
+mocno zmodowanych paczek, w których zauważasz okresowe spadki liczby klatek
+pod obciążeniem.</p>
+
+<h2>Low Memory</h2>
+
+<p>Okrojony zestaw flag dla systemów z niewielką ilością wolnej pamięci RAM. Używa G1 z
+krótszym docelowym czasem pauzy i mniejszymi regionami sterty, poświęcając część
+przepustowości na rzecz przewidywalności przy dużym obciążeniu pamięci.</p>
+
+<p>Najlepszy dla: <strong>systemów z łącznie ≤ 8 GB RAM</strong>,
+laptopów zasilanych z baterii lub sytuacji, gdy chcesz uruchomić kilka modpacków
+równolegle z innymi aplikacjami. Niezalecany dla dużych modpacków
+(ponad 200 modów), w których flagi Aikara skuteczniej odzyskują pamięć
+nawet przy takim samym łącznym przydziale.</p>
+
+<h2>Debug</h2>
+
+<p>Flagi Performance plus szczegółowy dziennik GC i włączone asercje
+Javy. Zapisuje plik {@code gc.log} w folderze instalacyjnym modpacka,
+w którym rejestrowane jest każde zdarzenie GC wraz ze znacznikami czasu. Przydatny głównie dla
+twórców modów i osób diagnozujących powtarzalne awarie OOM — dodaje
+niewielki stały narzut, więc nie zostawiaj go włączonego na co dzień.</p>
+
+<p>Najlepszy do: <strong>diagnozowania skarg na pauzy GC</strong>,
+badania zgłoszeń typu „gra przestaje odpowiadać na kilka sekund co minutę”.</p>
+
+<h2>None</h2>
+
+<p>Pusta lista argumentów — JVM używa własnych ustawień domyślnych. Przydatne do
+sprawdzenia, czy zauważony problem z wydajnością jest powodowany przez same flagi
+profilu (rzadkie, ale możliwe, jeśli wersja JDK jest znacznie nowsza
+niż w czasach, gdy powstały flagi Aikara).</p>
+
+<p>Najlepszy do: <strong>sprawdzenia zachowania bazowego</strong>, gdy
+podejrzewasz, że profil źle współdziała z konkretnym modem lub wydaniem
+JDK.</p>
+
+<h2>Uwagi o przydziale RAM</h2>
+
+<p>Profile dostrajają JVM przy uruchomieniu, ale to suwaki launchera
+<strong>Minimalna ilość pamięci RAM</strong> i <strong>Maksymalna ilość pamięci RAM</strong>
+w Ustawienia → Konto / Gra decydują, ile pamięci JVM może
+wykorzystać. Właściwa ilość zależy od modpacka:</p>
+
+<ul>
+    <li>Minecraft vanilla: 2 GB w zupełności wystarczą.</li>
+    <li>Lekkie modpacki (≤ 50 modów): 4 GB.</li>
+    <li>Średnie modpacki (50–150 modów): 6 GB.</li>
+    <li>Ciężkie modpacki (ponad 150 modów, shadery): 8–12 GB.</li>
+    <li>Ekstremalne modpacki (ponad 300 modów, własna generacja świata): 12–16 GB.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Ostrzeżenie</div>
+    <p>Przydzielenie większej ilości RAM, niż system może oddać, sprawia, że Minecraft
+    korzysta z pliku wymiany na dysku, przez co przycięcia są <em>większe</em>, a nie mniejsze.
+    Ustaw maksymalną ilość RAM na nie więcej niż połowę całkowitej pamięci systemu.
+    System z 16 GB nie powinien przydzielać Minecraftowi więcej niż 8 GB.</p>
+</div>
+
+<h2>Własne flagi</h2>
+
+<p>Pole w Ustawieniach pod listą profili można edytować — możesz
+wkleić własny ciąg argumentów, jeśli żaden profil nie spełnia Twoich potrzeb.
+Typowe dodatki:</p>
+
+<ul>
+    <li><code>-XX:+UseZGC</code> — przełącza na odśmiecacz Z
+        (krótkie pauzy, wymaga JDK 15+). Czasami wypada lepiej niż G1 przy
+        bardzo dużych stertach (32 GB+), ale przy typowych konfiguracjach Minecrafta
+        zwykle nie warto rezygnować z G1.</li>
+    <li><code>-Dfile.encoding=UTF-8</code> — przydatne, gdy mody tworzą
+        pliki konfiguracyjne ze znakami spoza ASCII w systemie Windows, gdzie
+        domyślnym zestawem znaków może być Latin-1.</li>
+    <li><code>-Xss2M</code> — zwiększa rozmiar stosu wątku względem domyślnego
+        rozmiaru JVM; niektóre modpacki z głębokimi łańcuchami wywołań (rozbudowane mody
+        generacji świata, duże generatory wymiarów) tego wymagają.</li>
+</ul>
+
+<p>Błędy we własnych flagach objawiają się niepowodzeniem uruchomienia z komunikatami
+w rodzaju „Error: Could not create the Java Virtual Machine” lub
+„Unrecognized VM option”. Jeśli zobaczysz taki komunikat, wróć do profilu
+Performance i spróbuj ponownie, zanim sięgniesz po własne flagi.</p>

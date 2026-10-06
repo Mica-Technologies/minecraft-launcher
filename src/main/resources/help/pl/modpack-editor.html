@@ -1,0 +1,57 @@
+<h1>Edytor modpacków</h1>
+
+<p>Edytor modpacków to wbudowane narzędzie do tworzenia i edytowania plików JSON z definicjami modpacków.
+Zapewnia uporządkowany interfejs z walidacją, zintegrowanym wyszukiwaniem i śledzeniem zmian.</p>
+
+<h2>Pasek narzędzi</h2>
+
+<ul>
+    <li><strong>Nowy</strong> — tworzy pustą definicję modpacka na podstawie szablonu.</li>
+    <li><strong>Otwórz plik</strong> — wczytuje istniejącą definicję JSON z dysku.</li>
+    <li><strong>Otwórz adres URL</strong> — pobiera i wczytuje definicję ze zdalnego adresu URL.</li>
+    <li><strong>Zapisz</strong> — zapisuje bieżącą definicję do pliku lokalnego.</li>
+    <li><strong>Sprawdź poprawność</strong> — sprawdza definicję pod kątem błędów (brakujące pola, nieprawidłowe adresy URL, niezgodne sumy kontrolne).</li>
+    <li><strong>Porównaj</strong> — porównuje bieżący stan z ostatnio zapisaną wersją, aby pokazać, co się zmieniło.</li>
+</ul>
+
+<h2>Pola metadanych</h2>
+
+<p>Górna sekcja zawiera podstawowe informacje o modpacku: nazwę, wersję, opis, autora,
+wersję Minecrafta i wersję Forge. <strong>Wybór wersji Forge</strong> pozwala przeglądać
+dostępne kompilacje Forge dla wybranej wersji Minecrafta.</p>
+
+<h2>Karty plików</h2>
+
+<p>Pliki są uporządkowane w kartach według kategorii:</p>
+
+<table class="settings-table">
+    <tr><td>Mody</td><td>Pliki JAR modów Forge umieszczane w folderze <code>mods/</code>.</td></tr>
+    <tr><td>Konfiguracje</td><td>Pliki konfiguracyjne modów umieszczane w <code>config/</code>.</td></tr>
+    <tr><td>Zasoby</td><td>Paczki zasobów i inne zasoby.</td></tr>
+    <tr><td>Shadery</td><td>Paczki shaderów dla OptiFine lub Iris.</td></tr>
+    <tr><td>Pliki początkowe</td><td>Pliki kopiowane tylko przy pierwszej instalacji (np. domyślny options.txt).</td></tr>
+</table>
+
+<p>Każda pozycja pliku zawiera adres URL pobierania i sumę kontrolną SHA-1. Edytor może
+<strong>automatycznie obliczać sumy kontrolne</strong>, pobierając plik i wyliczając jego skrót.</p>
+
+<h2>Wyszukiwanie w Modrinth</h2>
+
+<p>Użyj zintegrowanego wyszukiwania Modrinth, aby znaleźć mody po nazwie. Wybierz wynik, aby automatycznie
+uzupełnić pola adresu URL pobierania i sumy kontrolnej dla właściwej wersji.</p>
+
+<h2>Podnoszenie wersji</h2>
+
+<p>Przycisk <strong>Podnieś wersję</strong> zwiększa numer wersji modpacka, co ułatwia
+publikowanie aktualizacji, które launcher wykryje automatycznie.</p>
+
+<h2>Sprawdzanie adresów URL</h2>
+
+<p>Edytor może sprawdzić, czy wszystkie adresy URL pobierania plików są osiągalne, co pomaga wychwycić niedziałające
+linki przed publikacją.</p>
+
+<div class="tip">
+    <div class="callout-title">Wskazówka</div>
+    <p>Użyj <strong>Sprawdź poprawność</strong> przed zapisaniem, aby wcześnie wychwycić problemy. Walidator sprawdza
+    wymagane pola, poprawność adresów URL i format sum kontrolnych.</p>
+</div>

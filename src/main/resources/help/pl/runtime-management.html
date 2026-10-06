@@ -1,0 +1,59 @@
+<h1>Zarządzanie środowiskami uruchomieniowymi</h1>
+
+<p>Mica Minecraft Launcher automatycznie zarządza środowiskami wykonawczymi Java, więc nigdy nie musisz
+samodzielnie instalować ani konfigurować Javy.</p>
+
+<h2>Dlaczego środowiska wykonawcze są ważne</h2>
+
+<p>Minecraft i Forge wymagają do poprawnego działania określonych wersji Javy. Różne modpacki i
+wersje Minecrafta mogą potrzebować różnych środowisk wykonawczych Java:</p>
+
+<ul>
+    <li><strong>Minecraft 1.16 i starsze</strong> — Java 8</li>
+    <li><strong>Minecraft 1.17 - 1.20</strong> — Java 17</li>
+    <li><strong>Minecraft 1.21+</strong> — Java 21 lub nowsza</li>
+</ul>
+
+<p>Launcher wykrywa, jakiego środowiska wykonawczego wymaga każdy modpack lub wersja vanilla, i pobiera je
+automatycznie przy pierwszym uruchomieniu.</p>
+
+<h2>Automatyczne pobieranie</h2>
+
+<p>Gdy uruchamiasz modpack lub wersję vanilla po raz pierwszy, launcher sprawdza, czy
+wymagane środowisko wykonawcze jest już zainstalowane. Jeśli nie, pobiera właściwą wersję z
+serwerów dystrybucyjnych Mojang lub Liberica. Każda wersja środowiska wykonawczego jest pobierana tylko raz.</p>
+
+<div class="note">
+    <div class="callout-title">Uwaga</div>
+    <p>Pobierane środowiska wykonawcze zajmują zwykle 40 - 80 MB i są przechowywane w katalogu danych
+    launchera, niezależnie od jakiejkolwiek instalacji Javy w Twoim systemie.</p>
+</div>
+
+<h2>Przeglądanie zainstalowanych środowisk wykonawczych</h2>
+
+<p>Otwórz <a href="help://topic/SETTINGS">Ustawienia</a> i kliknij <strong>Zarządzaj środowiskami wykonawczymi</strong>, aby zobaczyć
+listę wszystkich zainstalowanych środowisk wykonawczych Java wraz z ich wersją, ścieżką i modpackami,
+które z nich korzystają.</p>
+
+<h2>Usuwanie nieużywanych środowisk wykonawczych</h2>
+
+<p>Jeśli usunąłeś modpacki, które korzystały z określonej wersji Javy, możesz usunąć
+odpowiednie środowisko wykonawcze, aby zwolnić miejsce na dysku. Wybierz środowisko wykonawcze na ekranie zarządzania i
+kliknij <strong>Usuń</strong>.</p>
+
+<div class="warning">
+    <div class="callout-title">Ostrzeżenie</div>
+    <p>Usunięcie środowiska wykonawczego, którego nadal potrzebuje zainstalowany modpack, sprawi, że launcher
+    pobierze je ponownie przy następnym uruchomieniu tego modpacka.</p>
+</div>
+
+<h2>Rozwiązywanie problemów ze środowiskami wykonawczymi</h2>
+
+<p>Jeśli modpack nie uruchamia się z powodu błędów związanych z Javą, spróbuj wykonać następujące kroki:</p>
+
+<ol>
+    <li>Otwórz Zarządzanie środowiskami wykonawczymi i usuń środowisko wykonawcze używane przez problematyczny modpack.</li>
+    <li>Uruchom modpack ponownie — launcher pobierze świeżą kopię.</li>
+    <li>Jeśli problem nie ustąpi, zobacz <a href="help://topic/TROUBLESHOOTING">Rozwiązywanie problemów</a>, aby poznać
+        dodatkowe kroki.</li>
+</ol>

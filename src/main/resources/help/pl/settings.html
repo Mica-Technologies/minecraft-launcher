@@ -1,0 +1,91 @@
+<h1>Ustawienia</h1>
+
+<p>Ekran ustawień pozwala dostosować przydział pamięci, wygląd, działanie JVM, konfigurację
+sieci i nie tylko. Zmiany są zapisywane automatycznie.</p>
+
+<h2>Pamięć gry</h2>
+
+<table class="settings-table">
+    <tr><td>Minimalna ilość pamięci RAM</td><td>Początkowy rozmiar sterty przydzielany JVM gry. Zwykle pozostaw wartość domyślną (512 MB), chyba że modpack wymaga innej.</td></tr>
+    <tr><td>Maksymalna ilość pamięci RAM</td><td>Górny limit pamięci dla gry. Większość modpacków działa najlepiej przy <strong>4 - 8 GB</strong>. Przydzielenie więcej, niż system może oddać, może powodować niestabilność.</td></tr>
+</table>
+
+<div class="tip">
+    <div class="callout-title">Wskazówka</div>
+    <p>Dobra zasada: ustaw maksymalną ilość RAM na nie więcej niż połowę całkowitej pamięci systemu.
+    Na przykład na komputerze z 16 GB rozsądnym górnym limitem jest 6 - 8 GB.</p>
+</div>
+
+<h2>Motyw</h2>
+
+<table class="settings-table">
+    <tr><td>Automatic</td><td>Podąża za ustawieniem trybu jasnego/ciemnego w systemie operacyjnym.</td></tr>
+    <tr><td>Dark</td><td>Ciemne tło z jasnym tekstem — przyjazne dla oczu.</td></tr>
+    <tr><td>Light</td><td>Klasyczne jasne tło z ciemnym tekstem.</td></tr>
+    <tr><td>Blue + Gray</td><td>Motyw z akcentami w chłodnych barwach.</td></tr>
+    <tr><td>Orange + Purple</td><td>Motyw z akcentami w ciepłych barwach.</td></tr>
+</table>
+
+<h2>Zaawansowane</h2>
+
+<table class="settings-table">
+    <tr><td>Tryb debugowania</td><td>Włącza szczegółowe rejestrowanie w konsoli launchera, pomocne przy diagnozowaniu problemów.</td></tr>
+    <tr><td>Zmiana rozmiaru okna</td><td>Pozwala swobodnie zmieniać rozmiar okna launchera poza jego domyślne wymiary.</td></tr>
+    <tr><td>Integracja z Discordem</td><td>Pokazuje Twój bieżący modpack jako status Discord Rich Presence.</td></tr>
+    <tr><td>Rozszerzone rejestrowanie</td><td>Zapisuje na dysku szczegółowe pliki dziennika do analizy po zakończeniu sesji.</td></tr>
+    <tr><td>Konsola w grze</td><td>Otwiera okno <a href="help://topic/GAME_CONSOLE">Konsoli gry</a> obok Minecrafta, aby wyświetlać dane wyjściowe w czasie rzeczywistym.</td></tr>
+</table>
+
+<h2>Ustawienia wstępne JVM</h2>
+
+<p>Gotowe zestawy flag JVM dołączane do polecenia uruchamiającego grę. Zobacz
+<a href="help://topic/JVM_PRESETS">Ustawienia wstępne JVM</a>, aby dokładniej poznać działanie każdego profilu,
+własne flagi, które warto dodać, oraz wpływ wyboru profilu na przydział
+pamięci RAM.</p>
+
+<table class="settings-table">
+    <tr><td>Performance (Aikar's Flags)</td><td><strong>Zalecany.</strong> Zoptymalizowane flagi odśmiecania pamięci, szeroko stosowane przez społeczność Minecrafta. Najlepsza ogólna wydajność dla większości modpacków.</td></tr>
+    <tr><td>Low Memory</td><td>Zachowawcze flagi dla systemów z ograniczoną ilością RAM. Zmniejszają narzut GC kosztem części przepustowości.</td></tr>
+    <tr><td>Debug</td><td>Włącza dane diagnostyczne JVM, w tym dzienniki GC. Przydatny przy diagnozowaniu awarii lub problemów z wydajnością.</td></tr>
+    <tr><td>None</td><td>Bez dodatkowych flag — używa ustawień domyślnych JVM. Używaj tylko wtedy, gdy wiesz, co robisz, lub gdy wymaga tego modpack.</td></tr>
+</table>
+
+<h2>Sieć / Proxy</h2>
+
+<p>Skonfiguruj serwer proxy, jeśli Twoja sieć go wymaga (częste w sieciach firmowych lub szkolnych).</p>
+
+<table class="settings-table">
+    <tr><td>HTTP Proxy</td><td>Standardowy serwer proxy WWW. Wprowadź host i port podane przez administratora sieci.</td></tr>
+    <tr><td>SOCKS Proxy</td><td>Protokół proxy niższego poziomu. Używaj go, jeśli Twoja sieć wymaga właśnie SOCKS.</td></tr>
+</table>
+
+<div class="note">
+    <div class="callout-title">Uwaga</div>
+    <p>Większość użytkowników może pozostawić ustawienia proxy puste. Konfiguruj je tylko wtedy, gdy pobieranie lub
+    uwierzytelnianie nie działa w sieci z ograniczeniami.</p>
+</div>
+
+<h2>Skanowanie w poszukiwaniu złośliwego oprogramowania</h2>
+
+<p>Launcher zawiera wbudowany skaner, który sprawdza pobrane pliki JAR pod kątem sygnatur
+<strong>fractureiser</strong> — złośliwego oprogramowania wymierzonego w Minecrafta, które w 2023 roku rozprzestrzeniało się przez przejęte mody.
+Skanowanie odbywa się automatycznie przed każdym uruchomieniem gry.</p>
+
+<h2>Resetowanie i środowiska wykonawcze</h2>
+
+<table class="settings-table">
+    <tr><td>Zresetuj launcher</td><td>Przywraca wszystkie ustawienia domyślne i czyści dane w pamięci podręcznej. <strong>Tej operacji nie można cofnąć.</strong></td></tr>
+    <tr><td>Zarządzaj środowiskami wykonawczymi</td><td>Otwiera ekran <a href="help://topic/RUNTIME_MANAGEMENT">Zarządzanie środowiskami wykonawczymi</a>, w którym możesz przeglądać, weryfikować lub usuwać zainstalowane środowiska wykonawcze Java.</td></tr>
+</table>
+
+<div class="warning">
+    <div class="callout-title">Ostrzeżenie</div>
+    <p>Zresetowanie launchera usunie wszystkie ustawienia, zapisane tokeny i stan modpacków.
+    Pliki modpacków na dysku zostaną zachowane, ale trzeba będzie dodać je ponownie.</p>
+</div>
+
+<h2>Import / eksport ustawień</h2>
+
+<p>Użyj <strong>Eksportuj ustawienia</strong>, aby zapisać bieżącą konfigurację do pliku, oraz <strong>Importuj ustawienia</strong>, aby
+wczytać wcześniej zapisaną konfigurację. Przydaje się to przy przenoszeniu ustawień między komputerami
+lub przywracaniu sprawdzonej konfiguracji po zresetowaniu.</p>
