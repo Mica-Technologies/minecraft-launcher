@@ -245,10 +245,13 @@ public final class ModpackExporter
     {
         if ( pack == null ) throw new IllegalArgumentException( "pack is null" );
         String rootStr = pack.getPackRootFolder();
-        if ( rootStr == null ) throw new IOException( "Pack has no install folder." );
+        if ( rootStr == null ) {
+            throw new IOException( LocalizationManager.get( "detailModal.export.error.noInstallFolder" ) );
+        }
         Path root = Paths.get( rootStr );
         if ( !Files.isDirectory( root ) ) {
-            throw new IOException( "Pack install folder is missing: " + rootStr );
+            throw new IOException( LocalizationManager.format( "detailModal.export.error.installFolderMissing",
+                                                               rootStr ) );
         }
         Set< String > excludes = includeWorlds
                 ? DEFAULT_EXCLUSIONS

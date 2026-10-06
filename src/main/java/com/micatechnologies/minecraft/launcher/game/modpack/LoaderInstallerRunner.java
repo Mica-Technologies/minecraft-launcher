@@ -134,13 +134,14 @@ public final class LoaderInstallerRunner
      */
     public static Result install( GameModPack pack, Path dotMc )
     {
-        if ( pack == null ) return Result.failure( "No pack supplied." );
+        if ( pack == null ) return Result.failure( LocalizationManager.get( "import.export.noPack" ) );
         if ( dotMc == null || !Files.isDirectory( dotMc ) ) {
-            return Result.failure( "Minecraft Launcher data folder not found at " + dotMc );
+            return Result.failure( LocalizationManager.format( "import.export.dataFolderMissing",
+                                                               String.valueOf( dotMc ) ) );
         }
         if ( pack.isVanillaVersion() ) {
             // Mojang launcher resolves vanilla versions itself — nothing to install.
-            return Result.success( "Vanilla pack — Minecraft Launcher will fetch on first launch." );
+            return Result.success( LocalizationManager.get( "officialExport.loader.vanilla" ) );
         }
 
         String loaderType;
@@ -148,17 +149,19 @@ public final class LoaderInstallerRunner
             loaderType = pack.getModLoaderType();
         }
         catch ( Exception e ) {
-            return Result.failure( "Couldn't read pack's loader type: " + e.getMessage() );
+            return Result.failure( LocalizationManager.format( "officialExport.loader.typeReadFailed",
+                                                               String.valueOf( e.getMessage() ) ) );
         }
         if ( loaderType == null ) {
-            return Result.failure( "Pack has no loader type set." );
+            return Result.failure( LocalizationManager.get( "officialExport.loader.noType" ) );
         }
 
         return switch ( loaderType ) {
             case ModPackConstants.MOD_LOADER_FORGE,
                  ModPackConstants.MOD_LOADER_NEOFORGE -> runInstallerJar( pack, dotMc );
             case ModPackConstants.MOD_LOADER_FABRIC   -> writeFabricProfileJson( pack, dotMc );
-            default -> Result.failure( "Auto-install not supported for loader type: " + loaderType );
+            default -> Result.failure( LocalizationManager.format( "officialExport.loader.unsupportedType",
+                                                                   loaderType ) );
         };
     }
 
@@ -243,8 +246,8 @@ public final class LoaderInstallerRunner
             boolean finished = proc.waitFor( INSTALLER_TIMEOUT_SECONDS, TimeUnit.SECONDS );
             if ( !finished ) {
                 proc.destroyForcibly();
-                return Result.failure( "Loader installer timed out after "
-                                                + INSTALLER_TIMEOUT_SECONDS + "s." );
+                return Result.failure( LocalizationManager.format( "officialExport.loader.timedOut",
+                                                                   INSTALLER_TIMEOUT_SECONDS ) );
             }
             int code = proc.exitValue();
             String stderrText;
@@ -252,10 +255,7 @@ public final class LoaderInstallerRunner
 
             if ( code != 0 ) {
                 return Result.failure(
-                        "Loader installer exited with code " + code
-                                + ". This usually means the version doesn't support headless "
-                                + "(--installClient) install — common on Forge versions older than 1.13. "
-                                + "You can run the installer manually instead.",
+                        LocalizationManager.format( "officialExport.loader.exitCode", String.valueOf( code ) ),
                         stderrText );
             }
 
@@ -268,20 +268,19 @@ public final class LoaderInstallerRunner
                 versionId = OfficialLauncherExporter.computeVersionId( pack );
             }
             catch ( Exception e ) {
-                return Result.failure(
-                        "Installer reported success but the launcher couldn't compute "
-                                + "the expected version ID: " + e.getMessage() );
+                return Result.failure( LocalizationManager.format( "officialExport.loader.versionIdFailed",
+                                                                   String.valueOf( e.getMessage() ) ) );
             }
             if ( !OfficialLauncherExporter.isVersionInstalled( dotMc, versionId ) ) {
                 return Result.failure(
-                        "Installer reported success but the expected version directory "
-                                + "(.minecraft/versions/" + versionId + ") wasn't created.",
+                        LocalizationManager.format( "officialExport.loader.versionDirMissing", versionId ),
                         stderrText );
             }
-            return Result.success( "Installed " + versionId + "." );
+            return Result.success( LocalizationManager.format( "officialExport.loader.installed", versionId ) );
         }
         catch ( IOException e ) {
-            return Result.failure( "Couldn't spawn loader installer process: " + e.getMessage() );
+            return Result.failure( LocalizationManager.format( "officialExport.loader.spawnFailed",
+                                                               String.valueOf( e.getMessage() ) ) );
         }
         catch ( InterruptedException e ) {
             Thread.currentThread().interrupt();
@@ -289,7 +288,7 @@ public final class LoaderInstallerRunner
             if ( started != null && started.isAlive() ) {
                 started.destroyForcibly();
             }
-            return Result.failure( "Loader installer wait was interrupted." );
+            return Result.failure( LocalizationManager.get( "officialExport.loader.interrupted" ) );
         }
     }
 
@@ -360,23 +359,22 @@ public final class LoaderInstallerRunner
             url = pack.getModLoaderURL();
         }
         catch ( Exception e ) {
-            return Result.failure( "Couldn't read pack's loader URL: " + e.getMessage() );
+            return Result.failure( LocalizationManager.format( "officialExport.loader.urlReadFailed",
+                                                               String.valueOf( e.getMessage() ) ) );
         }
         if ( url == null || url.isBlank() ) {
-            return Result.failure( "Pack has no Fabric profile JSON URL." );
+            return Result.failure( LocalizationManager.get( "officialExport.loader.noFabricUrl" ) );
         }
         try {
             String body = NetworkUtilities.downloadFileFromURL( url );
             if ( body == null || body.isBlank() ) {
-                return Result.failure( "Fabric profile JSON download returned an empty body." );
+                return Result.failure( LocalizationManager.get( "officialExport.loader.fabricEmpty" ) );
             }
             com.google.gson.JsonObject root =
                     com.micatechnologies.minecraft.launcher.utilities.JSONUtilities
                             .stringToObject( body );
             if ( root == null || !root.has( "id" ) ) {
-                return Result.failure(
-                        "Fabric profile JSON didn't contain an 'id' field — can't determine "
-                                + "the version folder name." );
+                return Result.failure( LocalizationManager.get( "officialExport.loader.fabricNoId" ) );
             }
             String versionId = root.get( "id" ).getAsString();
             Path versionDir = dotMc.resolve( "versions" ).resolve( versionId );
@@ -397,10 +395,12 @@ public final class LoaderInstallerRunner
             catch ( java.nio.file.AtomicMoveNotSupportedException atomicEx ) {
                 Files.move( tmp, target, StandardCopyOption.REPLACE_EXISTING );
             }
-            return Result.success( "Installed Fabric profile for " + versionId + "." );
+            return Result.success( LocalizationManager.format( "officialExport.loader.fabricInstalled",
+                                                               versionId ) );
         }
         catch ( Exception e ) {
-            return Result.failure( "Fabric install failed: " + e.getMessage() );
+            return Result.failure( LocalizationManager.format( "officialExport.loader.fabricFailed",
+                                                               String.valueOf( e.getMessage() ) ) );
         }
     }
 }
