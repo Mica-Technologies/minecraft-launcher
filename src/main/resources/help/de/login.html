@@ -1,0 +1,43 @@
+<h1>Anmeldung</h1>
+
+<p>Der Mica Minecraft Launcher verwendet die <strong>offizielle Microsoft-Authentifizierung</strong>, um Ihr
+Minecraft-Konto zu überprüfen. Dies ist derselbe Anmeldevorgang, den auch der offizielle Minecraft Launcher verwendet.</p>
+
+<h2>So funktioniert es</h2>
+
+<ol class="steps">
+    <li>Klicken Sie im Anmeldebildschirm auf <strong>Anmelden</strong>. Ein Browserfenster mit der Microsoft-Anmeldeseite wird geöffnet.</li>
+    <li>Geben Sie die Zugangsdaten Ihres Microsoft-Kontos ein und bestätigen Sie die Anmeldung.</li>
+    <li>Nach erfolgreicher Authentifizierung wird das Browserfenster geschlossen, und der Launcher wechselt zum
+        <a href="help://topic/MAIN_SCREEN">Hauptbildschirm</a>.</li>
+</ol>
+
+<h2>Zwischenspeicherung des Tokens</h2>
+
+<p>Nach einer erfolgreichen Anmeldung wird Ihr Authentifizierungstoken lokal mit
+<strong>AES-256-GCM-Verschlüsselung</strong> und einem vom Computer abgeleiteten Schlüssel zwischengespeichert. Das bedeutet:</p>
+
+<ul>
+    <li>Sie müssen sich etwa <strong>4 Stunden</strong> lang nicht erneut anmelden.</li>
+    <li>Das zwischengespeicherte Token ist verschlüsselt und an Ihren Computer gebunden — es kann nicht übertragen oder an anderer Stelle wiederverwendet werden.</li>
+    <li>Nach Ablauf des Zwischenspeichers fordert der Launcher Sie auf, sich erneut anzumelden.</li>
+</ul>
+
+<h2>Behebung von Anmeldeproblemen</h2>
+
+<div class="warning">
+    <div class="callout-title">Internetverbindung erforderlich</div>
+    <p>Für die erste Anmeldung ist eine aktive Internetverbindung erforderlich. Der Launcher kann
+    sich nicht im vollständigen Offlinemodus authentifizieren.</p>
+</div>
+
+<p>Wenn Sie Probleme bei der Anmeldung haben:</p>
+
+<ul>
+    <li><strong>Browser öffnet sich nicht</strong> — prüfen Sie, ob auf Ihrem System ein Standardbrowser eingerichtet ist.</li>
+    <li><strong>Zeitüberschreitung bei der Anmeldung</strong> — überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.</li>
+    <li><strong>Konto wird nicht erkannt</strong> — stellen Sie sicher, dass Sie das Microsoft-Konto verwenden, dem Minecraft gehört.</li>
+    <li><strong>Wiederholte Anmeldeaufforderungen</strong> — das zwischengespeicherte Token ist möglicherweise abgelaufen. Das ist nach 4 Stunden Inaktivität normal.</li>
+</ul>
+
+<p>Bei anhaltenden Problemen lesen Sie <a href="help://topic/TROUBLESHOOTING">Fehlerbehebung</a>.</p>

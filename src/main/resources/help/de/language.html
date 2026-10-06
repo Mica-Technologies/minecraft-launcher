@@ -1,0 +1,122 @@
+<h1>Sprache &amp; Lokalisierung</h1>
+
+<p>Der Mica Minecraft Launcher stellt seine Oberfläche in 17 Sprachen dar und wählt
+beim ersten Start automatisch die passende aus. Sie können die erkannte
+Sprache außerdem jederzeit in den Einstellungen überschreiben.</p>
+
+<h2>Wie der Launcher eine Sprache auswählt</h2>
+
+<p>Bei jedem Start ermittelt der Launcher die aktive Sprache in dieser
+Reihenfolge:</p>
+
+<ol class="steps">
+    <li><strong>Ihre gespeicherte Auswahl</strong>, sofern Sie eine unter
+        <a href="help://topic/SETTINGS">Einstellungen</a> &rarr; Darstellung &rarr;
+        Sprache festgelegt haben. Diese hat immer Vorrang.</li>
+    <li><strong>Die Sprache Ihres Betriebssystems</strong>, erkannt über das
+        Standard-Gebietsschema der JVM. Unter Windows ist dies Ihre Einstellung für Region / Sprache;
+        unter macOS Systemeinstellungen &rarr; Sprache &amp; Region;
+        unter Linux die Umgebungsvariablen <code>LANG</code> / <code>LC_*</code>.</li>
+    <li><strong>Englisch (Vereinigte Staaten)</strong> als Rückfalloption, wenn die
+        Plattform ein Gebietsschema ohne Sprache meldet (z. B. <code>POSIX</code> oder
+        <code>C</code>) oder wenn Ihre Betriebssystemsprache nicht zu den 17 Sprachen gehört,
+        für die wir Übersetzungen ausliefern.</li>
+</ol>
+
+<div class="tip">
+    <div class="callout-title">Eine Sprachänderung wird nach einem Neustart wirksam</div>
+    <p>Wenn Sie die Auswahl in den Einstellungen ändern, wird die Einstellung sofort gespeichert,
+    aber bereits angezeigte Bildschirme zeigen weiterhin die vorherige Sprache,
+    bis der Launcher neu gestartet wird. Die Einstellungsseite selbst weist Sie darauf
+    hin, wenn Sie das Dropdown ändern.</p>
+</div>
+
+<h2>Eine Sprache manuell festlegen</h2>
+
+<ol class="steps">
+    <li>Öffnen Sie die <a href="help://topic/SETTINGS">Einstellungen</a> über die Navigationsleiste
+        (oder drücken Sie <kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Cmd</kbd>+<kbd>,</kbd>).</li>
+    <li>Wechseln Sie zum Tab <strong>Darstellung</strong>.</li>
+    <li>Wählen Sie im Dropdown <strong>Sprache</strong> eine Sprache aus. Der
+        erste Eintrag („Sprache des Betriebssystems verwenden“) stellt die oben beschriebene
+        automatische Erkennung wieder her und zeigt in Klammern an, welche Sprache
+        das Betriebssystem ergeben würde.</li>
+    <li>Klicken Sie auf <strong>Speichern</strong>. Starten Sie den Launcher neu, damit die neue
+        Sprache auf allen Bildschirmen angewendet wird.</li>
+</ol>
+
+<h2>Unterstützte Sprachen</h2>
+
+<p>Der Launcher liefert Übersetzungen für die 17 meistgesprochenen
+Sprachen der Welt sowie Englisch aus:</p>
+
+<ul>
+    <li>Arabisch (&#1593;&#1585;&#1576;&#1610;)</li>
+    <li>Chinesisch, vereinfacht (&#31616;&#20307;&#20013;&#25991;)</li>
+    <li>Chinesisch, traditionell (&#32321;&#39636;&#20013;&#25991;)</li>
+    <li>Niederländisch (Nederlands)</li>
+    <li>Englisch (Ausgangssprache)</li>
+    <li>Französisch (Fran&ccedil;ais)</li>
+    <li>Deutsch (Deutsch)</li>
+    <li>Hindi (&#2361;&#2367;&#2306;&#2342;&#2368;)</li>
+    <li>Italienisch (Italiano)</li>
+    <li>Japanisch (&#26085;&#26412;&#35486;)</li>
+    <li>Koreanisch (&#54620;&#44397;&#50612;)</li>
+    <li>Polnisch (Polski)</li>
+    <li>Portugiesisch, brasilianisch (Portugu&ecirc;s do Brasil)</li>
+    <li>Russisch (&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;)</li>
+    <li>Spanisch (Espa&ntilde;ol)</li>
+    <li>Schwedisch (Svenska)</li>
+    <li>Türkisch (T&uuml;rk&ccedil;e)</li>
+</ul>
+
+<p>Jede Sprache wird durch ihr BCP-47-Tag identifiziert (z. B. <code>fr-FR</code>,
+<code>pt-BR</code>, <code>zh-CN</code>). Die Liste befindet sich in
+<code>SupportedLocales.ENTRIES</code> im Quellcode des Launchers; die
+Property-Dateien liegen daneben als <code>DisplayStrings_&lt;tag&gt;.properties</code>
+unter <code>src/main/resources/lang/</code>.</p>
+
+<h2>Übersetzungsqualität &amp; Melden von Problemen</h2>
+
+<p>Übersetzungen für andere Sprachen als Englisch werden von einem Skript erzeugt,
+das Google Translate auf das englische Quell-Bundle anwendet und anschließend
+Parameter-Platzhalter nachbearbeitet, sodass Dinge wie <code>{0}</code>
+die Übersetzung unverändert überstehen. Das Ergebnis ist gut, aber nicht perfekt &mdash;
+insbesondere kurze UI-Beschriftungen (Schaltflächen aus einem Wort, einzelne Substantive) verlieren manchmal
+den Kontext, den sie im Englischen hatten.</p>
+
+<p>Wenn Sie eine schlechte Übersetzung entdecken, eröffnen Sie am besten ein Issue auf
+GitHub mit dem Schlüsselnamen (z. B. <code>browse.filter.type.label</code>),
+Ihrem Gebietsschema, der aktuellen Darstellung und einem Korrekturvorschlag.
+Von Hand bearbeitete Korrekturen bleiben bei der nächsten Neugenerierung erhalten, weil das
+Skript standardmäßig nur fehlende Schlüssel ergänzt.</p>
+
+<h2>Eine neue Sprache hinzufügen</h2>
+
+<p>Wenn Ihre Sprache nicht in der obigen Liste steht und Sie eine Übersetzung
+beisteuern möchten, gehen Sie so vor:</p>
+
+<ol>
+    <li>Fügen Sie einen neuen Eintrag zu <code>SupportedLocales.ENTRIES</code>
+        (Java) und <code>TARGET_LOCALES</code> in
+        <code>tools/i18n/translate-locales.js</code> (Node) hinzu.</li>
+    <li>Führen Sie <code>cd tools/i18n &amp;&amp; npm run translate</code> aus &mdash; das
+        Skript erzeugt die erste Fassung von <code>DisplayStrings_&lt;tag&gt;.properties</code>
+        aus der englischen Quelle.</li>
+    <li>Prüfen Sie die erzeugte Datei, korrigieren Sie von Hand alles, was sich
+        seltsam liest, und eröffnen Sie dann einen Pull Request.</li>
+</ol>
+
+<p>Das Skript <code>tools/i18n/translate-locales.js</code> arbeitet inkrementell:
+Bei einem erneuten Ausführen werden nur Schlüssel übersetzt, die in der
+Zieldatei noch nicht vorhanden sind, sodass Korrekturen von Hand bei jedem folgenden
+Launcher-Update erhalten bleiben.</p>
+
+<h2>Siehe auch</h2>
+
+<ul>
+    <li><a href="help://topic/SETTINGS">Einstellungen</a> &mdash; wo sich das Sprach-Dropdown
+        befindet</li>
+    <li><a href="help://topic/GETTING_STARTED">Erste Schritte</a> &mdash; die
+        allgemeine Einführung</li>
+</ul>
