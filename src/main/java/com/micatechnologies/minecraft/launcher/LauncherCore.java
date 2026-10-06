@@ -1469,55 +1469,102 @@ public class LauncherCore
      */
     public static void cleanupApp() {
         Logger.logStd( LocalizationManager.PERFORMING_APP_CLEANUP_TEXT );
-        try {
-            // Tear down the RGB subsystem first so backends paint their
-            // final black frames + close sockets before the JVM exits.
-            // Synchronous on purpose — we don't want JVM exit to race
-            // with backend cleanup and leave the user's keyboard stuck
-            // on whatever the last effect was.
-            com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.shutdown();
-            // Stop the MCP listener and delete its endpoint file. A file left behind would
-            // point a client at a port this process no longer owns, carrying a bearer token
-            // whatever now listens there never issued. Harmless when the server never started.
-            com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.stop();
-            DiscordRpcUtility.exit();
-            // Release the shared taskbar wrapper before tearing down the GUI controller —
-            // closing it after the stage is gone occasionally leaves the COM thread blocked
-            // on a stale HWND lookup. Doing it here also clears the taskbar overlay so a
-            // restart doesn't briefly inherit the previous session's progress state.
-            com.micatechnologies.minecraft.launcher.utilities.TaskbarProgressManager.shutdown();
-            // Remove the notification tray icon. Without this, the icon would persist in the
-            // tray after launcher exit until the user clicks it (Windows behavior).
-            com.micatechnologies.minecraft.launcher.utilities.NotificationManager.shutdown();
-            MCLauncherGuiController.exit();
-            // Tear down the help window's static singleton state so a subsequent
-            // restartApp doesn't reuse a Stage whose Owner is now closed and a
-            // WebView whose internal state was wired up against the previous
-            // session's GUI window. Idempotent if the help window was never
-            // opened. Must run AFTER MCLauncherGuiController.exit() because
-            // the help window may transitively reference the main stage via
-            // initOwner; tearing it down last keeps the close order stable.
-            com.micatechnologies.minecraft.launcher.gui.MCLauncherHelpWindow.cleanup();
-            SingleInstanceLock.release();
-            // Drain in-flight background tasks (manifest cache writes, log flushes
-            // queued by spawnNewTask, etc.) before tearing down the logger so any
-            // last-second I/O actually lands. Bounded wait — daemon-thread semantics
-            // clean up whatever is still running past the timeout.
-            SystemUtilities.shutdownBackgroundExecutor( 2_000 );
-            // Explicit config flush BEFORE logger shutdown. The ConfigStore
-            // shutdown hook is the original safety net, but on Windows the
-            // sequence "System.exit → daemon-thread death races with the
-            // shutdown-hook flush" has been observed to lose the user's
-            // last-50ms config changes (added modpacks, wizard completion).
-            // Calling here guarantees the pending debounced write lands
-            // while logging is still alive and we have full control over
-            // the timing.
-            com.micatechnologies.minecraft.launcher.config.ConfigManager.flushPendingWrite();
-            Logger.shutdownLogSys();
-        }
-        catch ( Exception ignored ) {
-        }
+        // Every step runs on its own: one that throws is logged and the rest still run, so a
+        // failing RGB backend can no longer skip the config flush or keep the instance lock.
+        //
+        // Tear down the RGB subsystem first so backends paint their final black frames +
+        // close sockets before the JVM exits, leaving the user's keyboard on a sensible state.
+        // RGB, MCP and Discord call into vendor SDKs and sockets that can hang (an OpenRGB
+        // socket write has no timeout), so each gets a bounded wait instead of being able to
+        // hang the exit with the window still up.
+        cleanupStepBounded( "rgb", com.micatechnologies.minecraft.launcher.rgb.RgbIntegration::shutdown );
+        // Stop the MCP listener and delete its endpoint file. A file left behind would
+        // point a client at a port this process no longer owns, carrying a bearer token
+        // whatever now listens there never issued. Harmless when the server never started.
+        cleanupStepBounded( "mcp", com.micatechnologies.minecraft.launcher.mcp.McpBootstrap::stop );
+        cleanupStepBounded( "discord", DiscordRpcUtility::exit );
+        // Release the shared taskbar wrapper before tearing down the GUI controller —
+        // closing it after the stage is gone occasionally leaves the COM thread blocked
+        // on a stale HWND lookup. Doing it here also clears the taskbar overlay so a
+        // restart doesn't briefly inherit the previous session's progress state.
+        cleanupStep( "taskbar", com.micatechnologies.minecraft.launcher.utilities.TaskbarProgressManager::shutdown );
+        // Remove the notification tray icon. Without this, the icon would persist in the
+        // tray after launcher exit until the user clicks it (Windows behavior).
+        cleanupStep( "notifications", com.micatechnologies.minecraft.launcher.utilities.NotificationManager::shutdown );
+        cleanupStep( "gui", MCLauncherGuiController::exit );
+        // Tear down the help window's static singleton state so a subsequent
+        // restartApp doesn't reuse a Stage whose Owner is now closed and a
+        // WebView whose internal state was wired up against the previous
+        // session's GUI window. Idempotent if the help window was never
+        // opened. Must run AFTER MCLauncherGuiController.exit() because
+        // the help window may transitively reference the main stage via
+        // initOwner; tearing it down last keeps the close order stable.
+        cleanupStep( "helpWindow", com.micatechnologies.minecraft.launcher.gui.MCLauncherHelpWindow::cleanup );
+        // Drain in-flight background tasks (manifest cache writes, log flushes
+        // queued by spawnNewTask, etc.) before tearing down the logger so any
+        // last-second I/O actually lands. Bounded wait — daemon-thread semantics
+        // clean up whatever is still running past the timeout.
+        cleanupStep( "backgroundTasks", () -> SystemUtilities.shutdownBackgroundExecutor( 2_000 ) );
+        // Explicit config flush BEFORE logger shutdown. The ConfigStore
+        // shutdown hook is the original safety net, but on Windows the
+        // sequence "System.exit → daemon-thread death races with the
+        // shutdown-hook flush" has been observed to lose the user's
+        // last-50ms config changes (added modpacks, wizard completion).
+        // Calling here guarantees the pending debounced write lands
+        // while logging is still alive and we have full control over
+        // the timing.
+        cleanupStep( "config", com.micatechnologies.minecraft.launcher.config.ConfigManager::flushPendingWrite );
+        // Release the single-instance lock only once the config is on disk: a launcher started
+        // the moment the lock frees (a quick relaunch) would otherwise read the config while
+        // this one is still writing it.
+        cleanupStep( "instanceLock", SingleInstanceLock::release );
+        cleanupStep( "logging", Logger::shutdownLogSys );
         Logger.logStd( LocalizationManager.FINISHED_APP_CLEANUP_TEXT );
+    }
+
+    /** How long a cleanup step that calls into a vendor SDK or socket may take before shutdown
+     *  moves on without it. */
+    private static final long CLEANUP_STEP_TIMEOUT_MS = 3_000L;
+
+    /** One step of {@link #cleanupApp()}; may throw, which is logged and skipped. */
+    @FunctionalInterface
+    private interface CleanupStep
+    {
+        void run() throws Exception;
+    }
+
+    /**
+     * Runs one cleanup step, logging rather than propagating anything it throws, so the
+     * remaining steps still run.
+     *
+     * @param name names the step in the log
+     * @param step the step
+     */
+    private static void cleanupStep( String name, CleanupStep step ) {
+        try {
+            step.run();
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( LocalizationManager.format( "log.launcherCore.cleanupStepFailed", name,
+                                                                 String.valueOf( t ) ) );
+        }
+    }
+
+    /**
+     * Runs one cleanup step with a bounded wait (see {@link SystemUtilities#runBounded}), so a hung
+     * vendor SDK or socket cannot hang the launcher's exit or restart.
+     *
+     * @param name names the step in the log
+     * @param step the step
+     */
+    private static void cleanupStepBounded( String name, Runnable step ) {
+        boolean finished = SystemUtilities.runBounded( name, step, CLEANUP_STEP_TIMEOUT_MS,
+                t -> Logger.logWarningSilent( LocalizationManager.format( "log.launcherCore.cleanupStepFailed",
+                                                                          name, String.valueOf( t ) ) ) );
+        if ( !finished ) {
+            Logger.logWarningSilent( LocalizationManager.format( "log.launcherCore.cleanupStepTimedOut", name,
+                                                                 CLEANUP_STEP_TIMEOUT_MS ) );
+        }
     }
 
     /**
