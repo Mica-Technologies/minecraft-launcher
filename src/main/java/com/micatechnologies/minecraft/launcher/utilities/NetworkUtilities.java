@@ -507,9 +507,10 @@ public class NetworkUtilities
     }
 
     /**
-     * Buffer size for tracked downloads (8 KB).
+     * Buffer size for tracked downloads (64 KB). An 8 KB buffer meant eight times the read calls,
+     * interrupt checks and stall-window bookkeeping on a large download for no benefit.
      */
-    private static final int DOWNLOAD_BUFFER_SIZE = 8192;
+    private static final int DOWNLOAD_BUFFER_SIZE = 64 * 1024;
 
     /**
      * Stall-detection window for tracked downloads. The per-read {@code setReadTimeout} only
