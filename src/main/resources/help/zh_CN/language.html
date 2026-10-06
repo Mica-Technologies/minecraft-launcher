@@ -1,0 +1,120 @@
+<h1>语言与本地化</h1>
+
+<p>Mica Minecraft Launcher 的界面支持 17 种语言，并会在首次启动时
+自动选择合适的语言。您也可以随时在“设置”中手动指定，覆盖
+自动检测到的语言。</p>
+
+<h2>启动器如何选择语言</h2>
+
+<p>每次启动时，启动器都会按以下顺序确定当前使用的
+语言：</p>
+
+<ol class="steps">
+    <li><strong>您保存的手动设置</strong>（如果您在
+        <a href="help://topic/SETTINGS">设置</a> &rarr; 外观 &rarr;
+        语言中设置过）。此项始终优先。</li>
+    <li><strong>操作系统的语言</strong>，通过
+        标准 JVM 区域设置检测。在 Windows 上，这是您的“区域 / 语言”
+        设置；在 macOS 上是“系统设置 &rarr; 语言与地区”；
+        在 Linux 上是 <code>LANG</code> / <code>LC_*</code> 环境变量。</li>
+    <li><strong>英语（美国）</strong>，作为后备语言：当
+        平台报告的区域设置不对应任何语言（例如 <code>POSIX</code> 或
+        <code>C</code>），或您的操作系统语言不在我们提供翻译的 17 种语言
+        之中时使用。</li>
+</ol>
+
+<div class="tip">
+    <div class="callout-title">更改语言需重启后生效</div>
+    <p>在“设置”中切换语言会立即更新偏好设置，
+    但已经显示的界面会继续使用之前的语言，
+    直到启动器重新启动。更改下拉菜单时，“设置”页面本身也会
+    提醒您这一点。</p>
+</div>
+
+<h2>手动指定语言</h2>
+
+<ol class="steps">
+    <li>从导航栏打开<a href="help://topic/SETTINGS">设置</a>
+        （或按 <kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Cmd</kbd>+<kbd>,</kbd>）。</li>
+    <li>切换到<strong>外观</strong>选项卡。</li>
+    <li>从<strong>语言</strong>下拉菜单中选择一种语言。
+        第一项（“使用操作系统语言”）会恢复上文所述的
+        自动检测，并在括号中显示操作系统将解析为
+        哪种语言。</li>
+    <li>点击<strong>保存</strong>。重新启动启动器，即可看到新语言
+        应用到所有界面。</li>
+</ol>
+
+<h2>支持的语言</h2>
+
+<p>启动器提供了全球使用人数最多的 17 种语言
+以及英语的翻译：</p>
+
+<ul>
+    <li>阿拉伯语（&#1593;&#1585;&#1576;&#1610;）</li>
+    <li>简体中文（&#31616;&#20307;&#20013;&#25991;）</li>
+    <li>繁体中文（&#32321;&#39636;&#20013;&#25991;）</li>
+    <li>荷兰语（Nederlands）</li>
+    <li>英语（源语言）</li>
+    <li>法语（Fran&ccedil;ais）</li>
+    <li>德语（Deutsch）</li>
+    <li>印地语（&#2361;&#2367;&#2306;&#2342;&#2368;）</li>
+    <li>意大利语（Italiano）</li>
+    <li>日语（&#26085;&#26412;&#35486;）</li>
+    <li>韩语（&#54620;&#44397;&#50612;）</li>
+    <li>波兰语（Polski）</li>
+    <li>巴西葡萄牙语（Portugu&ecirc;s do Brasil）</li>
+    <li>俄语（&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;）</li>
+    <li>西班牙语（Espa&ntilde;ol）</li>
+    <li>瑞典语（Svenska）</li>
+    <li>土耳其语（T&uuml;rk&ccedil;e）</li>
+</ul>
+
+<p>每种语言都以其 BCP-47 标签标识（例如 <code>fr-FR</code>、
+<code>pt-BR</code>、<code>zh-CN</code>）。该列表位于启动器源代码中的
+<code>SupportedLocales.ENTRIES</code>；对应的
+属性文件 <code>DisplayStrings_&lt;tag&gt;.properties</code> 位于
+<code>src/main/resources/lang/</code> 下。</p>
+
+<h2>翻译质量与问题反馈</h2>
+
+<p>英语以外语言的翻译由一个脚本生成，
+该脚本使用 Google Translate 翻译英文源资源包，然后
+对参数占位符进行后处理，确保 <code>{0}</code> 之类的内容
+在翻译后保持完整。生成的译文质量不错，但并不完美 &mdash;
+尤其是简短的界面标签（单个词的按钮、单个名词），有时会
+丢失其在英语中的上下文。</p>
+
+<p>如果您发现翻译不当，最好的方式是在
+GitHub 上提交 issue，并附上键名（例如 <code>browse.filter.type.label</code>）、
+您的区域设置、当前显示的内容以及建议的修改。
+手动修改的译文在下次重新生成时会被保留，因为
+该脚本默认只填补缺失的键。</p>
+
+<h2>添加新语言</h2>
+
+<p>如果您的语言不在上面的列表中，而您希望贡献
+翻译，贡献流程如下：</p>
+
+<ol>
+    <li>在 <code>SupportedLocales.ENTRIES</code>
+        （Java）和
+        <code>tools/i18n/translate-locales.js</code>（Node）中的 <code>TARGET_LOCALES</code> 里添加新条目。</li>
+    <li>运行 <code>cd tools/i18n &amp;&amp; npm run translate</code> &mdash;
+        脚本会根据英文源文件生成初始的 <code>DisplayStrings_&lt;tag&gt;.properties</code>。</li>
+    <li>审阅生成的文件，手动修正读起来不自然的内容，
+        然后提交 pull request。</li>
+</ol>
+
+<p><code>tools/i18n/translate-locales.js</code> 脚本是增量式的：
+重新运行时只会翻译目标文件中尚不存在的键，
+因此在之后每次启动器更新时，手动修正的内容都会被保留。</p>
+
+<h2>另请参阅</h2>
+
+<ul>
+    <li><a href="help://topic/SETTINGS">设置</a> &mdash; 语言
+        下拉菜单所在位置</li>
+    <li><a href="help://topic/GETTING_STARTED">入门</a> &mdash;
+        总体入门指南</li>
+</ul>

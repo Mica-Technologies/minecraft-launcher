@@ -1,0 +1,57 @@
+<h1>整合包编辑器</h1>
+
+<p>整合包编辑器是一个内置工具，用于创建和编辑整合包的 JSON 定义文件。
+它提供结构化的界面，并支持校验、集成搜索和差异跟踪。</p>
+
+<h2>工具栏</h2>
+
+<ul>
+    <li><strong>新建</strong> — 从模板创建空白的整合包定义。</li>
+    <li><strong>打开文件</strong> — 从磁盘加载现有的 JSON 定义。</li>
+    <li><strong>打开 URL</strong> — 从远程 URL 获取并加载定义。</li>
+    <li><strong>保存</strong> — 将当前定义写入本地文件。</li>
+    <li><strong>校验</strong> — 检查定义中的错误（缺少字段、无效 URL、哈希值不匹配）。</li>
+    <li><strong>对比</strong> — 将当前状态与上次保存的版本进行比较，查看更改了哪些内容。</li>
+</ul>
+
+<h2>元数据字段</h2>
+
+<p>顶部区域包含整合包的核心信息：名称、版本、简介、作者、
+Minecraft 版本和 Forge 版本。<strong>Forge 版本选择器</strong>可让您浏览
+所选 Minecraft 版本可用的 Forge 构建版本。</p>
+
+<h2>文件选项卡</h2>
+
+<p>文件按类别分布在以下选项卡中：</p>
+
+<table class="settings-table">
+    <tr><td>模组</td><td>放在 <code>mods/</code> 文件夹中的 Forge 模组 JAR 文件。</td></tr>
+    <tr><td>配置</td><td>模组的配置文件，放在 <code>config/</code> 中。</td></tr>
+    <tr><td>资源</td><td>资源包及其他资源文件。</td></tr>
+    <tr><td>光影</td><td>适用于 OptiFine 或 Iris 的光影包。</td></tr>
+    <tr><td>初始文件</td><td>仅在首次安装时复制的文件（例如默认的 options.txt）。</td></tr>
+</table>
+
+<p>每个文件条目都包含下载 URL 和 SHA-1 哈希值。编辑器可以通过下载文件并计算其校验和，
+<strong>自动计算哈希值</strong>。</p>
+
+<h2>Modrinth 搜索</h2>
+
+<p>使用集成的 Modrinth 搜索可按名称查找模组。选择一个结果即可自动
+为正确的版本填写下载 URL 和哈希值字段。</p>
+
+<h2>提升版本号</h2>
+
+<p><strong>提升版本</strong>按钮会递增整合包的版本号，便于
+发布启动器能够自动检测到的更新。</p>
+
+<h2>URL 检查</h2>
+
+<p>编辑器可以验证所有文件下载 URL 是否可访问，帮助您在发布前
+发现失效的链接。</p>
+
+<div class="tip">
+    <div class="callout-title">提示</div>
+    <p>请在保存前使用<strong>校验</strong>，以便尽早发现问题。校验器会检查
+    必填字段、URL 是否有效以及哈希值格式是否正确。</p>
+</div>

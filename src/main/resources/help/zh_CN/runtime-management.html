@@ -1,0 +1,59 @@
+<h1>运行时管理</h1>
+
+<p>Mica Minecraft Launcher 会自动管理 Java 运行时，因此您无需自行安装
+或配置 Java。</p>
+
+<h2>为什么运行时很重要</h2>
+
+<p>Minecraft 和 Forge 需要特定的 Java 版本才能正常运行。不同的整合包和
+Minecraft 版本可能需要不同的 Java 运行时：</p>
+
+<ul>
+    <li><strong>Minecraft 1.16 及更早版本</strong> — Java 8</li>
+    <li><strong>Minecraft 1.17 - 1.20</strong> — Java 17</li>
+    <li><strong>Minecraft 1.21+</strong> — Java 21 或更高版本</li>
+</ul>
+
+<p>启动器会检测每个整合包或原版版本所需的运行时，并在首次启动时
+自动下载。</p>
+
+<h2>自动下载</h2>
+
+<p>当您首次启动某个整合包或原版版本时，启动器会检查
+所需的运行时是否已安装。如果没有，它会从
+Mojang 或 Liberica 的分发服务器下载正确的版本。每个运行时版本只需下载一次。</p>
+
+<div class="note">
+    <div class="callout-title">注意</div>
+    <p>运行时下载通常为 40 - 80 MB，存储在启动器的数据
+    目录中，与系统中已安装的任何 Java 相互独立。</p>
+</div>
+
+<h2>查看已安装的运行时</h2>
+
+<p>打开<a href="help://topic/SETTINGS">设置</a>并点击<strong>运行时管理</strong>，即可查看
+所有已安装的 Java 运行时列表，包括其版本、路径以及使用它们的
+整合包。</p>
+
+<h2>删除未使用的运行时</h2>
+
+<p>如果您已移除使用某个 Java 版本的整合包，可以删除
+对应的运行时以释放磁盘空间。在管理界面中选择一个运行时，然后
+点击<strong>删除</strong>。</p>
+
+<div class="warning">
+    <div class="callout-title">警告</div>
+    <p>如果删除的运行时仍被某个已安装的整合包需要，启动器
+    会在下次启动该整合包时重新下载它。</p>
+</div>
+
+<h2>运行时问题排查</h2>
+
+<p>如果某个整合包因 Java 相关错误而无法启动，请尝试以下操作：</p>
+
+<ol>
+    <li>打开运行时管理，删除受影响的整合包所使用的运行时。</li>
+    <li>再次启动该整合包——启动器会重新下载一份全新的副本。</li>
+    <li>如果问题仍然存在，请参阅<a href="help://topic/TROUBLESHOOTING">故障排除</a>了解
+        更多步骤。</li>
+</ol>
