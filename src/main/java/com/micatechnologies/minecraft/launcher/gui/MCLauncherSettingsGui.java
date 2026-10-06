@@ -2549,7 +2549,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Store max ram to config
         final long maxRamMb = ( long ) ( maxRamGb.getValue() * 1024 );
+        final long previousMaxRamMb = ConfigManager.getMaxRam();
         ConfigManager.setMaxRam( maxRamMb );
+        // Allowed, but worth knowing: past ~31 GB the JVM drops compressed object pointers, so
+        // a little more heap can mean less usable memory and slower garbage collection. Warn
+        // once, when the setting first crosses the line, rather than on every save.
+        if ( crossesCompressedOopsLimit( previousMaxRamMb, maxRamMb ) ) {
+            com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
+                    LocalizationManager.get( "notification.settings.maxRamAboveCompressedOops.title" ),
+                    LocalizationManager.get( "notification.settings.maxRamAboveCompressedOops.body" ) );
+        }
 
         // Store debug mode to config
         ConfigManager.setDebugLogging( debugCheckBox.isSelected() );
@@ -2611,8 +2620,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             ConfigManager.setLocaleOverride( selectedLanguageOverrideTag() );
         }
 
-        // Store proxy settings
-        ConfigManager.setProxyEnable( proxyEnableCheckBox.isSelected() );
+        // Store proxy settings. An enabled proxy with no host used to be saved as "on" while
+        // every request went direct; save it as off instead and say so.
+        boolean proxyEnabled = proxyEnableCheckBox.isSelected();
+        if ( proxyHostMissing( proxyEnabled, proxyHostField.getText() ) ) {
+            proxyEnabled = false;
+            GUIUtilities.JFXPlatformRun( () -> proxyEnableCheckBox.setSelected( false ) );
+            GUIUtilities.showWarningMessage( LocalizationManager.get( "settings.proxy.hostRequired" ), stage );
+        }
+        ConfigManager.setProxyEnable( proxyEnabled );
         ConfigManager.setProxyHost( proxyHostField.getText() );
         ConfigManager.setProxyPort( proxyPortSpinner.getValue() );
         String selectedProxyType = proxyTypeSelection.getSelectedItem();
@@ -2628,6 +2644,38 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( argsToSave != null ) {
             ConfigManager.setCustomJvmArgs( argsToSave );
         }
+    }
+
+    /** Largest heap, in MB, at which the JVM still uses compressed object pointers (with margin:
+     *  the real limit is just under 32 GB). */
+    static final long COMPRESSED_OOPS_MAX_HEAP_MB = 31L * 1024L;
+
+    /**
+     * Whether a max-RAM change newly goes past the compressed-oops limit. Pure, for testing.
+     *
+     * @param previousMb the max RAM saved before, in MB
+     * @param newMb      the max RAM being saved, in MB
+     *
+     * @return {@code true} when {@code newMb} is above the limit and {@code previousMb} was not
+     *
+     * @since 2026.10
+     */
+    static boolean crossesCompressedOopsLimit( long previousMb, long newMb ) {
+        return newMb > COMPRESSED_OOPS_MAX_HEAP_MB && previousMb <= COMPRESSED_OOPS_MAX_HEAP_MB;
+    }
+
+    /**
+     * Whether the proxy is switched on without a host to connect to. Pure, for testing.
+     *
+     * @param enabled whether the proxy is switched on
+     * @param host    the proxy host field (may be null)
+     *
+     * @return {@code true} when the proxy is on but the host is blank
+     *
+     * @since 2026.10
+     */
+    static boolean proxyHostMissing( boolean enabled, String host ) {
+        return enabled && ( host == null || host.isBlank() );
     }
 
     /**
