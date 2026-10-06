@@ -332,9 +332,10 @@ public class MCLauncherGuiWindow extends Application
     }
 
     /**
-     * Reads previously saved window bounds from the config and applies them to the stage if they refer to a
-     * currently-connected screen. Saved bounds with no overlapping screen (e.g. the user disconnected a monitor) are
-     * discarded so the window doesn't open off-screen.
+     * Reads previously saved window bounds from the config and applies them to the stage. When the saved title bar
+     * is no longer on a connected screen (e.g. the user disconnected a monitor, or the window was dragged mostly
+     * off-screen), the window is moved onto the primary screen instead, keeping its size where it fits; see
+     * {@link WindowPlacement}.
      *
      * @return true if saved bounds were applied, false if defaults should be used instead
      */
@@ -352,11 +353,24 @@ public class MCLauncherGuiWindow extends Application
             return false;
         }
 
-        // Verify the saved rectangle still overlaps an attached screen before applying it.
+        // Verify the saved title bar still lies on an attached screen (overlapping one by a pixel
+        // isn't enough to grab the window); otherwise move the window onto the primary screen.
         Rectangle2D savedRect = new Rectangle2D( savedX, savedY, savedWidth, savedHeight );
-        if ( Screen.getScreensForRectangle( savedRect ).isEmpty() ) {
-            Logger.logDebug( LocalizationManager.get( "log.guiWindow.boundsOffScreen" ) );
-            return false;
+        List< Rectangle2D > screens = new java.util.ArrayList<>();
+        for ( Screen screen : Screen.getScreens() ) {
+            screens.add( screen.getVisualBounds() );
+        }
+        if ( !WindowPlacement.titleBarOnScreen( savedRect, screens ) ) {
+            Rectangle2D clamped = WindowPlacement.clampInto( savedRect, Screen.getPrimary().getVisualBounds() );
+            if ( clamped.getWidth() < MIN_WIDTH || clamped.getHeight() < MIN_HEIGHT ) {
+                Logger.logDebug( LocalizationManager.get( "log.guiWindow.boundsOffScreen" ) );
+                return false;
+            }
+            Logger.logDebug( LocalizationManager.get( "log.guiWindow.boundsMovedOnScreen" ) );
+            savedX = clamped.getMinX();
+            savedY = clamped.getMinY();
+            savedWidth = clamped.getWidth();
+            savedHeight = clamped.getHeight();
         }
 
         stage.setX( savedX );
