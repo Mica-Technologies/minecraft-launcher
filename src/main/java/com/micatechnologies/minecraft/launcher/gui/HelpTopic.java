@@ -17,6 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
+
 /**
  * Registry of help topics mapping launcher screens and concepts to their HTML help resource files. Each enum entry
  * represents a single help page that can be displayed in the {@link MCLauncherHelpWindow}.
@@ -28,60 +30,61 @@ package com.micatechnologies.minecraft.launcher.gui;
 public enum HelpTopic
 {
     /** Introductory orientation page shown as the default help topic. */
-    GETTING_STARTED( "Getting Started", "help/getting-started.html" ),
+    GETTING_STARTED( "help.topic.name.gettingStarted", "help/getting-started.html" ),
     /** Help for the launcher's main menu / pack carousel screen. */
-    MAIN_SCREEN( "Main Screen", "help/main-screen.html" ),
+    MAIN_SCREEN( "help.topic.name.mainScreen", "help/main-screen.html" ),
     /** Help for the Microsoft / Minecraft account login screen. */
-    LOGIN( "Login", "help/login.html" ),
+    LOGIN( "help.topic.name.login", "help/login.html" ),
     /** Help for the Settings screen. */
-    SETTINGS( "Settings", "help/settings.html" ),
+    SETTINGS( "help.topic.name.settings", "help/settings.html" ),
     /** Help for the Browse (modpack library) screen. */
-    BROWSE_LIBRARY( "Browse", "help/browse-library.html" ),
+    BROWSE_LIBRARY( "help.topic.name.browse", "help/browse-library.html" ),
     /** Help for the modpack editor screen. */
-    MODPACK_EDITOR( "Modpack Editor", "help/modpack-editor.html" ),
+    MODPACK_EDITOR( "help.topic.name.modpackEditor", "help/modpack-editor.html" ),
     /** Help for the in-game console / log viewer screen. */
-    GAME_CONSOLE( "Game Console", "help/game-console.html" ),
+    GAME_CONSOLE( "help.topic.name.gameConsole", "help/game-console.html" ),
     /** Help covering vanilla Minecraft version handling. */
-    VANILLA_VERSIONS( "Vanilla Versions", "help/vanilla-versions.html" ),
+    VANILLA_VERSIONS( "help.topic.name.vanillaVersions", "help/vanilla-versions.html" ),
     /** Help for the multi-version Java runtime management screen. */
-    RUNTIME_MANAGEMENT( "Runtime Management", "help/runtime-management.html" ),
+    RUNTIME_MANAGEMENT( "help.topic.name.runtimeManagement", "help/runtime-management.html" ),
     /** Reference page listing the launcher's keyboard shortcuts. */
-    KEYBOARD_SHORTCUTS( "Keyboard Shortcuts", "help/keyboard-shortcuts.html" ),
+    KEYBOARD_SHORTCUTS( "help.topic.name.keyboardShortcuts", "help/keyboard-shortcuts.html" ),
     /** Help for the JVM argument presets feature. */
-    JVM_PRESETS( "JVM Presets", "help/jvm-presets.html" ),
+    JVM_PRESETS( "help.topic.name.jvmPresets", "help/jvm-presets.html" ),
     /** Reference page enumerating the launcher's actions. */
-    ACTION_REFERENCE( "Action Reference", "help/action-reference.html" ),
+    ACTION_REFERENCE( "help.topic.name.actionReference", "help/action-reference.html" ),
     /** Help for language selection and localization. */
-    LANGUAGE( "Language & Localization", "help/language.html" ),
+    LANGUAGE( "help.topic.name.language", "help/language.html" ),
     /** General troubleshooting and problem-solving page. */
-    TROUBLESHOOTING( "Troubleshooting", "help/troubleshooting.html" );
+    TROUBLESHOOTING( "help.topic.name.troubleshooting", "help/troubleshooting.html" );
 
-    /** User-visible name shown for this topic in the help window's topic list. */
-    private final String displayName;
+    /** Localization key of the name shown for this topic in the help window's topic list. */
+    private final String displayNameKey;
 
     /** Classpath-relative path to the HTML resource rendered for this topic. */
     private final String resourcePath;
 
     /**
-     * Constructs a help topic binding a display name to its HTML resource.
+     * Constructs a help topic binding a display-name key to its HTML resource.
      *
-     * @param displayName  user-visible name for the topic
-     * @param resourcePath classpath-relative path to the topic's HTML file
+     * @param displayNameKey localization key of the user-visible name for the topic
+     * @param resourcePath   classpath-relative path to the topic's HTML file
      */
-    HelpTopic( String displayName, String resourcePath )
+    HelpTopic( String displayNameKey, String resourcePath )
     {
-        this.displayName = displayName;
+        this.displayNameKey = displayNameKey;
         this.resourcePath = resourcePath;
     }
 
     /**
-     * Returns the user-visible display name for this help topic.
+     * Returns the user-visible display name for this help topic, in the active UI language.
+     * Resolved on each call so a language change shows up without rebuilding the enum.
      *
      * @return display name
      */
     public String getDisplayName()
     {
-        return displayName;
+        return LocalizationManager.get( displayNameKey );
     }
 
     /**
@@ -106,6 +109,6 @@ public enum HelpTopic
     @Override
     public String toString()
     {
-        return displayName;
+        return getDisplayName();
     }
 }
