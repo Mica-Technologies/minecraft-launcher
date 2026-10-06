@@ -848,7 +848,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                             LocalizationManager.get( "dialog.settings.unsavedOnClose.button.closeWithoutSaving" ),
                             stage );
                     if ( response == 1 ) {
-                        GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
+                        // Save here, on this thread, so it has finished before teardown starts.
+                        persistSettings();
                         LauncherCore.closeApp();
                     }
                     else if ( response == 2 ) {
@@ -873,7 +874,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                         LocalizationManager.get( "dialog.settings.unsavedOnReturn.button.return" ),
                         stage );
                 if ( response == 1 ) {
-                    GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
+                    persistSettings();
                     try {
                         MCLauncherGuiController.goToMainGui();
                     }
@@ -985,7 +986,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                         stage );
                 // Save first
                 if ( response == 1 ) {
-                    GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
+                    persistSettings();
                 }
                 // Cancel
                 else if ( response != 2 ) {
@@ -2525,7 +2526,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 LocalizationManager.get( "dialog.settings.unsavedOnReturn.button.return" ),
                 stage );
         if ( response == 1 ) {
-            GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
+            // Off the FX thread (see mayNavigateAway), so save synchronously: the navigation
+            // that follows must not race the save.
+            persistSettings();
             return true;
         }
         return response == 2;

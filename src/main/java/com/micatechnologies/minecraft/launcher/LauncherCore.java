@@ -305,6 +305,8 @@ public class LauncherCore
             String previousRestartError = restartError;
             restartFlag = false;
             restartError = null;
+            // The previous session's restart has finished; accept close/restart requests again.
+            lifecycleTransition.set( false );
 
             // Re-acquire the single-instance lock + IPC accept loop for this lifecycle
             // iteration. cleanupApp() releases the lock at the end of every session
@@ -1587,6 +1589,10 @@ public class LauncherCore
      * @since 2.0
      */
     public static void restartAppWithError( String restartErrorString ) {
+        if ( !lifecycleTransition.compareAndSet( false, true ) ) {
+            Logger.logDebug( LocalizationManager.get( "log.launcherCore.lifecycleTransitionIgnored" ) );
+            return;
+        }
         restartFlag = true;
         restartError = restartErrorString;
         // Same FX-thread hazard as closeApp() above: cleanupApp() makes AWT calls that
@@ -1597,16 +1603,37 @@ public class LauncherCore
         // straight from the FX-thread onAction handler, the launcher logged "Performing
         // application cleanup..." and froze until SIGTERM. Hop to a fresh thread when
         // called from FX so the dispatch_sync targets land on AppKit through the
-        // normal cross-thread path. Background-thread callers (e.g. Reset Launcher,
-        // which already wraps itself in SystemUtilities.spawnNewTask) fall straight
-        // through to the synchronous path.
-        if ( javafx.application.Platform.isFxApplicationThread() ) {
-            Thread restarter = new Thread( LauncherCore::restartAppNow, "Launcher-Restart" );
-            restarter.setDaemon( false );
-            restarter.start();
+        // normal cross-thread path. Background-pool callers hop too (cleanup shuts the
+        // pool down); other threads run the restart inline.
+        runLifecycleTransition( LauncherCore::restartAppNow, "Launcher-Restart" );
+    }
+
+    /**
+     * Set while the launcher is closing, restarting or relaunching, so a second request (two
+     * Exit clicks, Exit during a restart) is ignored instead of running cleanup twice. Cleared
+     * at the top of each restart-loop iteration.
+     */
+    private static final AtomicBoolean lifecycleTransition = new AtomicBoolean( false );
+
+    /**
+     * Runs a close or restart. Callers on the FX thread or on a {@link SystemUtilities#spawnNewTask}
+     * worker get a fresh dedicated thread: the FX thread because cleanup's AppKit calls deadlock
+     * there on macOS, and a pool worker because cleanup shuts the pool down, which interrupts the
+     * worker running it and aborts its interruptible config write. Any other caller (the main or
+     * session thread) runs it inline, since those callers rely on the exit happening before they
+     * carry on.
+     *
+     * @param work       the close or restart
+     * @param threadName the dedicated thread's name
+     */
+    private static void runLifecycleTransition( Runnable work, String threadName ) {
+        if ( javafx.application.Platform.isFxApplicationThread() || SystemUtilities.isBackgroundWorker() ) {
+            Thread worker = new Thread( work, threadName );
+            worker.setDaemon( false );
+            worker.start();
             return;
         }
-        restartAppNow();
+        work.run();
     }
 
     /**
@@ -1653,6 +1680,10 @@ public class LauncherCore
      * @since 2026.6
      */
     public static void relaunchApp() {
+        if ( !lifecycleTransition.compareAndSet( false, true ) ) {
+            Logger.logDebug( LocalizationManager.get( "log.launcherCore.lifecycleTransitionIgnored" ) );
+            return;
+        }
         Thread relauncher = new Thread( LauncherCore::relaunchAppNow, "Launcher-Relaunch" );
         relauncher.setDaemon( false );
         relauncher.start();
@@ -1886,13 +1917,13 @@ public class LauncherCore
         // help. Off-thread, the dispatches go through normally; internal JFXPlatformRun
         // calls inside cleanup marshal back to FX for the parts (Stage.close) that need
         // it. Windows JFX thread isn't coupled to AppKit, so the same path works there.
-        if ( javafx.application.Platform.isFxApplicationThread() ) {
-            Thread closer = new Thread( LauncherCore::closeAppNow, "Launcher-Close" );
-            closer.setDaemon( false );
-            closer.start();
+        // A background-pool caller (requestQuit, the Settings close prompt) gets its own
+        // thread too: cleanup shuts that pool down and would interrupt itself.
+        if ( !lifecycleTransition.compareAndSet( false, true ) ) {
+            Logger.logDebug( LocalizationManager.get( "log.launcherCore.lifecycleTransitionIgnored" ) );
             return;
         }
-        closeAppNow();
+        runLifecycleTransition( LauncherCore::closeAppNow, "Launcher-Close" );
     }
 
     /**

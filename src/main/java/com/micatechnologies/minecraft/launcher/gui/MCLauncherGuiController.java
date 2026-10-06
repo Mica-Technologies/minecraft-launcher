@@ -633,12 +633,16 @@ public class MCLauncherGuiController
             prebuiltMainGui = null;
         }
         RunningGamesWindow.shutdown();
-        if ( guiWindow != null ) {
-            guiWindow.cleanup();
-            if ( guiWindow.getStage() != null ) {
+        // Work on a local copy: the close below may run later on the FX thread, after the
+        // field has been nulled, and a second exit() can null it from under the first.
+        MCLauncherGuiWindow window = guiWindow;
+        if ( window != null ) {
+            window.cleanup();
+            Stage windowStage = window.getStage();
+            if ( windowStage != null ) {
                 Platform.setImplicitExit( false );
-                if ( guiWindow.getStage().isShowing() ) {
-                    GUIUtilities.JFXPlatformRun( () -> guiWindow.getStage().close() );
+                if ( windowStage.isShowing() ) {
+                    GUIUtilities.JFXPlatformRun( windowStage::close );
                 }
             }
             guiWindow = null;
