@@ -14,13 +14,13 @@ Requires JDK 26 with JavaFX (e.g. Azul Zulu `jdk+fx` or AWS Corretto). Maven han
 
 Maven is not typically on the system PATH. Use IntelliJ's bundled Maven with the project's configured JDK:
 
-- **Maven:** `C:\Users\[username]\AppData\Local\Programs\IntelliJ IDEA\plugins\maven\lib\maven3\bin\mvn.cmd`
+- **Maven:** `C:\Users\[username]\AppData\Local\Programs\IntelliJ IDEA\plugins\maven-plugin\lib\maven3\bin\mvn.cmd` (older IntelliJ releases used `plugins\maven\` instead)
 - **JDKs (IntelliJ-managed):** `C:\Users\[username]\.jdks\` -- check `.idea/misc.xml` `project-jdk-name` attribute for the configured SDK name (e.g. `azul-26`), then find the matching folder under `.jdks/`
 - **JAVA_HOME** must be set when invoking Maven from the command line:
 
 ```bash
 # Set JAVA_HOME and compile (replace [username] with your Windows user)
-JAVA_HOME="C:/Users/[username]/.jdks/azul-26.0.1" "C:/Users/[username]/AppData/Local/Programs/IntelliJ IDEA/plugins/maven/lib/maven3/bin/mvn.cmd" compile
+JAVA_HOME="C:/Users/[username]/.jdks/azul-26.0.1" "C:/Users/[username]/AppData/Local/Programs/IntelliJ IDEA/plugins/maven-plugin/lib/maven3/bin/mvn.cmd" compile
 ```
 
 ### Maven & JDK Location (macOS / IntelliJ)
@@ -70,6 +70,8 @@ Build outputs (note: the POM sets `<directory>${project.basedir}/build/target</d
 - `build/target/surefire-reports/` -- per-test-class results
 - `build/target/site/jacoco/index.html` -- coverage report
 - `packaging/` -- native installers (EXE/MSI, DMG/PKG, DEB/RPM)
+
+Every build, `mvn test` and `mvn compile` included, first wipes `build/` (except `build/jdk`) through an auto-clean bound to `initialize`. So snapshot PNGs and reports from the previous run are gone once the next build starts. On Windows, a shell or program whose working directory is inside `build/target/` (say, after `cd build/target/snapshots` to look at PNGs) fails the whole build with "The process cannot access the file because it is being used by another process". That looks like a flaky test but isn't one.
 
 ## Architecture
 
