@@ -1737,6 +1737,100 @@ public class LauncherCore
     }
 
     /**
+     * Resets the launcher: deletes its folder (config, accounts, packs, runtimes, logs) and starts
+     * it again in a new process. Called from Settings, which first refuses while a game runs.
+     *
+     * <p>Two things make this safe where the old delete-then-restart-in-process was not. The
+     * restart is a new JVM, so nothing held in memory (the config store, signed-in accounts) can
+     * be written back over the reset. And the folder is first renamed aside in one step: on
+     * Windows a file still open inside it makes the rename fail with nothing touched, instead of
+     * the delete failing half-way and leaving a broken tree. A failed rename restarts the launcher
+     * as it was and reports the failure on the next screen, since the GUI and log are already
+     * torn down by then.</p>
+     *
+     * <p>Without an installed executable to start (a run from the IDE or a raw JAR), the launcher
+     * says the reset is done and exits for the user to start it again.</p>
+     *
+     * @since 2026.10
+     */
+    public static void resetLauncherAndRelaunch() {
+        if ( !lifecycleTransition.compareAndSet( false, true ) ) {
+            Logger.logDebug( LocalizationManager.get( "log.launcherCore.lifecycleTransitionIgnored" ) );
+            return;
+        }
+        // A dedicated thread for the same reasons as relaunchApp: never the FX thread, and never
+        // a background-pool worker, whose pool cleanupApp shuts down.
+        Thread resetter = new Thread( LauncherCore::resetLauncherNow, "Launcher-Reset" );
+        resetter.setDaemon( false );
+        resetter.start();
+    }
+
+    /** Does the work of {@link #resetLauncherAndRelaunch()} on its dedicated thread. */
+    private static void resetLauncherNow() {
+        // Closes the GUI, stops RGB/Discord/MCP, flushes the config and closes the log, so
+        // nothing of this process still has a file open in the folder.
+        cleanupApp();
+        java.nio.file.Path root = java.nio.file.Paths.get( LocalPathManager.getLauncherLocalPath() )
+                                                     .toAbsolutePath().normalize();
+        java.nio.file.Path movedAside;
+        try {
+            movedAside = moveAsideForReset( root, System.currentTimeMillis() );
+        }
+        catch ( IOException | RuntimeException e ) {
+            // Nothing was deleted, so the in-memory state still matches the disk and an
+            // in-process restart is safe. The new session shows the error.
+            restartFlag = true;
+            restartError = LocalizationManager.format( "settings.resetLauncher.failed", String.valueOf( e ) );
+            currentSession.exitLatch.countDown();
+            return;
+        }
+        if ( movedAside != null ) {
+            try {
+                org.apache.commons.io.FileUtils.deleteDirectory( movedAside.toFile() );
+            }
+            catch ( IOException | RuntimeException e ) {
+                // The launcher folder itself is already gone; a leftover renamed copy is harmless.
+                Logger.logWarningSilent( LocalizationManager.format( "log.launcherCore.resetLeftover",
+                                                                     movedAside.toString() ) );
+            }
+        }
+
+        String exePath = SchemeRegistrar.resolveLauncherExePath();
+        if ( exePath != null && !exePath.isBlank() && spawnRelaunchProcess( exePath ) ) {
+            System.exit( LauncherConstants.EXIT_STATUS_CODE_GOOD );
+            return;
+        }
+        // No installed executable, or it would not start. An in-process restart would keep the
+        // old config and accounts in memory and write them back, so ask the user to start the
+        // launcher again instead. The FX toolkit outlives the closed window, so the dialog shows.
+        GUIUtilities.showWarningMessage( LocalizationManager.get( "settings.resetLauncher.startAgain" ), null );
+        System.exit( LauncherConstants.EXIT_STATUS_CODE_GOOD );
+    }
+
+    /**
+     * Renames the launcher folder to a sibling ({@code <name>.reset-<stamp>}) in one step, for the
+     * reset to delete. A rename either moves the whole tree or nothing, so a file still in use
+     * fails the reset cleanly instead of leaving it half-deleted.
+     *
+     * @param root  the launcher folder
+     * @param stamp makes the sibling's name unique
+     *
+     * @return the renamed folder, or {@code null} when {@code root} does not exist
+     *
+     * @throws IOException when the folder cannot be renamed (on Windows, typically a file in use)
+     *
+     * @since 2026.10
+     */
+    static java.nio.file.Path moveAsideForReset( java.nio.file.Path root, long stamp ) throws IOException {
+        if ( !java.nio.file.Files.exists( root ) ) {
+            return null;
+        }
+        java.nio.file.Path aside = root.resolveSibling( root.getFileName() + ".reset-" + stamp );
+        java.nio.file.Files.move( root, aside );
+        return aside;
+    }
+
+    /**
      * Spawns a fresh, fully-independent launcher process for a relaunch.
      *
      * <p>Prefers the OS shell-execute path (Windows {@code cmd /c start} /
