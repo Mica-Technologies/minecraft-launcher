@@ -106,7 +106,7 @@ class GameModPackFileSync
         // and any direct filesystem edits.
         if ( metadata.isImportedSkipSync() ) {
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Imported pack — skipping mod sync", 100 );
+                progressProvider.submitProgress( LocalizationManager.get( "fileSync.progress.importedSkip" ), 100 );
             }
             return;
         }
@@ -121,25 +121,22 @@ class GameModPackFileSync
         // (The stub/failed-load flags live on GameModPack, the only concrete subclass; the sync
         // holds the abstract metadata type, so match on it rather than widening the base class.)
         if ( metadata instanceof GameModPack pack && ( pack.isStub() || pack.isFailedLoad() ) ) {
-            throw new ModpackException( "Refusing to sync mods for \"" + pack.getPackName()
-                    + "\": its manifest was never fully loaded ("
-                    + ( pack.isFailedLoad() ? "manifest fetch failed" : "unpopulated index stub" )
-                    + "), so the mod list is unknown. Treating that as \"this pack has no mods\" "
-                    + "would launch modless. Check network / manifest availability — the installed "
-                    + "files have been left untouched." );
+            throw new ModpackException( pack.isFailedLoad()
+                    ? LocalizationManager.format( "fileSync.error.manifestFetchFailed", pack.getPackName() )
+                    : LocalizationManager.format( "fileSync.error.manifestStub", pack.getPackName() ) );
         }
 
         // Cleanup mods that don't belong
         clearFloatingMods();
         if ( progressProvider != null ) {
-            progressProvider.submitProgress( "Removed floating mods", 30.0 );
+            progressProvider.submitProgress( LocalizationManager.get( "fileSync.progress.floatingRemoved" ), 30.0 );
         }
 
         // Check if mods supplied. Reaching here with a null list means a fully-loaded manifest that
         // genuinely declares no mods (e.g. a vanilla-version pack), which is a legitimate no-op.
         if ( metadata.packMods == null ) {
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "No mods to handle", 100 );
+                progressProvider.submitProgress( LocalizationManager.get( "fileSync.progress.noMods" ), 100 );
             }
             return;
         }
@@ -163,7 +160,7 @@ class GameModPackFileSync
             final java.util.concurrent.atomic.AtomicInteger modsProcessed =
                     new java.util.concurrent.atomic.AtomicInteger( 0 );
             if ( progressProvider != null ) {
-                progressProvider.setCurrText( "Downloading mods (0/" + modCount + ")..." );
+                progressProvider.setCurrText( LocalizationManager.format( "fileSync.progress.downloadingMods", 0, modCount ) );
             }
             List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
             for ( GameMod mod : metadata.packMods ) {
@@ -177,7 +174,7 @@ class GameModPackFileSync
 
                     int done = modsProcessed.incrementAndGet();
                     if ( progressProvider != null ) {
-                        progressProvider.submitProgress( "Downloading mods (" + done + "/" + modCount + ")...",
+                        progressProvider.submitProgress( LocalizationManager.format( "fileSync.progress.downloadingMods", done, modCount ),
                                                          ( 70.0 / ( double ) modCount ) );
                     }
                     if ( downloadTracker != null ) {
@@ -194,15 +191,15 @@ class GameModPackFileSync
                 DownloadExecutor.awaitAll( threadPoolFutures, 30 * 60 * 1000L );
             }
             catch ( TimeoutException e ) {
-                throw new ModpackException(
-                        "Mod downloads did not complete within 30 minutes. Check your network connection." );
+                throw new ModpackException( LocalizationManager.get( "fileSync.error.modsTimedOut" ) );
             }
             catch ( InterruptedException e ) {
                 Thread.currentThread().interrupt();
-                throw new ModpackException( "The download of Minecraft mods was interrupted before completion!", e );
+                throw new ModpackException( LocalizationManager.get( "fileSync.error.modsInterrupted" ), e );
             }
             catch ( ExecutionException e ) {
-                throw new ModpackException( "Unable to execute runner to retrieve Minecraft mods!", e );
+                throw new ModpackException( LocalizationManager.format( "fileSync.error.modsFailed",
+                        e.getCause() != null ? e.getCause().getMessage() : e.getMessage() ), e );
             }
         }
 
@@ -230,10 +227,9 @@ class GameModPackFileSync
             }
         }
         if ( !missingMods.isEmpty() ) {
-            throw new ModpackException( "Mod sync for \"" + metadata.getPackName() + "\" finished but "
-                    + missingMods.size() + " of " + requiredModCount
-                    + " manifest-declared mod file(s) are missing or empty on disk: " + missingMods
-                    + ". Refusing to launch with an incomplete mod set." );
+            throw new ModpackException( LocalizationManager.format( "fileSync.error.modsMissing",
+                    metadata.getPackName(), missingMods.size(), requiredModCount,
+                    String.join( ", ", missingMods ) ) );
         }
         Logger.logDebug( LocalizationManager.format( "log.gameModPackFileSync.modCheckPassed", metadata.getPackName(), requiredModCount ) );
     }
@@ -253,7 +249,7 @@ class GameModPackFileSync
         // Check if configs supplied
         if ( metadata.packConfigs == null ) {
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "No configs to handle", 100 );
+                progressProvider.submitProgress( LocalizationManager.get( "fileSync.progress.noConfigs" ), 100 );
             }
             return;
         }
@@ -265,12 +261,12 @@ class GameModPackFileSync
                 config.setDownloadTracker( downloadTracker );
             }
             if ( progressProvider != null ) {
-                progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( config.getFullLocalFilePath() ) + "..." );
+                progressProvider.setCurrText( LocalizationManager.format( "fileSync.progress.downloading", FilenameUtils.getName( config.getFullLocalFilePath() ) ) );
             }
             config.updateLocalFile( GameModeManager.getCurrentGameMode(), metadata.getPrepareContext() );
 
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified " + FilenameUtils.getName( config.getFullLocalFilePath() ),
+                progressProvider.submitProgress( LocalizationManager.format( "fileSync.progress.verified", FilenameUtils.getName( config.getFullLocalFilePath() ) ),
                                                  ( 100.0 / ( double ) metadata.packConfigs.size() ) );
             }
             if ( downloadTracker != null ) {
@@ -295,7 +291,7 @@ class GameModPackFileSync
         // Check if resource packs supplied
         if ( metadata.packResourcePacks == null ) {
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "No resource packs to handle", 100 );
+                progressProvider.submitProgress( LocalizationManager.get( "fileSync.progress.noResourcePacks" ), 100 );
             }
             return;
         }
@@ -312,12 +308,12 @@ class GameModPackFileSync
                 resourcePack.setDownloadTracker( downloadTracker );
             }
             if ( progressProvider != null ) {
-                progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( resourcePack.getFullLocalFilePath() ) + "..." );
+                progressProvider.setCurrText( LocalizationManager.format( "fileSync.progress.downloading", FilenameUtils.getName( resourcePack.getFullLocalFilePath() ) ) );
             }
             resourcePack.updateLocalFile( metadata.getPrepareContext() );
             if ( progressProvider != null ) {
                 progressProvider.submitProgress(
-                        "Verified " + FilenameUtils.getName( resourcePack.getFullLocalFilePath() ),
+                        LocalizationManager.format( "fileSync.progress.verified", FilenameUtils.getName( resourcePack.getFullLocalFilePath() ) ),
                         ( 100.0 / ( double ) metadata.packResourcePacks.size() ) );
             }
             if ( downloadTracker != null ) {
@@ -341,7 +337,7 @@ class GameModPackFileSync
         // Check if shader packs supplied
         if ( metadata.packShaderPacks == null ) {
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "No shader packs to handle", 100 );
+                progressProvider.submitProgress( LocalizationManager.get( "fileSync.progress.noShaderPacks" ), 100 );
             }
             return;
         }
@@ -358,12 +354,12 @@ class GameModPackFileSync
                 shaderPack.setDownloadTracker( downloadTracker );
             }
             if ( progressProvider != null ) {
-                progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( shaderPack.getFullLocalFilePath() ) + "..." );
+                progressProvider.setCurrText( LocalizationManager.format( "fileSync.progress.downloading", FilenameUtils.getName( shaderPack.getFullLocalFilePath() ) ) );
             }
             shaderPack.updateLocalFile( metadata.getPrepareContext() );
             if ( progressProvider != null ) {
                 progressProvider.submitProgress(
-                        "Verified " + FilenameUtils.getName( shaderPack.getFullLocalFilePath() ),
+                        LocalizationManager.format( "fileSync.progress.verified", FilenameUtils.getName( shaderPack.getFullLocalFilePath() ) ),
                         ( 100.0 / ( double ) metadata.packShaderPacks.size() ) );
             }
             if ( downloadTracker != null ) {
@@ -388,7 +384,7 @@ class GameModPackFileSync
         // Check if initial files supplied
         if ( metadata.packInitialFiles == null ) {
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "No initial files to handle", 100 );
+                progressProvider.submitProgress( LocalizationManager.get( "fileSync.progress.noInitialFiles" ), 100 );
             }
             return;
         }
@@ -400,12 +396,12 @@ class GameModPackFileSync
                 initFile.setDownloadTracker( downloadTracker );
             }
             if ( progressProvider != null ) {
-                progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( initFile.getFullLocalFilePath() ) + "..." );
+                progressProvider.setCurrText( LocalizationManager.format( "fileSync.progress.downloading", FilenameUtils.getName( initFile.getFullLocalFilePath() ) ) );
             }
             initFile.updateLocalFile( GameModeManager.getCurrentGameMode(), metadata.getPrepareContext() );
 
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified " + FilenameUtils.getName( initFile.getFullLocalFilePath() ),
+                progressProvider.submitProgress( LocalizationManager.format( "fileSync.progress.verified", FilenameUtils.getName( initFile.getFullLocalFilePath() ) ),
                                                  ( 100.0 / ( double ) metadata.packInitialFiles.size() ) );
             }
             if ( downloadTracker != null ) {
