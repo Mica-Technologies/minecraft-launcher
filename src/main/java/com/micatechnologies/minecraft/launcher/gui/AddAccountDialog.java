@@ -63,6 +63,7 @@ public final class AddAccountDialog
             stage.initOwner( owner );
         }
         stage.setTitle( LocalizationManager.get( "account.add.title" ) );
+        WindowIcons.apply( stage );
 
         SignInPanel signIn = new SignInPanel( "account.add.title", "account.add.hint", "dialog.button.cancel" );
         signIn.dismissButton().setOnAction( e -> stage.close() );

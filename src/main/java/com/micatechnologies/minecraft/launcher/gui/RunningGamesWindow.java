@@ -146,6 +146,7 @@ public final class RunningGamesWindow
         dockHolder.getStyleClass().add( "runningGamesDock" );
 
         stage.setTitle( LocalizationManager.get( "session.window.title" ) );
+        WindowIcons.apply( stage );
         stage.setScene( new Scene( UiScale.wrap( windowHolder ), 1000 * UiScale.get(), 720 * UiScale.get() ) );
         UiScale.install( stage.getScene() );
         ScaledMinSize.follow( stage, 640, 420 );

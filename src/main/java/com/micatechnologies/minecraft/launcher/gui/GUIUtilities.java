@@ -727,6 +727,8 @@ public class GUIUtilities
 
                 javafx.stage.Window w = dialogRoot.getScene().getWindow();
                 if ( w instanceof Stage st ) {
+                    // Dialogs are windows of their own: without this they showed the generic icon.
+                    WindowIcons.apply( st );
                     boolean lightChrome = isLightChrome( ConfigManager.getTheme() );
                     com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
                             .applyTitleBarDarkMode( st, !lightChrome );

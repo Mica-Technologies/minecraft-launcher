@@ -88,6 +88,7 @@ public final class ModrinthAddModDialog
             stage.initOwner( owner );
         }
         stage.setTitle( LocalizationManager.get( "addMod.title" ) );
+        WindowIcons.apply( stage );
 
         // --- Search bar ---
         MFXTextField queryField = new MFXTextField();
