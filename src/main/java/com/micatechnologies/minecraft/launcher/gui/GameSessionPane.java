@@ -36,7 +36,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextArea;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -89,7 +88,7 @@ final class GameSessionPane
     // Running and after
     private final VBox      logView;
     private final VBox      diagnosisCard = new VBox( 6 );
-    private final TextArea  logArea = new TextArea();
+    private final SessionLogView logArea = new SessionLogView();
     private final io.github.palexdev.materialfx.controls.MFXTextField search =
             new io.github.palexdev.materialfx.controls.MFXTextField();
     private final Label     searchStatus = new Label();
@@ -99,7 +98,6 @@ final class GameSessionPane
     private final MFXButton crashToggle = new MFXButton();
     private       GameLog   boundLog;
     private       Runnable  unsubscribeLog;
-    private       int       displayLines;
     private       boolean   showingCrashReport;
 
     // Footer
@@ -184,10 +182,13 @@ final class GameSessionPane
         HBox toolbar = new HBox( 8, search, searchStatus, prev, next, autoScroll, crashToggle );
         toolbar.setAlignment( Pos.CENTER_LEFT );
 
-        logArea.setEditable( false );
-        logArea.setWrapText( true );
-        logArea.getStyleClass().addAll( "text-mono", "type-body-small", "sessionLog" );
-        VBox.setVgrow( logArea, Priority.ALWAYS );
+        VBox.setVgrow( logArea.node(), Priority.ALWAYS );
+        // Turning auto-scroll back on jumps to the newest line rather than waiting for the next.
+        autoScroll.selectedProperty().addListener( ( obs, was, on ) -> {
+            if ( on && !showingCrashReport ) {
+                logArea.scrollToEnd();
+            }
+        } );
 
         truncated.getStyleClass().add( "subtle" );
         truncated.setVisible( false );
@@ -198,14 +199,14 @@ final class GameSessionPane
         HBox notices = new HBox( 6, truncated, openFileLink );
         notices.setAlignment( Pos.CENTER_LEFT );
 
-        logView = new VBox( 8, diagnosisCard, toolbar, logArea, notices );
+        logView = new VBox( 8, diagnosisCard, toolbar, logArea.node(), notices );
 
         center.getChildren().addAll( progressView, logView );
 
         // ---- Footer ----
         copyBtn.setOnAction( e -> {
             ClipboardContent content = new ClipboardContent();
-            content.putString( logArea.getText() );
+            content.putString( logArea.text() );
             Clipboard.getSystemClipboard().setContent( content );
         } );
         IconButtons.decorate( copyBtn, LauncherIcons.COPY, null );
@@ -434,12 +435,9 @@ final class GameSessionPane
             @Override
             public void onLines( List< String > lines )
             {
-                StringBuilder text = new StringBuilder();
-                for ( String l : lines ) {
-                    text.append( l ).append( '\n' );
-                }
-                int count = lines.size();
-                Platform.runLater( () -> append( text.toString(), count ) );
+                // GameLog already batches lines (one call per flush), so each batch is one UI
+                // update.
+                Platform.runLater( () -> append( lines ) );
             }
         }, ConfigManager.getConsoleLogMaxLines() );
         unsubscribeLog = sub.cancel();
@@ -462,12 +460,11 @@ final class GameSessionPane
     private void showLogText( String shown, boolean clipped )
     {
         logArea.setText( shown );
-        displayLines = countLines( shown );
         if ( clipped ) {
             showTruncated( ConfigManager.getConsoleLogMaxLines() );
         }
         if ( autoScroll.isSelected() ) {
-            logArea.positionCaret( logArea.getLength() );
+            logArea.scrollToEnd();
         }
     }
 
@@ -492,40 +489,16 @@ final class GameSessionPane
         } );
     }
 
-    private void append( String text, int lines )
+    private void append( List< String > lines )
     {
         if ( disposed || showingCrashReport ) {
             return;
         }
-        if ( autoScroll.isSelected() ) {
-            logArea.appendText( text );
-        }
-        else {
-            double scrollTop = logArea.getScrollTop();
-            int caret = logArea.getCaretPosition();
-            logArea.appendText( text );
-            logArea.positionCaret( caret );
-            logArea.setScrollTop( scrollTop );
-        }
-        displayLines += lines;
-        trimIfNeeded();
-    }
-
-    /** Keeps the visible log within Settings' line limit; the full log is in the file. */
-    private void trimIfNeeded()
-    {
         int maxLines = ConfigManager.getConsoleLogMaxLines();
-        if ( !LogTrimPolicy.shouldTrimDisplay( displayLines, maxLines ) ) {
-            return;
+        // Past the limit's slack the oldest lines are dropped; the full log is in the file.
+        if ( logArea.append( lines, maxLines, autoScroll.isSelected() ) > 0 ) {
+            showTruncated( maxLines );
         }
-        // Measured from the control's paragraphs: getText() would build the whole log (megabytes)
-        // as one String every time the slack fills.
-        int idx = LogTrimPolicy.paragraphDropOffset( logArea.getParagraphs(), displayLines - maxLines );
-        if ( idx > 0 && idx <= logArea.getLength() ) {
-            logArea.deleteText( 0, idx );
-            displayLines = maxLines;
-        }
-        showTruncated( maxLines );
     }
 
     /** Shows the "older entries are truncated" note, with the link to the full file. */
@@ -538,66 +511,20 @@ final class GameSessionPane
         }
     }
 
-    private static int countLines( String text )
-    {
-        int n = 0;
-        for ( int i = 0; i < text.length(); i++ ) {
-            if ( text.charAt( i ) == '\n' ) {
-                n++;
-            }
-        }
-        return n;
-    }
-
     private void find( boolean forward )
     {
         String needle = search.getText();
-        String hay = logArea.getText();
-        if ( needle == null || needle.isEmpty() || hay.isEmpty() ) {
+        if ( needle == null || needle.isEmpty() || logArea.lineCount() == 0 ) {
             searchStatus.setText( "" );
             return;
         }
-        String lowerHay = hay.toLowerCase( java.util.Locale.ROOT );
-        String lowerNeedle = needle.toLowerCase( java.util.Locale.ROOT );
-        int from = logArea.getSelection().getLength() > 0
-                   ? ( forward ? logArea.getSelection().getEnd() : logArea.getSelection().getStart() - 1 )
-                   : ( forward ? 0 : hay.length() );
-        int idx = forward ? lowerHay.indexOf( lowerNeedle, Math.max( 0, from ) )
-                          : lowerHay.lastIndexOf( lowerNeedle, Math.max( 0, from ) );
-        if ( idx < 0 ) {
-            idx = forward ? lowerHay.indexOf( lowerNeedle ) : lowerHay.lastIndexOf( lowerNeedle );
-        }
-        if ( idx < 0 ) {
+        int[] position = logArea.find( needle, forward );
+        if ( position == null ) {
             searchStatus.setText( LocalizationManager.get( "session.search.noMatches" ) );
             return;
         }
-        int[] position = matchPosition( lowerHay, lowerNeedle, idx );
         searchStatus.setText( LocalizationManager.format( "session.search.matchCount", position[ 0 ], position[ 1 ] ) );
         autoScroll.setSelected( false );
-        logArea.selectRange( idx, idx + needle.length() );
-    }
-
-    /**
-     * Which match a search landed on, and how many there are: {ordinal (1-based), total}. Matches
-     * don't overlap. Pure, for testing.
-     *
-     * @param hay    the text searched
-     * @param needle the search text, non-empty
-     * @param at     where the current match starts
-     *
-     * @return {ordinal, total}
-     */
-    static int[] matchPosition( String hay, String needle, int at )
-    {
-        int total = 0;
-        int ordinal = 0;
-        for ( int i = hay.indexOf( needle ); i >= 0; i = hay.indexOf( needle, i + needle.length() ) ) {
-            total++;
-            if ( i <= at ) {
-                ordinal = total;
-            }
-        }
-        return new int[]{ Math.max( 1, ordinal ), total };
     }
 
     private void openLogFile()
@@ -706,7 +633,7 @@ final class GameSessionPane
         showingCrashReport = !showingCrashReport;
         if ( showingCrashReport ) {
             logArea.setText( report );
-            logArea.positionCaret( 0 );
+            logArea.scrollToStart();
             crashToggle.setText( LocalizationManager.get( "console.crashReportBtn.gameLog" ) );
         }
         else {

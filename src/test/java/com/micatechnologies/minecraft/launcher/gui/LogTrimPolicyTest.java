@@ -19,8 +19,6 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -262,14 +260,13 @@ class LogTrimPolicyTest
     }
 
     @Test
-    void paragraphDropOffsetCountsEachDroppedLineAndItsBreak()
+    void displayLinesToDropWaitsForTheSlackThenCutsBackToTheCap()
     {
-        // A text control holding "ab\nc\n\nd\n" has these paragraphs.
-        List< String > paragraphs = List.of( "ab", "c", "", "d", "" );
-        assertEquals( 3, LogTrimPolicy.paragraphDropOffset( paragraphs, 1 ) );
-        assertEquals( 6, LogTrimPolicy.paragraphDropOffset( paragraphs, 3 ) );
-        assertEquals( 8, LogTrimPolicy.paragraphDropOffset( paragraphs, 99 ), "never past the text" );
-        assertEquals( 0, LogTrimPolicy.paragraphDropOffset( paragraphs, 0 ) );
-        assertEquals( 0, LogTrimPolicy.paragraphDropOffset( List.of(), 2 ) );
+        // Cap 1000: slack is 200, so nothing drops until 1201 lines.
+        assertEquals( 0, LogTrimPolicy.displayLinesToDrop( 1000, 1000 ) );
+        assertEquals( 0, LogTrimPolicy.displayLinesToDrop( 1200, 1000 ) );
+        assertEquals( 201, LogTrimPolicy.displayLinesToDrop( 1201, 1000 ) );
+        assertEquals( 5000, LogTrimPolicy.displayLinesToDrop( 6000, 1000 ) );
+        assertEquals( 0, LogTrimPolicy.displayLinesToDrop( 1_000_000, 0 ), "unlimited never drops" );
     }
 }

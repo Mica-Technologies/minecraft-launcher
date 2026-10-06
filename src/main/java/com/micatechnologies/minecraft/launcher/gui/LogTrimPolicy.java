@@ -17,12 +17,10 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
-import java.util.List;
-
 /**
  * Pure arithmetic behind the game console's two independent log buffers.
  *
- * <p>The console keeps a visible {@code TextArea} (capped in <em>lines</em> by the
+ * <p>The console keeps a visible log view (capped in <em>lines</em> by the
  * Settings value) and a separate in-memory capture of the full session log (capped in
  * <em>characters</em>). Both caps are bounded-growth policies whose only job is to stop a
  * long session from exhausting heap. That arithmetic used to live inline inside
@@ -126,7 +124,7 @@ public final class LogTrimPolicy
 
     /**
      * The last {@code maxLines} lines of a text, so a whole log can be cut to the display limit
-     * before it reaches the {@code TextArea} rather than after (setting millions of characters
+     * before it reaches the view rather than after (setting millions of characters
      * and then deleting most of them is slow on the UI thread).
      *
      * @param text     the text, lines ending in {@code '\n'}
@@ -178,30 +176,19 @@ public final class LogTrimPolicy
     }
 
     /**
-     * Character offset marking the end of the first {@code linesToDrop} paragraphs of a text
-     * control, i.e. how much to delete from its front to drop that many lines. Works from the
-     * control's own paragraphs, so it never copies the whole text and stays in step with what the
-     * control holds even when it filtered characters out of the appended text.
+     * How many lines to drop from the front of the visible log: none while it is within the
+     * cap's slack, else enough to bring it back down to the cap.
      *
-     * @param paragraphs  the control's paragraphs, each without its line break
-     * @param linesToDrop how many leading paragraphs to remove
+     * @param displayLineCount lines currently displayed
+     * @param maxLines         the configured cap ({@code <= 0} means unlimited)
      *
-     * @return the offset to delete up to (exclusive); {@code 0} when nothing should be dropped
+     * @return the number of leading lines to drop; {@code 0} when no trim is due
      *
      * @since 2026.10
      */
-    public static int paragraphDropOffset( List< ? extends CharSequence > paragraphs, int linesToDrop )
+    public static int displayLinesToDrop( int displayLineCount, int maxLines )
     {
-        if ( paragraphs == null || linesToDrop <= 0 ) {
-            return 0;
-        }
-        // Every paragraph but the last is followed by a line break.
-        int n = Math.min( linesToDrop, paragraphs.size() - 1 );
-        int offset = 0;
-        for ( int i = 0; i < n; i++ ) {
-            offset += paragraphs.get( i ).length() + 1;
-        }
-        return offset;
+        return shouldTrimDisplay( displayLineCount, maxLines ) ? displayLineCount - maxLines : 0;
     }
 
     /**
