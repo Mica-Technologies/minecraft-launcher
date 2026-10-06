@@ -1,0 +1,90 @@
+<h1>Ayarlar</h1>
+
+<p>Ayarlar ekranı bellek ayırmayı, görünümü, JVM davranışını, ağ
+yapılandırmasını ve daha fazlasını özelleştirmenizi sağlar. Değişiklikler otomatik olarak kaydedilir.</p>
+
+<h2>Oyun Belleği</h2>
+
+<table class="settings-table">
+    <tr><td>Minimum RAM</td><td>Oyun JVM'sine ayrılan başlangıç yığın boyutu. Bir mod paketi aksini belirtmedikçe genellikle varsayılan değerde (512 MB) bırakın.</td></tr>
+    <tr><td>Maksimum RAM</td><td>Oyunun üst bellek sınırı. Çoğu mod paketi en iyi <strong>4 - 8 GB</strong> ile çalışır. Sisteminizin ayırabileceğinden fazlasını ayırmak kararsızlığa yol açabilir.</td></tr>
+</table>
+
+<div class="tip">
+    <div class="callout-title">İpucu</div>
+    <p>İyi bir genel kural: maksimum RAM'i toplam sistem belleğinizin yarısından fazla ayarlamayın.
+    Örneğin 16 GB'lık bir makinede 6 - 8 GB makul bir üst sınırdır.</p>
+</div>
+
+<h2>Tema</h2>
+
+<table class="settings-table">
+    <tr><td>Automatic</td><td>İşletim sisteminizin açık/koyu mod tercihini izler.</td></tr>
+    <tr><td>Dark</td><td>Açık renkli metinle koyu arka plan; gözü yormaz.</td></tr>
+    <tr><td>Light</td><td>Koyu renkli metinle geleneksel açık arka plan.</td></tr>
+    <tr><td>Blue + Gray</td><td>Soğuk tonlu bir vurgu teması.</td></tr>
+    <tr><td>Orange + Purple</td><td>Sıcak tonlu bir vurgu teması.</td></tr>
+</table>
+
+<h2>Gelişmiş Seçenekler</h2>
+
+<table class="settings-table">
+    <tr><td>Hata Ayıklama Modu</td><td>Sorunları teşhis etmek için başlatıcı konsolunda ayrıntılı günlük çıktısını etkinleştirir.</td></tr>
+    <tr><td>Pencereyi Yeniden Boyutlandırma</td><td>Başlatıcı penceresinin varsayılan boyutlarının ötesinde serbestçe yeniden boyutlandırılmasına izin verir.</td></tr>
+    <tr><td>Discord Entegrasyonu</td><td>Geçerli mod paketinizi Discord Rich Presence durumu olarak gösterir.</td></tr>
+    <tr><td>Gelişmiş Günlük Kaydı</td><td>Oturum sonrası inceleme için diske ayrıntılı günlük dosyaları yazar.</td></tr>
+    <tr><td>Oyun İçi Konsol</td><td>Gerçek zamanlı çıktıyı görmek için Minecraft'ın yanında bir <a href="help://topic/GAME_CONSOLE">Oyun Konsolu</a> penceresi açar.</td></tr>
+</table>
+
+<h2>JVM Ön Ayarları</h2>
+
+<p>Oyun başlatma komutuna eklenen, önceden yapılandırılmış JVM bayrağı kümeleri. Her ön ayarın ne yaptığı,
+eklemek isteyebileceğiniz özel bayraklar ve ön ayar seçiminin RAM ayırmayla nasıl etkileştiğine ilişkin
+daha ayrıntılı açıklama için <a href="help://topic/JVM_PRESETS">JVM Ön Ayarları</a> konusuna bakın.</p>
+
+<table class="settings-table">
+    <tr><td>Performance (Aikar's Flags)</td><td><strong>Önerilir.</strong> Minecraft topluluğunda yaygın olarak kullanılan, optimize edilmiş çöp toplama bayrakları. Çoğu mod paketi için genel olarak en iyi performans.</td></tr>
+    <tr><td>Low Memory</td><td>Sınırlı RAM'e sahip sistemler için temkinli bayraklar. Bir miktar verim pahasına GC ek yükünü azaltır.</td></tr>
+    <tr><td>Debug</td><td>GC günlükleri dahil JVM hata ayıklama çıktısını etkinleştirir. Çökmeleri veya performans sorunlarını teşhis etmek için yararlıdır.</td></tr>
+    <tr><td>None</td><td>Ek bayrak yok; JVM'nin varsayılanları kullanılır. Bunu yalnızca ne yaptığınızı biliyorsanız veya bir mod paketi gerektiriyorsa kullanın.</td></tr>
+</table>
+
+<h2>Ağ / Proxy</h2>
+
+<p>Ağınız proxy gerektiriyorsa (kurumsal veya okul ağlarında yaygındır) bir proxy yapılandırın.</p>
+
+<table class="settings-table">
+    <tr><td>HTTP Proxy</td><td>Standart web proxy'si. Ağ yöneticinizin verdiği ana bilgisayarı ve bağlantı noktasını girin.</td></tr>
+    <tr><td>SOCKS Proxy</td><td>Daha alt düzey bir proxy protokolü. Ağınız özellikle SOCKS gerektiriyorsa bunu kullanın.</td></tr>
+</table>
+
+<div class="note">
+    <div class="callout-title">Not</div>
+    <p>Çoğu kullanıcı proxy ayarlarını boş bırakabilir. Bunları yalnızca kısıtlı bir ağda indirmeler veya
+    kimlik doğrulama başarısız olursa yapılandırın.</p>
+</div>
+
+<h2>Kötü Amaçlı Yazılım Taraması</h2>
+
+<p>Başlatıcı, indirilen JAR dosyalarını <strong>fractureiser</strong> imzalarına karşı denetleyen yerleşik bir tarayıcı içerir.
+fractureiser, 2023'te ele geçirilmiş modlar aracılığıyla yayılan, Minecraft'a özgü bir kötü amaçlı yazılımdır.
+Tarama her oyun başlatmasından önce otomatik olarak çalışır.</p>
+
+<h2>Sıfırlama ve Çalışma Ortamı Seçenekleri</h2>
+
+<table class="settings-table">
+    <tr><td>Başlatıcıyı Sıfırla</td><td>Tüm ayarları varsayılanlara döndürür ve önbelleğe alınmış verileri temizler. <strong>Bu işlem geri alınamaz.</strong></td></tr>
+    <tr><td>Çalışma Ortamı Yönetimi</td><td>Yüklü Java çalışma ortamlarını görüntülemek, doğrulamak veya kaldırmak için <a href="help://topic/RUNTIME_MANAGEMENT">Çalışma Zamanı Yönetimi</a> ekranını açar.</td></tr>
+</table>
+
+<div class="warning">
+    <div class="callout-title">Uyarı</div>
+    <p>Başlatıcıyı sıfırlamak tüm ayarları, önbellekteki belirteçleri ve mod paketi durumunu kaldırır.
+    Diskteki mod paketi dosyalarınız korunur, ancak bunları yeniden eklemeniz gerekir.</p>
+</div>
+
+<h2>Ayarları İçe / Dışa Aktarma</h2>
+
+<p>Geçerli yapılandırmanızı bir dosyaya kaydetmek için <strong>Ayarları Dışa Aktar</strong>'ı, daha önce kaydedilmiş bir yapılandırmayı
+yüklemek için <strong>Ayarları İçe Aktar</strong>'ı kullanın. Bu, ayarları makineler arasında paylaşmak
+veya sıfırlamanın ardından sorunsuz çalıştığı bilinen bir yapılandırmayı geri yüklemek için kullanışlıdır.</p>

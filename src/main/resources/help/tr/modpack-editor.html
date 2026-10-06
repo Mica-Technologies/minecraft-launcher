@@ -1,0 +1,57 @@
+<h1>Mod Paketi Düzenleyici</h1>
+
+<p>Mod paketi düzenleyicisi, mod paketi JSON tanım dosyalarını oluşturmak ve düzenlemek için yerleşik bir araçtır.
+Doğrulama, arama entegrasyonu ve fark takibi içeren yapılandırılmış bir arayüz sunar.</p>
+
+<h2>Araç Çubuğu</h2>
+
+<ul>
+    <li><strong>Yeni</strong> — şablondan boş bir mod paketi tanımı oluşturur.</li>
+    <li><strong>Dosya Aç</strong> — diskteki mevcut bir JSON tanımını yükler.</li>
+    <li><strong>URL Aç</strong> — uzak bir URL'deki tanımı alıp yükler.</li>
+    <li><strong>Kaydet</strong> — geçerli tanımı yerel bir dosyaya yazar.</li>
+    <li><strong>Doğrula</strong> — tanımı hatalara karşı denetler (eksik alanlar, geçersiz URL'ler, karma uyuşmazlıkları).</li>
+    <li><strong>Fark</strong> — neyin değiştiğini görmek için geçerli durumu son kaydedilen sürümle karşılaştırır.</li>
+</ul>
+
+<h2>Meta Veri Alanları</h2>
+
+<p>Üst bölüm temel mod paketi bilgilerini içerir: ad, sürüm, açıklama, yazar,
+Minecraft sürümü ve Forge sürümü. <strong>Forge sürümü seçici</strong>, seçilen Minecraft sürümü için
+kullanılabilir Forge derlemelerine göz atmanızı sağlar.</p>
+
+<h2>Dosya Sekmeleri</h2>
+
+<p>Dosyalar kategorilere ayrılmış sekmelerde düzenlenir:</p>
+
+<table class="settings-table">
+    <tr><td>Modlar</td><td><code>mods/</code> klasörüne yerleştirilen Forge mod JAR dosyaları.</td></tr>
+    <tr><td>Yapılandırmalar</td><td><code>config/</code> içine yerleştirilen mod yapılandırma dosyaları.</td></tr>
+    <tr><td>Kaynaklar</td><td>Kaynak paketleri ve diğer varlıklar.</td></tr>
+    <tr><td>Gölgelendiriciler</td><td>OptiFine veya Iris için gölgelendirici paketleri.</td></tr>
+    <tr><td>Başlangıç Dosyaları</td><td>Yalnızca ilk yüklemede kopyalanan dosyalar (ör. varsayılan options.txt).</td></tr>
+</table>
+
+<p>Her dosya girişinde bir indirme URL'si ve SHA-1 karması bulunur. Düzenleyici, dosyayı indirip sağlama toplamını hesaplayarak
+<strong>karmaları otomatik hesaplayabilir</strong>.</p>
+
+<h2>Modrinth Araması</h2>
+
+<p>Modları ada göre bulmak için yerleşik Modrinth aramasını kullanın. Bir sonuç seçtiğinizde doğru sürüm için
+indirme URL'si ve karma alanları otomatik olarak doldurulur.</p>
+
+<h2>Sürüm Yükseltme</h2>
+
+<p><strong>Sürüm yükseltme</strong> düğmesi mod paketinin sürüm numarasını artırır; böylece
+başlatıcının otomatik olarak algılayacağı güncellemeleri yayımlamak kolaylaşır.</p>
+
+<h2>URL Denetimi</h2>
+
+<p>Düzenleyici, tüm dosya indirme URL'lerinin erişilebilir olduğunu doğrulayarak bozuk
+bağlantıları yayımlamadan önce yakalamanıza yardımcı olur.</p>
+
+<div class="tip">
+    <div class="callout-title">İpucu</div>
+    <p>Sorunları erkenden yakalamak için kaydetmeden önce <strong>Doğrula</strong>'yı kullanın. Doğrulayıcı
+    zorunlu alanları, geçerli URL'leri ve doğru karma biçimlerini denetler.</p>
+</div>

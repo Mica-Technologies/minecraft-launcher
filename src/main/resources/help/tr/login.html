@@ -1,0 +1,43 @@
+<h1>Giriş</h1>
+
+<p>Mica Minecraft Launcher, Minecraft hesabınızı doğrulamak için <strong>resmî Microsoft kimlik doğrulamasını</strong> kullanır.
+Bu, resmî Minecraft başlatıcısının kullandığı oturum açma akışının aynısıdır.</p>
+
+<h2>Nasıl Çalışır</h2>
+
+<ol class="steps">
+    <li>Giriş ekranında <strong>Oturum Aç</strong>'a tıklayın. Microsoft oturum açma sayfasını gösteren bir tarayıcı penceresi açılır.</li>
+    <li>Microsoft hesabı bilgilerinizi girin ve oturum açmayı onaylayın.</li>
+    <li>Kimlik doğrulaması tamamlandığında tarayıcı penceresi kapanır ve başlatıcı
+        <a href="help://topic/MAIN_SCREEN">Ana Ekran</a>'a geçer.</li>
+</ol>
+
+<h2>Belirteç Önbelleğe Alma</h2>
+
+<p>Başarılı bir oturum açmanın ardından kimlik doğrulama belirteciniz, makineye özgü bir anahtarla
+<strong>AES-256-GCM şifrelemesi</strong> kullanılarak yerel olarak önbelleğe alınır. Bunun anlamı şudur:</p>
+
+<ul>
+    <li>Yaklaşık <strong>4 saat</strong> boyunca yeniden oturum açmanız gerekmez.</li>
+    <li>Önbellekteki belirteç şifrelidir ve yalnızca sizin makinenize bağlıdır; başka bir yere aktarılamaz veya orada kullanılamaz.</li>
+    <li>Önbelleğin süresi dolduğunda başlatıcı yeniden oturum açmanızı ister.</li>
+</ul>
+
+<h2>Oturum Açma Sorunlarını Giderme</h2>
+
+<div class="warning">
+    <div class="callout-title">İnternet Gerekli</div>
+    <p>İlk oturum açma için etkin bir internet bağlantısı gerekir. Başlatıcı tamamen
+    çevrimdışı modda kimlik doğrulaması yapamaz.</p>
+</div>
+
+<p>Oturum açarken sorun yaşıyorsanız:</p>
+
+<ul>
+    <li><strong>Tarayıcı açılmıyor</strong> — sisteminizde varsayılan bir tarayıcı ayarlandığından emin olun.</li>
+    <li><strong>Oturum açma zaman aşımına uğruyor</strong> — internet bağlantınızı kontrol edip yeniden deneyin.</li>
+    <li><strong>Hesap tanınmıyor</strong> — Minecraft'a sahip olan Microsoft hesabını kullandığınızdan emin olun.</li>
+    <li><strong>Sürekli oturum açma istekleri</strong> — önbellekteki belirtecin süresi dolmuş olabilir. 4 saatlik hareketsizlikten sonra bu normaldir.</li>
+</ul>
+
+<p>Sorun devam ederse <a href="help://topic/TROUBLESHOOTING">Sorun Giderme</a> konusuna bakın.</p>

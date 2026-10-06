@@ -1,0 +1,105 @@
+<h1>JVM Ön Ayarları</h1>
+
+<p>Ayarlar → Gelişmiş bölümündeki <strong>JVM Ön Ayarı</strong> açılır listesi, başlatıcının
+Minecraft'ı başlatırken JVM'ye ilettiği adlandırılmış bir bağımsız değişken kümesini
+seçer. Bu bağımsız değişkenler çöp toplayıcıyı ayarlar, yığın bölgesi boyutlarını
+denetler ve GC günlüğünü açıp kapatır; oyunun kendisinin nasıl davrandığını değil,
+yalnızca onu barındıran JVM'nin belleği nasıl yönettiğini değiştirir.</p>
+
+<p>Doğru ön ayarı seçmek en çok, GC'nin binlerce chunk'ın yüklenip
+kaldırılmasının ardından temizlik yapmak zorunda kaldığı büyük mod paketlerinde (200+
+mod) önemlidir. Vanilla ve küçük mod paketleri için herhangi bir ön ayar yeterlidir ve
+varsayılan "Performance" iyi çalışır.</p>
+
+<h2>Performance (Aikar's Flags)</h2>
+
+<p>Varsayılan ön ayardır ve kullanıcıların büyük çoğunluğuna önerilir.
+G1 çöp toplayıcısını, Aikar'ın (Paper Minecraft sunucusunun
+yazarı) yıllar önce yayımladığı ve birçok rehberin hâlâ
+alıntıladığı parametre ayarlarıyla kullanır. Yoğun oyun sırasında GC duraklamalarından kaynaklanan takılmaları en aza indirmek için tasarlanmıştır.</p>
+
+<p>En uygun olduğu durumlar: <strong>6+ GB RAM ayrılmış mod paketleri</strong>,
+yük altında periyodik kare hızı düşüşleri fark ettiğiniz
+yoğun modlu paketler.</p>
+
+<h2>Low Memory</h2>
+
+<p>Az boş RAM'i olan sistemler için sadeleştirilmiş bayraklar. G1'i
+daha kısa bir duraklama hedefi ve daha küçük yığın bölgeleriyle kullanır; sıkı bellek baskısı altında
+öngörülebilirlik için bir miktar verimden ödün verir.</p>
+
+<p>En uygun olduğu durumlar: <strong>toplam sistem RAM'i ≤ 8 GB olan sistemler</strong>,
+pille çalışan dizüstü bilgisayarlar veya birden fazla mod paketini diğer uygulamalarla
+birlikte çalıştırmak istediğiniz durumlar. Aikar'ın bayraklarının aynı toplam ayırmada bile
+belleği daha verimli geri kazandığı büyük mod paketleri
+(200+ mod) için önerilmez.</p>
+
+<h2>Debug</h2>
+
+<p>Performance bayraklarına ek olarak ayrıntılı GC günlüğü ve etkin
+Java doğrulamaları (assertion). Mod paketinin kurulum klasörüne, her GC olayını zaman damgalarıyla
+kaydeden bir {@code gc.log} dosyası yazar. Çoğunlukla mod
+geliştiricileri ve tekrarlanan OOM çökmelerini teşhis edenler için yararlıdır;
+küçük ama sürekli bir ek yük getirdiğinden günlük oyun için açık bırakmayın.</p>
+
+<p>En uygun olduğu durumlar: <strong>GC duraklaması şikâyetlerini teşhis etmek</strong>,
+"her dakika birkaç saniyeliğine yanıt vermeyi bırakıyor"
+türündeki bildirimleri incelemek.</p>
+
+<h2>None</h2>
+
+<p>Boş bağımsız değişken listesi; JVM kendi varsayılanlarını kullanır. Algılanan bir performans sorununun
+ön ayar bayraklarının kendisinden kaynaklanıp kaynaklanmadığını test etmek için
+yararlıdır (nadir ama JDK sürümü Aikar bayraklarının yazıldığı
+dönemden çok daha yeniyse mümkündür).</p>
+
+<p>En uygun olduğu durumlar: bir ön ayarın belirli bir mod veya JDK
+sürümüyle kötü etkileştiğinden şüphelenildiğinde <strong>temel davranışı doğrulamak</strong>.</p>
+
+<h2>RAM Ayırma Notları</h2>
+
+<p>Ön ayarlar JVM'yi başlangıçta ayarlar; ancak JVM'nin ne kadar bellek kullanmasına izin verileceğine
+Ayarlar → Hesap / Oyun bölümündeki başlatıcının
+<strong>Minimum RAM</strong> ve <strong>Maksimum RAM</strong> kaydırıcıları
+karar verir. Doğru miktar mod paketine
+bağlıdır:</p>
+
+<ul>
+    <li>Vanilla Minecraft: 2 GB fazlasıyla yeterli.</li>
+    <li>Hafif mod paketleri (≤ 50 mod): 4 GB.</li>
+    <li>Orta mod paketleri (50-150 mod): 6 GB.</li>
+    <li>Ağır mod paketleri (150+ mod, gölgelendiriciler): 8-12 GB.</li>
+    <li>Aşırı mod paketleri (300+ mod, özel dünya oluşturma): 12-16 GB.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Uyarı</div>
+    <p>Sisteminizin ayırabileceğinden fazla RAM ayırmak Minecraft'ın
+    diske takas yapmasına neden olur; bu da takılmaları azaltmak yerine <em>artırır</em>.
+    Maksimum RAM'i sisteminizin toplam RAM'inin yarısında veya altında tutun.
+    16 GB'lık bir sistem Minecraft'a 8 GB'tan fazla ayırmamalıdır.</p>
+</div>
+
+<h2>Özel Bayraklar</h2>
+
+<p>Ön ayar açılır listesinin altındaki Ayarlar alanı düzenlenebilir; bir ön ayar ihtiyaçlarınıza
+uymuyorsa kendi bağımsız değişken dizenizi yapıştırabilirsiniz.
+Sık yapılan eklemeler:</p>
+
+<ul>
+    <li><code>-XX:+UseZGC</code> — Z çöp toplayıcısına geçer
+        (düşük duraklama, JDK 15+ gerektirir). Çok büyük yığınlarda (32 GB+)
+        bazen G1'den daha iyi performans gösterir, ancak tipik Minecraft kurulumlarında
+        genellikle G1'den vazgeçmeye değmez.</li>
+    <li><code>-Dfile.encoding=UTF-8</code> — varsayılan karakter kümesinin Latin-1 olabildiği
+        Windows'ta, modlar ASCII dışı içerikli yapılandırma dosyaları
+        oluşturduğunda yararlıdır.</li>
+    <li><code>-Xss2M</code> — iş parçacığı yığın boyutunu JVM varsayılanının üzerine
+        çıkarır; derin çağrı zincirlerine sahip bazı mod paketleri (ağır dünya oluşturma
+        modları, büyük boyut oluşturucular) buna ihtiyaç duyar.</li>
+</ul>
+
+<p>Özel bayraklardaki hatalar,
+"Error: Could not create the Java Virtual Machine" veya
+"Unrecognized VM option" gibi iletilerle başlatma hataları olarak ortaya çıkar. Bunlardan birini görürseniz özel alana başvurmadan önce
+Performance'a geri dönüp yeniden deneyin.</p>

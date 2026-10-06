@@ -1,0 +1,120 @@
+<h1>Dil ve Yerelleştirme</h1>
+
+<p>Mica Minecraft Launcher arayüzünü 17 dilde gösterir ve ilk başlatmada
+doğru dili otomatik olarak seçer. Algılanan dili istediğiniz zaman
+Ayarlar'dan değiştirebilirsiniz.</p>
+
+<h2>Başlatıcı dili nasıl seçer</h2>
+
+<p>Başlatıcı her açılışta etkin dili şu sırayla
+belirler:</p>
+
+<ol class="steps">
+    <li><strong>Kaydettiğiniz tercih</strong>; bunu
+        <a href="help://topic/SETTINGS">Ayarlar</a> &rarr; Görünüm &rarr;
+        Dil bölümünde ayarladıysanız. Bu her zaman önceliklidir.</li>
+    <li><strong>İşletim sisteminizin dili</strong>; standart JVM yerel ayarı
+        üzerinden algılanır. Windows'ta bu Bölge / Dil
+        ayarınızdır; macOS'ta Sistem Ayarları &rarr; Dil ve Bölge;
+        Linux'ta ise <code>LANG</code> / <code>LC_*</code> ortam değişkenleri.</li>
+    <li><strong>İngilizce (ABD)</strong>; platform dil içermeyen bir yerel ayar
+        bildirirse (ör. <code>POSIX</code> veya
+        <code>C</code>) ya da işletim sisteminizin dili, çevirisini sunduğumuz
+        17 dilden biri değilse yedek olarak kullanılır.</li>
+</ol>
+
+<div class="tip">
+    <div class="callout-title">Dil değişikliği yeniden başlatmadan sonra geçerli olur</div>
+    <p>Ayarlar'da tercihi değiştirmek ayarı hemen günceller,
+    ancak o anda görüntülenen ekranlar başlatıcı yeniden başlatılana kadar
+    önceki dili göstermeye devam eder. Açılır listeyi değiştirdiğinizde Ayarlar sayfası
+    size bunu hatırlatır.</p>
+</div>
+
+<h2>Dili elle ayarlama</h2>
+
+<ol class="steps">
+    <li>Gezinme çubuğundan <a href="help://topic/SETTINGS">Ayarlar</a>'ı açın
+        (veya <kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Cmd</kbd>+<kbd>,</kbd> tuşlarına basın).</li>
+    <li><strong>Görünüm</strong> sekmesine geçin.</li>
+    <li><strong>Dil</strong> açılır listesinden bir dil seçin. İlk
+        giriş ("İşletim Sistemi Dilini Kullan") yukarıda açıklanan otomatik algılamayı
+        geri yükler ve işletim sisteminin hangi dile çözümleneceğini
+        parantez içinde gösterir.</li>
+    <li><strong>Kaydet</strong>'e tıklayın. Yeni dilin tüm ekranlara uygulandığını görmek için
+        başlatıcıyı yeniden başlatın.</li>
+</ol>
+
+<h2>Desteklenen diller</h2>
+
+<p>Başlatıcı, dünyada en çok konuşulan 17 dil ve İngilizce için
+çeviriler içerir:</p>
+
+<ul>
+    <li>Arapça (&#1593;&#1585;&#1576;&#1610;)</li>
+    <li>Çince, Basitleştirilmiş (&#31616;&#20307;&#20013;&#25991;)</li>
+    <li>Çince, Geleneksel (&#32321;&#39636;&#20013;&#25991;)</li>
+    <li>Felemenkçe (Nederlands)</li>
+    <li>İngilizce (kaynak dil)</li>
+    <li>Fransızca (Fran&ccedil;ais)</li>
+    <li>Almanca (Deutsch)</li>
+    <li>Hintçe (&#2361;&#2367;&#2306;&#2342;&#2368;)</li>
+    <li>İtalyanca (Italiano)</li>
+    <li>Japonca (&#26085;&#26412;&#35486;)</li>
+    <li>Korece (&#54620;&#44397;&#50612;)</li>
+    <li>Lehçe (Polski)</li>
+    <li>Portekizce, Brezilya (Portugu&ecirc;s do Brasil)</li>
+    <li>Rusça (&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;)</li>
+    <li>İspanyolca (Espa&ntilde;ol)</li>
+    <li>İsveççe (Svenska)</li>
+    <li>Türkçe (T&uuml;rk&ccedil;e)</li>
+</ul>
+
+<p>Her dil, BCP-47 etiketiyle tanımlanır (ör. <code>fr-FR</code>,
+<code>pt-BR</code>, <code>zh-CN</code>). Liste, başlatıcı kaynak kodundaki
+<code>SupportedLocales.ENTRIES</code> içindedir; özellik dosyaları ise yanında <code>DisplayStrings_&lt;tag&gt;.properties</code>
+adıyla <code>src/main/resources/lang/</code> altında bulunur.</p>
+
+<h2>Çeviri kalitesi ve sorun bildirme</h2>
+
+<p>İngilizce dışındaki dillerin çevirileri, İngilizce kaynak pakete karşı Google Translate'i çağıran
+bir betikle oluşturulur; ardından parametre yer tutucuları işlenerek <code>{0}</code> gibi öğelerin
+çeviriden bozulmadan çıkması sağlanır. Sonuç iyidir ama kusursuz değildir &mdash;
+özellikle kısa arayüz etiketleri (tek kelimelik düğmeler, tek başına isimler) bazen
+İngilizcede sahip oldukları bağlamı kaybeder.</p>
+
+<p>Kötü bir çeviri fark ederseniz en iyi yol, GitHub'da anahtar adını (ör. <code>browse.filter.type.label</code>),
+yerel ayarınızı, mevcut görünümü ve önerdiğiniz düzeltmeyi içeren bir
+issue açmaktır.
+Elle yapılan düzeltmeler bir sonraki yeniden oluşturmada korunur, çünkü
+betik varsayılan olarak yalnızca eksik anahtarları doldurur.</p>
+
+<h2>Yeni bir dil ekleme</h2>
+
+<p>Diliniz yukarıdaki listede yoksa ve bir çeviriyle katkıda bulunmak
+istiyorsanız izlenecek yol şudur:</p>
+
+<ol>
+    <li><code>SupportedLocales.ENTRIES</code> (Java) ve
+        <code>TARGET_LOCALES</code> öğelerine yeni bir giriş ekleyin; ikincisi
+        <code>tools/i18n/translate-locales.js</code> (Node) içindedir.</li>
+    <li><code>cd tools/i18n &amp;&amp; npm run translate</code> komutunu çalıştırın &mdash;
+        betik, İngilizce kaynaktan ilk <code>DisplayStrings_&lt;tag&gt;.properties</code>
+        dosyasını oluşturur.</li>
+    <li>Oluşturulan dosyayı inceleyin, kulağa tuhaf gelen her şeyi elle düzeltin,
+        ardından bir pull request açın.</li>
+</ol>
+
+<p><code>tools/i18n/translate-locales.js</code> betiği artımlı çalışır:
+yeniden çalıştırıldığında yalnızca hedef dosyada henüz bulunmayan
+anahtarları çevirir; böylece elle yapılan düzeltmeler sonraki her
+başlatıcı güncellemesinde korunur.</p>
+
+<h2>Ayrıca Bakın</h2>
+
+<ul>
+    <li><a href="help://topic/SETTINGS">Ayarlar</a> &mdash; dil açılır listesinin
+        bulunduğu yer</li>
+    <li><a href="help://topic/GETTING_STARTED">Başlarken</a> &mdash;
+        genel tanıtım kılavuzu</li>
+</ul>

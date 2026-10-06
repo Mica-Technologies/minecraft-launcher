@@ -1,0 +1,112 @@
+<h1>Sorun Giderme</h1>
+
+<p>Bu sayfa sık karşılaşılan sorunları ve çözümlerini kapsar. Sorununuz burada listelenmiyorsa
+hata ayrıntıları için başlatıcı günlüklerine bakın.</p>
+
+<h2>İndirme Hataları</h2>
+
+<p>Dosyalar indirilemiyor veya başlatma sırasında doğrulama hataları görünüyor.</p>
+
+<ul>
+    <li>İnternet bağlantınızı kontrol edip yeniden deneyin.</li>
+    <li>Kurumsal veya okul ağındaysanız
+        <a href="help://topic/SETTINGS">Ayarlar</a>'da Ağ / Proxy bölümünden bir proxy yapılandırın.</li>
+    <li>Başlatmayı yeniden deneyin; geçici ağ hataları çoğu zaman ikinci denemede düzelir.</li>
+    <li>Belirli bir dosya sürekli başarısız oluyorsa indirme URL'si bozuk olabilir. Bunu mod paketi yazarına bildirin.</li>
+</ul>
+
+<h2>Çevrimdışı Göstergesi</h2>
+
+<p>Başlatıcı internet bağlantısı algılamadığında her ana ekranda yardım düğmesinin yanında kırmızı bir
+<strong>Çevrimdışı</strong> etiketi görünür. Çevrimdışıyken:</p>
+
+<ul>
+    <li>Dosyaları tamamen indirilmiş tüm mod paketlerini yine de başlatabilirsiniz.</li>
+    <li>Yüklemeler, güncellemeler ve Mod Paketi Düzenleyicisi'ndeki sürüm seçici iletişim kutuları başarısız olur veya
+        eski veriler gösterir.</li>
+    <li><a href="help://topic/BROWSE_LIBRARY">Göz At</a> ekranındaki kullanılabilir paketler ve
+        yükleyici sürümü filtreleri ağ geri gelene kadar boş olur.</li>
+    <li>Mevcut belirteciniz hâlâ geçerli olduğu sürece (başlatmalar arasında diskte
+        önbelleğe alınır) kimlik doğrulama etkilenmez.</li>
+</ul>
+
+<p>Gösterge ekranlar arasında geçiş yaptığınızda yenilenir; bu nedenle ağınız yeniden
+çalışmaya başladığında başka bir ekrana geçip geri dönmek etiketi günceller.</p>
+
+<h2>Oyun Çökmeleri</h2>
+
+<p>Oyun başlıyor ama kısa süre sonra çöküyor ya da oyun sırasında çöküyor.</p>
+
+<ul>
+    <li>Çökme çıktısını gerçek zamanlı görmek için ayarlarda <a href="help://topic/GAME_CONSOLE">Oyun Konsolu</a>'nu etkinleştirin.</li>
+    <li>Belirli hata ayrıntıları için mod paketinin <code>crash-reports/</code> klasöründeki çökme raporuna bakın.</li>
+    <li><a href="help://topic/SETTINGS">Ayarlar</a>'da maksimum RAM ayırmasını artırmayı deneyin; birçok mod paketi en az 4 - 6 GB gerektirir.</li>
+    <li>Ana ekranda mod paketine sağ tıklayıp <strong>Kurulum Klasörünü Aç</strong>'ı seçin, ardından
+        <code>mods/</code> klasörünü silin ve yeni bir indirmeyi zorlamak için yeniden başlatın.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Uyarı</div>
+    <p>Çok fazla RAM ayırmak (sisteminizin ayırabileceğinden fazlası), çok az ayırmak kadar kolay
+    çökmelere yol açabilir. Maksimum RAM'i toplam sistem belleğinizin yarısında veya altında tutun.</p>
+</div>
+
+<h2>Başlatıcı Yüklemede Takılı Kaldı</h2>
+
+<p>Başlatıcı donmuş görünüyor veya bir ilerleme çubuğu hareket etmeyi bıraktı.</p>
+
+<ul>
+    <li>Birkaç dakika bekleyin; büyük mod paketlerinin dosyaları doğrulaması, özellikle ilk başlatmada zaman alabilir.</li>
+    <li>Başlatıcı günlüklerinde hata olup olmadığını kontrol edin (ayarlarda Gelişmiş Günlük Kaydı'nı etkinleştirin).</li>
+    <li>Son çare olarak temiz bir duruma dönmek için <strong>Başlatıcıyı Sıfırla</strong>'yı <a href="help://topic/SETTINGS">Ayarlar</a>'da
+        kullanın.</li>
+</ul>
+
+<h2>Çevrimdışı Mod</h2>
+
+<p>Başlatıcı, kimlik doğrulama ve dosya indirme için internet bağlantısı gerektirir. Ancak
+mod paketi manifestleri ve oyun dosyaları ilk başarılı indirmeden sonra yerel olarak önbelleğe alınır.</p>
+
+<ul>
+    <li>İlk kurulumdan sonra bağlantınızı kaybederseniz oyun önbellekteki dosyalarla yine de başlayabilir.</li>
+    <li>Kimlik doğrulama belirteçleri yaklaşık 4 saat önbellekte tutulur; belirteciniz hâlâ geçerliyse bu süre içinde çevrimdışı oynayabilirsiniz.</li>
+</ul>
+
+<h2>Performans Sorunları</h2>
+
+<p>Oyun çalışıyor ancak FPS düşük veya sık sık takılma oluyor.</p>
+
+<ul>
+    <li><strong>Performance (Aikar's Flags)</strong> JVM ön ayarına
+        <a href="help://topic/SETTINGS">Ayarlar</a>'dan geçin.</li>
+    <li>Yeterli RAM ayırdığınızdan emin olun; çoğu mod paketi için en az 4 GB.</li>
+    <li>Oynarken belleği yoğun kullanan diğer uygulamaları kapatın.</li>
+    <li>Ekran kartı sürücülerinizin güncel olduğundan emin olun.</li>
+</ul>
+
+<h2>Eksik Modlar veya Dosyalar</h2>
+
+<p>Oyun başlıyor ancak modlar eksik veya yapılandırmalar yanlış.</p>
+
+<ul>
+    <li>Başlatıcı her başlatmada dosya karmalarını doğrular. Dosyalar elle değiştirildiyse mod paketi tanımıyla eşleşecek şekilde yeniden indirilir.</li>
+    <li>Bir mod, mod paketinin kendisinde eksikse mod paketi yazarıyla iletişime geçin.</li>
+    <li>Eksiksiz bir yeniden indirmeyi zorlamak için mod paketini kaldırıp yeniden eklemeyi deneyin.</li>
+</ul>
+
+<h2>Kimlik Doğrulama Sorunları</h2>
+
+<p>Oturum açılamıyor veya sürekli yeniden kimlik doğrulaması isteniyor.</p>
+
+<ul>
+    <li>Belirteçlerin süresi yaklaşık 4 saat sonra dolar; yeniden kimlik doğrulama normaldir.</li>
+    <li>Oturum açma tekrar tekrar başarısız oluyorsa <code>login.microsoftonline.com</code> için tarayıcı çerezlerinizi temizlemeyi deneyin.</li>
+    <li>Microsoft hesabınızın etkin bir Minecraft lisansı olduğundan emin olun.</li>
+    <li>Kimlik doğrulama süreciyle ilgili daha fazla ayrıntı için <a href="help://topic/LOGIN">Giriş</a> konusuna bakın.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">İpucu</div>
+    <p>Sorun bildirirken her zaman şunları ekleyin: mod paketinin adı ve sürümü, işletim sisteminiz,
+    başlatıcı günlük dosyası ve tüm çökme raporları. Bu, sorunların çok daha hızlı teşhis edilmesine yardımcı olur.</p>
+</div>
