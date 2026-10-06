@@ -1,0 +1,91 @@
+<h1>설정</h1>
+
+<p>설정 화면에서는 메모리 할당, 모양, JVM 동작, 네트워크
+구성 등을 사용자 지정할 수 있습니다. 변경 사항은 자동으로 저장됩니다.</p>
+
+<h2>게임 메모리</h2>
+
+<table class="settings-table">
+    <tr><td>최소 RAM</td><td>게임 JVM에 할당되는 초기 힙 크기입니다. 모드팩에서 따로 지정하지 않는 한 보통 기본값(512 MB)으로 두세요.</td></tr>
+    <tr><td>최대 RAM</td><td>게임이 사용할 수 있는 메모리 상한입니다. 대부분의 모드팩은 <strong>4 - 8 GB</strong>에서 가장 잘 동작합니다. 시스템이 감당할 수 있는 것보다 많이 할당하면 불안정해질 수 있습니다.</td></tr>
+</table>
+
+<div class="tip">
+    <div class="callout-title">팁</div>
+    <p>최대 RAM은 전체 시스템 메모리의 절반을 넘지 않게 설정하는 것이 좋습니다.
+    예를 들어 16 GB 컴퓨터라면 6 - 8 GB가 적당한 상한입니다.</p>
+</div>
+
+<h2>테마</h2>
+
+<table class="settings-table">
+    <tr><td>Automatic</td><td>운영 체제의 밝은/어두운 모드 설정을 따릅니다.</td></tr>
+    <tr><td>Dark</td><td>어두운 배경에 밝은 텍스트 — 눈이 편안합니다.</td></tr>
+    <tr><td>Light</td><td>전통적인 밝은 배경에 어두운 텍스트.</td></tr>
+    <tr><td>Blue + Gray</td><td>차가운 색조의 강조 테마.</td></tr>
+    <tr><td>Orange + Purple</td><td>따뜻한 색조의 강조 테마.</td></tr>
+</table>
+
+<h2>고급</h2>
+
+<table class="settings-table">
+    <tr><td>디버그 모드</td><td>문제 진단을 위해 런처 콘솔에 상세 로그를 출력합니다.</td></tr>
+    <tr><td>창 크기 조정</td><td>런처 창 크기를 기본 크기 이상으로 자유롭게 조정할 수 있게 합니다.</td></tr>
+    <tr><td>Discord 연동</td><td>현재 모드팩을 Discord Rich Presence 상태로 표시합니다.</td></tr>
+    <tr><td>향상된 로깅</td><td>세션 후 분석을 위해 상세 로그 파일을 디스크에 기록합니다.</td></tr>
+    <tr><td>게임 내 콘솔</td><td>Minecraft와 함께 <a href="help://topic/GAME_CONSOLE">게임 콘솔</a> 창을 열어 실시간 출력을 보여 줍니다.</td></tr>
+</table>
+
+<h2>JVM 프리셋</h2>
+
+<p>게임 실행 명령에 덧붙는 미리 구성된 JVM 플래그 묶음입니다. 각 프리셋의 역할,
+추가할 만한 사용자 지정 플래그, 프리셋 선택과 RAM 할당의 관계에 대한 자세한 설명은
+<a href="help://topic/JVM_PRESETS">JVM 프리셋</a>을
+참조하세요.</p>
+
+<table class="settings-table">
+    <tr><td>Performance (Aikar's Flags)</td><td><strong>권장.</strong> Minecraft 커뮤니티에서 널리 쓰이는 최적화된 가비지 컬렉션 플래그입니다. 대부분의 모드팩에서 전반적으로 가장 좋은 성능을 냅니다.</td></tr>
+    <tr><td>Low Memory</td><td>RAM이 부족한 시스템을 위한 보수적인 플래그입니다. 처리량을 일부 희생하는 대신 GC 부하를 줄입니다.</td></tr>
+    <tr><td>Debug</td><td>GC 로그를 포함한 JVM 디버그 출력을 켭니다. 크래시나 성능 문제를 진단할 때 유용합니다.</td></tr>
+    <tr><td>None</td><td>추가 플래그 없이 JVM 기본값을 사용합니다. 무엇을 하는지 잘 알거나 모드팩에서 요구하는 경우에만 사용하세요.</td></tr>
+</table>
+
+<h2>네트워크 / 프록시</h2>
+
+<p>네트워크에서 프록시가 필요한 경우(회사나 학교 네트워크에서 흔함) 프록시를 구성하세요.</p>
+
+<table class="settings-table">
+    <tr><td>HTTP 프록시</td><td>일반적인 웹 프록시입니다. 네트워크 관리자가 알려 준 호스트와 포트를 입력하세요.</td></tr>
+    <tr><td>SOCKS 프록시</td><td>더 낮은 수준의 프록시 프로토콜입니다. 네트워크에서 SOCKS를 명시적으로 요구할 때 사용하세요.</td></tr>
+</table>
+
+<div class="note">
+    <div class="callout-title">참고</div>
+    <p>대부분의 사용자는 프록시 설정을 비워 두어도 됩니다. 제한된 네트워크에서 다운로드나
+    인증이 실패할 때만 구성하세요.</p>
+</div>
+
+<h2>악성 코드 검사</h2>
+
+<p>런처에는 다운로드한 JAR 파일에서 <strong>fractureiser</strong>의 시그니처를 검사하는 내장 스캐너가 있습니다.
+fractureiser는 2023년에 손상된 모드를 통해 퍼진 Minecraft 전용 악성 코드입니다.
+검사는 게임을 실행하기 전에 매번 자동으로 실행됩니다.</p>
+
+<h2>초기화 및 런타임 옵션</h2>
+
+<table class="settings-table">
+    <tr><td>런처 재설정</td><td>모든 설정을 기본값으로 되돌리고 캐시된 데이터를 지웁니다. <strong>이 작업은 되돌릴 수 없습니다.</strong></td></tr>
+    <tr><td>런타임 관리</td><td><a href="help://topic/RUNTIME_MANAGEMENT">런타임 관리</a> 화면을 열어 설치된 Java 런타임을 확인, 검증하거나 제거합니다.</td></tr>
+</table>
+
+<div class="warning">
+    <div class="callout-title">경고</div>
+    <p>런처를 재설정하면 모든 설정, 캐시된 토큰, 모드팩 상태가 삭제됩니다.
+    디스크의 모드팩 파일은 유지되지만 모드팩을 다시 추가해야 합니다.</p>
+</div>
+
+<h2>설정 가져오기 / 내보내기</h2>
+
+<p><strong>설정 내보내기</strong>로 현재 구성을 파일로 저장하고, <strong>설정 가져오기</strong>로
+이전에 저장한 구성을 불러올 수 있습니다. 여러 컴퓨터 간에 설정을 공유하거나
+재설정 후 정상 동작하던 구성을 복원할 때 유용합니다.</p>

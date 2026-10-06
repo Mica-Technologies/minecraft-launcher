@@ -1,0 +1,119 @@
+<h1>언어 및 현지화</h1>
+
+<p>Mica Minecraft Launcher는 17개 언어로 인터페이스를 표시하며, 처음 실행할 때
+알맞은 언어를 자동으로 선택합니다. 감지된 언어는 언제든지 설정에서
+바꿀 수 있습니다.</p>
+
+<h2>런처가 언어를 선택하는 방법</h2>
+
+<p>런처는 시작할 때마다 다음 순서로 사용할 언어를
+결정합니다:</p>
+
+<ol class="steps">
+    <li><strong>저장된 언어 설정</strong>:
+        <a href="help://topic/SETTINGS">설정</a> &rarr; 모양 &rarr;
+        언어에서 지정한 경우 이를 사용합니다. 이 설정이 항상 우선합니다.</li>
+    <li>표준 JVM 로캘로 감지한 <strong>운영 체제 언어</strong>를 사용합니다.
+        Windows에서는 지역 / 언어
+        설정, macOS에서는 시스템 설정 &rarr; 언어 및 지역,
+        Linux에서는 <code>LANG</code> / <code>LC_*</code> 환경 변수입니다.</li>
+    <li><strong>영어(미국)</strong>: 플랫폼이 언어가 아닌 로캘(예: <code>POSIX</code> 또는
+        <code>C</code>)을 보고하거나, OS 언어가 번역을 제공하는 17개 언어에
+        포함되지 않으면 대체 언어로 사용합니다.</li>
+</ol>
+
+<div class="tip">
+    <div class="callout-title">언어 변경은 다시 시작한 후 적용됩니다</div>
+    <p>설정에서 언어를 바꾸면 환경설정은 즉시 갱신되지만,
+    이미 표시된 화면은 런처를 다시 시작할 때까지 이전 언어로
+    표시됩니다. 드롭다운을 바꾸면 설정 페이지에서도
+    이 점을 알려 줍니다.</p>
+</div>
+
+<h2>언어 직접 지정하기</h2>
+
+<ol class="steps">
+    <li>탐색 막대에서 <a href="help://topic/SETTINGS">설정</a>을 엽니다
+        (또는 <kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Cmd</kbd>+<kbd>,</kbd>를 누릅니다).</li>
+    <li><strong>모양</strong> 탭으로 이동합니다.</li>
+    <li><strong>언어</strong> 드롭다운에서 언어를 선택합니다. 첫 번째
+        항목("OS 언어 사용")은 위에서 설명한 자동 감지로 되돌리며,
+        OS 기준으로 선택될 언어를 괄호 안에
+        표시합니다.</li>
+    <li><strong>저장</strong>을 클릭합니다. 런처를 다시 시작하면 모든 화면에 새
+        언어가 적용됩니다.</li>
+</ol>
+
+<h2>지원 언어</h2>
+
+<p>런처는 영어와 함께 세계에서 가장 많이 사용되는 17개 언어의
+번역을 제공합니다:</p>
+
+<ul>
+    <li>아랍어(&#1593;&#1585;&#1576;&#1610;)</li>
+    <li>중국어 간체(&#31616;&#20307;&#20013;&#25991;)</li>
+    <li>중국어 번체(&#32321;&#39636;&#20013;&#25991;)</li>
+    <li>네덜란드어(Nederlands)</li>
+    <li>영어(원본 언어)</li>
+    <li>프랑스어(Fran&ccedil;ais)</li>
+    <li>독일어(Deutsch)</li>
+    <li>힌디어(&#2361;&#2367;&#2306;&#2342;&#2368;)</li>
+    <li>이탈리아어(Italiano)</li>
+    <li>일본어(&#26085;&#26412;&#35486;)</li>
+    <li>한국어(&#54620;&#44397;&#50612;)</li>
+    <li>폴란드어(Polski)</li>
+    <li>포르투갈어, 브라질(Portugu&ecirc;s do Brasil)</li>
+    <li>러시아어(&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;)</li>
+    <li>스페인어(Espa&ntilde;ol)</li>
+    <li>스웨덴어(Svenska)</li>
+    <li>튀르키예어(T&uuml;rk&ccedil;e)</li>
+</ul>
+
+<p>각 언어는 BCP-47 태그(예: <code>fr-FR</code>,
+<code>pt-BR</code>, <code>zh-CN</code>)로 식별됩니다. 목록은 런처 소스의
+<code>SupportedLocales.ENTRIES</code>에 있으며, 속성 파일은
+<code>src/main/resources/lang/</code> 아래에 <code>DisplayStrings_&lt;tag&gt;.properties</code>
+형식으로 함께 있습니다.</p>
+
+<h2>번역 품질 및 문제 신고</h2>
+
+<p>영어 이외 언어의 번역은 영어 원본 번들을 Google Translate로 번역하는 스크립트가
+생성하며, <code>{0}</code> 같은 매개변수 자리 표시자가 번역 후에도 그대로 유지되도록
+후처리합니다. 결과물은 좋지만 완벽하지는 않습니다 &mdash; 특히
+짧은 UI 레이블(한 단어짜리 버튼, 단일 명사)은 영어에서 가졌던 맥락을
+잃는 경우가 있습니다.</p>
+
+<p>잘못된 번역을 발견하면 키 이름(예: <code>browse.filter.type.label</code>),
+로캘, 현재 표시되는 문구, 수정 제안을 포함해 GitHub에 이슈를 등록하는 것이
+가장 좋습니다. 스크립트는 기본적으로 누락된 키만 채우므로
+직접 수정한 번역은 다음 재생성 때도 유지됩니다.</p>
+
+<h2>새 언어 추가하기</h2>
+
+<p>원하는 언어가 위 목록에 없고 번역에 기여하고 싶다면
+다음 절차를 따르세요:</p>
+
+<ol>
+    <li><code>SupportedLocales.ENTRIES</code>
+        (Java)와
+        <code>TARGET_LOCALES</code>(<code>tools/i18n/translate-locales.js</code>, Node)에 새 항목을 추가합니다.</li>
+    <li><code>cd tools/i18n &amp;&amp; npm run translate</code>를 실행합니다 &mdash;
+        스크립트가 영어 원본으로부터 초기 <code>DisplayStrings_&lt;tag&gt;.properties</code>를
+        생성합니다.</li>
+    <li>생성된 파일을 검토하고 어색한 부분을 직접 수정한 다음
+        풀 리퀘스트를 엽니다.</li>
+</ol>
+
+<p><code>tools/i18n/translate-locales.js</code> 스크립트는 증분 방식으로 동작합니다.
+다시 실행해도 대상 파일에 아직 없는 키만 번역하므로
+이후 런처를 업데이트할 때마다 직접 수정한 내용이
+유지됩니다.</p>
+
+<h2>함께 보기</h2>
+
+<ul>
+    <li><a href="help://topic/SETTINGS">설정</a> &mdash; 언어
+        드롭다운이 있는 곳</li>
+    <li><a href="help://topic/GETTING_STARTED">시작하기</a> &mdash;
+        전반적인 안내서</li>
+</ul>

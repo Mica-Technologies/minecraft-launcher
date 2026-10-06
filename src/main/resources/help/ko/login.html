@@ -1,0 +1,43 @@
+<h1>로그인</h1>
+
+<p>Mica Minecraft Launcher는 <strong>공식 Microsoft 인증</strong>을 사용해
+Minecraft 계정을 확인합니다. 공식 Minecraft 런처와 같은 로그인 절차입니다.</p>
+
+<h2>작동 방식</h2>
+
+<ol class="steps">
+    <li>로그인 화면에서 <strong>로그인</strong>을 클릭합니다. 브라우저 창에 Microsoft 로그인 페이지가 열립니다.</li>
+    <li>Microsoft 계정 자격 증명을 입력하고 로그인을 승인합니다.</li>
+    <li>인증이 완료되면 브라우저 창이 닫히고 런처가
+        <a href="help://topic/MAIN_SCREEN">메인 화면</a>으로 이동합니다.</li>
+</ol>
+
+<h2>토큰 캐시</h2>
+
+<p>로그인에 성공하면 인증 토큰이 기기에서 파생된 키와
+<strong>AES-256-GCM 암호화</strong>를 사용해 로컬에 캐시됩니다. 즉:</p>
+
+<ul>
+    <li>약 <strong>4시간</strong> 동안은 다시 로그인할 필요가 없습니다.</li>
+    <li>캐시된 토큰은 암호화되어 해당 컴퓨터에 묶여 있으므로 다른 곳으로 옮기거나 재사용할 수 없습니다.</li>
+    <li>캐시가 만료되면 런처가 다시 로그인하라고 요청합니다.</li>
+</ul>
+
+<h2>로그인 문제 해결</h2>
+
+<div class="warning">
+    <div class="callout-title">인터넷 연결 필요</div>
+    <p>처음 로그인할 때는 인터넷에 연결되어 있어야 합니다. 런처는 완전한 오프라인 모드에서
+    인증할 수 없습니다.</p>
+</div>
+
+<p>로그인에 문제가 있다면:</p>
+
+<ul>
+    <li><strong>브라우저가 열리지 않음</strong> — 시스템에 기본 브라우저가 설정되어 있는지 확인하세요.</li>
+    <li><strong>로그인 시간 초과</strong> — 인터넷 연결을 확인하고 다시 시도하세요.</li>
+    <li><strong>계정을 인식하지 못함</strong> — Minecraft를 소유한 Microsoft 계정을 사용하고 있는지 확인하세요.</li>
+    <li><strong>로그인 요청이 반복됨</strong> — 캐시된 토큰이 만료되었을 수 있습니다. 4시간 동안 사용하지 않으면 정상적으로 발생합니다.</li>
+</ul>
+
+<p>문제가 계속되면 <a href="help://topic/TROUBLESHOOTING">문제 해결</a>을 참조하세요.</p>
