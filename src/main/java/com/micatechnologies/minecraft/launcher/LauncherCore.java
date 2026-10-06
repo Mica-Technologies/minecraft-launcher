@@ -1132,8 +1132,7 @@ public class LauncherCore
                             GameModPackManager.fetchInstalledModPacks( null, true );
                         }
                         catch ( Exception e ) {
-                            Logger.logErrorSilent( "Could not refresh modpack manifests before restart; "
-                                                           + "reusing the previously loaded pack." );
+                            Logger.logErrorSilent( LocalizationManager.get( "log.launcherCore.restartRefreshFailed" ) );
                             Logger.logThrowable( e );
                         }
                     }
@@ -1144,17 +1143,14 @@ public class LauncherCore
                     else if ( refreshed != null ) {
                         // Keep the last known-good pack rather than launching from a stub/sentinel,
                         // which buildClasspath would (correctly) refuse anyway.
-                        Logger.logErrorSilent( "Refreshed modpack entry for \"" + modPackName
-                                                       + "\" is not fully loaded; reusing the previously "
-                                                       + "loaded pack for this launch." );
+                        Logger.logErrorSilent( LocalizationManager.format( "log.launcherCore.restartPackNotLoaded", modPackName ) );
                     }
 
                     Logger.logStd( restartCount > 0
                                            ? LocalizationManager.format( "log.launcherCore.startingServerRestart",
                                                                          restartCount, maxRestarts )
                                            : LocalizationManager.get( "log.launcherCore.startingServer" ) );
-                    Logger.logStd( "Launching \"" + launchPack.getPackName() + "\" version "
-                                           + launchPack.getPackVersion() + "." );
+                    Logger.logStd( LocalizationManager.format( "log.launcherCore.launchingPackVersion", launchPack.getPackName(), launchPack.getPackVersion() ) );
                     play( launchPack );
 
                     Process proc = launchPack.getLastLaunchedProcess();
