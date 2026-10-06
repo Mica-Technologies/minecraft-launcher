@@ -1,0 +1,109 @@
+<h1>Bladeren</h1>
+
+<p>Het scherm Bladeren is de plek om te installeren en te beheren. Hier kunt u nieuwe modpacks
+installeren vanuit het openbare manifest, pure vanilla-versies van Minecraft installeren, lege Forge- / NeoForge- /
+Fabric-starterpacks installeren, packs bewerken die u al hebt en verwijderen wat u niet meer wilt.</p>
+
+<h2>Kaarten &amp; de filterbalk</h2>
+
+<p>Elk item verschijnt als een hero-kaart met een logo, badge, naam, chips (loader / Minecraft-versie),
+een statusregel en actieknoppen. Met de filterbalk bovenaan verfijnt u de weergave.</p>
+
+<ul>
+    <li><strong>Zoeken</strong> — vrije tekst die wordt vergeleken met de kaarttitels. Wordt bijgewerkt terwijl u typt
+        (met een korte vertraging zodat de indeling niet steeds verspringt).</li>
+    <li><strong>Type</strong> — Alle, Modpacks of een van de versiecatalogi:
+        Vanilla (Releases / Snapshots / Old Beta / Old Alpha) en Forge- / NeoForge- / Fabric-versies.
+        De loaderversiefilters zijn bewust <em>niet</em> opgenomen in "Alle" — de gecombineerde lijst
+        zou duizenden items bevatten en is niet wat u bij "laat alles zien" verwacht.</li>
+    <li><strong>Status</strong> — Alle, Geïnstalleerd of Beschikbaar. "Beschikbaar" toont wat u
+        nog niet hebt geïnstalleerd; "Geïnstalleerd" toont wat al op schijf staat.</li>
+    <li><strong>Sorteren</strong> — Standaard, Naam (A–Z / Z–A), Releasedatum, Laatst gespeeld, Meest gespeeld,
+        Onlangs bijgewerkt. Sorteringen die afhangen van speel- of updategeschiedenis (Laatst gespeeld, Meest gespeeld,
+        Onlangs bijgewerkt) plaatsen items die geen modpack zijn onderaan, in plaats van ze
+        verwarrend tussen de rest te mengen.</li>
+</ul>
+
+<h2>Geïnstalleerde modpacks</h2>
+
+<p>Kaarten van packs die al op schijf staan, tonen twee knoppen:</p>
+
+<ul>
+    <li><strong>Verwijderen</strong> — vraagt of de installatiemap ook moet worden verwijderd. "Verwijderen
+        (bestanden behouden)" bewaart uw werelden, configuraties en mods, ook al kent de launcher
+        het pack daarna niet meer — handig als u hetzelfde pack later opnieuw wilt installeren.</li>
+    <li><strong>Bewerken</strong> — opent de <a href="help://topic/MODPACK_EDITOR">Modpack-editor</a>
+        met het lokale manifest van het pack. Wijzigingen worden naar schijf geschreven en gelden vanaf de volgende start.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Tip</div>
+    <p>Klik met de rechtermuisknop op een geïnstalleerde modpack-kaart voor hetzelfde contextmenu als in het hoofdmenu:
+    de packmap openen, de modsmap openen, een snelkoppeling op het bureaublad maken, speelstatistieken bekijken en
+    verwijderen.</p>
+</div>
+
+<h2>Beschikbare modpacks</h2>
+
+<p>Kaarten uit het openbare manifest die u nog niet hebt, tonen een knop <strong>Installeren</strong>.
+Als u daarop klikt, wordt het manifest gedownload, het modpack geïnstalleerd en verschuift de kaart bij de
+volgende opbouw naar de groep Geïnstalleerd. U kunt filters blijven gebruiken terwijl een installatie loopt — de
+kaart die bezig is, blijft bovenaan het raster vastgezet tot de installatie klaar is.</p>
+
+<h2>Vanilla-versies</h2>
+
+<p>De volledige catalogus van Mojang met releases, snapshots, bèta's en alfa's. Elke kaart installeert precies die
+Minecraft-versie als een synthetisch leeg modpack dat u direct vanuit het hoofdmenu kunt spelen. Oude
+bèta's en alfa's zijn ook speelbaar — de launcher haalt voor elke versie automatisch de juiste
+Java-runtime op.</p>
+
+<h2>Forge- / NeoForge- / Fabric-versies</h2>
+
+<p>De loaderversiefilters tonen elke release die de versieservice van elk project aanbiedt:
+Forge-promoties, de Maven-metadata van NeoForge en de Fabric meta-API. Als u bij een van
+deze op Installeren klikt, wordt een synthetisch manifest voor een "leeg modpack" in uw configuratiemap geschreven en
+bij de launcher geregistreerd — het resultaat gedraagt zich dus als elk ander geïnstalleerd modpack:</p>
+
+<ul>
+    <li>het verschijnt tussen de hero-kaarten van het hoofdmenu;</li>
+    <li>het is te bewerken in de Modpack-editor (zodat u er mods aan kunt toevoegen om uw eigen pack te bouwen);</li>
+    <li>het kan worden verwijderd zoals elk ander pack;</li>
+    <li>het gebruikt hetzelfde mechanisme voor automatische updates als een normaal modpack.</li>
+</ul>
+
+<div class="note">
+    <div class="callout-title">Opmerking</div>
+    <p>De kaarten tonen het officiële logo van elk project wanneer de launcher het lokaal in de cache heeft. Bij het
+    eerste bezoek aan een loaderfilter verschijnt een tijdelijke afbeelding in de merkkleur terwijl de echte logo's
+    op de achtergrond worden gedownload — zodra ze in de cache staan, zijn volgende bezoeken direct.</p>
+</div>
+
+<h2>Toevoegen via URL</h2>
+
+<p>De knop <strong>Toevoegen vanaf URL</strong> in de onderste balk neemt een directe URL naar een gehost
+<code>installable.json</code>-manifest en installeert het op dezelfde manier als de kaarten met beschikbare packs.
+Gebruik dit voor modpacks die buiten het openbare manifest worden verspreid — plak de link, klik op de knop,
+en de metadata van het manifest wordt gedownload en gevalideerd voordat de installatie begint.</p>
+
+<h2>Modpack-editor</h2>
+
+<p>De knop <strong>Modpack-editor</strong> in de onderste balk opent de
+<a href="help://topic/MODPACK_EDITOR">Modpack-editor</a> met een leeg manifest, zodat u
+een nieuw pack vanaf nul kunt bouwen — stel de loader in (Forge / NeoForge / Fabric / vanilla), de Minecraft-versie,
+de lijst met mods, enz. De editor kan ook voor een bestaand pack worden geopend via de knop <strong>Bewerken</strong>
+op de kaart ervan.</p>
+
+<h2>Hostingmanifest genereren</h2>
+
+<p>De knop <strong>Hostingmanifest genereren</strong> in de onderste balk maakt een
+<code>installable.json</code> voor het modpack dat op dat moment in de editor openstaat, klaar om te hosten op elke
+webserver of dienst voor het delen van bestanden. Iedereen met de resulterende URL kan uw pack installeren via Toevoegen vanaf
+URL.</p>
+
+<h2>Paginering</h2>
+
+<p>Lange lijsten worden over pagina's verdeeld. Gebruik de knoppen <strong>Vorige</strong> / <strong>Volgende</strong> in de
+pagineringsbalk (boven de kaarten) om tussen pagina's te wisselen, en de keuzelijst <strong>Per pagina</strong>
+om het aantal per pagina in te stellen — 24, 48, 72 of 96. De standaardwaarde van 48 past bij een gemiddelde geïnstalleerde
+bibliotheek op één pagina; met 96 blijven de loaderversiefilters op één pagina
+scrollbaar.</p>

@@ -1,0 +1,122 @@
+<h1>Taal &amp; lokalisatie</h1>
+
+<p>De Mica Minecraft Launcher toont zijn interface in 17 talen en kiest
+bij de eerste start automatisch de juiste. U kunt de gedetecteerde taal
+ook op elk moment overschrijven via Instellingen.</p>
+
+<h2>Hoe de launcher een taal kiest</h2>
+
+<p>Elke keer dat u de launcher start, bepaalt hij de actieve taal in deze
+volgorde:</p>
+
+<ol class="steps">
+    <li><strong>Uw opgeslagen keuze</strong>, als u die hebt ingesteld in
+        <a href="help://topic/SETTINGS">Instellingen</a> &rarr; Weergave &rarr;
+        Taal. Deze heeft altijd voorrang.</li>
+    <li><strong>De taal van uw besturingssysteem</strong>, gedetecteerd via de
+        standaard-locale van de JVM. Op Windows is dit uw instelling voor Regio / Taal;
+        op macOS is het Systeeminstellingen &rarr; Taal en regio;
+        op Linux is het de omgeving <code>LANG</code> / <code>LC_*</code>.</li>
+    <li><strong>Engels (Verenigde Staten)</strong> als terugvaloptie wanneer het
+        platform een locale zonder taal meldt (bijv. <code>POSIX</code> of
+        <code>C</code>), of wanneer de taal van uw besturingssysteem niet een van de 17 is
+        waarvoor we vertalingen meeleveren.</li>
+</ol>
+
+<div class="tip">
+    <div class="callout-title">Een taalwijziging wordt actief na een herstart</div>
+    <p>Als u de keuze in Instellingen wijzigt, wordt de voorkeur direct bijgewerkt,
+    maar schermen die al worden weergegeven, blijven de vorige taal tonen
+    tot de launcher opnieuw start. De pagina Instellingen herinnert u hier zelf
+    aan wanneer u de keuzelijst wijzigt.</p>
+</div>
+
+<h2>Handmatig een taal instellen</h2>
+
+<ol class="steps">
+    <li>Open <a href="help://topic/SETTINGS">Instellingen</a> via de navigatiebalk
+        (of druk op <kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Cmd</kbd>+<kbd>,</kbd>).</li>
+    <li>Ga naar het tabblad <strong>Weergave</strong>.</li>
+    <li>Kies een taal in de keuzelijst <strong>Taal</strong>. Het
+        eerste item ("Taal van besturingssysteem gebruiken") herstelt de hierboven beschreven
+        automatische detectie en toont tussen haakjes welke taal het besturingssysteem
+        zou opleveren.</li>
+    <li>Klik op <strong>Opslaan</strong>. Start de launcher opnieuw om de nieuwe
+        taal op elk scherm toegepast te zien.</li>
+</ol>
+
+<h2>Ondersteunde talen</h2>
+
+<p>De launcher levert vertalingen mee voor de 17 meest gesproken talen
+ter wereld plus Engels:</p>
+
+<ul>
+    <li>Arabisch (&#1593;&#1585;&#1576;&#1610;)</li>
+    <li>Chinees, vereenvoudigd (&#31616;&#20307;&#20013;&#25991;)</li>
+    <li>Chinees, traditioneel (&#32321;&#39636;&#20013;&#25991;)</li>
+    <li>Nederlands (Nederlands)</li>
+    <li>Engels (brontaal)</li>
+    <li>Frans (Fran&ccedil;ais)</li>
+    <li>Duits (Deutsch)</li>
+    <li>Hindi (&#2361;&#2367;&#2306;&#2342;&#2368;)</li>
+    <li>Italiaans (Italiano)</li>
+    <li>Japans (&#26085;&#26412;&#35486;)</li>
+    <li>Koreaans (&#54620;&#44397;&#50612;)</li>
+    <li>Pools (Polski)</li>
+    <li>Portugees, Braziliaans (Portugu&ecirc;s do Brasil)</li>
+    <li>Russisch (&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;)</li>
+    <li>Spaans (Espa&ntilde;ol)</li>
+    <li>Zweeds (Svenska)</li>
+    <li>Turks (T&uuml;rk&ccedil;e)</li>
+</ul>
+
+<p>Elke taal wordt aangeduid met een BCP-47-tag (bijv. <code>fr-FR</code>,
+<code>pt-BR</code>, <code>zh-CN</code>). De lijst staat in
+<code>SupportedLocales.ENTRIES</code> in de broncode van de launcher; de
+property-bestanden staan daarnaast als <code>DisplayStrings_&lt;tag&gt;.properties</code>
+onder <code>src/main/resources/lang/</code>.</p>
+
+<h2>Vertaalkwaliteit &amp; problemen melden</h2>
+
+<p>Vertalingen voor andere talen dan Engels worden gegenereerd door een script
+dat Google Translate aanroept met de Engelse bronbundel en daarna
+de parameterplaatshouders nabewerkt, zodat zaken als <code>{0}</code>
+de vertaling ongeschonden doorstaan. Het resultaat is goed maar niet perfect &mdash;
+vooral korte UI-labels (knoppen van één woord, losse zelfstandige naamwoorden) verliezen soms
+de context die ze in het Engels hadden.</p>
+
+<p>Ziet u een slechte vertaling, open dan het liefst een issue op
+GitHub met de sleutelnaam (bijv. <code>browse.filter.type.label</code>),
+uw locale, de huidige weergave en een voorgestelde correctie.
+Handmatige correcties blijven behouden bij de volgende generatie, omdat het
+script standaard alleen ontbrekende sleutels invult.</p>
+
+<h2>Een nieuwe taal toevoegen</h2>
+
+<p>Staat uw taal niet in de lijst hierboven en wilt u een vertaling
+bijdragen, dan gaat dat als volgt:</p>
+
+<ol>
+    <li>Voeg een nieuw item toe aan <code>SupportedLocales.ENTRIES</code>
+        (Java) en <code>TARGET_LOCALES</code> in
+        <code>tools/i18n/translate-locales.js</code> (Node).</li>
+    <li>Voer <code>cd tools/i18n &amp;&amp; npm run translate</code> uit &mdash; het
+        script genereert het eerste bestand <code>DisplayStrings_&lt;tag&gt;.properties</code>
+        op basis van de Engelse bron.</li>
+    <li>Controleer het gegenereerde bestand, corrigeer met de hand alles wat
+        vreemd leest en open daarna een pull request.</li>
+</ol>
+
+<p>Het script <code>tools/i18n/translate-locales.js</code> werkt incrementeel:
+bij opnieuw uitvoeren worden alleen sleutels vertaald die nog niet in het
+doelbestand staan, zodat handmatige correcties bij elke volgende
+launcherupdate behouden blijven.</p>
+
+<h2>Zie ook</h2>
+
+<ul>
+    <li><a href="help://topic/SETTINGS">Instellingen</a> &mdash; waar de keuzelijst
+        voor de taal staat</li>
+    <li><a href="help://topic/GETTING_STARTED">Aan de slag</a> &mdash; de
+        algemene introductiegids</li>
+</ul>

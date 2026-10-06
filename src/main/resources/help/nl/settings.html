@@ -1,0 +1,91 @@
+<h1>Instellingen</h1>
+
+<p>In het instellingenscherm past u de geheugentoewijzing, de weergave, het gedrag van de JVM, de
+netwerkconfiguratie en meer aan. Wijzigingen worden automatisch opgeslagen.</p>
+
+<h2>Spelgeheugen</h2>
+
+<table class="settings-table">
+    <tr><td>Minimaal RAM</td><td>De initiële heapgrootte die aan de JVM van het spel wordt toegewezen. Laat dit meestal op de standaardwaarde (512 MB), tenzij een modpack iets anders aangeeft.</td></tr>
+    <tr><td>Maximaal RAM</td><td>De bovengrens van het geheugen voor het spel. De meeste modpacks presteren het best met <strong>4 - 8 GB</strong>. Meer toewijzen dan uw systeem kan missen, kan instabiliteit veroorzaken.</td></tr>
+</table>
+
+<div class="tip">
+    <div class="callout-title">Tip</div>
+    <p>Een goede vuistregel: stel het maximale RAM in op niet meer dan de helft van het totale systeemgeheugen.
+    Op een computer met 16 GB is 6 - 8 GB bijvoorbeeld een redelijke bovengrens.</p>
+</div>
+
+<h2>Thema</h2>
+
+<table class="settings-table">
+    <tr><td>Automatic</td><td>Volgt de voorkeur voor lichte/donkere modus van uw besturingssysteem.</td></tr>
+    <tr><td>Dark</td><td>Donkere achtergrond met lichte tekst — rustig voor de ogen.</td></tr>
+    <tr><td>Light</td><td>Klassieke lichte achtergrond met donkere tekst.</td></tr>
+    <tr><td>Blue + Gray</td><td>Een accentthema in koele tinten.</td></tr>
+    <tr><td>Orange + Purple</td><td>Een accentthema in warme tinten.</td></tr>
+</table>
+
+<h2>Geavanceerd</h2>
+
+<table class="settings-table">
+    <tr><td>Debugmodus</td><td>Schakelt uitgebreide logboekuitvoer in de console van de launcher in om problemen te diagnosticeren.</td></tr>
+    <tr><td>Venstergrootte wijzigen</td><td>Hiermee kan het launchervenster vrij worden vergroot of verkleind voorbij de standaardafmetingen.</td></tr>
+    <tr><td>Discord-integratie</td><td>Toont uw huidige modpack als Discord Rich Presence-status.</td></tr>
+    <tr><td>Uitgebreide logboekregistratie</td><td>Schrijft gedetailleerde logbestanden naar schijf voor analyse na de sessie.</td></tr>
+    <tr><td>In-game console</td><td>Opent een <a href="help://topic/GAME_CONSOLE">Spelconsole</a>-venster naast Minecraft om de uitvoer in realtime te bekijken.</td></tr>
+</table>
+
+<h2>JVM-voorinstellingen</h2>
+
+<p>Vooraf geconfigureerde sets JVM-flags die aan de startopdracht van het spel worden toegevoegd. Zie
+<a href="help://topic/JVM_PRESETS">JVM-voorinstellingen</a> voor een uitgebreidere uitleg over wat elke voorinstelling
+doet, welke aangepaste flags u kunt toevoegen en hoe de keuze van een voorinstelling samenhangt met de
+RAM-toewijzing.</p>
+
+<table class="settings-table">
+    <tr><td>Performance (Aikar's Flags)</td><td><strong>Aanbevolen.</strong> Geoptimaliseerde flags voor garbage collection die veel worden gebruikt door de Minecraft-community. De beste algehele prestaties voor de meeste modpacks.</td></tr>
+    <tr><td>Low Memory</td><td>Behoudende flags voor systemen met beperkt RAM. Vermindert de GC-overhead ten koste van wat doorvoer.</td></tr>
+    <tr><td>Debug</td><td>Schakelt debuguitvoer van de JVM in, inclusief GC-logboeken. Handig om crashes of prestatieproblemen te diagnosticeren.</td></tr>
+    <tr><td>None</td><td>Geen extra flags — gebruikt de standaardwaarden van de JVM. Gebruik dit alleen als u weet wat u doet of als een modpack het vereist.</td></tr>
+</table>
+
+<h2>Netwerk / proxy</h2>
+
+<p>Configureer een proxy als uw netwerk dat vereist (gebruikelijk op bedrijfs- of schoolnetwerken).</p>
+
+<table class="settings-table">
+    <tr><td>HTTP-proxy</td><td>Standaard webproxy. Voer de host en poort in die u van uw netwerkbeheerder hebt gekregen.</td></tr>
+    <tr><td>SOCKS-proxy</td><td>Proxyprotocol op een lager niveau. Gebruik dit als uw netwerk specifiek SOCKS vereist.</td></tr>
+</table>
+
+<div class="note">
+    <div class="callout-title">Opmerking</div>
+    <p>De meeste gebruikers kunnen de proxy-instellingen leeg laten. Configureer ze alleen als downloads of
+    authenticatie op een beperkt netwerk mislukken.</p>
+</div>
+
+<h2>Malwarescan</h2>
+
+<p>De launcher bevat een ingebouwde scanner die gedownloade JAR-bestanden controleert op handtekeningen van
+<strong>fractureiser</strong> — Minecraft-specifieke malware die zich in 2023 via gecompromitteerde mods verspreidde.
+De scan wordt automatisch uitgevoerd vóór elke start van het spel.</p>
+
+<h2>Reset- en runtime-opties</h2>
+
+<table class="settings-table">
+    <tr><td>Launcher resetten</td><td>Zet alle instellingen terug naar de standaardwaarden en wist gegevens in de cache. <strong>Dit kan niet ongedaan worden gemaakt.</strong></td></tr>
+    <tr><td>Runtimes beheren</td><td>Opent het scherm <a href="help://topic/RUNTIME_MANAGEMENT">Runtime-beheer</a> om geïnstalleerde Java-runtimes te bekijken, te verifiëren of te verwijderen.</td></tr>
+</table>
+
+<div class="warning">
+    <div class="callout-title">Waarschuwing</div>
+    <p>Als u de launcher reset, worden alle instellingen, tokens in de cache en de status van modpacks verwijderd.
+    Uw modpack-bestanden op schijf blijven behouden, maar u moet ze opnieuw toevoegen.</p>
+</div>
+
+<h2>Instellingen importeren / exporteren</h2>
+
+<p>Gebruik <strong>Instellingen exporteren</strong> om uw huidige configuratie in een bestand op te slaan en <strong>Instellingen importeren</strong> om
+een eerder opgeslagen configuratie te laden. Dit is handig om instellingen tussen computers te delen
+of om na een reset een bekende goede configuratie te herstellen.</p>

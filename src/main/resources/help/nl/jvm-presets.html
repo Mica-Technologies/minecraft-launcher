@@ -1,0 +1,103 @@
+<h1>JVM-voorinstellingen</h1>
+
+<p>De keuzelijst <strong>JVM-voorinstelling</strong> in Instellingen → Geavanceerd kiest een
+benoemde set argumenten die de launcher aan de JVM doorgeeft wanneer Minecraft
+start. De argumenten stemmen de garbage collector af, bepalen de grootte van
+heapregio's en schakelen GC-logboekregistratie in of uit — ze veranderen niet hoe het spel zelf
+werkt, alleen hoe de JVM die het spel draait het geheugen beheert.</p>
+
+<p>De juiste voorinstelling kiezen is vooral belangrijk bij grote modpacks (200+
+mods), waar de GC moet opruimen na het laden en ontladen van duizenden chunks.
+Voor vanilla en kleine modpacks is elke voorinstelling prima en werkt de
+standaardinstelling "Performance" goed.</p>
+
+<h2>Performance (Aikar's Flags)</h2>
+
+<p>De standaardvoorinstelling, aanbevolen voor de overgrote meerderheid van de gebruikers. Gebruikt
+de G1-garbage collector met de parameterafstemming die Aikar (de auteur van de Paper
+Minecraft-server) jaren geleden publiceerde en die veel handleidingen nog steeds
+aanhalen. Ontworpen om haperingen door GC-pauzes tijdens intensief spelen te beperken.</p>
+
+<p>Geschikt voor: <strong>modpacks met 6+ GB toegewezen RAM</strong>,
+zwaar gemodde packs waarbij u onder belasting periodieke haperingen in de framerate
+hebt opgemerkt.</p>
+
+<h2>Low Memory</h2>
+
+<p>Uitgeklede flags voor systemen met weinig vrij RAM. Gebruikt G1 met een
+kortere pauzedoelstelling en kleinere heapregio's, en levert wat
+doorvoer in voor voorspelbaarheid bij krappe geheugendruk.</p>
+
+<p>Geschikt voor: <strong>systemen met in totaal ≤ 8 GB RAM</strong>,
+laptops op accu, of wanneer u meerdere modpacks naast andere apps wilt
+laten draaien. Niet aanbevolen voor grote modpacks
+(200+ mods), waar Aikar's flags het geheugen efficiënter vrijmaken,
+zelfs bij dezelfde totale toewijzing.</p>
+
+<h2>Debug</h2>
+
+<p>De Performance-flags plus uitgebreide GC-logboekregistratie en ingeschakelde
+Java-asserties. Schrijft een bestand {@code gc.log} naar de installatiemap van het modpack
+waarin elke GC-gebeurtenis met tijdstempels wordt vastgelegd. Vooral nuttig voor
+modontwikkelaars en mensen die reproduceerbare OOM-crashes onderzoeken — dit geeft een
+kleine constante overhead, dus laat het niet aan voor dagelijks spelen.</p>
+
+<p>Geschikt voor: <strong>klachten over GC-pauzes onderzoeken</strong>,
+meldingen als "reageert elke minuut een paar seconden niet" uitzoeken.</p>
+
+<h2>None</h2>
+
+<p>Lege argumentenlijst — de JVM gebruikt zijn eigen standaardwaarden. Handig om
+te testen of een vermeend prestatieprobleem door de flags van de voorinstelling
+zelf wordt veroorzaakt (zeldzaam, maar mogelijk als de JDK-versie veel nieuwer is
+dan toen de Aikar-flags werden geschreven).</p>
+
+<p>Geschikt voor: <strong>het basisgedrag verifiëren</strong> wanneer
+het vermoeden bestaat dat een voorinstelling slecht samenwerkt met een specifieke mod of JDK-release.</p>
+
+<h2>Opmerkingen over RAM-toewijzing</h2>
+
+<p>Voorinstellingen stemmen de JVM bij het opstarten af, maar de schuifregelaars
+<strong>Minimaal RAM</strong> en <strong>Maximaal RAM</strong> van de launcher
+in Instellingen → Account / Spel bepalen hoeveel geheugen de JVM mag
+gebruiken. De juiste hoeveelheid hangt af van het modpack:</p>
+
+<ul>
+    <li>Vanilla Minecraft: 2 GB is ruim voldoende.</li>
+    <li>Lichte modpacks (≤ 50 mods): 4 GB.</li>
+    <li>Middelgrote modpacks (50-150 mods): 6 GB.</li>
+    <li>Zware modpacks (150+ mods, shaders): 8-12 GB.</li>
+    <li>Extreme modpacks (300+ mods, aangepaste wereldgeneratie): 12-16 GB.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Waarschuwing</div>
+    <p>Als u meer RAM toewijst dan uw systeem kan missen, gaat Minecraft
+    naar schijf swappen, waardoor haperingen <em>erger</em> worden in plaats van beter.
+    Houd het maximale RAM op of onder de helft van het totale RAM van uw systeem. Een
+    systeem met 16 GB zou niet meer dan 8 GB aan Minecraft moeten toewijzen.</p>
+</div>
+
+<h2>Aangepaste flags</h2>
+
+<p>Het veld in Instellingen onder de keuzelijst met voorinstellingen is bewerkbaar — u kunt
+uw eigen argumenten plakken als geen enkele voorinstelling aan uw behoeften voldoet.
+Veelgebruikte toevoegingen:</p>
+
+<ul>
+    <li><code>-XX:+UseZGC</code> — overschakelen naar de Z-garbage collector
+        (korte pauzes, vereist JDK 15+). Presteert soms beter dan G1 bij
+        zeer grote heaps (32 GB+), maar is bij gangbare Minecraft-opstellingen
+        doorgaans geen reden om van G1 af te stappen.</li>
+    <li><code>-Dfile.encoding=UTF-8</code> — handig wanneer mods
+        configuratiebestanden met niet-ASCII-inhoud genereren op Windows, waar de
+        standaardtekenset Latin-1 kan zijn.</li>
+    <li><code>-Xss2M</code> — vergroot de stackgrootte van threads ten opzichte van de
+        JVM-standaard; sommige modpacks met diepe aanroepketens (zware mods voor
+        wereldgeneratie, grote dimensiegeneratoren) hebben dit nodig.</li>
+</ul>
+
+<p>Fouten in aangepaste flags uiten zich als mislukte starts met berichten
+zoals "Error: Could not create the Java Virtual Machine" of
+"Unrecognized VM option". Ziet u een van deze berichten, schakel dan terug naar
+Performance en probeer het opnieuw voordat u het aangepaste veld gebruikt.</p>

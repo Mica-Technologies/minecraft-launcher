@@ -1,0 +1,57 @@
+<h1>Modpack-editor</h1>
+
+<p>De modpack-editor is een ingebouwd hulpmiddel om JSON-definitiebestanden van modpacks te maken en te bewerken.
+Het biedt een gestructureerde interface met validatie, geïntegreerd zoeken en het bijhouden van verschillen.</p>
+
+<h2>Werkbalk</h2>
+
+<ul>
+    <li><strong>Nieuw</strong> — een lege modpackdefinitie maken op basis van een sjabloon.</li>
+    <li><strong>Bestand openen</strong> — een bestaande JSON-definitie van schijf laden.</li>
+    <li><strong>URL openen</strong> — een definitie ophalen en laden vanaf een externe URL.</li>
+    <li><strong>Opslaan</strong> — de huidige definitie naar een lokaal bestand schrijven.</li>
+    <li><strong>Valideren</strong> — de definitie controleren op fouten (ontbrekende velden, ongeldige URL's, niet-overeenkomende hashes).</li>
+    <li><strong>Verschil</strong> — de huidige staat vergelijken met de laatst opgeslagen versie om te zien wat er is gewijzigd.</li>
+</ul>
+
+<h2>Metagegevensvelden</h2>
+
+<p>Het bovenste gedeelte bevat de kerngegevens van het modpack: naam, versie, beschrijving, auteur,
+Minecraft-versie en Forge-versie. Met de <strong>Forge-versiekiezer</strong> bladert u door de
+beschikbare Forge-builds voor de geselecteerde Minecraft-versie.</p>
+
+<h2>Bestandstabbladen</h2>
+
+<p>Bestanden zijn ingedeeld in tabbladen per categorie:</p>
+
+<table class="settings-table">
+    <tr><td>Mods</td><td>Forge-mod-JAR's die in de map <code>mods/</code> worden geplaatst.</td></tr>
+    <tr><td>Configuraties</td><td>Configuratiebestanden voor mods, geplaatst in <code>config/</code>.</td></tr>
+    <tr><td>Resources</td><td>Resourcepacks en andere assets.</td></tr>
+    <tr><td>Shaders</td><td>Shaderpacks voor OptiFine of Iris.</td></tr>
+    <tr><td>Startbestanden</td><td>Bestanden die alleen bij de eerste installatie worden gekopieerd (bijv. een standaard-options.txt).</td></tr>
+</table>
+
+<p>Elk bestandsitem bevat een download-URL en een SHA-1-hash. De editor kan
+<strong>hashes automatisch berekenen</strong> door het bestand te downloaden en de controlesom te berekenen.</p>
+
+<h2>Zoeken in Modrinth</h2>
+
+<p>Gebruik de geïntegreerde Modrinth-zoekfunctie om mods op naam te vinden. Selecteer een resultaat om de
+velden voor download-URL en hash automatisch in te vullen voor de juiste versie.</p>
+
+<h2>Versie verhogen</h2>
+
+<p>De knop <strong>Versie verhogen</strong> hoogt het versienummer van het modpack op, zodat u eenvoudig
+updates publiceert die de launcher automatisch detecteert.</p>
+
+<h2>URL's controleren</h2>
+
+<p>De editor kan controleren of alle download-URL's van bestanden bereikbaar zijn, zodat u kapotte
+links vindt voordat u publiceert.</p>
+
+<div class="tip">
+    <div class="callout-title">Tip</div>
+    <p>Gebruik <strong>Valideren</strong> vóór het opslaan om problemen vroeg te ontdekken. De validator controleert
+    verplichte velden, geldige URL's en de juiste notatie van hashes.</p>
+</div>
