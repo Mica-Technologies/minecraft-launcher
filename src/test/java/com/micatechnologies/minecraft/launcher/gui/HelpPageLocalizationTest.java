@@ -27,6 +27,7 @@ import java.util.Locale;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -55,6 +56,15 @@ class HelpPageLocalizationTest
                                                               Set.of( "help/de/settings.html" )::contains ) );
         assertEquals( PAGE, MCLauncherHelpWindow.localizedPagePath( PAGE, Locale.JAPANESE, p -> false ) );
         assertEquals( PAGE, MCLauncherHelpWindow.localizedPagePath( PAGE, Locale.ROOT, p -> true ) );
+    }
+
+    @Test
+    void onlyRightToLeftLanguagesFlipTheDirection()
+    {
+        assertTrue( MCLauncherHelpWindow.isRightToLeft( Locale.of( "ar" ) ) );
+        assertFalse( MCLauncherHelpWindow.isRightToLeft( Locale.GERMAN ) );
+        assertFalse( MCLauncherHelpWindow.isRightToLeft( Locale.of( "zh", "TW" ) ) );
+        assertFalse( MCLauncherHelpWindow.isRightToLeft( null ) );
     }
 
     @Test

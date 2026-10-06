@@ -466,6 +466,24 @@ public class MCLauncherHelpWindow
         return englishPath;
     }
 
+    /**
+     * Whether a language is written right to left.
+     *
+     * @param locale the UI language
+     *
+     * @return {@code true} for Arabic, Hebrew, Persian and Urdu
+     */
+    static boolean isRightToLeft( Locale locale )
+    {
+        if ( locale == null ) {
+            return false;
+        }
+        return switch ( locale.getLanguage() ) {
+            case "ar", "he", "iw", "fa", "ur" -> true;
+            default -> false;
+        };
+    }
+
     private static void loadTopic( HelpTopic topic )
     {
         currentTopic = topic;
@@ -495,7 +513,11 @@ public class MCLauncherHelpWindow
                 // content fully self-contained and theme-correct on every theme.
                 String baseCss = readResourceText( "help/help-style.css" );
                 String themeCss = readResourceText( resolveThemeCssPath() );
-                String fullHtml = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">" +
+                // A right-to-left translation (Arabic) reads and aligns from the right. Only when
+                // that translation was found: an English fallback page stays left-to-right.
+                String dir = !pagePath.equals( topic.getResourcePath() ) && isRightToLeft( LocalizationManager.currentLocale() )
+                             ? " dir=\"rtl\"" : "";
+                String fullHtml = "<!DOCTYPE html><html" + dir + "><head><meta charset=\"UTF-8\">" +
                         "<style>" + baseCss + "\n" + themeCss + "</style>" +
                         "</head><body>" + html + "</body></html>";
 
