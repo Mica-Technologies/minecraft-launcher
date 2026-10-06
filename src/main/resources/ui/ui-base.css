@@ -19,18 +19,14 @@
  * rule here with the same specificity still wins.
  * ===================================================================== */
 
-/* ---- MaterialFX buttons: ripple ---- */
-.mfx-button:armed .ripple-generator,
-.mfx-button:focused .ripple-generator { -mfx-ripple-color: -color-border-strong; }
+/* ---- MaterialFX buttons: ripple: see the Material 3 button rules below ---- */
 
 /* ---- Sign-out button (Settings › Account) ---- */
 .logoutBtn.mfx-button,
 .logoutBtn.mfx-button:armed,
 .logoutBtn.mfx-button:focused   { -fx-background-color: -color-primary; }
 .logoutBtn.mfx-button:hover     { -fx-background-color: -color-primary-hover; }
-.logoutBtn.mfx-button .ripple-generator,
-.logoutBtn.mfx-button:armed .ripple-generator,
-.logoutBtn.mfx-button:focused .ripple-generator { -mfx-ripple-color: -color-border-strong; }
+.logoutBtn.mfx-button .mfx-ripple-generator { -mfx-ripple-color: -md-state-pressed-on-primary; }
 .logoutBtn.mfx-button .text,
 .logoutBtn.mfx-button:armed .text,
 .logoutBtn.mfx-button:focused .text { -fx-fill: -color-text-on-primary; }
@@ -42,7 +38,8 @@
 .mfx-text-field .floating-text .text,
 .mfx-text-field:floating .floating-text .text { -fx-fill: -color-text-muted; }
 .mfx-text-field:floating .floating-text { -fx-background-radius: 4; }
-.mfx-text-field:floating:focus-within .floating-text { -fx-background-color: -color-popup; -fx-background-radius: 4; }
+/* (No background here: it swapped the label's backing to -color-popup on focus, a visible
+ * tile on the field.) */
 .mfx-text-field:floating:focus-within .floating-text .text { -fx-fill: -color-primary; }
 .mfx-text-field:focus-within { -fx-border-radius: 8; }
 
@@ -939,7 +936,6 @@
  * against arbitrary modpack imagery — the prior translucent-soft styling was too
  * faint against bright images. Solid bright fill + white text + a tight drop
  * shadow gives consistent readability regardless of what's behind. */
-.heroCardImage .stat-chip-success,
 .heroCardImage .stat-chip-warn {
     -fx-text-fill: white;
     -fx-font-weight: 700;
@@ -948,8 +944,15 @@
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 6, 0.30, 0, 1);
 }
 
+/* Success: the theme's success role and its on-colour. White text sat on the bright greens of
+ * the bluegray, orangepurple and creeper themes at about 2:1. */
 .heroCardImage .stat-chip-success {
-    -fx-background-color: -color-success;
+    -fx-background-color: -md-success;
+    -fx-text-fill: -md-on-success;
+    -fx-font-weight: 700;
+    -fx-padding: 3 12 3 12;
+    -fx-border-width: 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 6, 0.30, 0, 1);
 }
 
 .heroCardImage .stat-chip-warn {
@@ -965,7 +968,9 @@
 .heroCardImage .stat-chip-info,
 .stat-chip-info {
     -fx-background-color: -color-primary;
-    -fx-text-fill: white;
+    /* The primary's own on-colour: white was unreadable on the bright greens of the dark,
+     * native and creeper primaries. */
+    -fx-text-fill: -color-text-on-primary;
     -fx-font-weight: 700;
     -fx-padding: 3 12 3 12;
     -fx-border-width: 0;
@@ -1333,7 +1338,7 @@
     -fx-border-color: -md-primary;
 }
 
-.mfx-button .ripple-generator {
+.mfx-button .mfx-ripple-generator {
     -mfx-ripple-color: -md-state-pressed-on-surface;
 }
 
@@ -1382,9 +1387,9 @@
     -fx-border-color: -md-on-primary;
 }
 
-.mfx-button.primary .ripple-generator,
-.playBtn.mfx-button .ripple-generator,
-.heroCardPrimaryBtn.mfx-button .ripple-generator {
+.mfx-button.primary .mfx-ripple-generator,
+.playBtn.mfx-button .mfx-ripple-generator,
+.heroCardPrimaryBtn.mfx-button .mfx-ripple-generator {
     -mfx-ripple-color: -md-state-pressed-on-primary;
 }
 
@@ -2353,8 +2358,7 @@
     -fx-alignment: CENTER_LEFT;
     -mfx-button-type: FLAT;
 }
-.settingsNavBtn.mfx-button .mfx-ripple-generator,
-.settingsNavBtn.mfx-button .ripple-generator {
+.settingsNavBtn.mfx-button .mfx-ripple-generator {
     -mfx-ripple-color: -md-state-pressed-on-surface;
 }
 .settingsNavBtn.mfx-button:hover {
@@ -2563,7 +2567,9 @@
 }
 
 .signInOverlay {
-    -fx-background-color: -color-surface;
+    /* Opaque in every theme: in Native -color-surface is a 5% tint, and the white page of the
+     * WebView beneath showed through behind the overlay's light text. */
+    -fx-background-color: -color-popup;
     -fx-padding: 24;
 }
 
@@ -3056,3 +3062,38 @@
 .connectedGroup .mfx-button.tileMiddle:hover { -fx-background-radius: 4; -fx-border-radius: 4; -fx-padding: 6 14 6 14; }
 .connectedGroup .mfx-button.tileLast,
 .connectedGroup .mfx-button.tileLast:hover   { -fx-background-radius: 4 999 999 4; -fx-border-radius: 4 999 999 4; -fx-padding: 6 16 6 14; }
+
+/* Password fields: MaterialFX colours its show/hide eye #4D4D4D in code, about 2:1 on dark
+ * fields; author CSS overrides it. */
+.mfx-password-field .eye-icon {
+    -mfx-color: -md-on-surface-variant;
+}
+
+/* Text selection: MaterialFX highlights with its lavender (#ECE0FD) and Modena with light grey,
+ * both under black text; use the theme's active indicator in every text input. */
+.text-input {
+    -fx-highlight-fill: -md-active-indicator;
+    -fx-highlight-text-fill: -md-on-active-indicator;
+}
+
+/* Sliders (the quick-start wizard's RAM slider): Modena's light-grey gradients and dark tick
+ * labels showed on dark themes; draw an M3-style track and handle instead. */
+.slider .track {
+    -fx-background-color: -md-surface-container-highest;
+    -fx-background-radius: 4;
+}
+.slider .thumb {
+    -fx-background-color: -md-primary;
+    -fx-background-radius: 999;
+    -fx-background-insets: 0;
+    -fx-effect: null;
+}
+.slider:hover .thumb, .slider:focused .thumb {
+    -fx-background-color: -md-primary, -md-state-hover-on-primary;
+}
+.slider .axis {
+    -fx-tick-label-fill: -md-on-surface-variant;
+}
+.slider .axis-tick-mark, .slider .axis-minor-tick-mark {
+    -fx-stroke: -md-outline-variant;
+}
