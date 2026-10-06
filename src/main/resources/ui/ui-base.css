@@ -2770,6 +2770,25 @@
 .mfx-combo-box-cell:selected { -fx-background-color: -md-active-indicator; }
 .mfx-combo-box-cell:selected .data-label { -fx-text-fill: -md-on-active-indicator; }
 
+/* Plain JavaFX dropdowns (the Modpack Editor's ChoiceDialogs use one). Modena paints the
+ * closed button light grey, which left dark themes' light text unreadable on it; draw it
+ * as a field like the MaterialFX dropdowns instead. Its menu is styled in the dialog
+ * rules near the top of this file. */
+.combo-box-base {
+    -fx-background-color: -md-surface-container-highest;
+    -fx-background-radius: 8;
+    -fx-border-color: -md-outline-variant;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-background-insets: 0;
+}
+.combo-box-base:hover { -fx-background-color: -md-surface-container-highest, -md-state-hover-on-surface; }
+.combo-box-base:focused { -fx-border-color: -md-primary; }
+.combo-box-base > .list-cell,
+.combo-box-base .list-cell { -fx-text-fill: -md-on-surface; -fx-background-color: transparent; }
+.combo-box-base > .arrow-button { -fx-background-color: transparent; }
+.combo-box-base > .arrow-button > .arrow { -fx-background-color: -md-on-surface-variant; }
+
 /* Checkboxes: M3's 18 px box with small corners (4 px, the scale's extra-small) and a 2 px outline; checked, it fills
  * with primary and shows the mark in on-primary. (It was drawn as a circle.) */
 .check-box .box, .mfx-checkbox .box {
@@ -2834,11 +2853,12 @@
 .tab-pane .tab .tab-close-button { -fx-background-color: -md-on-surface-variant; }
 .tab-pane .tab:selected .tab-close-button { -fx-background-color: -md-text-primary; }
 
-/* Menus (context menus and menu-button popups): M3 menus. A 12 px surface-container
- * card with a shadow and no border; items highlight with a state layer rather than
- * the primary tint. */
+/* Menus (context menus and menu-button popups): M3 menus. A 12 px card with a shadow
+ * and no border; items highlight with a state layer rather than the primary tint. The
+ * card is -color-popup, opaque in every theme: a menu is its own window, and the Native
+ * themes' translucent surface containers left it nearly invisible over the desktop. */
 .context-menu {
-    -fx-background-color: -md-surface-container;
+    -fx-background-color: -color-popup;
     -fx-background-radius: 12;
     -fx-border-width: 0;
     -fx-padding: 6 4 6 4;
