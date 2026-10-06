@@ -1,0 +1,104 @@
+<h1>JVM-Voreinstellungen</h1>
+
+<p>Das Dropdown <strong>JVM-Voreinstellung</strong> unter Einstellungen → Erweitert wählt einen
+benannten Satz von Argumenten, die der Launcher beim Start von Minecraft an die JVM
+übergibt. Die Argumente optimieren den Garbage Collector, steuern die Größe der
+Heap-Regionen und schalten das GC-Logging ein oder aus — sie ändern nicht, wie sich das
+Spiel selbst verhält, sondern nur, wie die JVM, in der es läuft, den Speicher verwaltet.</p>
+
+<p>Die Wahl der richtigen Voreinstellung ist vor allem bei großen Modpacks (200+
+Mods) wichtig, bei denen der GC nach dem Laden und Entladen Tausender Chunks
+aufräumen muss. Für Vanilla und kleine Modpacks ist jede Voreinstellung in Ordnung, und
+die Standardeinstellung „Performance“ funktioniert gut.</p>
+
+<h2>Performance (Aikar's Flags)</h2>
+
+<p>Standardvoreinstellung und für die große Mehrheit der Benutzer empfohlen. Verwendet
+den G1-Garbage-Collector mit der Parameterabstimmung, die Aikar (der Autor des Paper-Minecraft-Servers)
+vor Jahren veröffentlicht hat und die viele Anleitungen noch heute
+zitieren. Ziel ist es, Ruckler durch GC-Pausen bei intensivem Spielen zu minimieren.</p>
+
+<p>Am besten geeignet für: <strong>Modpacks mit 6+ GB zugewiesenem RAM</strong>,
+stark modifizierte Modpacks, bei denen Sie unter Last regelmäßige Einbrüche der
+Bildrate bemerkt haben.</p>
+
+<h2>Low Memory</h2>
+
+<p>Reduzierte Flags für Systeme mit wenig freiem RAM. Verwendet G1 mit einem
+kürzeren Pausenziel und kleineren Heap-Regionen und opfert etwas
+Durchsatz zugunsten der Vorhersagbarkeit bei knappem Speicher.</p>
+
+<p>Am besten geeignet für: <strong>Systeme mit ≤ 8 GB System-RAM insgesamt</strong>,
+Laptops im Akkubetrieb oder wenn Sie mehrere Modpacks
+neben anderen Apps laufen lassen möchten. Nicht empfohlen für große Modpacks
+(200+ Mods), bei denen Aikars Flags den Speicher selbst bei gleicher
+Gesamtzuweisung effizienter freigeben.</p>
+
+<h2>Debug</h2>
+
+<p>Performance-Flags plus ausführliches GC-Logging + aktivierte Java-Assertions.
+Schreibt eine Datei {@code gc.log} in den Installationsordner des Modpacks,
+die jedes GC-Ereignis mit Zeitstempel aufzeichnet. Vor allem nützlich für Mod-Entwickler
+und alle, die reproduzierbare OOM-Abstürze untersuchen — verursacht einen
+kleinen dauerhaften Mehraufwand, lassen Sie es also nicht beim normalen Spielen aktiviert.</p>
+
+<p>Am besten geeignet für: <strong>Untersuchung von Beschwerden über GC-Pausen</strong>,
+Analyse von Meldungen wie „reagiert jede Minute für ein paar Sekunden nicht“.</p>
+
+<h2>None</h2>
+
+<p>Leere Argumentliste — die JVM verwendet ihre eigenen Standardwerte. Nützlich, um
+zu testen, ob ein vermeintliches Leistungsproblem durch die Flags der Voreinstellung
+selbst verursacht wird (selten, aber möglich, wenn die JDK-Version deutlich neuer
+ist als zu der Zeit, als die Aikar-Flags geschrieben wurden).</p>
+
+<p>Am besten geeignet für: <strong>Überprüfung des Grundverhaltens</strong>, wenn der
+Verdacht besteht, dass eine Voreinstellung schlecht mit einer bestimmten Mod oder JDK-Version
+zusammenspielt.</p>
+
+<h2>Hinweise zur RAM-Zuweisung</h2>
+
+<p>Voreinstellungen optimieren die JVM beim Start, aber die Schieberegler
+<strong>Mindest-RAM</strong> und <strong>Maximaler RAM</strong> des Launchers
+unter Einstellungen → Konto / Spiel legen fest, wie viel Speicher die JVM
+verwenden darf. Die richtige Menge hängt vom Modpack ab:</p>
+
+<ul>
+    <li>Vanilla Minecraft: 2 GB sind mehr als genug.</li>
+    <li>Leichte Modpacks (≤ 50 Mods): 4 GB.</li>
+    <li>Mittlere Modpacks (50-150 Mods): 6 GB.</li>
+    <li>Schwere Modpacks (150+ Mods, Shader): 8-12 GB.</li>
+    <li>Extreme Modpacks (300+ Mods, eigene Weltgenerierung): 12-16 GB.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Warnung</div>
+    <p>Wenn Sie mehr RAM zuweisen, als Ihr System entbehren kann, lagert Minecraft
+    auf den Datenträger aus, was Ruckler <em>verschlimmert</em> statt verbessert.
+    Halten Sie den maximalen RAM bei höchstens der Hälfte des gesamten System-RAM. Ein
+    System mit 16 GB sollte Minecraft nicht mehr als 8 GB zuweisen.</p>
+</div>
+
+<h2>Benutzerdefinierte Flags</h2>
+
+<p>Das Feld in den Einstellungen unterhalb des Voreinstellungs-Dropdowns ist bearbeitbar — Sie können
+Ihre eigene Argumentzeichenfolge einfügen, wenn keine Voreinstellung Ihren Anforderungen entspricht.
+Häufige Ergänzungen:</p>
+
+<ul>
+    <li><code>-XX:+UseZGC</code> — wechselt zum Z-Garbage-Collector
+        (kurze Pausen, erfordert JDK 15+). Übertrifft G1 manchmal bei
+        sehr großen Heaps (32 GB+), ein Wechsel von G1 lohnt sich aber
+        bei typischen Minecraft-Setups meist nicht.</li>
+    <li><code>-Dfile.encoding=UTF-8</code> — nützlich, wenn Mods unter Windows
+        Konfigurationsdateien mit Nicht-ASCII-Inhalt erzeugen, wo der
+        Standardzeichensatz Latin-1 sein kann.</li>
+    <li><code>-Xss2M</code> — erhöht die Thread-Stackgröße gegenüber dem JVM-Standard;
+        manche Modpacks mit tiefen Aufrufketten (Mods mit aufwendiger Weltgenerierung,
+        große Dimensionsgeneratoren) benötigen dies.</li>
+</ul>
+
+<p>Fehler in benutzerdefinierten Flags äußern sich als Startfehler mit Meldungen
+wie „Error: Could not create the Java Virtual Machine“ oder
+„Unrecognized VM option“. Wenn Sie eine davon sehen, wechseln Sie zurück zu
+Performance und versuchen Sie es erneut, bevor Sie das benutzerdefinierte Feld verwenden.</p>

@@ -1,0 +1,109 @@
+<h1>Durchsuchen</h1>
+
+<p>Der Bildschirm Durchsuchen ist Ihr Ort zum Installieren &amp; Verwalten. Hier können Sie neue Modpacks
+aus dem öffentlichen Manifest installieren, reine Vanilla-Minecraft-Versionen installieren, leere Starter-Modpacks für Forge / NeoForge /
+Fabric installieren, vorhandene Modpacks bearbeiten und alles deinstallieren, was Sie nicht mehr benötigen.</p>
+
+<h2>Karten &amp; die Filterleiste</h2>
+
+<p>Jeder Eintrag erscheint als Hero-Karte mit Logo, Abzeichen, Name, Chips (Loader / Minecraft-Version),
+einer Statuszeile und Aktionsschaltflächen. Mit der Filterleiste oben grenzen Sie die Ansicht ein.</p>
+
+<ul>
+    <li><strong>Suchen</strong> — Freitextsuche in den Kartentiteln. Wird während der Eingabe aktualisiert
+        (mit einer kurzen Verzögerung, damit das Layout nicht ständig neu aufgebaut wird).</li>
+    <li><strong>Typ</strong> — Alle, Modpacks oder einer der Versionskataloge:
+        Vanilla (Releases / Snapshots / Old Beta / Old Alpha) sowie Forge-, NeoForge- und Fabric-Versionen.
+        Die Loader-Versionsfilter sind absichtlich <em>nicht</em> in „Alle“ enthalten — die kombinierte Liste
+        hätte Tausende Einträge und ist nicht das, was man bei einer Suche nach „alles anzeigen“ erwartet.</li>
+    <li><strong>Status</strong> — Alle, Installiert oder Verfügbar. „Verfügbar“ zeigt Einträge, die Sie
+        noch nicht installiert haben; „Installiert“ zeigt, was bereits auf dem Datenträger liegt.</li>
+    <li><strong>Sortieren</strong> — Standard, Name (A–Z / Z–A), Veröffentlichungsdatum, Zuletzt gespielt, Meistgespielt,
+        Kürzlich aktualisiert. Sortierungen, die vom Spiel- bzw. Update-Verlauf abhängen (Zuletzt gespielt, Meistgespielt,
+        Kürzlich aktualisiert), verschieben Einträge, die keine Modpacks sind, ans Ende, statt sie
+        verwirrend dazwischen einzureihen.</li>
+</ul>
+
+<h2>Installierte Modpacks</h2>
+
+<p>Karten für bereits installierte Modpacks zeigen zwei Schaltflächen:</p>
+
+<ul>
+    <li><strong>Deinstallieren</strong> — fragt, ob auch der Installationsordner gelöscht werden soll. „Deinstallieren
+        (Dateien behalten)“ behält Ihre Welten, Konfigurationen und Mods, auch wenn der Launcher das Modpack
+        danach nicht mehr kennt — nützlich, wenn Sie dasselbe Modpack später erneut installieren möchten.</li>
+    <li><strong>Bearbeiten</strong> — öffnet den <a href="help://topic/MODPACK_EDITOR">Modpack-Editor</a>
+        mit dem lokalen Manifest des Modpacks. Änderungen werden auf den Datenträger geschrieben und gelten ab dem nächsten Start.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Tipp</div>
+    <p>Klicken Sie mit der rechten Maustaste auf eine installierte Modpack-Karte, um dasselbe Kontextmenü wie im Hauptmenü zu erhalten:
+    Installationsordner öffnen, Mods-Ordner öffnen, Desktop-Verknüpfung erstellen, Spielstatistik anzeigen und
+    deinstallieren.</p>
+</div>
+
+<h2>Verfügbare Modpacks</h2>
+
+<p>Karten aus dem öffentlichen Manifest, die Sie noch nicht besitzen, zeigen eine Schaltfläche <strong>Installieren</strong>.
+Ein Klick darauf lädt das Manifest herunter, installiert das Modpack und verschiebt die Karte beim nächsten Neuaufbau
+in die Gruppe Installiert. Sie können die Filter weiter verwenden, während eine Installation läuft — die
+Karte in Bearbeitung bleibt oben im Raster angeheftet, bis die Installation abgeschlossen ist.</p>
+
+<h2>Vanilla-Versionen</h2>
+
+<p>Mojangs vollständiger Katalog an Releases / Snapshots / Betas / Alphas. Jede Karte installiert genau diese
+Minecraft-Version als synthetisches leeres Modpack, das Sie direkt aus dem Hauptmenü spielen können. Alte
+Betas und Alphas sind ebenfalls lauffähig — der Launcher lädt für jede Version automatisch
+die passende Java-Laufzeitumgebung.</p>
+
+<h2>Forge-, NeoForge- und Fabric-Versionen</h2>
+
+<p>Die Loader-Versionsfilter zeigen jedes Release, das der Versionsdienst des jeweiligen Projekts anbietet:
+Forge-Promotions, NeoForge-Maven-Metadaten und die Fabric-Meta-API. Ein Klick auf Installieren bei einem
+dieser Einträge schreibt ein synthetisches Manifest für ein „leeres Modpack“ in Ihren Konfigurationsordner und registriert es beim
+Launcher — das Ergebnis verhält sich also wie jedes andere installierte Modpack:</p>
+
+<ul>
+    <li>es erscheint in den Hero-Karten des Hauptmenüs;</li>
+    <li>es lässt sich im Modpack-Editor bearbeiten (Sie können also Mods hinzufügen, um Ihr eigenes Modpack zu erstellen);</li>
+    <li>es kann wie jedes andere Modpack deinstalliert werden;</li>
+    <li>es nutzt dieselbe Auto-Update-Mechanik wie ein normales Modpack.</li>
+</ul>
+
+<div class="note">
+    <div class="callout-title">Hinweis</div>
+    <p>Die Karten zeigen das offizielle Logo des jeweiligen Projekts, sobald der Launcher es lokal zwischengespeichert hat. Beim
+    ersten Aufruf eines Loader-Filters wird ein Platzhalter in den Markenfarben angezeigt, während die echten Logos
+    im Hintergrund heruntergeladen werden — sobald sie zwischengespeichert sind, erfolgen weitere Aufrufe sofort.</p>
+</div>
+
+<h2>Per URL hinzufügen</h2>
+
+<p>Die Schaltfläche <strong>Von URL hinzufügen</strong> in der unteren Leiste nimmt eine direkte URL zu einem gehosteten
+<code>installable.json</code>-Manifest entgegen und installiert es auf dieselbe Weise wie die Karten verfügbarer Modpacks.
+Verwenden Sie dies für Modpacks, die außerhalb des öffentlichen Manifests verteilt werden — fügen Sie den Link ein, klicken Sie auf die Schaltfläche,
+und die Metadaten des Manifests werden heruntergeladen und validiert, bevor die Installation beginnt.</p>
+
+<h2>Modpack-Editor</h2>
+
+<p>Die Schaltfläche <strong>Modpack-Editor</strong> in der unteren Leiste öffnet den
+<a href="help://topic/MODPACK_EDITOR">Modpack-Editor</a> mit einem leeren Manifest, damit Sie
+ein neues Modpack von Grund auf erstellen können — legen Sie Loader (Forge / NeoForge / Fabric / Vanilla), Minecraft-Version,
+Mod-Liste usw. fest. Der Editor lässt sich auch für ein vorhandenes Modpack über die Schaltfläche <strong>Bearbeiten</strong>
+auf dessen Karte öffnen.</p>
+
+<h2>Hosting-Manifest generieren</h2>
+
+<p>Die Schaltfläche <strong>Hosting-Manifest generieren</strong> in der unteren Leiste erstellt eine
+<code>installable.json</code> für das Modpack, das gerade im Editor geöffnet ist, bereit zum Hosten auf einem beliebigen Webserver
+oder Filesharing-Dienst. Jeder, der die resultierende URL hat, kann Ihr Modpack über Von URL
+hinzufügen installieren.</p>
+
+<h2>Seitenaufteilung</h2>
+
+<p>Lange Listen werden auf mehrere Seiten aufgeteilt. Verwenden Sie die Schaltflächen <strong>Zurück</strong> / <strong>Weiter</strong> in der
+Seitenleiste (oberhalb der Karten), um zwischen Seiten zu wechseln, und das Dropdown <strong>Pro Seite</strong>,
+um die Seitengröße festzulegen — 24, 48, 72 oder 96. Der Standardwert 48 passt für eine typische installierte
+Bibliothek auf eine Seite; mit 96 lassen sich die Loader-Versionsfilter auf einer einzigen Seite
+durchscrollen.</p>

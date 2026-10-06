@@ -1,0 +1,112 @@
+<h1>Fehlerbehebung</h1>
+
+<p>Diese Seite behandelt häufige Probleme und deren Lösungen. Wenn Ihr Problem hier nicht aufgeführt ist,
+prüfen Sie die Launcher-Protokolle auf Fehlerdetails.</p>
+
+<h2>Download-Fehler</h2>
+
+<p>Dateien lassen sich nicht herunterladen, oder beim Start treten Überprüfungsfehler auf.</p>
+
+<ul>
+    <li>Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.</li>
+    <li>Wenn Sie sich in einem Firmen- oder Schulnetzwerk befinden, konfigurieren Sie einen Proxy in den
+        <a href="help://topic/SETTINGS">Einstellungen</a> unter Netzwerk / Proxy.</li>
+    <li>Wiederholen Sie den Start — vorübergehende Netzwerkfehler lösen sich oft beim zweiten Versuch.</li>
+    <li>Wenn eine bestimmte Datei immer wieder fehlschlägt, ist ihre Download-URL möglicherweise defekt. Melden Sie dies dem Autor des Modpacks.</li>
+</ul>
+
+<h2>Offline-Anzeige</h2>
+
+<p>Ein roter Chip <strong>Offline</strong> erscheint neben der Hilfe-Schaltfläche auf jedem Hauptbildschirm,
+wenn der Launcher keine Internetverbindung erkennt. Solange Sie offline sind:</p>
+
+<ul>
+    <li>Sie können weiterhin jedes Modpack starten, dessen Dateien bereits vollständig heruntergeladen sind.</li>
+    <li>Installationen, Updates und die Dialoge zur Versionsauswahl im Modpack-Editor schlagen fehl oder
+        zeigen veraltete Daten.</li>
+    <li>Die Filter für verfügbare Modpacks und Loader-Versionen im Bildschirm <a href="help://topic/BROWSE_LIBRARY">Durchsuchen</a>
+        bleiben leer, bis das Netzwerk wieder verfügbar ist.</li>
+    <li>Die Authentifizierung ist nicht betroffen, solange Ihr vorhandenes Token noch gültig ist (zwischen den Starts
+        auf dem Datenträger zwischengespeichert).</li>
+</ul>
+
+<p>Die Anzeige wird aktualisiert, wenn Sie zwischen Bildschirmen wechseln. Sobald Ihr Netzwerk wieder
+funktioniert, wird der Chip aktualisiert, wenn Sie zu einem anderen Bildschirm und zurück wechseln.</p>
+
+<h2>Spielabstürze</h2>
+
+<p>Das Spiel startet, stürzt aber kurz danach oder während des Spielens ab.</p>
+
+<ul>
+    <li>Aktivieren Sie die <a href="help://topic/GAME_CONSOLE">Spielkonsole</a> in den Einstellungen, um Absturzausgaben in Echtzeit anzuzeigen.</li>
+    <li>Prüfen Sie den Absturzbericht im Ordner <code>crash-reports/</code> des Modpacks auf genaue Fehlerdetails.</li>
+    <li>Erhöhen Sie die maximale RAM-Zuweisung in den <a href="help://topic/SETTINGS">Einstellungen</a> — viele Modpacks benötigen mindestens 4 - 6 GB.</li>
+    <li>Klicken Sie im Hauptbildschirm mit der rechten Maustaste auf das Modpack, wählen Sie <strong>Installationsordner öffnen</strong>, löschen Sie dann
+        den Ordner <code>mods/</code> und starten Sie neu, um einen frischen Download zu erzwingen.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Warnung</div>
+    <p>Zu viel zugewiesener RAM (mehr, als Ihr System entbehren kann) kann genauso leicht Abstürze verursachen
+    wie zu wenig. Halten Sie den maximalen RAM bei höchstens der Hälfte Ihres gesamten Arbeitsspeichers.</p>
+</div>
+
+<h2>Launcher hängt beim Laden</h2>
+
+<p>Der Launcher scheint eingefroren zu sein, oder ein Fortschrittsbalken bewegt sich nicht mehr.</p>
+
+<ul>
+    <li>Warten Sie einige Minuten — bei großen Modpacks kann die Überprüfung der Dateien dauern, besonders beim ersten Start.</li>
+    <li>Prüfen Sie die Launcher-Protokolle auf Fehler (aktivieren Sie Erweiterte Protokollierung in den Einstellungen).</li>
+    <li>Als letzten Ausweg verwenden Sie <strong>Launcher zurücksetzen</strong> in den <a href="help://topic/SETTINGS">Einstellungen</a>,
+        um zu einem sauberen Zustand zurückzukehren.</li>
+</ul>
+
+<h2>Offlinemodus</h2>
+
+<p>Der Launcher benötigt eine Internetverbindung für die Authentifizierung und das Herunterladen von Dateien. Modpack-Manifeste
+und Spieldateien werden jedoch nach dem ersten erfolgreichen Download lokal zwischengespeichert.</p>
+
+<ul>
+    <li>Wenn Sie nach der Ersteinrichtung die Verbindung verlieren, kann das Spiel möglicherweise trotzdem mit zwischengespeicherten Dateien starten.</li>
+    <li>Authentifizierungstokens werden etwa 4 Stunden lang zwischengespeichert — wenn Ihr Token noch gültig ist, können Sie innerhalb dieses Zeitraums offline spielen.</li>
+</ul>
+
+<h2>Leistungsprobleme</h2>
+
+<p>Das Spiel läuft, aber mit niedriger FPS oder häufigen Rucklern.</p>
+
+<ul>
+    <li>Wechseln Sie zur JVM-Voreinstellung <strong>Performance (Aikar's Flags)</strong> in den
+        <a href="help://topic/SETTINGS">Einstellungen</a>.</li>
+    <li>Stellen Sie sicher, dass Sie genügend RAM zugewiesen haben — mindestens 4 GB für die meisten Modpacks.</li>
+    <li>Schließen Sie während des Spielens andere speicherintensive Anwendungen.</li>
+    <li>Prüfen Sie, ob Ihre Grafiktreiber auf dem neuesten Stand sind.</li>
+</ul>
+
+<h2>Fehlende Mods oder Dateien</h2>
+
+<p>Das Spiel startet, aber Mods fehlen oder Konfigurationen sind falsch.</p>
+
+<ul>
+    <li>Der Launcher überprüft bei jedem Start die Datei-Hashes. Wenn Dateien manuell geändert wurden, werden sie erneut heruntergeladen, damit sie der Modpack-Definition entsprechen.</li>
+    <li>Wenn eine Mod im Modpack selbst fehlt, wenden Sie sich an den Autor des Modpacks.</li>
+    <li>Entfernen Sie das Modpack und fügen Sie es erneut hinzu, um einen vollständigen erneuten Download zu erzwingen.</li>
+</ul>
+
+<h2>Authentifizierungsprobleme</h2>
+
+<p>Sie können sich nicht anmelden oder werden immer wieder zur erneuten Authentifizierung aufgefordert.</p>
+
+<ul>
+    <li>Tokens laufen nach etwa 4 Stunden ab — eine erneute Authentifizierung ist normal.</li>
+    <li>Wenn die Anmeldung wiederholt fehlschlägt, löschen Sie die Browser-Cookies für <code>login.microsoftonline.com</code>.</li>
+    <li>Stellen Sie sicher, dass Ihr Microsoft-Konto über eine aktive Minecraft-Lizenz verfügt.</li>
+    <li>Weitere Details zum Authentifizierungsvorgang finden Sie unter <a href="help://topic/LOGIN">Anmeldung</a>.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Tipp</div>
+    <p>Geben Sie beim Melden von Problemen immer Folgendes an: Name und Version des Modpacks, Ihr Betriebssystem,
+    die Protokolldatei des Launchers und alle Absturzberichte. So lassen sich Probleme deutlich schneller diagnostizieren.</p>
+</div>

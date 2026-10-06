@@ -1,0 +1,59 @@
+<h1>Laufzeitverwaltung</h1>
+
+<p>Der Mica Minecraft Launcher verwaltet Java-Laufzeitumgebungen automatisch, sodass Sie Java nie selbst
+installieren oder konfigurieren müssen.</p>
+
+<h2>Warum Laufzeitumgebungen wichtig sind</h2>
+
+<p>Minecraft und Forge benötigen bestimmte Java-Versionen, um korrekt zu laufen. Verschiedene Modpacks und
+Minecraft-Versionen benötigen möglicherweise unterschiedliche Java-Laufzeitumgebungen:</p>
+
+<ul>
+    <li><strong>Minecraft 1.16 und älter</strong> — Java 8</li>
+    <li><strong>Minecraft 1.17 - 1.20</strong> — Java 17</li>
+    <li><strong>Minecraft 1.21+</strong> — Java 21 oder neuer</li>
+</ul>
+
+<p>Der Launcher erkennt, welche Laufzeitumgebung jedes Modpack bzw. jede Vanilla-Version benötigt, und lädt sie
+beim ersten Start automatisch herunter.</p>
+
+<h2>Automatische Downloads</h2>
+
+<p>Wenn Sie ein Modpack oder eine Vanilla-Version zum ersten Mal starten, prüft der Launcher, ob
+die benötigte Laufzeitumgebung bereits installiert ist. Falls nicht, lädt er die richtige Version von den
+Distributionsservern von Mojang oder Liberica herunter. Dieser Download erfolgt pro Laufzeitversion nur einmal.</p>
+
+<div class="note">
+    <div class="callout-title">Hinweis</div>
+    <p>Laufzeit-Downloads sind in der Regel 40 - 80 MB groß und werden im Datenverzeichnis des Launchers
+    gespeichert, getrennt von jeder Java-Installation auf Ihrem System.</p>
+</div>
+
+<h2>Installierte Laufzeitumgebungen anzeigen</h2>
+
+<p>Öffnen Sie die <a href="help://topic/SETTINGS">Einstellungen</a> und klicken Sie auf <strong>Laufzeitumgebungen verwalten</strong>, um
+eine Liste aller installierten Java-Laufzeitumgebungen zu sehen, einschließlich Version, Pfad und der Modpacks,
+die sie verwenden.</p>
+
+<h2>Nicht verwendete Laufzeitumgebungen löschen</h2>
+
+<p>Wenn Sie Modpacks entfernt haben, die eine bestimmte Java-Version verwendet haben, können Sie die
+zugehörige Laufzeitumgebung löschen, um Speicherplatz freizugeben. Wählen Sie im Verwaltungsbildschirm eine Laufzeitumgebung aus und
+klicken Sie auf <strong>Löschen</strong>.</p>
+
+<div class="warning">
+    <div class="callout-title">Warnung</div>
+    <p>Wenn Sie eine Laufzeitumgebung löschen, die noch von einem installierten Modpack benötigt wird, lädt der Launcher
+    sie beim nächsten Start dieses Modpacks erneut herunter.</p>
+</div>
+
+<h2>Fehlerbehebung bei Laufzeitumgebungen</h2>
+
+<p>Wenn ein Modpack mit Java-bezogenen Fehlern nicht startet, versuchen Sie Folgendes:</p>
+
+<ol>
+    <li>Öffnen Sie Laufzeitumgebungen verwalten und löschen Sie die Laufzeitumgebung, die das betroffene Modpack verwendet.</li>
+    <li>Starten Sie das Modpack erneut — der Launcher lädt eine frische Kopie herunter.</li>
+    <li>Wenn das Problem weiterhin besteht, finden Sie unter <a href="help://topic/TROUBLESHOOTING">Fehlerbehebung</a>
+        weitere Schritte.</li>
+</ol>
