@@ -1,0 +1,91 @@
+<h1>Impostazioni</h1>
+
+<p>La schermata delle impostazioni ti permette di personalizzare l'allocazione della memoria, l'aspetto, il comportamento della JVM, la configurazione
+di rete e altro ancora. Le modifiche vengono salvate automaticamente.</p>
+
+<h2>Memoria di gioco</h2>
+
+<table class="settings-table">
+    <tr><td>RAM minima</td><td>La dimensione iniziale dell'heap allocata alla JVM del gioco. In genere conviene lasciare il valore predefinito (512 MB), a meno che un modpack non indichi diversamente.</td></tr>
+    <tr><td>RAM massima</td><td>Il limite massimo di memoria per il gioco. La maggior parte dei modpack funziona meglio con <strong>4 - 8 GB</strong>. Allocare più memoria di quanta il sistema possa cederne può causare instabilità.</td></tr>
+</table>
+
+<div class="tip">
+    <div class="callout-title">Suggerimento</div>
+    <p>Una buona regola pratica: imposta la RAM massima a non più della metà della memoria totale del sistema.
+    Ad esempio, su un computer con 16 GB, 6 - 8 GB sono un limite massimo ragionevole.</p>
+</div>
+
+<h2>Tema</h2>
+
+<table class="settings-table">
+    <tr><td>Automatic</td><td>Segue la preferenza chiaro/scuro del sistema operativo.</td></tr>
+    <tr><td>Dark</td><td>Sfondo scuro con testo chiaro: riposante per gli occhi.</td></tr>
+    <tr><td>Light</td><td>Il classico sfondo chiaro con testo scuro.</td></tr>
+    <tr><td>Blue + Gray</td><td>Un tema d'accento dai toni freddi.</td></tr>
+    <tr><td>Orange + Purple</td><td>Un tema d'accento dai toni caldi.</td></tr>
+</table>
+
+<h2>Opzioni avanzate</h2>
+
+<table class="settings-table">
+    <tr><td>Modalità di debug</td><td>Attiva un output di log dettagliato nella console del launcher per diagnosticare i problemi.</td></tr>
+    <tr><td>Ridimensionamento della finestra</td><td>Permette di ridimensionare liberamente la finestra del launcher oltre le dimensioni predefinite.</td></tr>
+    <tr><td>Integrazione con Discord</td><td>Mostra il modpack corrente come stato Rich Presence di Discord.</td></tr>
+    <tr><td>Logging avanzato</td><td>Scrive file di log dettagliati sul disco per l'analisi dopo la sessione.</td></tr>
+    <tr><td>Console in gioco</td><td>Apre una finestra <a href="help://topic/GAME_CONSOLE">Console di gioco</a> accanto a Minecraft per visualizzare l'output in tempo reale.</td></tr>
+</table>
+
+<h2>Preset JVM</h2>
+
+<p>Insiemi preconfigurati di flag JVM aggiunti al comando di avvio del gioco. Consulta
+<a href="help://topic/JVM_PRESETS">Preset JVM</a> per una spiegazione più approfondita di cosa fa ogni preset,
+quali flag personalizzati potresti voler aggiungere e come la scelta del preset interagisce con l'allocazione
+della RAM.</p>
+
+<table class="settings-table">
+    <tr><td>Performance (Aikar's Flags)</td><td><strong>Consigliato.</strong> Flag ottimizzati per la garbage collection, molto usati dalla community di Minecraft. Le migliori prestazioni complessive per la maggior parte dei modpack.</td></tr>
+    <tr><td>Low Memory</td><td>Flag prudenti per sistemi con RAM limitata. Riduce il sovraccarico del GC a scapito di un po' di throughput.</td></tr>
+    <tr><td>Debug</td><td>Attiva l'output di debug della JVM, inclusi i log del GC. Utile per diagnosticare crash o problemi di prestazioni.</td></tr>
+    <tr><td>None</td><td>Nessun flag aggiuntivo: usa le impostazioni predefinite della JVM. Usalo solo se sai cosa stai facendo o se un modpack lo richiede.</td></tr>
+</table>
+
+<h2>Rete / Proxy</h2>
+
+<p>Configura un proxy se la tua rete lo richiede (cosa comune nelle reti aziendali o scolastiche).</p>
+
+<table class="settings-table">
+    <tr><td>Proxy HTTP</td><td>Proxy web standard. Inserisci l'host e la porta forniti dall'amministratore di rete.</td></tr>
+    <tr><td>Proxy SOCKS</td><td>Protocollo proxy di livello più basso. Usalo se la tua rete richiede specificamente SOCKS.</td></tr>
+</table>
+
+<div class="note">
+    <div class="callout-title">Nota</div>
+    <p>La maggior parte degli utenti può lasciare vuote le impostazioni del proxy. Configurale solo se i download o
+    l'autenticazione non riescono su una rete con restrizioni.</p>
+</div>
+
+<h2>Scansione malware</h2>
+
+<p>Il launcher include uno scanner integrato che controlla i file JAR scaricati alla ricerca delle firme di
+<strong>fractureiser</strong>, un malware specifico per Minecraft che nel 2023 si è diffuso tramite mod compromesse.
+La scansione viene eseguita automaticamente prima di ogni avvio del gioco.</p>
+
+<h2>Ripristino e opzioni dei runtime</h2>
+
+<table class="settings-table">
+    <tr><td>Reimposta il launcher</td><td>Ripristina tutte le impostazioni ai valori predefiniti e cancella i dati in cache. <strong>Questa operazione non può essere annullata.</strong></td></tr>
+    <tr><td>Gestione runtime</td><td>Apre la schermata <a href="help://topic/RUNTIME_MANAGEMENT">Gestione runtime</a> per visualizzare, verificare o rimuovere i runtime Java installati.</td></tr>
+</table>
+
+<div class="warning">
+    <div class="callout-title">Attenzione</div>
+    <p>Reimpostare il launcher rimuove tutte le impostazioni, i token memorizzati e lo stato dei modpack.
+    I file dei modpack sul disco vengono conservati, ma dovrai aggiungerli di nuovo.</p>
+</div>
+
+<h2>Importare / esportare le impostazioni</h2>
+
+<p>Usa <strong>Esporta impostazioni</strong> per salvare la configurazione corrente in un file e <strong>Importa impostazioni</strong> per
+caricare una configurazione salvata in precedenza. È utile per condividere le impostazioni tra computer
+o per ripristinare una configurazione funzionante dopo un reset.</p>

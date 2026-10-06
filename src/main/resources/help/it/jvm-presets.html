@@ -1,0 +1,104 @@
+<h1>Preset JVM</h1>
+
+<p>Il menu a discesa <strong>Profilo JVM</strong> in Impostazioni → Avanzate sceglie un
+insieme di argomenti con nome che il launcher passa alla JVM quando avvia
+Minecraft. Gli argomenti regolano il garbage collector, controllano il
+dimensionamento delle regioni dell'heap e attivano o disattivano il log del GC: non cambiano il comportamento
+del gioco in sé, ma solo il modo in cui la JVM che lo ospita gestisce la memoria.</p>
+
+<p>Scegliere il preset giusto conta soprattutto per i modpack grandi (oltre 200
+mod), in cui il GC deve fare pulizia dopo il caricamento e lo scaricamento di migliaia
+di chunk. Per Minecraft vanilla e i modpack piccoli va bene qualsiasi preset e il
+predefinito "Performance" funziona bene.</p>
+
+<h2>Performance (Aikar's Flags)</h2>
+
+<p>Preset predefinito e consigliato per la grande maggioranza degli utenti. Usa
+il garbage collector G1 con la configurazione dei parametri che Aikar (l'autore del server
+Minecraft Paper) ha pubblicato anni fa e che molte guide citano ancora.
+Pensato per ridurre al minimo gli scatti dovuti alle pause del GC durante il gioco intenso.</p>
+
+<p>Ideale per: <strong>modpack con 6 GB di RAM o più allocati</strong>,
+modpack con molte mod in cui hai notato cali periodici del frame rate
+sotto carico.</p>
+
+<h2>Low Memory</h2>
+
+<p>Flag ridotti per sistemi con poca RAM libera. Usa G1 con un
+obiettivo di pausa più breve e regioni dell'heap più piccole, sacrificando un po' di
+throughput in favore della prevedibilità quando la memoria scarseggia.</p>
+
+<p>Ideale per: <strong>sistemi con ≤ 8 GB di RAM totale</strong>,
+portatili a batteria o quando vuoi tenere più modpack
+in esecuzione insieme ad altre app. Sconsigliato per i modpack grandi
+(oltre 200 mod), in cui i flag di Aikar recuperano la memoria in modo più efficiente
+anche con la stessa allocazione totale.</p>
+
+<h2>Debug</h2>
+
+<p>I flag di Performance più il log dettagliato del GC e le asserzioni Java
+attive. Scrive un file {@code gc.log} nella cartella di installazione del modpack
+che registra ogni evento del GC con il relativo orario. Utile soprattutto agli sviluppatori di mod
+e a chi analizza crash OOM ripetibili: aggiunge un
+piccolo sovraccarico costante, quindi non lasciarlo attivo nel gioco di tutti i giorni.</p>
+
+<p>Ideale per: <strong>analizzare problemi di pause del GC</strong>,
+indagare su segnalazioni del tipo "smette di rispondere per qualche secondo ogni minuto".</p>
+
+<h2>None</h2>
+
+<p>Elenco di argomenti vuoto: la JVM usa le proprie impostazioni predefinite. Utile per
+verificare se un presunto problema di prestazioni è causato dai flag del preset
+stesso (raro, ma possibile se la versione del JDK è molto più recente
+di quando sono stati scritti i flag di Aikar).</p>
+
+<p>Ideale per: <strong>verificare il comportamento di base</strong> quando si
+sospetta che un preset interagisca male con una mod o una release del JDK
+specifica.</p>
+
+<h2>Note sull'allocazione della RAM</h2>
+
+<p>I preset configurano la JVM all'avvio, ma sono i cursori
+<strong>RAM minima</strong> e <strong>RAM massima</strong> del launcher
+in Impostazioni → Account / Gioco a decidere quanta memoria la JVM può
+usare. La quantità giusta dipende dal modpack:</p>
+
+<ul>
+    <li>Minecraft vanilla: 2 GB sono più che sufficienti.</li>
+    <li>Modpack leggeri (≤ 50 mod): 4 GB.</li>
+    <li>Modpack medi (50-150 mod): 6 GB.</li>
+    <li>Modpack pesanti (oltre 150 mod, shader): 8-12 GB.</li>
+    <li>Modpack estremi (oltre 300 mod, generazione del mondo personalizzata): 12-16 GB.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Attenzione</div>
+    <p>Allocare più RAM di quanta il sistema possa cederne costringe Minecraft
+    a usare lo swap su disco, il che <em>peggiora</em> gli scatti invece di ridurli.
+    Mantieni la RAM massima pari o inferiore alla metà della RAM totale del sistema. Un
+    sistema con 16 GB non dovrebbe allocare più di 8 GB a Minecraft.</p>
+</div>
+
+<h2>Flag personalizzati</h2>
+
+<p>Il campo delle Impostazioni sotto il menu a discesa dei preset è modificabile: puoi
+incollare la tua stringa di argomenti se nessun preset fa al caso tuo.
+Aggiunte comuni:</p>
+
+<ul>
+    <li><code>-XX:+UseZGC</code>: passa al garbage collector Z
+        (pause brevi, richiede JDK 15+). A volte offre prestazioni migliori di G1 con
+        heap molto grandi (32 GB e oltre), ma in genere non conviene abbandonare
+        G1 nelle configurazioni tipiche di Minecraft.</li>
+    <li><code>-Dfile.encoding=UTF-8</code>: utile quando le mod generano
+        file di configurazione con contenuto non ASCII su Windows, dove il
+        set di caratteri predefinito può essere Latin-1.</li>
+    <li><code>-Xss2M</code>: aumenta la dimensione dello stack dei thread rispetto al valore
+        predefinito della JVM; alcuni modpack con catene di chiamate profonde (mod pesanti di
+        generazione del mondo, grandi generatori di dimensioni) ne hanno bisogno.</li>
+</ul>
+
+<p>Gli errori nei flag personalizzati si manifestano come avvii non riusciti con messaggi
+come "Error: Could not create the Java Virtual Machine" o
+"Unrecognized VM option". Se vedi uno di questi messaggi, torna a
+Performance e riprova prima di ricorrere al campo personalizzato.</p>

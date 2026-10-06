@@ -1,0 +1,112 @@
+<h1>Risoluzione dei problemi</h1>
+
+<p>Questa pagina descrive i problemi più comuni e le relative soluzioni. Se il tuo problema non è elencato qui,
+controlla i log del launcher per i dettagli dell'errore.</p>
+
+<h2>Download non riusciti</h2>
+
+<p>Il download dei file non riesce o durante l'avvio compaiono errori di verifica.</p>
+
+<ul>
+    <li>Controlla la connessione Internet e riprova.</li>
+    <li>Se sei su una rete aziendale o scolastica, configura un proxy nelle
+        <a href="help://topic/SETTINGS">Impostazioni</a>, nella sezione Rete / Proxy.</li>
+    <li>Riprova l'avvio: gli errori di rete temporanei spesso si risolvono al secondo tentativo.</li>
+    <li>Se un file specifico non riesce mai a essere scaricato, il suo URL di download potrebbe non funzionare. Segnalalo all'autore del modpack.</li>
+</ul>
+
+<h2>Indicatore Offline</h2>
+
+<p>Un chip rosso <strong>Offline</strong> compare accanto al pulsante della guida in ogni schermata principale
+quando il launcher rileva l'assenza di connessione a Internet. Mentre sei offline:</p>
+
+<ul>
+    <li>Puoi comunque avviare qualsiasi modpack i cui file siano già stati scaricati completamente.</li>
+    <li>Le installazioni, gli aggiornamenti e le finestre di selezione della versione nell'Editor di modpack non funzioneranno o
+        mostreranno dati non aggiornati.</li>
+    <li>I filtri dei modpack disponibili e delle versioni dei loader nella schermata
+        <a href="help://topic/BROWSE_LIBRARY">Sfoglia</a> resteranno vuoti finché la rete non tornerà disponibile.</li>
+    <li>L'autenticazione non è influenzata finché il token esistente è ancora valido (memorizzato
+        sul disco tra un avvio e l'altro).</li>
+</ul>
+
+<p>L'indicatore si aggiorna quando passi da una schermata all'altra, quindi quando la rete
+torna a funzionare, basta passare a un'altra schermata e tornare indietro per aggiornare il chip.</p>
+
+<h2>Crash del gioco</h2>
+
+<p>Il gioco si avvia ma va in crash poco dopo, oppure va in crash durante la partita.</p>
+
+<ul>
+    <li>Attiva la <a href="help://topic/GAME_CONSOLE">Console di gioco</a> nelle impostazioni per visualizzare l'output del crash in tempo reale.</li>
+    <li>Controlla il report del crash nella cartella <code>crash-reports/</code> del modpack per i dettagli specifici dell'errore.</li>
+    <li>Prova ad aumentare l'allocazione massima della RAM nelle <a href="help://topic/SETTINGS">Impostazioni</a>: molti modpack richiedono almeno 4 - 6 GB.</li>
+    <li>Fai clic destro sul modpack nella schermata principale e seleziona <strong>Apri la cartella di installazione</strong>, poi elimina
+        la cartella <code>mods/</code> e riavvia il gioco per forzare un nuovo download.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Attenzione</div>
+    <p>Allocare troppa RAM (più di quanta il sistema possa cederne) può causare crash tanto quanto
+    allocarne troppo poca. Mantieni la RAM massima pari o inferiore alla metà della memoria totale del sistema.</p>
+</div>
+
+<h2>Launcher bloccato sul caricamento</h2>
+
+<p>Il launcher sembra bloccato oppure una barra di avanzamento smette di muoversi.</p>
+
+<ul>
+    <li>Attendi qualche minuto: i modpack grandi possono richiedere tempo per verificare i file, soprattutto al primo avvio.</li>
+    <li>Controlla i log del launcher alla ricerca di errori (attiva Logging avanzato nelle impostazioni).</li>
+    <li>Come ultima risorsa, usa <strong>Reimposta il launcher</strong> nelle <a href="help://topic/SETTINGS">Impostazioni</a>
+        per tornare a uno stato pulito.</li>
+</ul>
+
+<h2>Modalità offline</h2>
+
+<p>Il launcher richiede una connessione Internet per l'autenticazione e il download dei file. Tuttavia,
+i manifest dei modpack e i file di gioco vengono memorizzati localmente dopo il primo download riuscito.</p>
+
+<ul>
+    <li>Se perdi la connessione dopo la configurazione iniziale, il gioco potrebbe comunque avviarsi usando i file in cache.</li>
+    <li>I token di autenticazione restano in cache per circa 4 ore: se il tuo token è ancora valido, puoi giocare offline entro quel periodo.</li>
+</ul>
+
+<h2>Problemi di prestazioni</h2>
+
+<p>Il gioco funziona, ma con FPS bassi o scatti frequenti.</p>
+
+<ul>
+    <li>Passa al preset JVM <strong>Performance (Aikar's Flags)</strong> nelle
+        <a href="help://topic/SETTINGS">Impostazioni</a>.</li>
+    <li>Assicurati di aver allocato abbastanza RAM: almeno 4 GB per la maggior parte dei modpack.</li>
+    <li>Chiudi le altre applicazioni che usano molta memoria mentre giochi.</li>
+    <li>Verifica che i driver della scheda grafica siano aggiornati.</li>
+</ul>
+
+<h2>Mod o file mancanti</h2>
+
+<p>Il gioco si avvia, ma mancano delle mod o le configurazioni sono sbagliate.</p>
+
+<ul>
+    <li>Il launcher verifica gli hash dei file a ogni avvio. Se dei file sono stati modificati manualmente, verranno scaricati di nuovo per corrispondere alla definizione del modpack.</li>
+    <li>Se una mod manca dal modpack stesso, contatta l'autore del modpack.</li>
+    <li>Prova a rimuovere il modpack e ad aggiungerlo di nuovo per forzare un nuovo download completo.</li>
+</ul>
+
+<h2>Problemi di autenticazione</h2>
+
+<p>Non riesci ad accedere oppure ti viene chiesto continuamente di ripetere l'autenticazione.</p>
+
+<ul>
+    <li>I token scadono dopo circa 4 ore: ripetere l'autenticazione è normale.</li>
+    <li>Se l'accesso non riesce ripetutamente, prova a cancellare i cookie del browser per <code>login.microsoftonline.com</code>.</li>
+    <li>Assicurati che il tuo account Microsoft abbia una licenza di Minecraft attiva.</li>
+    <li>Consulta <a href="help://topic/LOGIN">Accesso</a> per maggiori dettagli sulla procedura di autenticazione.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Suggerimento</div>
+    <p>Quando segnali un problema, includi sempre: il nome e la versione del modpack, il sistema operativo,
+    il file di log del launcher ed eventuali report dei crash. Questo aiuta a diagnosticare i problemi molto più rapidamente.</p>
+</div>
