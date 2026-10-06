@@ -215,7 +215,7 @@ function decodeUnicodeEscapes(text) {
     return out;
 }
 
-function writeProperties(filePath, { keysInOrder, values, leadingComments }, sourceLocaleTag) {
+function writeProperties(filePath, { keysInOrder, values, leadingComments }, sourceLocaleTag, eol = '\n') {
     let out = leadingComments;
     if (!out.endsWith('\n')) out += '\n';
     out += `# Locale: ${sourceLocaleTag}\n`;
@@ -227,6 +227,9 @@ function writeProperties(filePath, { keysInOrder, values, leadingComments }, sou
         if (v === undefined) continue;
         out += `${key}=${escapeNonAscii(v)}\n`;
     }
+    // Keep the file's existing line endings. Working copies on Windows are CRLF; writing LF
+    // turned an incremental run that added two keys into a whole-file change in every bundle.
+    if (eol !== '\n') out = out.replace(/\n/g, eol);
     return writeFile(filePath, out, 'utf8');
 }
 
@@ -344,8 +347,11 @@ async function main() {
         const bundleSuffix = locale.tag.replace('-', '_');
         const targetPath = join(LANG_DIR, `DisplayStrings_${bundleSuffix}.properties`);
         let existing = { keysInOrder: [], values: {}, leadingComments: '' };
+        let eol = sourceText.includes('\r\n') ? '\r\n' : '\n';
         if (await fileExists(targetPath)) {
-            existing = parseProperties(await readFile(targetPath, 'utf8'));
+            const existingText = await readFile(targetPath, 'utf8');
+            existing = parseProperties(existingText);
+            eol = existingText.includes('\r\n') ? '\r\n' : '\n';
         }
         if (REENCODE_ONLY) {
             if (existing.keysInOrder.length === 0) {
@@ -357,7 +363,7 @@ async function main() {
                 values: existing.values,
                 leadingComments: existing.leadingComments,
             };
-            await writeProperties(targetPath, reencoded, locale.tag);
+            await writeProperties(targetPath, reencoded, locale.tag, eol);
             console.log(`  → ${locale.name} (${locale.tag})  re-encoded ${existing.keysInOrder.length} keys`);
             continue;
         }
@@ -410,7 +416,7 @@ async function main() {
             await new Promise((res) => setTimeout(res, DELAY_MS));
         }
         if (!DRY_RUN) {
-            await writeProperties(targetPath, merged, locale.tag);
+            await writeProperties(targetPath, merged, locale.tag, eol);
         }
         console.log(`  done: ${translated} translated, ${skipped} kept, ${failed} failed`
                     + (mismatched ? `  (${mismatched} rejected for placeholder mismatch)` : ''));
