@@ -1,0 +1,59 @@
+<h1>執行環境管理</h1>
+
+<p>Mica Minecraft 啟動器會自動管理 Java 執行環境，因此您完全不需要自行安裝
+或設定 Java。</p>
+
+<h2>執行環境為何重要</h2>
+
+<p>Minecraft 與 Forge 需要特定的 Java 版本才能正確執行。不同的模組包與
+Minecraft 版本可能需要不同的 Java 執行環境：</p>
+
+<ul>
+    <li><strong>Minecraft 1.16 及更早版本</strong>：Java 8</li>
+    <li><strong>Minecraft 1.17 - 1.20</strong>：Java 17</li>
+    <li><strong>Minecraft 1.21 以上</strong>：Java 21 或更新版本</li>
+</ul>
+
+<p>啟動器會偵測每個模組包或原版版本所需的執行環境，並在首次啟動時
+自動下載。</p>
+
+<h2>自動下載</h2>
+
+<p>當您首次啟動某個模組包或原版版本時，啟動器會檢查
+所需的執行環境是否已經安裝。如果尚未安裝，就會從
+Mojang 或 Liberica 的發行伺服器下載正確的版本。每個執行環境版本只需下載一次。</p>
+
+<div class="note">
+    <div class="callout-title">附註</div>
+    <p>執行環境的下載大小通常為 40 - 80 MB，儲存在啟動器的資料
+    目錄中，與系統上已安裝的任何 Java 彼此獨立。</p>
+</div>
+
+<h2>檢視已安裝的執行環境</h2>
+
+<p>開啟<a href="help://topic/SETTINGS">設定</a>並按一下<strong>執行環境管理</strong>，即可查看
+所有已安裝 Java 執行環境的清單，包括其版本、路徑，以及哪些模組包
+正在使用它們。</p>
+
+<h2>刪除未使用的執行環境</h2>
+
+<p>如果您已移除使用某個 Java 版本的模組包，可以刪除
+對應的執行環境以釋放磁碟空間。在管理畫面中選取執行環境，然後
+按一下<strong>刪除</strong>。</p>
+
+<div class="warning">
+    <div class="callout-title">警告</div>
+    <p>如果刪除的執行環境仍有已安裝的模組包需要使用，啟動器會在
+    下次啟動該模組包時重新下載。</p>
+</div>
+
+<h2>執行環境疑難排解</h2>
+
+<p>如果模組包因 Java 相關錯誤而無法啟動，請嘗試下列步驟：</p>
+
+<ol>
+    <li>開啟執行環境管理，刪除受影響模組包所使用的執行環境。</li>
+    <li>再次啟動該模組包，啟動器會重新下載一份全新的副本。</li>
+    <li>如果問題仍然存在，請參閱<a href="help://topic/TROUBLESHOOTING">疑難排解</a>了解
+        其他步驟。</li>
+</ol>

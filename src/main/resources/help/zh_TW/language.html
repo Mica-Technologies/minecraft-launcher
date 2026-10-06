@@ -1,0 +1,120 @@
+<h1>語言與在地化</h1>
+
+<p>Mica Minecraft 啟動器能以 17 種語言顯示介面，並在首次啟動時
+自動選擇合適的語言。您也可以隨時從設定中覆寫
+偵測到的語言。</p>
+
+<h2>啟動器如何選擇語言</h2>
+
+<p>每次啟動時，啟動器都會依照下列順序決定要使用的
+語言：</p>
+
+<ol class="steps">
+    <li><strong>您儲存的覆寫設定</strong>：如果您已在
+        <a href="help://topic/SETTINGS">設定</a> &rarr; 外觀 &rarr;
+        語言中設定過，就一律以此為準。</li>
+    <li><strong>作業系統的語言</strong>：透過標準的 JVM 地區設定
+        偵測。在 Windows 上是「地區／語言」
+        設定；在 macOS 上是「系統設定」&rarr;「語言與地區」；
+        在 Linux 上則是 <code>LANG</code> / <code>LC_*</code> 環境變數。</li>
+    <li><strong>英文（美國）</strong>：如果平台回報的是非語言的地區設定
+        （例如 <code>POSIX</code> 或
+        <code>C</code>），或作業系統語言不在我們
+        提供翻譯的 17 種語言之中，就會以此作為備援。</li>
+</ol>
+
+<div class="tip">
+    <div class="callout-title">變更語言會在重新啟動後生效</div>
+    <p>在設定中切換覆寫語言會立即更新偏好設定，
+    但已經顯示的畫面仍會維持先前的語言，
+    直到重新啟動啟動器為止。當您變更下拉式選單時，設定頁面本身也會
+    提醒您這一點。</p>
+</div>
+
+<h2>手動覆寫語言</h2>
+
+<ol class="steps">
+    <li>從導覽列開啟<a href="help://topic/SETTINGS">設定</a>
+        （或按下 <kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Cmd</kbd>+<kbd>,</kbd>）。</li>
+    <li>切換到<strong>外觀</strong>分頁。</li>
+    <li>從<strong>語言</strong>下拉式選單中選擇語言。
+        第一個項目（「使用作業系統語言」）會恢復上述的
+        自動偵測，並在括號中顯示作業系統會解析成
+        哪一種語言。</li>
+    <li>按一下<strong>儲存</strong>。重新啟動啟動器後，所有畫面
+        都會套用新的語言。</li>
+</ol>
+
+<h2>支援的語言</h2>
+
+<p>啟動器提供全球使用人數最多的 17 種
+語言翻譯，外加英文：</p>
+
+<ul>
+    <li>阿拉伯文 (&#1593;&#1585;&#1576;&#1610;)</li>
+    <li>簡體中文 (&#31616;&#20307;&#20013;&#25991;)</li>
+    <li>繁體中文 (&#32321;&#39636;&#20013;&#25991;)</li>
+    <li>荷蘭文 (Nederlands)</li>
+    <li>英文（原始語言）</li>
+    <li>法文 (Fran&ccedil;ais)</li>
+    <li>德文 (Deutsch)</li>
+    <li>印地文 (&#2361;&#2367;&#2306;&#2342;&#2368;)</li>
+    <li>義大利文 (Italiano)</li>
+    <li>日文 (&#26085;&#26412;&#35486;)</li>
+    <li>韓文 (&#54620;&#44397;&#50612;)</li>
+    <li>波蘭文 (Polski)</li>
+    <li>巴西葡萄牙文 (Portugu&ecirc;s do Brasil)</li>
+    <li>俄文 (&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;)</li>
+    <li>西班牙文 (Espa&ntilde;ol)</li>
+    <li>瑞典文 (Svenska)</li>
+    <li>土耳其文 (T&uuml;rk&ccedil;e)</li>
+</ul>
+
+<p>每種語言都以其 BCP-47 標記識別（例如 <code>fr-FR</code>、
+<code>pt-BR</code>、<code>zh-CN</code>）。完整清單位於啟動器原始碼的
+<code>SupportedLocales.ENTRIES</code> 中；對應的
+屬性檔則以 <code>DisplayStrings_&lt;tag&gt;.properties</code> 的形式
+存放在 <code>src/main/resources/lang/</code> 下。</p>
+
+<h2>翻譯品質與問題回報</h2>
+
+<p>英文以外的語言翻譯，是由一個指令碼產生的：
+它會以英文原始語言包呼叫 Google 翻譯，然後
+對參數預留位置進行後續處理，讓 <code>{0}</code> 之類的內容
+在翻譯後保持完整。產出的品質不錯，但並不完美 &mdash; 尤其是
+簡短的介面標籤（單字按鈕、單一名詞）有時會
+失去在英文中的上下文。</p>
+
+<p>如果您發現翻譯不佳，最好的做法是在
+GitHub 上建立 issue，附上鍵名（例如 <code>browse.filter.type.label</code>）、
+您的地區設定、目前的顯示內容，以及建議的修正。
+手動修正的內容在下次重新產生時會保留下來，因為
+指令碼預設只會填入缺少的鍵。</p>
+
+<h2>新增語言</h2>
+
+<p>如果您的語言不在上方清單中，而您想貢獻
+翻譯，貢獻流程如下：</p>
+
+<ol>
+    <li>在 <code>SupportedLocales.ENTRIES</code>
+        （Java）以及
+        <code>tools/i18n/translate-locales.js</code>（Node）中的 <code>TARGET_LOCALES</code> 新增一個項目。</li>
+    <li>執行 <code>cd tools/i18n &amp;&amp; npm run translate</code> &mdash;
+        指令碼會從英文原始檔產生初始的 <code>DisplayStrings_&lt;tag&gt;.properties</code>。</li>
+    <li>檢查產生的檔案，手動修正任何讀起來
+        不自然的地方，然後提出 pull request。</li>
+</ol>
+
+<p><code>tools/i18n/translate-locales.js</code> 指令碼是增量式的：
+重新執行時只會翻譯目標檔案中尚不存在的鍵，
+因此每次啟動器更新時，手動修正的內容都會保留下來。</p>
+
+<h2>另請參閱</h2>
+
+<ul>
+    <li><a href="help://topic/SETTINGS">設定</a> &mdash; 語言
+        下拉式選單所在的位置</li>
+    <li><a href="help://topic/GETTING_STARTED">入門</a> &mdash;
+        一般入門指南</li>
+</ul>

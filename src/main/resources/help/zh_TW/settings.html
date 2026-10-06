@@ -1,0 +1,90 @@
+<h1>設定</h1>
+
+<p>設定畫面可讓您自訂記憶體配置、外觀、JVM 行為、網路
+組態等。變更會自動儲存。</p>
+
+<h2>遊戲記憶體</h2>
+
+<table class="settings-table">
+    <tr><td>最小記憶體</td><td>配置給遊戲 JVM 的初始堆積大小。除非模組包另有指定，通常維持預設值（512 MB）即可。</td></tr>
+    <tr><td>最大記憶體</td><td>遊戲可使用的記憶體上限。大多數模組包在 <strong>4 - 8 GB</strong> 時表現最佳。配置超過系統所能負擔的量，可能會導致不穩定。</td></tr>
+</table>
+
+<div class="tip">
+    <div class="callout-title">提示</div>
+    <p>一個實用的經驗法則：最大記憶體不要超過系統總記憶體的一半。
+    例如，在 16 GB 的電腦上，6 - 8 GB 是合理的上限。</p>
+</div>
+
+<h2>主題</h2>
+
+<table class="settings-table">
+    <tr><td>Automatic（自動）</td><td>跟隨作業系統的淺色／深色模式偏好設定。</td></tr>
+    <tr><td>Dark（深色）</td><td>深色背景搭配淺色文字，看起來不刺眼。</td></tr>
+    <tr><td>Light（淺色）</td><td>傳統的淺色背景搭配深色文字。</td></tr>
+    <tr><td>Blue + Gray（藍＋灰）</td><td>冷色調的強調色主題。</td></tr>
+    <tr><td>Orange + Purple（橙＋紫）</td><td>暖色調的強調色主題。</td></tr>
+</table>
+
+<h2>進階選項</h2>
+
+<table class="settings-table">
+    <tr><td>偵錯模式</td><td>在啟動器主控台中啟用詳細的記錄輸出，以便診斷問題。</td></tr>
+    <tr><td>視窗大小調整</td><td>允許自由調整啟動器視窗大小，超出其預設尺寸。</td></tr>
+    <tr><td>Discord 整合</td><td>將您目前的模組包顯示為 Discord Rich Presence 動態狀態。</td></tr>
+    <tr><td>加強記錄</td><td>將詳細的記錄檔寫入磁碟，供遊玩結束後分析。</td></tr>
+    <tr><td>遊戲內主控台</td><td>在 Minecraft 旁開啟<a href="help://topic/GAME_CONSOLE">遊戲主控台</a>視窗，檢視即時輸出。</td></tr>
+</table>
+
+<h2>JVM 預設</h2>
+
+<p>預先設定好的 JVM 旗標組合，會附加到遊戲的啟動命令中。如需進一步了解每個預設組合的作用、
+您可能想加入哪些自訂旗標，以及預設組合的選擇如何與記憶體配置互相影響，
+請參閱<a href="help://topic/JVM_PRESETS">JVM 預設</a>。</p>
+
+<table class="settings-table">
+    <tr><td>Performance (Aikar's Flags)</td><td><strong>建議使用。</strong>Minecraft 社群廣泛使用的最佳化垃圾回收旗標。對大多數模組包而言，整體效能最佳。</td></tr>
+    <tr><td>Low Memory（低記憶體）</td><td>適用於記憶體有限之系統的保守旗標。以犧牲部分傳輸量為代價，降低 GC 額外負擔。</td></tr>
+    <tr><td>Debug（偵錯）</td><td>啟用包含 GC 記錄在內的 JVM 偵錯輸出。有助於診斷崩潰或效能問題。</td></tr>
+    <tr><td>None（無）</td><td>不加入額外旗標，使用 JVM 的預設值。請僅在您清楚自己在做什麼，或模組包有此要求時使用。</td></tr>
+</table>
+
+<h2>網路／Proxy</h2>
+
+<p>如果您的網路需要 Proxy（常見於公司或學校網路），請在此進行設定。</p>
+
+<table class="settings-table">
+    <tr><td>HTTP Proxy</td><td>標準的網頁 Proxy。請輸入網路管理員提供的主機與連接埠。</td></tr>
+    <tr><td>SOCKS Proxy</td><td>較底層的 Proxy 協定。如果您的網路特別要求使用 SOCKS，請選擇此項。</td></tr>
+</table>
+
+<div class="note">
+    <div class="callout-title">附註</div>
+    <p>大多數使用者可以將 Proxy 設定保留空白。只有在受限的網路上下載或
+    驗證失敗時，才需要設定這些項目。</p>
+</div>
+
+<h2>惡意程式掃描</h2>
+
+<p>啟動器內建掃描程式，會檢查下載的 JAR 檔案是否含有
+<strong>fractureiser</strong> 的特徵碼；這是一種專門針對 Minecraft 的惡意程式，曾於 2023 年透過遭入侵的模組散播。
+每次啟動遊戲前都會自動執行掃描。</p>
+
+<h2>重設與執行環境選項</h2>
+
+<table class="settings-table">
+    <tr><td>重設啟動器</td><td>將所有設定還原為預設值，並清除快取資料。<strong>此動作無法復原。</strong></td></tr>
+    <tr><td>執行環境管理</td><td>開啟<a href="help://topic/RUNTIME_MANAGEMENT">執行環境管理</a>畫面，檢視、驗證或移除已安裝的 Java 執行環境。</td></tr>
+</table>
+
+<div class="warning">
+    <div class="callout-title">警告</div>
+    <p>重設啟動器會移除所有設定、快取的權杖與模組包狀態。
+    磁碟上的模組包檔案會保留下來，但您需要重新加入它們。</p>
+</div>
+
+<h2>匯入／匯出設定</h2>
+
+<p>使用<strong>匯出設定</strong>將目前的組態儲存到檔案，並使用<strong>匯入設定</strong>
+載入先前儲存的組態。這在不同電腦之間分享設定，
+或在重設後還原已知正常的組態時很有用。</p>
