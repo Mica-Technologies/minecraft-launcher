@@ -1378,6 +1378,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // === Static node tree fields. Built once by the constructor; bind()
         //     mutates their content in place rather than re-creating them. ===
         private final Region bgLayer;
+        /** The pack's background image, over {@link #bgLayer}'s gradient. */
+        private final PackBackgroundLayer bgImage;
         private final HBox badgeRow;
         private final StackPane logoContainer;
         private final ImageView logo;
@@ -1441,8 +1443,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // bitmap during vertical scrolling instead of re-rendering each card's
             // gaussian dropshadow, rounded image clip, and CSS bg-image every
             // frame. CacheHint.DEFAULT (NOT SPEED) is deliberate — SPEED treats
-            // the bitmap as static and won't refresh it when the bgLayer's CSS
-            // bg-image completes its async load, which manifested as packs
+            // the bitmap as static and won't refresh it when the background
+            // image completes its async load, which manifested as packs
             // randomly rendering with the procedural gradient even though the
             // bg image was on disk and the URL had been applied. DEFAULT lets
             // JavaFX invalidate + re-render the cache when descendant content
@@ -1467,6 +1469,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
             bgLayer = new Region();
             bgLayer.getStyleClass().add( "heroBackground" );
+            bgImage = new PackBackgroundLayer();
 
             // Subtle veil along the bottom of the image so the logo reads against it.
             Region imageVeil = new Region();
@@ -1478,7 +1481,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             badgeRow.setAlignment( Pos.TOP_RIGHT );
             badgeRow.setPadding( new javafx.geometry.Insets( 10, 12, 0, 0 ) );
 
-            imageBox.getChildren().addAll( bgLayer, imageVeil, badgeRow );
+            imageBox.getChildren().addAll( bgLayer, bgImage, imageVeil, badgeRow );
 
             // Pack logo overlaps the image/content boundary on the left. The container has a
             // rounded border in CSS; clip its inner ImageView so the bitmap respects the
@@ -1627,9 +1630,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             ImageFadeIn.apply( logo );
 
             // Background layer — always paint the procedural gradient first so it
-            // acts as the placeholder behind a remote -fx-background-image while
-            // the latter is still loading off the network. Clear any prior bind's
-            // inline -fx-background-image AND the dynamic styleClasses
+            // acts as the placeholder behind the background image (bgImage) while
+            // the latter is still loading. Clear any prior bind's inline gradient
+            // AND the dynamic styleClasses
             // applyDynamicBackground adds (heroBackgroundDefaultVanilla /
             // heroBackgroundDefaultForge) so they don't accumulate across rebinds
             // and bleed previous-pack styling into the new state:
@@ -1647,19 +1650,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // run so cards still feel individuated, just without the imagery.
             boolean showBackgrounds = ConfigManager.getShowPackBackgrounds();
             String bgUrl = showBackgrounds ? resolveBackgroundUrl( newPack ) : null;
-            if ( bgUrl != null ) {
-                // Append rather than replace so the gradient bg-color from
-                // applyDynamicBackground stays visible through any transparent
-                // pixels of the bg-image and through the entire fetch window
-                // until the bytes arrive.
-                String existing = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
-                bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
-            }
-            else if ( showBackgrounds && newPack.hasCustomBackground() ) {
+            // The image decodes off the FX thread at card size; the gradient shows
+            // through any transparent pixels and until the image arrives.
+            bgImage.show( bgUrl );
+            if ( bgUrl == null && showBackgrounds && newPack.hasCustomBackground() ) {
                 // Pack declares a custom background but the cache file isn't
                 // on disk yet — gradient is showing as a temporary fallback.
                 // Spawn a background task to fetch it via cacheImages(),
-                // then re-apply the CSS background-image when the file
+                // then show the background image when the file
                 // lands. Without this, packs whose bg cache was deleted /
                 // never warmed up (fresh install, hash bumped in a
                 // recent manifest revalidate, OS-level cache wipe) would
@@ -1683,8 +1681,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     String fetchedUrl = f.toURI().toString();
                     GUIUtilities.JFXPlatformRun( () -> {
                         if ( this.pack != capturedPack ) return;
-                        String currentStyle = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
-                        bgLayer.setStyle( currentStyle + " -fx-background-image: url('" + fetchedUrl + "');" );
+                        bgImage.show( fetchedUrl );
                         // Newly-cached backgrounds may now form a cycle.
                         refreshImageCycle();
                     } );
@@ -1971,7 +1968,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 ImageFadeIn.apply( logo );
             }
             if ( cycleBgUrls.size() > 1 ) {
-                setBackgroundImageInline( bgLayer, cycleBgUrls.get( cycleIndex % cycleBgUrls.size() ) );
+                bgImage.cycleTo( cycleBgUrls.get( cycleIndex % cycleBgUrls.size() ) );
             }
         }
 
@@ -2079,22 +2076,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         return ModpackImageResolver.resolveBackgroundUrlFromDisk( pack );
     }
 
-    /** Swaps the {@code -fx-background-image} declaration on a hero {@code bgLayer} to
-     *  {@code fileUrl} (or removes it when null), preserving the procedural-gradient
-     *  base style (and any other inline declarations) underneath. Used by the image
-     *  cycle to change the displayed background without disturbing the gradient that
-     *  shows through transparent pixels / during loads. */
-    static void setBackgroundImageInline( Region bgLayer, String fileUrl ) {
-        String style = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
-        // Strip any existing background-image declaration, then re-append the new one.
-        style = style.replaceAll( "\\s*-fx-background-image:[^;]*;?", "" ).trim();
-        if ( fileUrl != null ) {
-            style = ( style.isEmpty() ? "" : style + " " )
-                    + "-fx-background-image: url('" + fileUrl + "');";
-        }
-        bgLayer.setStyle( style );
-    }
-
     // =========================================================================================
     //  Dynamic background derivation (no-image fallback)
     // =========================================================================================
@@ -2120,13 +2101,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  procedural-background logic (vanilla sky-grass, modded logo-derived gradient, default
      *  Forge) without duplicating the histogram code.
      *
-     *  <p>All setStyle calls here go through {@link #setBgLayerGradient} so any existing
-     *  {@code -fx-background-image} declaration (set by {@link ModpackHeroCard#bind} for
-     *  packs that ship a custom bg image) is preserved. The fully-qualified inline style
-     *  is then "gradient color base + image overlay" — replacing it with just the gradient
-     *  (as a previous version did via {@code bgLayer.setStyle(buildGradientStyle(...))})
-     *  wiped the bg-image and made packs flash the image briefly on first load then revert
-     *  to the gradient once the logo's progress listener fired.</p> */
+     *  <p>The layer holds only the gradient; a pack's own background image is drawn over it
+     *  by a separate {@link PackBackgroundLayer}, so rewriting the gradient later (the
+     *  logo-progress listener and the cached-color fast path fire after the bind) can't
+     *  disturb the image.</p> */
     static void applyDynamicBackground( Region bgLayer, GameModPack pack, Image logoImage )
     {
         // Stamp this layer with the logo it's now bound to. A late async palette
@@ -2243,39 +2221,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
     }
 
-    /** Applies a {@link #buildGradientStyle gradient declaration} to {@code bgLayer}
-     *  while preserving any existing {@code -fx-background-image} declaration in its
-     *  inline style. Critical because the logo-progress listener and the cached-color
-     *  fast-path both fire LATER than {@link ModpackHeroCard#bind}'s bg-image overlay,
-     *  and a naive {@code setStyle(gradient)} call would wipe the image. */
+    /** Applies a {@link #buildGradientStyle gradient declaration} to {@code bgLayer}. */
     private static void setBgLayerGradient( Region bgLayer, DominantColors colors )
     {
-        String gradientPart = buildGradientStyle( colors );
-        String existingBgImage = extractBackgroundImageDeclaration( bgLayer.getStyle() );
-        if ( existingBgImage != null ) {
-            bgLayer.setStyle( gradientPart + " " + existingBgImage );
-        }
-        else {
-            bgLayer.setStyle( gradientPart );
-        }
-    }
-
-    /** Extracts the {@code -fx-background-image: url('...');} fragment (if any) out of
-     *  a JavaFX inline-style string. Returns the full declaration including the trailing
-     *  semicolon, or {@code null} when no bg-image declaration is present. Used by
-     *  {@link #setBgLayerGradient} to preserve the image overlay across gradient
-     *  rewrites. */
-    private static String extractBackgroundImageDeclaration( String inlineStyle )
-    {
-        if ( inlineStyle == null || inlineStyle.isEmpty() ) return null;
-        int idx = inlineStyle.indexOf( "-fx-background-image" );
-        if ( idx < 0 ) return null;
-        int end = inlineStyle.indexOf( ';', idx );
-        if ( end < 0 ) {
-            // No trailing semicolon — take the rest of the string and add one.
-            return inlineStyle.substring( idx ).trim() + ";";
-        }
-        return inlineStyle.substring( idx, end + 1 );
+        bgLayer.setStyle( buildGradientStyle( colors ) );
     }
 
     // -----------------------------------------------------------------------------------------
@@ -2695,20 +2644,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     }
 
     /** {@link #setBgLayerGradient} sibling that takes the {@code Color[]}
-     *  palette directly. Same bg-image preservation logic — the inline
-     *  style is rebuilt as "gradient + image overlay" if an image was
-     *  already declared. */
+     *  palette directly. */
     private static void setBgLayerGradientFromPalette( Region bgLayer, Color[] palette )
     {
         String gradientPart = buildGradientStyleFromPalette( palette );
         if ( gradientPart == null ) return;
-        String existingBgImage = extractBackgroundImageDeclaration( bgLayer.getStyle() );
-        if ( existingBgImage != null ) {
-            bgLayer.setStyle( gradientPart + " " + existingBgImage );
-        }
-        else {
-            bgLayer.setStyle( gradientPart );
-        }
+        bgLayer.setStyle( gradientPart );
     }
 
     /**

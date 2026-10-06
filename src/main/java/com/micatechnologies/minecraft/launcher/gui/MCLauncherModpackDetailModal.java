@@ -213,10 +213,12 @@ public class MCLauncherModpackDetailModal extends StackPane
      *  background so the two advance in lockstep. Wrapped modulo the larger of the
      *  two list sizes by {@link #advanceHero(int)}. */
     private int heroCycleIndex = 0;
-    /** The hero's background {@link Region} for the current show, retained so the
-     *  cycle / prefetch-rewire paths can repaint it via
-     *  {@link MCLauncherMainGui#setBackgroundImageInline}. */
+    /** The hero's background {@link Region} (the gradient) for the current show, retained
+     *  so the prefetch-rewire path can find the hero it sits in. */
     private Region heroBgLayer;
+    /** The hero's background image over {@link #heroBgLayer}, retained so the cycle can
+     *  change it. */
+    private PackBackgroundLayer heroBgImage;
     /** The hero's logo {@link ImageView} for the current show, retained so the
      *  cycle path can swap its image without rebuilding the hero. */
     private ImageView heroLogoView;
@@ -859,16 +861,14 @@ public class MCLauncherModpackDetailModal extends StackPane
         Region bgLayer = new Region();
         bgLayer.getStyleClass().add( "heroBackground" );
         // Always paint the dynamic gradient as the placeholder behind the bg-image so
-        // the hero area never renders empty during a cold image fetch. The remote
-        // -fx-background-image, when supplied, layers on top once its bytes arrive
-        // and through any transparent regions.
+        // the hero area never renders empty during a cold image fetch. The image, when
+        // supplied, is decoded off the FX thread at the hero's size and layers on top once
+        // it arrives, the gradient showing through any transparent regions.
         MCLauncherMainGui.applyDynamicBackground( bgLayer, pack, logoImage );
-        String bgUrl = resolveBackgroundUrl( pack );
-        if ( bgUrl != null ) {
-            String existing = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
-            bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
-        }
+        PackBackgroundLayer bgImage = new PackBackgroundLayer();
+        bgImage.show( resolveBackgroundUrl( pack ) );
         heroBgLayer = bgLayer;
+        heroBgImage = bgImage;
 
         // Veil — heavier at the bottom-left where the logo and title sit, so they read
         // cleanly over arbitrary bright pack imagery.
@@ -988,7 +988,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         // closeBtn is added LAST so it z-orders on top of every other hero element.
         // If it weren't, the titleRow (added next in the bottom-anchored slot) could
         // overlap the close button's clickable region for very wide title rows.
-        hero.getChildren().addAll( bgLayer, veil, badgeRow, titleRow );
+        hero.getChildren().addAll( bgLayer, bgImage, veil, badgeRow, titleRow );
         if ( bgNav != null ) {
             hero.getChildren().add( bgNav );
         }
@@ -1158,9 +1158,8 @@ public class MCLauncherModpackDetailModal extends StackPane
             heroLogoView.setImage( heroLogos.get( heroCycleIndex % heroLogos.size() ) );
             ImageFadeIn.apply( heroLogoView );
         }
-        if ( heroBgLayer != null && heroBgUrls.size() > 1 ) {
-            MCLauncherMainGui.setBackgroundImageInline(
-                    heroBgLayer, heroBgUrls.get( heroCycleIndex % heroBgUrls.size() ) );
+        if ( heroBgImage != null && heroBgUrls.size() > 1 ) {
+            heroBgImage.cycleTo( heroBgUrls.get( heroCycleIndex % heroBgUrls.size() ) );
         }
     }
 
