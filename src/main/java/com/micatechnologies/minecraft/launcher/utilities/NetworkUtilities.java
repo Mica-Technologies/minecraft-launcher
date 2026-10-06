@@ -216,19 +216,11 @@ public class NetworkUtilities
 
     /** Human-readable byte size (e.g. {@code "27.1 MB"}, {@code "812 KB"}, {@code "945 B"}).
      *  Widened from {@code private} to package-private for direct unit
-     *  testing (repo convention: prefer a widened seam over reflection). */
+     *  testing (repo convention: prefer a widened seam over reflection).
+     *  Localized through {@link UnitFormatter#bytes(long)}. */
     static String formatBytes( long bytes )
     {
-        if ( bytes < 1024 ) {
-            return bytes + " B";
-        }
-        if ( bytes < 1024 * 1024 ) {
-            return String.format( "%.0f KB", bytes / 1024.0 );
-        }
-        if ( bytes < 1024L * 1024 * 1024 ) {
-            return String.format( "%.1f MB", bytes / ( 1024.0 * 1024 ) );
-        }
-        return String.format( "%.2f GB", bytes / ( 1024.0 * 1024 * 1024 ) );
+        return UnitFormatter.bytes( bytes );
     }
 
     /** Pulls the short filename out of a URL for a more readable retry message

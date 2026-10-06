@@ -17,6 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -228,15 +230,7 @@ public class DownloadTracker
         if ( speed < 1.0 ) {
             return "";
         }
-        else if ( speed < 1024 ) {
-            return String.format( "%.0f B/s", speed );
-        }
-        else if ( speed < 1024 * 1024 ) {
-            return String.format( "%.1f KB/s", speed / 1024 );
-        }
-        else {
-            return String.format( "%.1f MB/s", speed / ( 1024 * 1024 ) );
-        }
+        return UnitFormatter.bytesPerSecond( speed );
     }
 
     /**
@@ -251,13 +245,16 @@ public class DownloadTracker
             return "";
         }
         else if ( eta < 60 ) {
-            return eta + "s remaining";
+            return LocalizationManager.format( "download.eta.seconds", String.valueOf( eta ) );
         }
         else if ( eta < 3600 ) {
-            return String.format( "%d:%02d remaining", eta / 60, eta % 60 );
+            return LocalizationManager.format( "download.eta.remaining",
+                    String.format( java.util.Locale.ROOT, "%d:%02d", eta / 60, eta % 60 ) );
         }
         else {
-            return String.format( "%d:%02d:%02d remaining", eta / 3600, ( eta % 3600 ) / 60, eta % 60 );
+            return LocalizationManager.format( "download.eta.remaining",
+                    String.format( java.util.Locale.ROOT, "%d:%02d:%02d", eta / 3600, ( eta % 3600 ) / 60,
+                                   eta % 60 ) );
         }
     }
 
@@ -273,7 +270,8 @@ public class DownloadTracker
         String eta = getFormattedEta();
         long completed = completedFiles.get();
         long total = totalFiles.get();
-        String fileCount = ( total > 0 ) ? ( completed + "/" + total + " files" ) : "";
+        String fileCount = ( total > 0 ) ? LocalizationManager.format( "download.fileCount", String.valueOf( completed ),
+                                                                       String.valueOf( total ) ) : "";
         if ( speed.isEmpty() ) {
             // Even without speed data, show file count if available
             return fileCount;

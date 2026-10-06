@@ -1080,18 +1080,18 @@ public final class TuiApp
     static String formatDuration( long ms )
     {
         if ( ms <= 0 ) {
-            return "0m";
+            return locf( "tui.duration.minutes", "0" );
         }
         long minutes = ms / 60_000;
         long hours = minutes / 60;
         minutes %= 60;
         if ( hours > 0 ) {
-            return hours + "h " + minutes + "m";
+            return locf( "tui.duration.hoursMinutes", String.valueOf( hours ), String.valueOf( minutes ) );
         }
         if ( minutes > 0 ) {
-            return minutes + "m";
+            return locf( "tui.duration.minutes", String.valueOf( minutes ) );
         }
-        return "<1m";
+        return loc( "tui.duration.underMinute" );
     }
 
     /**
