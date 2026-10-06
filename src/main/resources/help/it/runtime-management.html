@@ -1,0 +1,59 @@
+<h1>Gestione runtime</h1>
+
+<p>Il Mica Minecraft Launcher gestisce automaticamente i runtime Java, così non devi mai installare
+né configurare Java da solo.</p>
+
+<h2>Perché i runtime sono importanti</h2>
+
+<p>Minecraft e Forge richiedono versioni specifiche di Java per funzionare correttamente. Modpack e
+versioni di Minecraft diversi possono richiedere runtime Java diversi:</p>
+
+<ul>
+    <li><strong>Minecraft 1.16 e precedenti</strong>: Java 8</li>
+    <li><strong>Minecraft 1.17 - 1.20</strong>: Java 17</li>
+    <li><strong>Minecraft 1.21+</strong>: Java 21 o successivo</li>
+</ul>
+
+<p>Il launcher rileva quale runtime richiede ogni modpack o versione vanilla e lo scarica
+automaticamente al primo avvio.</p>
+
+<h2>Download automatici</h2>
+
+<p>Quando avvii un modpack o una versione vanilla per la prima volta, il launcher controlla se
+il runtime richiesto è già installato. In caso contrario, scarica la versione corretta dai
+server di distribuzione di Mojang o di Liberica. Il download avviene una sola volta per ogni versione del runtime.</p>
+
+<div class="note">
+    <div class="callout-title">Nota</div>
+    <p>I runtime scaricati occupano in genere 40 - 80 MB e vengono salvati nella cartella dei dati
+    del launcher, separati da qualsiasi installazione di Java presente nel sistema.</p>
+</div>
+
+<h2>Visualizzare i runtime installati</h2>
+
+<p>Apri le <a href="help://topic/SETTINGS">Impostazioni</a> e fai clic su <strong>Gestisci i runtime</strong> per vedere
+l'elenco di tutti i runtime Java installati, con la versione, il percorso e i modpack
+che li usano.</p>
+
+<h2>Eliminare i runtime inutilizzati</h2>
+
+<p>Se hai rimosso i modpack che usavano una determinata versione di Java, puoi eliminare il
+runtime corrispondente per liberare spazio su disco. Seleziona un runtime nella schermata di gestione e
+fai clic su <strong>Elimina</strong>.</p>
+
+<div class="warning">
+    <div class="callout-title">Attenzione</div>
+    <p>Se elimini un runtime ancora necessario a un modpack installato, il launcher
+    lo scaricherà di nuovo al successivo avvio di quel modpack.</p>
+</div>
+
+<h2>Risolvere i problemi dei runtime</h2>
+
+<p>Se un modpack non si avvia a causa di errori legati a Java, prova quanto segue:</p>
+
+<ol>
+    <li>Apri Gestione runtime ed elimina il runtime usato dal modpack interessato.</li>
+    <li>Avvia di nuovo il modpack: il launcher scaricherà una copia nuova.</li>
+    <li>Se il problema persiste, consulta <a href="help://topic/TROUBLESHOOTING">Risoluzione dei problemi</a> per
+        ulteriori passaggi.</li>
+</ol>

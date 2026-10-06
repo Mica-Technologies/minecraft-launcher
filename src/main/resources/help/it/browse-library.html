@@ -1,0 +1,109 @@
+<h1>Sfoglia</h1>
+
+<p>La schermata Sfoglia è il punto in cui installi e gestisci i contenuti. Da qui puoi installare nuovi modpack
+dal manifest pubblico, installare versioni di Minecraft vanilla pure, installare modpack iniziali vuoti di Forge / NeoForge /
+Fabric, modificare i modpack che hai già e disinstallare ciò che non ti serve più.</p>
+
+<h2>Schede e barra dei filtri</h2>
+
+<p>Ogni voce compare come una scheda in evidenza con logo, badge, nome, chip (loader / versione di Minecraft),
+una riga di stato e i pulsanti di azione. La barra dei filtri in alto serve a restringere la vista.</p>
+
+<ul>
+    <li><strong>Cerca</strong>: ricerca a testo libero nei titoli delle schede. Si aggiorna mentre digiti
+        (con un breve ritardo, così il layout non viene ricalcolato di continuo).</li>
+    <li><strong>Tipo</strong>: Tutti, Modpack o uno dei cataloghi di versioni:
+        Vanilla (Release / Snapshot / Old Beta / Old Alpha) e versioni di Forge / NeoForge / Fabric.
+        I filtri per le versioni dei loader <em>non</em> sono volutamente inclusi in "Tutti": l'elenco combinato
+        conterrebbe migliaia di voci e non è ciò che si cerca con un "mostrami tutto".</li>
+    <li><strong>Stato</strong>: Tutti, Installati o Disponibili. "Disponibili" mostra ciò che non hai
+        ancora installato; "Installati" mostra ciò che è già sul disco.</li>
+    <li><strong>Ordina</strong>: Predefinito, Nome (A–Z / Z–A), Data di pubblicazione, Giocati di recente, Più giocati,
+        Aggiornati di recente. Gli ordinamenti che dipendono dalla cronologia di gioco / aggiornamento (Giocati di recente, Più giocati,
+        Aggiornati di recente) spostano in fondo le voci che non sono modpack invece di mescolarle
+        in modo confuso.</li>
+</ul>
+
+<h2>Modpack installati</h2>
+
+<p>Le schede dei modpack già presenti sul disco mostrano due pulsanti:</p>
+
+<ul>
+    <li><strong>Disinstalla</strong>: chiede se eliminare anche la cartella di installazione. "Disinstalla
+        (conserva i file)" mantiene mondi, configurazioni e mod anche se il launcher non conosce più
+        il modpack: utile se prevedi di reinstallare lo stesso modpack in seguito.</li>
+    <li><strong>Modifica</strong>: apre l'<a href="help://topic/MODPACK_EDITOR">Editor di modpack</a>
+        sul manifest locale del modpack. Le modifiche vengono scritte sul disco e si applicano al prossimo avvio.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Suggerimento</div>
+    <p>Fai clic destro su una scheda di un modpack installato per aprire lo stesso menu contestuale del menu principale:
+    apri la cartella di installazione, apri la cartella delle mod, crea un collegamento sul desktop, visualizza le statistiche di gioco e
+    disinstalla.</p>
+</div>
+
+<h2>Modpack disponibili</h2>
+
+<p>Le schede del manifest pubblico che non hai ancora mostrano un pulsante <strong>Installa</strong>.
+Facendo clic, il launcher scarica il manifest, installa il modpack e sposta la scheda nel gruppo degli
+installati alla ricostruzione successiva. Puoi continuare a usare i filtri mentre un'installazione è in corso: la
+scheda in installazione resta fissata in cima alla griglia finché l'installazione non termina.</p>
+
+<h2>Versioni vanilla</h2>
+
+<p>Il catalogo completo di Mojang con release / snapshot / beta / alpha. Ogni scheda installa esattamente quella
+versione di Minecraft come modpack vuoto sintetico che puoi avviare direttamente dal menu principale. Anche le vecchie
+beta e alpha si possono eseguire: il launcher scarica automaticamente il runtime Java adatto a ogni
+versione.</p>
+
+<h2>Versioni di Forge / NeoForge / Fabric</h2>
+
+<p>I filtri per le versioni dei loader mostrano ogni release pubblicata dal servizio di versioni di ciascun progetto:
+le promozioni di Forge, i metadati maven di NeoForge e la meta API di Fabric. Facendo clic su Installa su una di
+queste voci, il launcher scrive un manifest sintetico di "modpack vuoto" nella tua cartella di configurazione e lo registra
+nel launcher, quindi il risultato si comporta come qualsiasi altro modpack installato:</p>
+
+<ul>
+    <li>compare tra le schede in evidenza del menu principale;</li>
+    <li>è modificabile nell'Editor di modpack (così puoi aggiungere mod per creare il tuo modpack);</li>
+    <li>si può disinstallare come qualsiasi altro modpack;</li>
+    <li>condivide lo stesso meccanismo di aggiornamento automatico di un normale modpack.</li>
+</ul>
+
+<div class="note">
+    <div class="callout-title">Nota</div>
+    <p>Le schede mostrano il logo ufficiale di ogni progetto quando il launcher lo ha in cache locale. La
+    prima volta che apri un filtro di loader viene mostrato un segnaposto con i colori del marchio mentre i loghi reali
+    vengono scaricati in background; una volta in cache, le visite successive sono immediate.</p>
+</div>
+
+<h2>Aggiunta tramite URL</h2>
+
+<p>Il pulsante <strong>Aggiungi dall'URL</strong> nella barra inferiore accetta un URL diretto a un manifest
+<code>installable.json</code> ospitato e lo installa come fanno le schede dei modpack disponibili.
+Usalo per i modpack distribuiti al di fuori del manifest pubblico: incolla il link, fai clic sul pulsante
+e i metadati del manifest vengono scaricati e convalidati prima che inizi l'installazione.</p>
+
+<h2>Editor di modpack</h2>
+
+<p>Il pulsante <strong>Editor di modpack</strong> nella barra inferiore apre
+l'<a href="help://topic/MODPACK_EDITOR">Editor di modpack</a> con un manifest vuoto, così puoi creare
+un nuovo modpack da zero: imposta il loader (Forge / NeoForge / Fabric / vanilla), la versione di Minecraft,
+l'elenco delle mod e così via. L'Editor si può aprire anche su un modpack esistente tramite il pulsante <strong>Modifica</strong>
+sulla sua scheda.</p>
+
+<h2>Genera manifest di hosting</h2>
+
+<p>Il pulsante <strong>Genera manifest di hosting</strong> nella barra inferiore crea un file
+<code>installable.json</code> per il modpack attualmente aperto nell'editor, pronto da ospitare su qualsiasi server
+web o servizio di condivisione file. Chiunque abbia l'URL risultante può installare il tuo modpack con Aggiungi
+dall'URL.</p>
+
+<h2>Paginazione</h2>
+
+<p>Gli elenchi lunghi sono suddivisi in pagine. Usa i pulsanti <strong>Precedente</strong> / <strong>Avanti</strong> nella
+barra di paginazione (sopra le schede) per spostarti tra le pagine e il menu a discesa <strong>Per pagina</strong>
+per impostare la dimensione della pagina: 24, 48, 72 o 96. Il valore predefinito di 48 fa stare in una sola pagina la
+tipica libreria installata; portandolo a 96 i filtri per le versioni dei loader restano scorrevoli in un'unica
+pagina.</p>

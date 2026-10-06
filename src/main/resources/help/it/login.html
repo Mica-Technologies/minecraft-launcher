@@ -1,0 +1,43 @@
+<h1>Accesso</h1>
+
+<p>Il Mica Minecraft Launcher usa l'<strong>autenticazione ufficiale di Microsoft</strong> per verificare il tuo
+account Minecraft. È la stessa procedura di accesso usata dal launcher ufficiale di Minecraft.</p>
+
+<h2>Come funziona</h2>
+
+<ol class="steps">
+    <li>Fai clic su <strong>Accedi</strong> nella schermata di accesso. Si apre una finestra del browser sulla pagina di accesso di Microsoft.</li>
+    <li>Inserisci le credenziali del tuo account Microsoft e approva l'accesso.</li>
+    <li>Una volta autenticato, la finestra del browser si chiude e il launcher passa alla
+        <a href="help://topic/MAIN_SCREEN">Schermata principale</a>.</li>
+</ol>
+
+<h2>Memorizzazione del token</h2>
+
+<p>Dopo un accesso riuscito, il tuo token di autenticazione viene memorizzato localmente con
+<strong>crittografia AES-256-GCM</strong> e una chiave derivata dal computer. Questo significa che:</p>
+
+<ul>
+    <li>Non dovrai accedere di nuovo per circa <strong>4 ore</strong>.</li>
+    <li>Il token memorizzato è crittografato e legato al tuo computer: non può essere trasferito né riutilizzato altrove.</li>
+    <li>Quando la cache scade, il launcher ti chiederà di accedere di nuovo.</li>
+</ul>
+
+<h2>Risolvere i problemi di accesso</h2>
+
+<div class="warning">
+    <div class="callout-title">Connessione Internet necessaria</div>
+    <p>Per il primo accesso è necessaria una connessione Internet attiva. Il launcher non può
+    eseguire l'autenticazione in modalità completamente offline.</p>
+</div>
+
+<p>Se hai problemi ad accedere:</p>
+
+<ul>
+    <li><strong>Il browser non si apre</strong>: verifica che nel sistema sia configurato un browser predefinito.</li>
+    <li><strong>L'accesso va in timeout</strong>: controlla la connessione Internet e riprova.</li>
+    <li><strong>Account non riconosciuto</strong>: assicurati di usare l'account Microsoft che possiede Minecraft.</li>
+    <li><strong>Richieste di accesso ripetute</strong>: il token memorizzato potrebbe essere scaduto. È normale dopo 4 ore di inattività.</li>
+</ul>
+
+<p>Per problemi persistenti, consulta <a href="help://topic/TROUBLESHOOTING">Risoluzione dei problemi</a>.</p>
