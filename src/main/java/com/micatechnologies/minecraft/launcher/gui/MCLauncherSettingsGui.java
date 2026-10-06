@@ -53,7 +53,6 @@ import me.cortex.jarscanner.Progress;
 import me.cortex.jarscanner.Results;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.util.Precision;
-import org.codehaus.plexus.util.FileUtils;
 import oshi.SystemInfo;
 
 import java.io.File;
@@ -945,6 +944,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Configure reset launcher button
         resetLauncherBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
+            // A running game holds files in the launcher folder (its pack, libraries and
+            // Java runtime), so the reset could only half-delete it. Refuse until it stops.
+            if ( com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().hasActive() ) {
+                GUIUtilities.showWarningMessage(
+                        LocalizationManager.get( "dialog.settings.resetLauncher.gamesRunning" ), stage );
+                return;
+            }
             int response = GUIUtilities.showQuestionMessage(
                     LocalizationManager.get( "dialog.settings.resetLauncher.title" ),
                     LocalizationManager.get( "dialog.settings.resetLauncher.header" ),
@@ -955,23 +961,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             if ( response != 1 ) {
                 return;
             }
-
-            try {
-                LauncherCore.cleanupApp();
-            }
-            catch ( Exception e ) {
-                Logger.logWarningSilent( LocalizationManager.get( "log.settings.cleanupBeforeResetFailed" ) );
-            }
-            try {
-                FileUtils.deleteDirectory(
-                        SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getLauncherLocalPath() ) );
-            }
-            catch ( IOException e ) {
-                Logger.logError( LocalizationManager.get( "log.settings.resetFilesFailed" ) );
-            }
-            finally {
-                LauncherCore.restartApp();
-            }
+            // Deletes the folder and starts a fresh process, so no config or account held in
+            // this JVM's memory can be written back over the reset.
+            LauncherCore.resetLauncherAndRelaunch();
         } ) );
 
         // Configure reset runtime button
