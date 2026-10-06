@@ -131,6 +131,7 @@ class RunningGamesDockSnapshotFxTest
         assertNull( root.dock(), "popped out, the dock leaves the screen" );
         Window popped = otherShowingWindow();
         assertNotNull( popped, "popped out, the view has its own window" );
+        assertFalse( ( (Stage) popped ).getIcons().isEmpty(), "the window carries the launcher's icon" );
         write( robot, popped.getScene(), "running-games-window.png" );
 
         fire( robot, popped.getScene().getRoot(), "session.dock.dockIn" );

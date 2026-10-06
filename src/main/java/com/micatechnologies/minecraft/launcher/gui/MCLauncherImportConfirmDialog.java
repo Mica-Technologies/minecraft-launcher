@@ -84,6 +84,7 @@ public final class MCLauncherImportConfirmDialog
         stage.initModality( Modality.WINDOW_MODAL );
         if ( owner != null ) stage.initOwner( owner );
         stage.setTitle( LocalizationManager.get( "dialog.importConfirm.title" ) );
+        WindowIcons.apply( stage );
 
         // ----- Header: pack name + summary line + totals -----
         Label title = new Label( ( packName != null && !packName.isBlank() )
