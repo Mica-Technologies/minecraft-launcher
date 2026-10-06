@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import org.apache.commons.lang3.SystemUtils;
@@ -177,17 +178,16 @@ public final class LoaderInstallerRunner
      *          timeout, non-zero exit, or a missing version directory) */
     private static Result runInstallerJar( GameModPack pack, Path dotMc )
     {
-        // Resolve a usable installer JAR. Mica's normal install flow
-        // already downloads it to the pack's install folder when the pack
-        // is launched; in that case we reuse it. If it's missing
-        // (user is exporting a freshly-imported pack that's never been
-        // launched), download to a temp file.
+        // Resolve the installer JAR through the pack's managed loader file,
+        // the same https + declared-hash path a launch uses. Never fetched
+        // ad hoc: the result is executed below.
         File installerJar;
         try {
             installerJar = resolveInstallerJar( pack );
         }
         catch ( Exception e ) {
-            return Result.failure( "Couldn't obtain the loader installer JAR: " + e.getMessage() );
+            return Result.failure( LocalizationManager.format( "officialExport.loader.obtainFailed",
+                                                               String.valueOf( e.getMessage() ) ) );
         }
 
         // Spawn: java -jar <installer.jar> --installClient <dotMc>
@@ -293,47 +293,33 @@ public final class LoaderInstallerRunner
         }
     }
 
-    /** Returns the loader installer JAR file. Prefers the copy Mica's
-     *  normal install pipeline downloaded under the pack folder; falls
-     *  back to a fresh download into a per-launcher temp area if the
-     *  pack hasn't been launched yet.
+    /** Returns the loader installer JAR file, verified the same way a launch
+     *  verifies it. The installer is the pack's loader {@link ManagedGameFile}
+     *  (under the pack folder), so it is only ever fetched over https and
+     *  checked against the manifest's declared hash before it is run. It is
+     *  re-checked here even if it was verified earlier this session, since it
+     *  may have been deleted or replaced since, and this method's caller
+     *  executes it with {@code java -jar}.
      *
      *  @param pack the pack whose loader installer JAR to resolve
      *  @return the local installer JAR file, ready to spawn
-     *  @throws Exception if the pack has no installer URL or the fallback
-     *                   download fails / produces an empty file */
+     *  @throws Exception if the installer can't be downloaded or verified, or
+     *                   the pack's loader isn't a verifiable managed file */
     private static File resolveInstallerJar( GameModPack pack ) throws Exception
     {
-        // Best path: Mica already has the installer locally because the
-        // user launched the pack from Mica at least once.
+        // Constructing the loader (on first use) already runs the managed
+        // download + hash check, so a never-launched pack is covered too.
         GameModLoader loader = pack.getModLoader();
-        if ( loader instanceof ManagedGameFile mgf ) {
-            File local = new File( mgf.getFullLocalFilePath() );
-            if ( local.isFile() && local.length() > 0 ) {
-                Logger.logDebug( "LoaderInstallerRunner: reusing installer at " + local );
-                return local;
-            }
+        if ( !( loader instanceof ManagedGameFile mgf ) ) {
+            throw new IOException( LocalizationManager.get( "officialExport.loader.unverifiable" ) );
         }
-        // Fallback: download to a temp file. The pack carries the URL
-        // (and ideally a SHA-1) so we can verify post-download.
-        String url = pack.getModLoaderURL();
-        if ( url == null || url.isBlank() ) {
-            throw new IOException(
-                    "Pack manifest has no packModLoaderURL — can't fetch the installer." );
+        mgf.reverifyLocalFile();
+        File local = new File( mgf.getFullLocalFilePath() );
+        if ( !local.isFile() || local.length() == 0 ) {
+            throw new IOException( LocalizationManager.get( "officialExport.loader.unverifiable" ) );
         }
-        Path tmp = Files.createTempFile( "mica-loader-installer-", ".jar" );
-        // Mark for cleanup on JVM exit so a launcher kill mid-export
-        // doesn't leave stale installer JARs lying around.
-        tmp.toFile().deleteOnExit();
-        Logger.logStd( "LoaderInstallerRunner: downloading installer from " + url );
-        // Reuse Mica's bounded-download helper so the same trust gates
-        // (https-only, redirect limits) cover this fetch path.
-        File tmpFile = tmp.toFile();
-        NetworkUtilities.downloadFileFromURL( url, tmpFile );
-        if ( !tmpFile.isFile() || tmpFile.length() == 0 ) {
-            throw new IOException( "Loader installer download produced an empty file." );
-        }
-        return tmpFile;
+        Logger.logDebug( "LoaderInstallerRunner: using verified installer at " + local );
+        return local;
     }
 
     /** Resolves the {@code java} executable from the JVM Mica is running

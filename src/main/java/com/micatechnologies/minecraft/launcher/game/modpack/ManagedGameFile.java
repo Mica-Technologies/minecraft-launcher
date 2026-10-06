@@ -515,6 +515,20 @@ public class ManagedGameFile
     }
 
     /**
+     * Re-checks the file on disk even if it was already verified this session, downloading it
+     * again (https only, declared hash enforced) when it is missing or no longer matches. For
+     * callers about to execute the file, which must not trust a verification that happened
+     * before the file could have been deleted or replaced.
+     *
+     * @throws ModpackException if the file cannot be verified or downloaded
+     * @since 2026.10
+     */
+    void reverifyLocalFile() throws ModpackException {
+        sessionVerified = false;
+        updateLocalFile();
+    }
+
+    /**
      * Check for and download any new update(s) to the local file copy, as part of the given
      * prepare run: its verify mode decides whether the file is hashed, and a re-download of an
      * existing file is recorded in its audit log.
