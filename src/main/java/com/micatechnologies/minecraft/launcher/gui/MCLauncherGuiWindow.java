@@ -75,6 +75,9 @@ public class MCLauncherGuiWindow extends Application
     private static final double                MIN_WIDTH   = 750.0;
     /** Most-permissive minimum window height, in pixels. Individual screens may raise this via their FXML min. */
     private static final double                MIN_HEIGHT  = 600.0;
+
+    /** Re-applies the minimum size on a scale change; removed in {@link #cleanup()}. */
+    private ChangeListener< Number > scaleListener;
     /** The single primary stage this window owns, captured in {@link #start(Stage)}. */
     private              Stage                 stage;
     /** The screen currently displayed in the stage's scene, or {@code null} before the first {@link #setScene}. */
@@ -143,13 +146,17 @@ public class MCLauncherGuiWindow extends Application
         baseMinWidth = MIN_WIDTH;
         baseMinHeight = MIN_HEIGHT;
         applyScaledMinSize();
-        UiScale.scaleProperty().addListener( ( o, was, now ) -> {
+        // Kept in a field and removed in cleanup(): the scale property outlives this window, and
+        // the listener holds the window, its stage and its screen, so every in-process restart
+        // (sign-out, reset) leaked the previous window.
+        scaleListener = ( o, was, now ) -> {
             applyScaledMinSize();
             if ( gui != null && gui.scene != null ) {
                 com.micatechnologies.minecraft.launcher.utilities.MacOsTitleBarManager
                         .hideRedundantBranding( gui.scene.getRoot() );
             }
-        } );
+        };
+        UiScale.scaleProperty().addListener( scaleListener );
 
         // Set resizable property
         stage.setResizable( ConfigManager.getResizableWindows() );
@@ -1497,6 +1504,10 @@ public class MCLauncherGuiWindow extends Application
      */
     public void cleanup()
     {
+        if ( scaleListener != null ) {
+            UiScale.scaleProperty().removeListener( scaleListener );
+            scaleListener = null;
+        }
         // Let the current screen release what it holds (clock subscriptions, timers, log
         // writers). Without this, every in-JVM restart leaked the screen shown at exit.
         MCLauncherAbstractGui current = gui;
