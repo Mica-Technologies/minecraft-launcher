@@ -1,0 +1,59 @@
+<h1>Runtimebeheer</h1>
+
+<p>De Mica Minecraft Launcher beheert Java-runtimes automatisch, zodat u Java nooit zelf hoeft te installeren
+of te configureren.</p>
+
+<h2>Waarom runtimes belangrijk zijn</h2>
+
+<p>Minecraft en Forge hebben specifieke Java-versies nodig om correct te werken. Verschillende modpacks en
+Minecraft-versies kunnen verschillende Java-runtimes vereisen:</p>
+
+<ul>
+    <li><strong>Minecraft 1.16 en ouder</strong> — Java 8</li>
+    <li><strong>Minecraft 1.17 - 1.20</strong> — Java 17</li>
+    <li><strong>Minecraft 1.21+</strong> — Java 21 of nieuwer</li>
+</ul>
+
+<p>De launcher detecteert welke runtime elk modpack of elke vanilla-versie nodig heeft en downloadt die
+automatisch bij de eerste start.</p>
+
+<h2>Automatische downloads</h2>
+
+<p>Wanneer u een modpack of vanilla-versie voor het eerst start, controleert de launcher of
+de vereiste runtime al is geïnstalleerd. Zo niet, dan downloadt hij de juiste versie van de
+distributieservers van Mojang of Liberica. Dit is een eenmalige download per runtimeversie.</p>
+
+<div class="note">
+    <div class="callout-title">Opmerking</div>
+    <p>Runtimedownloads zijn doorgaans 40 - 80 MB groot en worden opgeslagen in de gegevensmap van de
+    launcher, los van eventuele Java-installaties op uw systeem.</p>
+</div>
+
+<h2>Geïnstalleerde runtimes bekijken</h2>
+
+<p>Open <a href="help://topic/SETTINGS">Instellingen</a> en klik op <strong>Runtimes beheren</strong> voor
+een lijst van alle geïnstalleerde Java-runtimes, met hun versie, pad en de modpacks die
+ze gebruiken.</p>
+
+<h2>Ongebruikte runtimes verwijderen</h2>
+
+<p>Als u modpacks hebt verwijderd die een bepaalde Java-versie gebruikten, kunt u de
+bijbehorende runtime verwijderen om schijfruimte vrij te maken. Selecteer een runtime in het beheerscherm en
+klik op <strong>Verwijderen</strong>.</p>
+
+<div class="warning">
+    <div class="callout-title">Waarschuwing</div>
+    <p>Als u een runtime verwijdert die een geïnstalleerd modpack nog nodig heeft, downloadt de launcher
+    die opnieuw bij de volgende start van dat modpack.</p>
+</div>
+
+<h2>Problemen met runtimes oplossen</h2>
+
+<p>Als een modpack niet start door Java-gerelateerde fouten, probeer dan het volgende:</p>
+
+<ol>
+    <li>Open Runtime-beheer en verwijder de runtime die het betreffende modpack gebruikt.</li>
+    <li>Start het modpack opnieuw — de launcher downloadt dan een nieuwe kopie.</li>
+    <li>Blijft het probleem bestaan, zie dan <a href="help://topic/TROUBLESHOOTING">Probleemoplossing</a> voor
+        verdere stappen.</li>
+</ol>

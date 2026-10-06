@@ -1,0 +1,112 @@
+<h1>Probleemoplossing</h1>
+
+<p>Deze pagina behandelt veelvoorkomende problemen en hun oplossingen. Staat uw probleem hier niet bij,
+bekijk dan de logboeken van de launcher voor details over de fout.</p>
+
+<h2>Mislukte downloads</h2>
+
+<p>Bestanden kunnen niet worden gedownload of er verschijnen verificatiefouten tijdens het starten.</p>
+
+<ul>
+    <li>Controleer uw internetverbinding en probeer het opnieuw.</li>
+    <li>Zit u op een bedrijfs- of schoolnetwerk, configureer dan een proxy in
+        <a href="help://topic/SETTINGS">Instellingen</a> onder Netwerk / proxy.</li>
+    <li>Probeer het starten opnieuw — tijdelijke netwerkfouten verdwijnen vaak bij een tweede poging.</li>
+    <li>Mislukt een bepaald bestand steeds, dan is de download-URL mogelijk kapot. Meld dit aan de auteur van het modpack.</li>
+</ul>
+
+<h2>Offline-indicator</h2>
+
+<p>Een rode chip <strong>Offline</strong> verschijnt naast de helpknop op elk hoofdscherm
+wanneer de launcher geen internetverbinding detecteert. Zolang u offline bent:</p>
+
+<ul>
+    <li>Kunt u nog steeds elk modpack starten waarvan de bestanden al volledig zijn gedownload.</li>
+    <li>Mislukken installaties, updates en de versiekiezers in de Modpack-editor, of tonen ze
+        verouderde gegevens.</li>
+    <li>Blijven de filters voor beschikbare packs en loaderversies in het scherm
+        <a href="help://topic/BROWSE_LIBRARY">Bladeren</a> leeg tot het netwerk terug is.</li>
+    <li>Werkt de authenticatie gewoon, zolang uw bestaande token nog geldig is (tussen starts
+        in de cache op schijf bewaard).</li>
+</ul>
+
+<p>De indicator wordt vernieuwd wanneer u tussen schermen navigeert; zodra uw netwerk weer
+werkt, wordt de chip bijgewerkt als u naar een ander scherm en weer terug gaat.</p>
+
+<h2>Crashes van het spel</h2>
+
+<p>Het spel start, maar crasht kort daarna of tijdens het spelen.</p>
+
+<ul>
+    <li>Schakel de <a href="help://topic/GAME_CONSOLE">Spelconsole</a> in bij de instellingen om de crashuitvoer in realtime te zien.</li>
+    <li>Bekijk het crashrapport in de map <code>crash-reports/</code> van het modpack voor specifieke foutdetails.</li>
+    <li>Probeer de maximale RAM-toewijzing te verhogen in <a href="help://topic/SETTINGS">Instellingen</a> — veel modpacks hebben minstens 4 - 6 GB nodig.</li>
+    <li>Klik met de rechtermuisknop op het modpack in het hoofdscherm en kies <strong>Installatiemap openen</strong>, verwijder daarna
+        de map <code>mods/</code> en start opnieuw om een nieuwe download af te dwingen.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Waarschuwing</div>
+    <p>Te veel RAM toewijzen (meer dan uw systeem kan missen) kan net zo goed crashes veroorzaken
+    als te weinig toewijzen. Houd het maximale RAM op of onder de helft van het totale systeemgeheugen.</p>
+</div>
+
+<h2>Launcher blijft hangen bij het laden</h2>
+
+<p>De launcher lijkt vastgelopen of een voortgangsbalk beweegt niet meer.</p>
+
+<ul>
+    <li>Wacht een paar minuten — bij grote modpacks kan het verifiëren van bestanden even duren, vooral bij de eerste start.</li>
+    <li>Bekijk de logboeken van de launcher op fouten (schakel Uitgebreide logboekregistratie in bij de instellingen).</li>
+    <li>Gebruik als laatste redmiddel <strong>Launcher resetten</strong> in <a href="help://topic/SETTINGS">Instellingen</a>
+        om terug te keren naar een schone staat.</li>
+</ul>
+
+<h2>Offline modus</h2>
+
+<p>De launcher heeft een internetverbinding nodig voor authenticatie en het downloaden van bestanden. Manifesten van
+modpacks en spelbestanden worden echter na de eerste geslaagde download lokaal in de cache bewaard.</p>
+
+<ul>
+    <li>Verliest u de verbinding na de eerste installatie, dan kan het spel mogelijk nog starten met bestanden uit de cache.</li>
+    <li>Authenticatietokens worden ongeveer 4 uur in de cache bewaard — is uw token nog geldig, dan kunt u binnen die periode offline spelen.</li>
+</ul>
+
+<h2>Prestatieproblemen</h2>
+
+<p>Het spel draait, maar met een lage FPS of regelmatige haperingen.</p>
+
+<ul>
+    <li>Schakel over naar de JVM-voorinstelling <strong>Performance (Aikar's Flags)</strong> in
+        <a href="help://topic/SETTINGS">Instellingen</a>.</li>
+    <li>Zorg dat u genoeg RAM hebt toegewezen — minstens 4 GB voor de meeste modpacks.</li>
+    <li>Sluit andere geheugenintensieve programma's tijdens het spelen.</li>
+    <li>Controleer of uw grafische stuurprogramma's up-to-date zijn.</li>
+</ul>
+
+<h2>Ontbrekende mods of bestanden</h2>
+
+<p>Het spel start, maar er ontbreken mods of de configuraties kloppen niet.</p>
+
+<ul>
+    <li>De launcher verifieert bij elke start de hashes van bestanden. Zijn bestanden handmatig gewijzigd, dan worden ze opnieuw gedownload zodat ze overeenkomen met de modpackdefinitie.</li>
+    <li>Ontbreekt een mod in het modpack zelf, neem dan contact op met de auteur van het modpack.</li>
+    <li>Probeer het modpack te verwijderen en opnieuw toe te voegen om een volledige nieuwe download af te dwingen.</li>
+</ul>
+
+<h2>Problemen met authenticatie</h2>
+
+<p>U kunt niet inloggen of wordt steeds gevraagd opnieuw te authenticeren.</p>
+
+<ul>
+    <li>Tokens verlopen na ongeveer 4 uur — opnieuw authenticeren is normaal.</li>
+    <li>Mislukt het inloggen herhaaldelijk, probeer dan de browsercookies voor <code>login.microsoftonline.com</code> te wissen.</li>
+    <li>Zorg dat uw Microsoft-account een actieve Minecraft-licentie heeft.</li>
+    <li>Zie <a href="help://topic/LOGIN">Aanmelden</a> voor meer details over het authenticatieproces.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Tip</div>
+    <p>Vermeld bij het melden van problemen altijd: de naam en versie van het modpack, uw besturingssysteem,
+    het logbestand van de launcher en eventuele crashrapporten. Zo kunnen problemen veel sneller worden gediagnosticeerd.</p>
+</div>

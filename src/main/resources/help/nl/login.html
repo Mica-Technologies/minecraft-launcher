@@ -1,0 +1,43 @@
+<h1>Aanmelden</h1>
+
+<p>De Mica Minecraft Launcher gebruikt de <strong>officiële Microsoft-authenticatie</strong> om uw
+Minecraft-account te verifiëren. Dit is dezelfde inlogprocedure als die van de officiële Minecraft-launcher.</p>
+
+<h2>Hoe het werkt</h2>
+
+<ol class="steps">
+    <li>Klik op <strong>Inloggen</strong> in het aanmeldscherm. Er opent een browservenster met de inlogpagina van Microsoft.</li>
+    <li>Voer de gegevens van uw Microsoft-account in en keur het inloggen goed.</li>
+    <li>Na de authenticatie sluit het browservenster en gaat de launcher verder naar het
+        <a href="help://topic/MAIN_SCREEN">Hoofdscherm</a>.</li>
+</ol>
+
+<h2>Token-caching</h2>
+
+<p>Na een geslaagde aanmelding wordt uw authenticatietoken lokaal in de cache opgeslagen met
+<strong>AES-256-GCM-versleuteling</strong> en een sleutel die van uw computer is afgeleid. Dit betekent:</p>
+
+<ul>
+    <li>U hoeft ongeveer <strong>4 uur</strong> niet opnieuw in te loggen.</li>
+    <li>Het token in de cache is versleuteld en gekoppeld aan uw specifieke computer — het kan niet elders worden overgezet of hergebruikt.</li>
+    <li>Nadat de cache is verlopen, vraagt de launcher u opnieuw in te loggen.</li>
+</ul>
+
+<h2>Problemen met aanmelden oplossen</h2>
+
+<div class="warning">
+    <div class="callout-title">Internet vereist</div>
+    <p>Voor de eerste aanmelding is een actieve internetverbinding vereist. De launcher kan
+    zich in een volledig offline modus niet authenticeren.</p>
+</div>
+
+<p>Als u problemen hebt met inloggen:</p>
+
+<ul>
+    <li><strong>De browser opent niet</strong> — controleer of er op uw systeem een standaardbrowser is ingesteld.</li>
+    <li><strong>Inloggen verloopt (time-out)</strong> — controleer uw internetverbinding en probeer het opnieuw.</li>
+    <li><strong>Account niet herkend</strong> — zorg dat u het Microsoft-account gebruikt dat Minecraft bezit.</li>
+    <li><strong>Herhaaldelijk gevraagd om in te loggen</strong> — het token in de cache is mogelijk verlopen. Dit is normaal na 4 uur inactiviteit.</li>
+</ul>
+
+<p>Zie bij aanhoudende problemen <a href="help://topic/TROUBLESHOOTING">Probleemoplossing</a>.</p>
