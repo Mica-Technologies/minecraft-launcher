@@ -23,6 +23,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.collections.ObservableList;
 import javafx.scene.layout.Region;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.LineTo;
@@ -72,6 +73,8 @@ public class WavyProgressBar extends Region
     private final Path wave = new Path();
     private final Path track = new Path();
     private final Circle stop = new Circle( STROKE / 2 );
+    private final PathWriter waveOut = new PathWriter( wave );
+    private final PathWriter trackOut = new PathWriter( track );
     /** The progress currently drawn; eases toward {@link #progress} so jumps animate. */
     private double shown;
 
@@ -177,8 +180,10 @@ public class WavyProgressBar extends Region
 
         double amplitude = WAVY.get() ? AMPLITUDE : 0;
         double target = getProgress();
-        List< PathElement > waveEls = new ArrayList<>();
-        List< PathElement > trackEls = new ArrayList<>();
+        // Runs every frame while animating: the paths' existing elements are moved rather than
+        // replaced, so a frame allocates nothing unless the element count grows.
+        waveOut.begin();
+        trackOut.begin();
         if ( target < 0 ) {
             // Indeterminate: a wavy segment sweeps left to right; the track shows either side.
             double t = ( seconds % SWEEP_PERIOD_S ) / SWEEP_PERIOD_S;
@@ -187,13 +192,15 @@ public class WavyProgressBar extends Region
             double a = Math.max( 0, start );
             double b = Math.min( w, start + len );
             if ( b > a ) {
-                waveEls.addAll( wavePath( x0 + a, x0 + b, cy, phase, amplitude ) );
+                wave( waveOut, x0 + a, x0 + b, cy, phase, amplitude );
             }
             if ( a - GAP > STROKE ) {
-                trackEls.addAll( List.of( new MoveTo( x0 + STROKE / 2, cy ), new LineTo( x0 + a - GAP, cy ) ) );
+                trackOut.point( x0 + STROKE / 2, cy, true );
+                trackOut.point( x0 + a - GAP, cy, false );
             }
             if ( w - ( b + GAP ) > STROKE ) {
-                trackEls.addAll( List.of( new MoveTo( x0 + b + GAP, cy ), new LineTo( x0 + w - STROKE / 2, cy ) ) );
+                trackOut.point( x0 + b + GAP, cy, true );
+                trackOut.point( x0 + w - STROKE / 2, cy, false );
             }
             stop.setVisible( false );
         }
@@ -205,19 +212,20 @@ public class WavyProgressBar extends Region
             }
             double end = x0 + STROKE / 2 + ( w - STROKE ) * shown;
             if ( shown > 0 ) {
-                waveEls.addAll( wavePath( x0 + STROKE / 2, end, cy, phase, amplitude ) );
+                wave( waveOut, x0 + STROKE / 2, end, cy, phase, amplitude );
             }
             double trackStart = shown > 0 ? end + GAP + STROKE : x0 + STROKE / 2;
             double trackEnd = x0 + w - STROKE / 2;
             if ( trackEnd - trackStart > 0 ) {
-                trackEls.addAll( List.of( new MoveTo( trackStart, cy ), new LineTo( trackEnd, cy ) ) );
+                trackOut.point( trackStart, cy, true );
+                trackOut.point( trackEnd, cy, false );
             }
             stop.setVisible( shown < 0.999 );
             stop.setCenterX( trackEnd );
             stop.setCenterY( cy );
         }
-        wave.getElements().setAll( waveEls );
-        track.getElements().setAll( trackEls );
+        waveOut.end();
+        trackOut.end();
     }
 
     /**
@@ -228,15 +236,78 @@ public class WavyProgressBar extends Region
     static List< PathElement > wavePath( double from, double to, double cy, double phase, double amplitude )
     {
         List< PathElement > els = new ArrayList<>();
+        wave( ( x, y, move ) -> els.add( move ? new MoveTo( x, y ) : new LineTo( x, y ) ),
+              from, to, cy, phase, amplitude );
+        return els;
+    }
+
+    /** Receives a polyline's points; {@code move} marks the first point of a stroke. */
+    @FunctionalInterface
+    interface PointSink
+    {
+        void point( double x, double y, boolean move );
+    }
+
+    /** Writes the points of {@link #wavePath} to a sink. */
+    private static void wave( PointSink out, double from, double to, double cy, double phase, double amplitude )
+    {
         double step = 2;
         boolean first = true;
         for ( double x = from; x <= to + 0.001; x += step ) {
             double xx = Math.min( x, to );
             double ramp = Math.min( 1, ( xx - from ) / WAVELENGTH );
             double y = cy + Math.sin( xx / WAVELENGTH * Math.PI * 2 - phase ) * amplitude * ramp;
-            els.add( first ? new MoveTo( xx, y ) : new LineTo( xx, y ) );
+            out.point( xx, y, first );
             first = false;
         }
-        return els;
+    }
+
+    /** Rewrites a path's elements in place, reusing those already there. */
+    private static final class PathWriter implements PointSink
+    {
+        private final Path path;
+        private       int  count;
+
+        PathWriter( Path path )
+        {
+            this.path = path;
+        }
+
+        void begin()
+        {
+            count = 0;
+        }
+
+        @Override
+        public void point( double x, double y, boolean move )
+        {
+            ObservableList< PathElement > els = path.getElements();
+            if ( count < els.size() ) {
+                PathElement e = els.get( count );
+                if ( move && e instanceof MoveTo m ) {
+                    m.setX( x );
+                    m.setY( y );
+                }
+                else if ( !move && e instanceof LineTo l ) {
+                    l.setX( x );
+                    l.setY( y );
+                }
+                else {
+                    els.set( count, move ? new MoveTo( x, y ) : new LineTo( x, y ) );
+                }
+            }
+            else {
+                els.add( move ? new MoveTo( x, y ) : new LineTo( x, y ) );
+            }
+            count++;
+        }
+
+        void end()
+        {
+            ObservableList< PathElement > els = path.getElements();
+            if ( els.size() > count ) {
+                els.remove( count, els.size() );
+            }
+        }
     }
 }
