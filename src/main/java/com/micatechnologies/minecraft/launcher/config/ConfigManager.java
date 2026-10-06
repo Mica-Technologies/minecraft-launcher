@@ -665,6 +665,10 @@ public class ConfigManager
     public synchronized static boolean getInGameConsoleEnable()         { return AppConfig.getInGameConsoleEnable(); }
     /** Sets whether the in-game console is shown on launch. @param v the new flag. @see AppConfig#setInGameConsoleEnable(boolean) @since 1.0 */
     public synchronized static void    setInGameConsoleEnable( boolean v ) { AppConfig.setInGameConsoleEnable( v ); }
+    /** @return whether the Running Games view is docked in the main window. @see AppConfig#getRunningGamesDocked() @since 2026.10 */
+    public synchronized static boolean getRunningGamesDocked()          { return AppConfig.getRunningGamesDocked(); }
+    /** Sets whether the Running Games view is docked in the main window. @param v the new flag. @see AppConfig#setRunningGamesDocked(boolean) @since 2026.10 */
+    public synchronized static void    setRunningGamesDocked( boolean v ) { AppConfig.setRunningGamesDocked( v ); }
     /** @return the in-game console visible-line cap (0 = unlimited). @see AppConfig#getConsoleLogMaxLines() @since 1.0 */
     public synchronized static int     getConsoleLogMaxLines()          { return AppConfig.getConsoleLogMaxLines(); }
     /** Sets the in-game console visible-line cap. @param v the line cap (0 = unlimited). @see AppConfig#setConsoleLogMaxLines(int) @since 1.0 */

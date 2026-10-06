@@ -2594,6 +2594,37 @@
     -fx-background-color: -color-bg;
 }
 
+/* Running Games header. In its own window it holds only the Dock button, at the right;
+ * docked along the bottom of the main window it is a tonal strip with the title, a count of
+ * games, and collapse / pop-out, under a divider. Clicking the strip collapses or expands it. */
+.runningGamesHeader {
+    -fx-padding: 4 12 4 16;
+    -fx-min-height: 44;
+}
+.runningGamesHeader:docked {
+    -fx-background-color: -md-surface-container;
+    -fx-cursor: hand;
+}
+.runningGamesTitle {
+    -fx-text-fill: -md-on-surface;
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
+}
+.runningGamesCount {
+    -fx-text-fill: -md-on-secondary-container;
+    -fx-background-color: -md-secondary-container;
+    -fx-background-radius: 999;
+    -fx-padding: 1 8 1 8;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
+}
+.runningGamesDock {
+    -fx-border-color: -md-outline-variant transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
 /* Running Games pane (GameSessionPane), Material 3: a tonal header strip, a filled
  * status chip by phase, the log on one tonal surface (no nested border), and an
  * error-tonal Kill. */
