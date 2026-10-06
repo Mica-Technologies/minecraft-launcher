@@ -2060,6 +2060,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // === Static node tree fields. Built once by the constructor; bind()
         //     mutates their content in place rather than re-creating them. ===
         private final Region bgLayer;
+        /** The pack's background image, over {@link #bgLayer}'s gradient. */
+        private final PackBackgroundLayer bgImage;
         private final HBox badgeRow;
         private final ImageView logo;
         private final Label name;
@@ -2077,7 +2079,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             // Same bitmap-cache trick as the main-menu hero cards — keeps scroll lag minimal
             // even with a few hundred cards in the FlowPane. CacheHint.DEFAULT (not SPEED)
             // for the same reason that bit the main menu: SPEED treats the cached bitmap
-            // as static and won't refresh when the bgLayer's CSS bg-image completes its
+            // as static and won't refresh when the background image completes its
             // async load, making packs render with just the gradient even when the image
             // is available. DEFAULT lets JavaFX invalidate + re-render on descendant
             // content changes.
@@ -2097,6 +2099,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
             bgLayer = new Region();
             bgLayer.getStyleClass().add( "heroBackground" );
+            bgImage = new PackBackgroundLayer();
 
             Region imageVeil = new Region();
             imageVeil.getStyleClass().add( "heroCardImageVeil" );
@@ -2107,7 +2110,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             badgeRow.setAlignment( Pos.TOP_RIGHT );
             badgeRow.setPadding( new Insets( 8, 10, 0, 0 ) );
 
-            imageBox.getChildren().addAll( bgLayer, imageVeil, badgeRow );
+            imageBox.getChildren().addAll( bgLayer, bgImage, imageVeil, badgeRow );
 
             // ----- Logo overlay (matches main-menu visual) -----
             StackPane logoContainer = new StackPane();
@@ -2185,7 +2188,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             this.entry = newEntry;
 
             // ----- Background -----
-            // Clear any prior bind's inline -fx-background-image AND the dynamic
+            // Clear any prior bind's inline gradient AND the dynamic
             // style classes applyEntryBackground / applyDynamicBackground add
             // (heroBackgroundDefaultVanilla / heroBackgroundDefaultForge) so they
             // don't accumulate across rebinds and bleed previous-entry styling
@@ -2204,14 +2207,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             // download for installed packs anyway, so the next visit to the library
             // typically has them all on disk. Respects the user-facing
             // Settings → Appearance toggle: when off, gradient-only across the board.
+            String bgUrl = null;
             if ( newEntry.pack != null
                     && com.micatechnologies.minecraft.launcher.config.ConfigManager.getShowPackBackgrounds() ) {
-                String bgUrl = MCLauncherMainGui.resolveBackgroundUrl( newEntry.pack );
-                if ( bgUrl != null ) {
-                    String existing = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
-                    bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
-                }
+                bgUrl = MCLauncherMainGui.resolveBackgroundUrl( newEntry.pack );
             }
+            // Decoded off the FX thread at card size; the gradient shows until it arrives.
+            bgImage.show( bgUrl );
 
             // ----- Badge row -----
             badgeRow.getChildren().clear();

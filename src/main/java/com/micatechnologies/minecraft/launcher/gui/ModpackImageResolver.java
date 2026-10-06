@@ -187,9 +187,8 @@ public final class ModpackImageResolver
      * Returns the pack's background image as a {@code file:} URL string, or
      * {@code null} when the pack ships no custom background OR the cached file
      * doesn't exist yet on disk. Returning a String (vs. an Image) lets the
-     * caller plug the URL straight into a CSS {@code -fx-background-image}
-     * style or build an Image with its own size hints, since the card-grid
-     * code consumes the value as a CSS string.
+     * caller build an Image with its own size hints: {@link PackBackgroundLayer}
+     * decodes it at the size the card or hero shows it.
      *
      * <p>{@link GameModPack#hasCustomBackground()} is the canonical "does this
      * pack ship its own image" signal. The cached file at

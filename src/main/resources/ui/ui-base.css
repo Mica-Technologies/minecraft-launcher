@@ -775,14 +775,12 @@
 }
 
 
-/* Layer 1: modpack background image. The path is set inline by the controller
- * via setStyle(...). This rule provides defaults (clipping, sizing). */
+/* Layer 1: the procedural gradient behind a modpack's background image. The
+ * gradient is set inline by the controller via setStyle(...); the image itself
+ * is drawn over it by a PackBackgroundLayer, decoded off the FX thread. */
 .heroBackground {
     -fx-background-color: transparent;
     -fx-background-radius: 16;
-    -fx-background-size: cover;
-    -fx-background-position: center;
-    -fx-background-repeat: no-repeat;
 }
 
 /* Default backgrounds for packs without their own per-pack image. Triggered by
