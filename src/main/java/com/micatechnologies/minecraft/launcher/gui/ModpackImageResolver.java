@@ -60,8 +60,21 @@ public final class ModpackImageResolver
      *  1024×1024 source logo decodes to ~4 MB of heap and is held for the card's
      *  lifetime (and across the whole multi-image cycle list). Decoding to a
      *  256 px box — comfortably above any display size, so no visible blur —
-     *  caps each logo at ~256 KB while preserving aspect ratio. */
-    private static final double LOGO_DECODE_SIZE = 256;
+     *  caps each logo at ~256 KB while preserving aspect ratio. Shared with the
+     *  screens that load a logo or preview straight from a URL. */
+    static final double LOGO_DECODE_SIZE = 256;
+
+    /**
+     * Loads a logo from a URL in the background, decoded to fit {@link #LOGO_DECODE_SIZE}.
+     *
+     * @param url the image URL
+     *
+     * @return the loading image
+     */
+    static Image loadLogo( String url )
+    {
+        return new Image( url, LOGO_DECODE_SIZE, LOGO_DECODE_SIZE, true, true, true );
+    }
 
     /**
      * Returns the pack's logo as a JavaFX {@link Image} loaded from the on-disk
