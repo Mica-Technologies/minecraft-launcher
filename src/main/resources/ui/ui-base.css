@@ -66,14 +66,10 @@
 .mfx-combo-box:floating .floating-text { -fx-background-color: -color-popup; -fx-background-radius: 4; -fx-padding: 0 4 0 4; }
 .mfx-combo-box:floating .floating-text .text { -fx-fill: -color-text-muted; }
 .mfx-combo-box:floating:focus-within .floating-text .text { -fx-fill: -color-primary; }
-.mfx-combo-box-popup,
-.mfx-combo-box-popup .virtual-flow,
-.mfx-combo-box-popup .mfx-list-view { -fx-background-color: -color-popup; }
 .mfx-combo-box-cell {
     -fx-background-color: -color-popup;
     -mfx-hover: -color-primary-soft-hov;
     -mfx-selected: -color-primary;
-    -fx-background-radius: 0 !important;
 }
 .mfx-combo-box-cell .data-label { -fx-text-fill: -color-text; }
 .mfx-combo-box-cell:hover .data-label { -fx-text-fill: -color-text; }
@@ -1812,13 +1808,6 @@
     -fx-fill: transparent;
 }
 
-.mfx-combo-box .mfx-list-view {
-    -fx-background-color: -color-surface-elevated;
-    -fx-border-color: -color-border;
-    -fx-border-radius: 8;
-    -fx-background-radius: 8;
-    -fx-effect: dropshadow(gaussian, -color-shadow, 18, 0.18, 0, 8);
-}
 
 
 /* =====================================================================
@@ -2725,20 +2714,23 @@
 .mfx-combo-box .caret .mfx-ripple-generator {
     -mfx-ripple-color: transparent !important;
 }
-.mfx-combo-box .mfx-list-view,
-.mfx-combo-box-popup .mfx-list-view {
-    -fx-background-color: -md-surface-container;
-    -fx-background-radius: 12;
+/* The menu. MaterialFX 11 builds it as .combo-popup > StackPane > .virtual-flow (there is
+ * no list view in it) and paints that flow white from its own sheet, which left the
+ * theme's light text on white. -color-popup is opaque in every theme, the Native ones
+ * included, where the surface containers are translucent over the desktop. The selected
+ * row is a pill inset from the menu's edges, as Android draws it. */
+.mfx-combo-box .combo-popup .virtual-flow {
+    -fx-background-color: -color-popup;
+    -fx-background-radius: 16;
+    -fx-border-color: transparent;
     -fx-border-width: 0;
-    -fx-padding: 6 0 6 0;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.30), 16, 0.10, 0, 4);
-}
-.mfx-combo-box-popup, .mfx-combo-box-popup .virtual-flow {
-    -fx-background-color: transparent;
+    -fx-padding: 4 0 4 0;
 }
 .mfx-combo-box-cell {
     -fx-background-color: transparent;
-    -fx-padding: 10 16 10 16;
+    -fx-background-radius: 12;
+    -fx-background-insets: 0 4 0 4;
+    -fx-padding: 10 20 10 20;
     -mfx-hover: -md-state-hover-on-surface;
     -mfx-selected: -md-active-indicator;
 }

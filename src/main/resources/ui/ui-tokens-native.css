@@ -198,16 +198,6 @@
     -fx-background-color: transparent;
 }
 
-/* ----- Dropdown list: opaque in the Native theme -----
- *
- * A MaterialFX combo's dropdown list is painted with the translucent
- * surface token, which reads as nearly invisible over the bare desktop in
- * its popup window. Tooltips and context menus already use the opaque
- * -color-popup in ui-base.css. */
-.mfx-combo-box .mfx-list-view {
-    -fx-background-color: -color-popup;
-}
-
 /* ----- Modpack-detail modal: force opaque surfaces in the Native theme -----
  *
  * The expanded modpack-detail modal is an in-scene StackPane overlay (not
