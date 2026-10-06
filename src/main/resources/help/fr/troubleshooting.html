@@ -1,0 +1,112 @@
+<h1>Dépannage</h1>
+
+<p>Cette page présente les problèmes courants et leurs solutions. Si votre problème n'y figure pas,
+consultez les journaux du lanceur pour obtenir le détail des erreurs.</p>
+
+<h2>Échecs de téléchargement</h2>
+
+<p>Des fichiers ne se téléchargent pas ou des erreurs de vérification apparaissent pendant le lancement.</p>
+
+<ul>
+    <li>Vérifiez votre connexion Internet et réessayez.</li>
+    <li>Si vous êtes sur un réseau d'entreprise ou scolaire, configurez un proxy dans
+        les <a href="help://topic/SETTINGS">Paramètres</a>, sous Réseau / Proxy.</li>
+    <li>Relancez le jeu : les erreurs réseau passagères se résolvent souvent à la deuxième tentative.</li>
+    <li>Si un fichier précis échoue systématiquement, son URL de téléchargement est peut-être cassée. Signalez-le à l'auteur du modpack.</li>
+</ul>
+
+<h2>Indicateur hors ligne</h2>
+
+<p>Une étiquette rouge <strong>Hors ligne</strong> apparaît à côté du bouton d'aide sur chaque écran principal
+lorsque le lanceur ne détecte aucune connexion Internet. Hors ligne :</p>
+
+<ul>
+    <li>Vous pouvez toujours lancer tout modpack dont les fichiers sont déjà entièrement téléchargés.</li>
+    <li>Les installations, les mises à jour et les boîtes de dialogue de sélection de version de l'Éditeur de modpacks échoueront ou
+        afficheront des données obsolètes.</li>
+    <li>Les filtres de packs disponibles et de versions de chargeur de l'écran <a href="help://topic/BROWSE_LIBRARY">Parcourir</a>
+        resteront vides jusqu'au retour du réseau.</li>
+    <li>L'authentification n'est pas affectée tant que votre jeton existant est encore valide (il est conservé
+        sur le disque d'un lancement à l'autre).</li>
+</ul>
+
+<p>L'indicateur s'actualise lorsque vous passez d'un écran à l'autre : une fois votre réseau
+rétabli, il suffit d'aller sur un autre écran puis de revenir pour mettre à jour l'étiquette.</p>
+
+<h2>Plantages du jeu</h2>
+
+<p>Le jeu démarre mais plante peu après, ou plante en cours de partie.</p>
+
+<ul>
+    <li>Activez la <a href="help://topic/GAME_CONSOLE">Console du jeu</a> dans les paramètres pour voir la sortie du plantage en temps réel.</li>
+    <li>Consultez le rapport de plantage dans le dossier <code>crash-reports/</code> du modpack pour obtenir le détail de l'erreur.</li>
+    <li>Essayez d'augmenter l'allocation maximale de RAM dans les <a href="help://topic/SETTINGS">Paramètres</a> : de nombreux modpacks ont besoin d'au moins 4 à 6 Go.</li>
+    <li>Faites un clic droit sur le modpack dans l'écran principal et sélectionnez <strong>Ouvrir le dossier d'installation</strong>, puis supprimez
+        le dossier <code>mods/</code> et relancez le jeu pour forcer un nouveau téléchargement.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Avertissement</div>
+    <p>Allouer trop de RAM (plus que votre système ne peut en céder) peut provoquer des plantages tout aussi
+    facilement que d'en allouer trop peu. Gardez la RAM maximale à la moitié de la mémoire totale de votre système, ou moins.</p>
+</div>
+
+<h2>Lanceur bloqué au chargement</h2>
+
+<p>Le lanceur semble figé ou une barre de progression cesse d'avancer.</p>
+
+<ul>
+    <li>Patientez quelques minutes : la vérification des fichiers des gros modpacks peut prendre du temps, surtout au premier lancement.</li>
+    <li>Recherchez des erreurs dans les journaux du lanceur (activez la Journalisation améliorée dans les paramètres).</li>
+    <li>En dernier recours, utilisez <strong>Réinitialiser le lanceur</strong> dans les <a href="help://topic/SETTINGS">Paramètres</a>
+        pour revenir à un état propre.</li>
+</ul>
+
+<h2>Mode hors ligne</h2>
+
+<p>Le lanceur a besoin d'une connexion Internet pour l'authentification et le téléchargement des fichiers. Toutefois,
+les manifestes des modpacks et les fichiers du jeu sont mis en cache localement après le premier téléchargement réussi.</p>
+
+<ul>
+    <li>Si vous perdez la connexion après la configuration initiale, le jeu peut tout de même se lancer à l'aide des fichiers en cache.</li>
+    <li>Les jetons d'authentification sont mis en cache pendant environ 4 heures : si votre jeton est encore valide, vous pouvez jouer hors ligne pendant ce délai.</li>
+</ul>
+
+<h2>Problèmes de performances</h2>
+
+<p>Le jeu fonctionne, mais avec un FPS faible ou des saccades fréquentes.</p>
+
+<ul>
+    <li>Passez au préréglage JVM <strong>Performance (Aikar's Flags)</strong> dans les
+        <a href="help://topic/SETTINGS">Paramètres</a>.</li>
+    <li>Assurez-vous d'avoir alloué suffisamment de RAM : au moins 4 Go pour la plupart des modpacks.</li>
+    <li>Fermez les autres applications gourmandes en mémoire pendant que vous jouez.</li>
+    <li>Vérifiez que vos pilotes graphiques sont à jour.</li>
+</ul>
+
+<h2>Mods ou fichiers manquants</h2>
+
+<p>Le jeu se lance, mais des mods manquent ou les configurations sont incorrectes.</p>
+
+<ul>
+    <li>Le lanceur vérifie les hash des fichiers à chaque lancement. Si des fichiers ont été modifiés manuellement, ils seront retéléchargés pour correspondre à la définition du modpack.</li>
+    <li>Si un mod est absent du modpack lui-même, contactez l'auteur du modpack.</li>
+    <li>Essayez de supprimer le modpack puis de l'ajouter à nouveau pour forcer un retéléchargement complet.</li>
+</ul>
+
+<h2>Problèmes d'authentification</h2>
+
+<p>Impossible de se connecter, ou demandes répétées de nouvelle authentification.</p>
+
+<ul>
+    <li>Les jetons expirent au bout d'environ 4 heures : il est normal de devoir s'authentifier à nouveau.</li>
+    <li>Si la connexion échoue à plusieurs reprises, essayez d'effacer les cookies de votre navigateur pour <code>login.microsoftonline.com</code>.</li>
+    <li>Assurez-vous que votre compte Microsoft dispose d'une licence Minecraft active.</li>
+    <li>Consultez <a href="help://topic/LOGIN">Connexion</a> pour plus de détails sur le processus d'authentification.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Astuce</div>
+    <p>Lorsque vous signalez un problème, indiquez toujours : le nom et la version du modpack, votre système d'exploitation,
+    le fichier journal du lanceur et les éventuels rapports de plantage. Le diagnostic sera ainsi beaucoup plus rapide.</p>
+</div>

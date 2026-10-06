@@ -1,0 +1,122 @@
+<h1>Langue et localisation</h1>
+
+<p>Mica Minecraft Launcher affiche son interface en 17 langues et choisit
+automatiquement la bonne au premier lancement. Vous pouvez aussi remplacer la
+langue détectée à tout moment depuis les Paramètres.</p>
+
+<h2>Comment le lanceur choisit une langue</h2>
+
+<p>À chaque démarrage, le lanceur détermine la langue active dans l'ordre
+suivant :</p>
+
+<ol class="steps">
+    <li><strong>Votre choix enregistré</strong>, si vous en avez défini un dans
+        <a href="help://topic/SETTINGS">Paramètres</a> &rarr; Apparence &rarr;
+        Langue. Ce choix est toujours prioritaire.</li>
+    <li><strong>La langue de votre système d'exploitation</strong>, détectée via les
+        paramètres régionaux standard de la JVM. Sous Windows, il s'agit de votre réglage
+        Région / Langue ; sous macOS, de Réglages Système &rarr; Langue et région ;
+        sous Linux, de l'environnement <code>LANG</code> / <code>LC_*</code>.</li>
+    <li><strong>Anglais (États-Unis)</strong> en dernier recours si la
+        plateforme indique des paramètres régionaux sans langue (par ex. <code>POSIX</code> ou
+        <code>C</code>), ou si la langue de votre système ne fait pas partie des 17 langues
+        pour lesquelles nous fournissons une traduction.</li>
+</ol>
+
+<div class="tip">
+    <div class="callout-title">Le changement de langue prend effet après un redémarrage</div>
+    <p>Modifier la langue dans les Paramètres met à jour la préférence immédiatement,
+    mais les écrans déjà affichés restent dans la langue précédente
+    jusqu'au redémarrage du lanceur. La page Paramètres vous le rappelle d'ailleurs
+    lorsque vous modifiez la liste déroulante.</p>
+</div>
+
+<h2>Choisir une langue manuellement</h2>
+
+<ol class="steps">
+    <li>Ouvrez les <a href="help://topic/SETTINGS">Paramètres</a> depuis la barre de navigation
+        (ou appuyez sur <kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Cmd</kbd>+<kbd>,</kbd>).</li>
+    <li>Passez à l'onglet <strong>Apparence</strong>.</li>
+    <li>Choisissez une langue dans la liste déroulante <strong>Langue</strong>. La
+        première entrée (« Utiliser la langue du système ») rétablit la détection
+        automatique décrite ci-dessus et indique entre parenthèses la langue que
+        le système d'exploitation sélectionnerait.</li>
+    <li>Cliquez sur <strong>Enregistrer</strong>. Redémarrez le lanceur pour voir la nouvelle
+        langue appliquée à tous les écrans.</li>
+</ol>
+
+<h2>Langues prises en charge</h2>
+
+<p>Le lanceur est traduit dans les 17 langues les plus parlées
+au monde, en plus de l'anglais :</p>
+
+<ul>
+    <li>Arabe (&#1593;&#1585;&#1576;&#1610;)</li>
+    <li>Chinois simplifié (&#31616;&#20307;&#20013;&#25991;)</li>
+    <li>Chinois traditionnel (&#32321;&#39636;&#20013;&#25991;)</li>
+    <li>Néerlandais (Nederlands)</li>
+    <li>Anglais (langue source)</li>
+    <li>Français (Fran&ccedil;ais)</li>
+    <li>Allemand (Deutsch)</li>
+    <li>Hindi (&#2361;&#2367;&#2306;&#2342;&#2368;)</li>
+    <li>Italien (Italiano)</li>
+    <li>Japonais (&#26085;&#26412;&#35486;)</li>
+    <li>Coréen (&#54620;&#44397;&#50612;)</li>
+    <li>Polonais (Polski)</li>
+    <li>Portugais du Brésil (Portugu&ecirc;s do Brasil)</li>
+    <li>Russe (&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;)</li>
+    <li>Espagnol (Espa&ntilde;ol)</li>
+    <li>Suédois (Svenska)</li>
+    <li>Turc (T&uuml;rk&ccedil;e)</li>
+</ul>
+
+<p>Chaque langue est identifiée par son étiquette BCP-47 (par ex. <code>fr-FR</code>,
+<code>pt-BR</code>, <code>zh-CN</code>). La liste se trouve dans
+<code>SupportedLocales.ENTRIES</code> dans le code source du lanceur ; les
+fichiers de propriétés se trouvent à côté, sous la forme <code>DisplayStrings_&lt;tag&gt;.properties</code>,
+dans <code>src/main/resources/lang/</code>.</p>
+
+<h2>Qualité des traductions et signalement des problèmes</h2>
+
+<p>Les traductions dans les langues autres que l'anglais sont générées par un script
+qui interroge Google Traduction à partir du fichier source anglais, puis
+retraite les paramètres de substitution afin que des éléments comme <code>{0}</code>
+soient conservés intacts. Le résultat est bon mais pas parfait &mdash; en
+particulier, les libellés courts de l'interface (boutons d'un seul mot, noms isolés) perdent parfois
+le contexte qu'ils avaient en anglais.</p>
+
+<p>Si vous repérez une mauvaise traduction, le mieux est d'ouvrir un ticket sur
+GitHub en indiquant le nom de la clé (par ex. <code>browse.filter.type.label</code>),
+vos paramètres régionaux, le texte affiché actuellement et une proposition de correction.
+Les corrections manuelles sont conservées lors de la régénération suivante, car le
+script ne complète par défaut que les clés manquantes.</p>
+
+<h2>Ajouter une nouvelle langue</h2>
+
+<p>Si votre langue ne figure pas dans la liste ci-dessus et que vous souhaitez contribuer
+une traduction, voici la marche à suivre :</p>
+
+<ol>
+    <li>Ajoutez une nouvelle entrée à <code>SupportedLocales.ENTRIES</code>
+        (Java) et à <code>TARGET_LOCALES</code> dans
+        <code>tools/i18n/translate-locales.js</code> (Node).</li>
+    <li>Exécutez <code>cd tools/i18n &amp;&amp; npm run translate</code> &mdash; le
+        script générera le fichier initial <code>DisplayStrings_&lt;tag&gt;.properties</code>
+        à partir de la source anglaise.</li>
+    <li>Relisez le fichier généré, corrigez à la main tout ce qui sonne
+        mal, puis ouvrez une pull request.</li>
+</ol>
+
+<p>Le script <code>tools/i18n/translate-locales.js</code> est incrémental :
+le relancer ne traduit que les clés qui n'existent pas encore dans le
+fichier cible, si bien que les corrections manuelles sont conservées à chaque
+mise à jour ultérieure du lanceur.</p>
+
+<h2>Voir aussi</h2>
+
+<ul>
+    <li><a href="help://topic/SETTINGS">Paramètres</a> &mdash; l'emplacement de la liste
+        déroulante des langues</li>
+    <li><a href="help://topic/GETTING_STARTED">Premiers pas</a> &mdash; le
+        guide d'orientation général</li>
+</ul>

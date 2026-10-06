@@ -1,0 +1,109 @@
+<h1>Parcourir</h1>
+
+<p>L'écran Parcourir est l'endroit où vous installez et gérez votre contenu. Vous pouvez y installer de nouveaux modpacks
+depuis le manifeste public, installer des versions vanilla de Minecraft, installer des packs de départ vides Forge / NeoForge /
+Fabric, modifier les packs que vous possédez déjà et désinstaller ce dont vous ne voulez plus.</p>
+
+<h2>Cartes et barre de filtres</h2>
+
+<p>Chaque entrée apparaît sous forme de carte vedette avec un logo, un badge, un nom, des étiquettes (chargeur / version de Minecraft),
+une ligne d'état et des boutons d'action. La barre de filtres en haut vous permet d'affiner l'affichage.</p>
+
+<ul>
+    <li><strong>Recherche</strong> — recherche libre dans les titres des cartes. Le résultat se met à jour pendant la saisie
+        (avec un léger délai pour éviter de recalculer la mise en page en permanence).</li>
+    <li><strong>Type</strong> — Tous, Modpacks, ou l'un des catalogues de versions :
+        Vanilla (Versions stables / Snapshots / Ancienne bêta / Ancienne alpha) et versions Forge / NeoForge / Fabric.
+        Les filtres de versions de chargeur ne sont volontairement <em>pas</em> inclus dans « Tous » : la liste combinée
+        compterait des milliers d'entrées, ce qui ne correspond pas à ce qu'on attend d'une recherche « tout afficher ».</li>
+    <li><strong>Statut</strong> — Tous, Installé ou Disponible. « Disponible » affiche ce que vous
+        n'avez pas encore installé ; « Installé » affiche ce qui se trouve déjà sur le disque.</li>
+    <li><strong>Tri</strong> — Par défaut, Nom (A–Z / Z–A), Date de sortie, Dernière partie, Les plus joués,
+        Récemment mis à jour. Les tris qui dépendent de l'historique de jeu ou de mise à jour (Dernière partie, Les plus joués,
+        Récemment mis à jour) placent les entrées qui ne sont pas des modpacks en bas de la liste, plutôt que de les mélanger
+        de façon déroutante.</li>
+</ul>
+
+<h2>Modpacks installés</h2>
+
+<p>Les cartes des packs déjà présents sur le disque affichent deux boutons :</p>
+
+<ul>
+    <li><strong>Désinstaller</strong> — vous demande s'il faut également supprimer le dossier d'installation. « Désinstaller
+        (conserver les fichiers) » conserve vos mondes, configurations et mods, même si le lanceur ne connaît plus
+        le pack : pratique si vous prévoyez de réinstaller ce même pack plus tard.</li>
+    <li><strong>Modifier</strong> — ouvre l'<a href="help://topic/MODPACK_EDITOR">Éditeur de modpack</a>
+        sur le manifeste local du pack. Les modifications sont écrites sur le disque et s'appliquent au prochain lancement.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Astuce</div>
+    <p>Faites un clic droit sur la carte d'un modpack installé pour obtenir le même menu contextuel que dans le menu principal :
+    ouvrir le dossier du pack, ouvrir le dossier mods, créer un raccourci sur le bureau, consulter les statistiques de jeu et
+    désinstaller.</p>
+</div>
+
+<h2>Modpacks disponibles</h2>
+
+<p>Les cartes du manifeste public que vous ne possédez pas encore affichent un bouton <strong>Installer</strong>.
+Un clic sur ce bouton télécharge le manifeste, installe le modpack et fait passer la carte dans le groupe Installé
+lors de la prochaine actualisation. Vous pouvez continuer à utiliser les filtres pendant une installation : la
+carte en cours d'installation reste épinglée en haut de la grille jusqu'à la fin de l'installation.</p>
+
+<h2>Versions vanilla</h2>
+
+<p>Le catalogue complet de Mojang : versions stables, snapshots, bêtas et alphas. Chaque carte installe cette version exacte
+de Minecraft sous forme de modpack vide synthétique, que vous pouvez lancer directement depuis le menu principal. Les anciennes
+bêtas et alphas fonctionnent aussi : le lanceur récupère automatiquement le runtime Java adapté à chaque
+version.</p>
+
+<h2>Versions Forge / NeoForge / Fabric</h2>
+
+<p>Les filtres de versions de chargeur affichent toutes les versions publiées par le service de versions de chaque projet :
+les promotions Forge, les métadonnées Maven de NeoForge et l'API meta de Fabric. Cliquer sur Installer pour l'une
+d'elles écrit un manifeste synthétique de « modpack vide » dans votre dossier de configuration et l'enregistre auprès
+du lanceur. Le résultat se comporte donc comme n'importe quel autre modpack installé :</p>
+
+<ul>
+    <li>il apparaît parmi les cartes vedettes du menu principal ;</li>
+    <li>il est modifiable dans l'Éditeur de modpacks (vous pouvez donc y ajouter des mods pour créer votre propre pack) ;</li>
+    <li>il peut être désinstallé comme n'importe quel autre pack ;</li>
+    <li>il bénéficie du même mécanisme de mise à jour automatique qu'un modpack normal.</li>
+</ul>
+
+<div class="note">
+    <div class="callout-title">Remarque</div>
+    <p>Les cartes affichent le logo officiel de chaque projet lorsque le lanceur l'a en cache localement. Lors de la
+    première visite d'un filtre de chargeur, un espace réservé aux couleurs de la marque s'affiche pendant que les vrais logos
+    se téléchargent en arrière-plan ; une fois en cache, les visites suivantes sont instantanées.</p>
+</div>
+
+<h2>Ajout par URL</h2>
+
+<p>Le bouton <strong>Ajouter depuis une URL</strong> de la barre inférieure accepte l'URL directe d'un manifeste
+<code>installable.json</code> hébergé et l'installe de la même manière que les cartes de packs disponibles.
+Utilisez-le pour les modpacks distribués en dehors du manifeste public : collez le lien, cliquez sur le bouton,
+et les métadonnées du manifeste sont téléchargées et validées avant le début de l'installation.</p>
+
+<h2>Éditeur de modpacks</h2>
+
+<p>Le bouton <strong>Éditeur de modpacks</strong> de la barre inférieure ouvre
+l'<a href="help://topic/MODPACK_EDITOR">Éditeur de modpack</a> avec un manifeste vierge, pour créer
+un nouveau pack de toutes pièces : choisissez le chargeur (Forge / NeoForge / Fabric / vanilla), la version de Minecraft,
+la liste des mods, etc. L'Éditeur peut aussi être ouvert sur un pack existant via le bouton <strong>Modifier</strong>
+de sa carte.</p>
+
+<h2>Générer un manifeste d'hébergement</h2>
+
+<p>Le bouton <strong>Générer un manifeste d'hébergement</strong> de la barre inférieure crée un fichier
+<code>installable.json</code> pour le modpack actuellement ouvert dans l'éditeur, prêt à être hébergé sur n'importe quel serveur
+web ou service de partage de fichiers. Toute personne disposant de l'URL obtenue peut installer votre pack via Ajouter depuis
+une URL.</p>
+
+<h2>Pagination</h2>
+
+<p>Les longues listes sont paginées. Utilisez les boutons <strong>Précédent</strong> / <strong>Suivant</strong> de la
+barre de pagination (au-dessus des cartes) pour passer d'une page à l'autre, et la liste déroulante <strong>Par page</strong>
+pour définir la taille des pages : 24, 48, 72 ou 96. La valeur par défaut de 48 permet d'afficher une bibliothèque
+installée typique sur une seule page ; passer à 96 permet de parcourir les filtres de versions de chargeur sur une seule
+page.</p>

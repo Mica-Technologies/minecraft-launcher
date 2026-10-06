@@ -1,0 +1,91 @@
+<h1>Paramètres</h1>
+
+<p>L'écran des paramètres vous permet de personnaliser l'allocation de mémoire, l'apparence, le comportement de la JVM, la configuration
+réseau et bien plus encore. Les modifications sont enregistrées automatiquement.</p>
+
+<h2>Mémoire du jeu</h2>
+
+<table class="settings-table">
+    <tr><td>RAM minimale</td><td>La taille initiale du tas allouée à la JVM du jeu. Laissez généralement la valeur par défaut (512 Mo), sauf indication contraire du modpack.</td></tr>
+    <tr><td>RAM maximale</td><td>La limite supérieure de mémoire pour le jeu. La plupart des modpacks fonctionnent mieux avec <strong>4 à 8 Go</strong>. Allouer plus que ce que votre système peut céder peut provoquer de l'instabilité.</td></tr>
+</table>
+
+<div class="tip">
+    <div class="callout-title">Astuce</div>
+    <p>Une bonne règle empirique : ne réglez pas la RAM maximale au-delà de la moitié de la mémoire totale de votre système.
+    Par exemple, sur une machine de 16 Go, 6 à 8 Go constituent une limite supérieure raisonnable.</p>
+</div>
+
+<h2>Thème</h2>
+
+<table class="settings-table">
+    <tr><td>Automatic</td><td>Suit la préférence de mode clair/sombre de votre système d'exploitation.</td></tr>
+    <tr><td>Dark</td><td>Fond sombre et texte clair, agréable pour les yeux.</td></tr>
+    <tr><td>Light</td><td>Fond clair classique et texte sombre.</td></tr>
+    <tr><td>Blue + Gray</td><td>Un thème d'accentuation aux tons froids.</td></tr>
+    <tr><td>Orange + Purple</td><td>Un thème d'accentuation aux tons chauds.</td></tr>
+</table>
+
+<h2>Options avancées</h2>
+
+<table class="settings-table">
+    <tr><td>Mode débogage</td><td>Active une journalisation détaillée dans la console du lanceur pour diagnostiquer les problèmes.</td></tr>
+    <tr><td>Redimensionnement de la fenêtre</td><td>Permet de redimensionner librement la fenêtre du lanceur au-delà de ses dimensions par défaut.</td></tr>
+    <tr><td>Intégration Discord</td><td>Affiche votre modpack actuel comme statut Rich Presence sur Discord.</td></tr>
+    <tr><td>Journalisation améliorée</td><td>Écrit des fichiers journaux détaillés sur le disque pour une analyse après la session.</td></tr>
+    <tr><td>Console en jeu</td><td>Ouvre une fenêtre <a href="help://topic/GAME_CONSOLE">Console du jeu</a> à côté de Minecraft pour afficher la sortie en temps réel.</td></tr>
+</table>
+
+<h2>Préréglages JVM</h2>
+
+<p>Ensembles préconfigurés d'options JVM ajoutés à la commande de lancement du jeu. Consultez
+<a href="help://topic/JVM_PRESETS">Préréglages JVM</a> pour une explication plus approfondie du rôle de chaque préréglage,
+des options personnalisées que vous pourriez vouloir ajouter et de l'interaction entre le choix du préréglage et l'allocation
+de RAM.</p>
+
+<table class="settings-table">
+    <tr><td>Performance (Aikar's Flags)</td><td><strong>Recommandé.</strong> Options de ramasse-miettes optimisées, largement utilisées par la communauté Minecraft. Les meilleures performances globales pour la plupart des modpacks.</td></tr>
+    <tr><td>Low Memory</td><td>Options prudentes pour les systèmes disposant de peu de RAM. Réduit la surcharge du GC au prix d'une partie du débit.</td></tr>
+    <tr><td>Debug</td><td>Active la sortie de débogage de la JVM, y compris les journaux du GC. Utile pour diagnostiquer des plantages ou des problèmes de performances.</td></tr>
+    <tr><td>None</td><td>Aucune option supplémentaire : les valeurs par défaut de la JVM sont utilisées. N'utilisez ce choix que si vous savez ce que vous faites ou si un modpack l'exige.</td></tr>
+</table>
+
+<h2>Réseau / Proxy</h2>
+
+<p>Configurez un proxy si votre réseau l'exige (courant sur les réseaux d'entreprise ou scolaires).</p>
+
+<table class="settings-table">
+    <tr><td>Proxy HTTP</td><td>Proxy web standard. Saisissez l'hôte et le port fournis par votre administrateur réseau.</td></tr>
+    <tr><td>Proxy SOCKS</td><td>Protocole de proxy de plus bas niveau. Utilisez-le si votre réseau exige spécifiquement SOCKS.</td></tr>
+</table>
+
+<div class="note">
+    <div class="callout-title">Remarque</div>
+    <p>La plupart des utilisateurs peuvent laisser les paramètres de proxy vides. Ne les configurez que si les téléchargements ou
+    l'authentification échouent sur un réseau restreint.</p>
+</div>
+
+<h2>Analyse antimalware</h2>
+
+<p>Le lanceur intègre un analyseur qui recherche dans les fichiers JAR téléchargés les signatures de
+<strong>fractureiser</strong>, un logiciel malveillant propre à Minecraft qui s'est propagé en 2023 par le biais de mods compromis.
+L'analyse s'exécute automatiquement avant chaque lancement du jeu.</p>
+
+<h2>Réinitialisation et runtimes</h2>
+
+<table class="settings-table">
+    <tr><td>Réinitialiser le lanceur</td><td>Rétablit tous les paramètres par défaut et efface les données en cache. <strong>Cette action est irréversible.</strong></td></tr>
+    <tr><td>Gestion des runtimes</td><td>Ouvre l'écran <a href="help://topic/RUNTIME_MANAGEMENT">Gestion des environnements Java</a> pour afficher, vérifier ou supprimer les runtimes Java installés.</td></tr>
+</table>
+
+<div class="warning">
+    <div class="callout-title">Avertissement</div>
+    <p>La réinitialisation du lanceur supprime tous les paramètres, les jetons en cache et l'état des modpacks.
+    Les fichiers de vos modpacks sur le disque sont conservés, mais vous devrez les ajouter à nouveau.</p>
+</div>
+
+<h2>Importer / Exporter les paramètres</h2>
+
+<p>Utilisez <strong>Exporter</strong> pour enregistrer votre configuration actuelle dans un fichier, et <strong>Importer</strong> pour
+charger une configuration enregistrée précédemment. C'est utile pour partager vos paramètres entre plusieurs machines
+ou pour restaurer une configuration fiable après une réinitialisation.</p>

@@ -1,0 +1,104 @@
+<h1>Préréglages JVM</h1>
+
+<p>La liste déroulante <strong>Préréglage JVM</strong> de Paramètres → Avancé sélectionne
+un ensemble nommé d'arguments que le lanceur transmet à la JVM au démarrage de
+Minecraft. Ces arguments règlent le ramasse-miettes (GC), contrôlent la taille
+des régions du tas et activent ou non la journalisation du GC. Ils ne modifient pas
+le comportement du jeu lui-même, seulement la façon dont la JVM qui l'héberge gère la mémoire.</p>
+
+<p>Le choix du préréglage compte surtout pour les gros modpacks (plus de 200
+mods), où le GC doit faire le ménage après le chargement et le déchargement de
+milliers de chunks. Pour la version vanilla et les petits modpacks, n'importe quel préréglage convient et
+le préréglage par défaut « Performance » fonctionne bien.</p>
+
+<h2>Performance (Aikar's Flags)</h2>
+
+<p>Préréglage par défaut, recommandé pour la grande majorité des utilisateurs. Il utilise
+le ramasse-miettes G1 avec les réglages publiés il y a des années par Aikar (l'auteur
+du serveur Minecraft Paper), toujours cités par de nombreux tutoriels. Il est conçu
+pour réduire au minimum les saccades dues aux pauses du GC pendant les phases de jeu intenses.</p>
+
+<p>Idéal pour : <strong>les modpacks disposant de 6 Go de RAM ou plus</strong>,
+les packs très moddés sur lesquels vous avez remarqué des chutes de fréquence d'images
+périodiques sous forte charge.</p>
+
+<h2>Low Memory</h2>
+
+<p>Options allégées pour les systèmes disposant de peu de RAM libre. Il utilise G1 avec
+un objectif de pause plus court et des régions de tas plus petites, en sacrifiant un peu
+de débit au profit de la prévisibilité lorsque la mémoire est limitée.</p>
+
+<p>Idéal pour : <strong>les systèmes avec 8 Go de RAM au total ou moins</strong>,
+les ordinateurs portables sur batterie, ou lorsque vous voulez garder plusieurs modpacks
+ouverts en même temps que d'autres applications. Déconseillé pour les gros modpacks
+(plus de 200 mods), pour lesquels les options d'Aikar récupèrent la mémoire plus efficacement,
+même avec la même allocation totale.</p>
+
+<h2>Debug</h2>
+
+<p>Les options Performance, plus la journalisation détaillée du GC et l'activation des assertions
+Java. Écrit un fichier {@code gc.log} dans le dossier d'installation du modpack,
+qui enregistre chaque événement du GC avec un horodatage. Surtout utile aux développeurs
+de mods et aux personnes qui diagnostiquent des plantages OOM reproductibles. Il ajoute une
+légère surcharge permanente : ne le laissez donc pas activé pour jouer au quotidien.</p>
+
+<p>Idéal pour : <strong>diagnostiquer des plaintes liées aux pauses du GC</strong>,
+examiner des signalements du type « le jeu ne répond plus pendant quelques secondes toutes les minutes ».</p>
+
+<h2>None</h2>
+
+<p>Liste d'arguments vide : la JVM utilise ses propres valeurs par défaut. Utile pour
+vérifier si un problème de performances apparent est causé par les options du
+préréglage elles-mêmes (rare, mais possible si la version du JDK est bien plus récente
+que l'époque où les options d'Aikar ont été écrites).</p>
+
+<p>Idéal pour : <strong>vérifier le comportement de référence</strong> lorsqu'un
+préréglage est soupçonné de mal interagir avec un mod ou une version précise
+du JDK.</p>
+
+<h2>Remarques sur l'allocation de RAM</h2>
+
+<p>Les préréglages règlent la JVM au démarrage, mais ce sont les curseurs
+<strong>RAM minimale</strong> et <strong>RAM maximale</strong> du lanceur,
+dans Paramètres → Compte / Jeu, qui déterminent la quantité de mémoire que la JVM peut
+utiliser. La bonne quantité dépend du modpack :</p>
+
+<ul>
+    <li>Minecraft vanilla : 2 Go suffisent largement.</li>
+    <li>Modpacks légers (50 mods ou moins) : 4 Go.</li>
+    <li>Modpacks moyens (50 à 150 mods) : 6 Go.</li>
+    <li>Modpacks lourds (plus de 150 mods, shaders) : 8 à 12 Go.</li>
+    <li>Modpacks extrêmes (plus de 300 mods, génération de monde personnalisée) : 12 à 16 Go.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Avertissement</div>
+    <p>Allouer plus de RAM que votre système ne peut en céder oblige Minecraft
+    à utiliser le disque comme mémoire d'échange, ce qui <em>aggrave</em> les saccades au lieu de les réduire.
+    Gardez la RAM maximale à la moitié de la RAM totale de votre système, ou moins. Un
+    système de 16 Go ne devrait pas allouer plus de 8 Go à Minecraft.</p>
+</div>
+
+<h2>Options personnalisées</h2>
+
+<p>Le champ des Paramètres situé sous la liste déroulante des préréglages est modifiable : vous pouvez
+y coller votre propre chaîne d'arguments si aucun préréglage ne répond à vos besoins.
+Ajouts courants :</p>
+
+<ul>
+    <li><code>-XX:+UseZGC</code> — passe au ramasse-miettes Z
+        (pauses courtes, nécessite le JDK 15 ou plus). Il surpasse parfois G1 sur
+        de très gros tas (32 Go ou plus), mais ne vaut généralement pas la peine de remplacer
+        G1 sur une configuration Minecraft classique.</li>
+    <li><code>-Dfile.encoding=UTF-8</code> — utile lorsque des mods génèrent
+        des fichiers de configuration au contenu non ASCII sous Windows, où le
+        jeu de caractères par défaut peut être Latin-1.</li>
+    <li><code>-Xss2M</code> — augmente la taille de la pile des threads par rapport à la valeur
+        par défaut de la JVM ; certains modpacks aux chaînes d'appels profondes (mods de génération
+        de monde lourds, grands générateurs de dimensions) en ont besoin.</li>
+</ul>
+
+<p>Les erreurs dans les options personnalisées se traduisent par des échecs de lancement avec des messages
+tels que « Error: Could not create the Java Virtual Machine » ou
+« Unrecognized VM option ». Si vous voyez l'un de ces messages, revenez à
+Performance et réessayez avant de vous tourner vers le champ personnalisé.</p>
