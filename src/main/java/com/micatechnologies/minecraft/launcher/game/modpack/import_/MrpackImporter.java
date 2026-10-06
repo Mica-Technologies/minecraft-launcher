@@ -484,9 +484,9 @@ public final class MrpackImporter
         try {
             Path tempInstaller = Files.createTempFile( "mica-forge-installer-", ".jar" );
             try {
-                try ( InputStream is = new URL( installerUrl ).openStream() ) {
-                    Files.copy( is, tempInstaller, StandardCopyOption.REPLACE_EXISTING );
-                }
+                // Through the shared download core: timeouts, proxy, retries and the stall watchdog.
+                // A bare URL.openStream had none of those and could hang the import forever.
+                NetworkUtilities.downloadFileFromURL( new URL( installerUrl ), tempInstaller.toFile() );
                 return HashUtilities.getFileSHA1( tempInstaller.toFile() );
             }
             finally {
