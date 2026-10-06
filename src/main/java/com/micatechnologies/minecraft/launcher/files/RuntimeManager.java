@@ -247,17 +247,18 @@ public class RuntimeManager
             String platform = RuntimeConstants.getMojangPlatformKey();
 
             if ( !index.has( platform ) ) {
-                throw new Exception( "Platform '" + platform + "' not found in Mojang runtime index." );
+                throw new Exception( LocalizationManager.format( "runtime.error.platformNotFound", platform ) );
             }
 
             JsonObject platformObj = index.getAsJsonObject( platform );
             if ( !platformObj.has( component ) ) {
-                throw new Exception( "Runtime component '" + component + "' not found for platform '" + platform + "'." );
+                throw new Exception( LocalizationManager.format( "runtime.error.componentNotFound",
+                                                                 component, platform ) );
             }
 
             JsonArray componentArray = platformObj.getAsJsonArray( component );
             if ( componentArray.isEmpty() ) {
-                throw new Exception( "No runtime entries for component '" + component + "' on platform '" + platform + "'." );
+                throw new Exception( LocalizationManager.format( "runtime.error.noEntries", component, platform ) );
             }
 
             JsonObject componentEntry = componentArray.get( 0 ).getAsJsonObject();
@@ -368,9 +369,8 @@ public class RuntimeManager
                                 }
                             }
                             if ( !downloadVerified ) {
-                                throw new IOException(
-                                        "Runtime file failed hash verification after " + maxAttempts +
-                                                " attempts: " + relativePathFinal + " (from " + url + ")" );
+                                throw new IOException( LocalizationManager.format(
+                                        "runtime.error.fileHashFailed", maxAttempts, relativePathFinal, url ) );
                             }
                         }
 
@@ -412,7 +412,7 @@ public class RuntimeManager
                 catch ( InterruptedException ie ) {
                     filePool.shutdownNow();
                     Thread.currentThread().interrupt();
-                    throw new IOException( "Interrupted while installing the Java runtime.", ie );
+                    throw new IOException( LocalizationManager.get( "runtime.error.interrupted" ), ie );
                 }
                 finally {
                     filePool.shutdown();
@@ -424,12 +424,12 @@ public class RuntimeManager
                     }
                     catch ( InterruptedException ie ) {
                         Thread.currentThread().interrupt();
-                        throw new IOException( "Interrupted while installing the Java runtime.", ie );
+                        throw new IOException( LocalizationManager.get( "runtime.error.interrupted" ), ie );
                     }
                     catch ( java.util.concurrent.ExecutionException ee ) {
                         Throwable cause = ee.getCause();
-                        throw new IOException( "Failed to install a Java runtime file: "
-                                + ( cause == null ? ee.getMessage() : cause.getMessage() ), cause );
+                        throw new IOException( LocalizationManager.format( "runtime.error.fileFailed",
+                                String.valueOf( cause == null ? ee.getMessage() : cause.getMessage() ) ), cause );
                     }
                 }
             }
@@ -826,7 +826,7 @@ public class RuntimeManager
             }
 
             if ( apiData == null || apiData.isEmpty() ) {
-                throw new Exception( "No JRE 8 info available from Liberica API." );
+                throw new Exception( LocalizationManager.get( "runtime.error.noJre8Info" ) );
             }
 
             JsonObject info = apiData.get( 0 ).getAsJsonObject();
@@ -884,8 +884,8 @@ public class RuntimeManager
                 // Mojang-runtime path; without this the legacy/Liberica path had none.
                 if ( !HashUtilities.verifySHA1( archiveFile, archiveHash ) ) {
                     archiveFile.delete();
-                    throw new IOException( "Downloaded JRE archive failed SHA-1 verification: "
-                                                   + archiveFile.getName() );
+                    throw new IOException( LocalizationManager.format( "runtime.error.jre8HashFailed",
+                                                                       archiveFile.getName() ) );
                 }
             }
 

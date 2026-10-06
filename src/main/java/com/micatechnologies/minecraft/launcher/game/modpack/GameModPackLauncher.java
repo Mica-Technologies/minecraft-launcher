@@ -126,7 +126,7 @@ class GameModPackLauncher
         // the shared field is reset when the launch ends, and replaced by the next launch's.
         java.util.function.BooleanSupplier branch = BRANCH_CANCELLED.get();
         if ( ( branch != null ? branch : cancellationCheck ).getAsBoolean() ) {
-            throw new ModpackException( "Launch cancelled by user" );
+            throw new ModpackException( LocalizationManager.get( "launch.error.cancelled" ) );
         }
     }
 
@@ -298,11 +298,9 @@ class GameModPackLauncher
         // isFailedLoad-only check and launched modless. Both states mean the same thing — we never
         // loaded this pack's real manifest, so we don't know what its mod set is.
         if ( pack.isFailedLoad() || pack.isStub() ) {
-            throw new ModpackException( "Refusing to launch \"" + pack.getPackName()
-                    + "\": its modpack manifest "
-                    + ( pack.isFailedLoad() ? "could not be loaded" : "was never fully loaded (index stub)" )
-                    + ", so the mod set can't be verified. Check network / manifest availability and "
-                    + "try again — the installed files have been left untouched." );
+            throw new ModpackException( LocalizationManager.format(
+                    pack.isFailedLoad() ? "launch.error.manifestNotLoaded" : "launch.error.manifestNotFullyLoaded",
+                    pack.getPackName() ) );
         }
 
         if ( progressProvider != null ) {
@@ -528,7 +526,7 @@ class GameModPackLauncher
                 Thread.currentThread().interrupt();
                 cancelSiblings( branchModpackContent, branchForgeLibs, branchMcLibsJre );
                 branches.abortAndWait();
-                throw new ModpackException( "Pre-launch cancelled", ie );
+                throw new ModpackException( LocalizationManager.get( "launch.error.preLaunchCancelled" ), ie );
             }
             catch ( java.util.concurrent.ExecutionException ee ) {
                 // One branch failed. Cancel the rest so the user isn't watching a
@@ -827,7 +825,7 @@ class GameModPackLauncher
         return new ModpackException(
                 cause != null && cause.getMessage() != null
                         ? cause.getMessage()
-                        : "Pre-launch step failed",
+                        : LocalizationManager.get( "launch.error.stepFailed" ),
                 cause );
     }
 
@@ -897,7 +895,7 @@ class GameModPackLauncher
             if ( handle != null ) handle.markFailed( extractMessage( t ) );
             if ( t instanceof ModpackException me ) throw me;
             if ( t instanceof RuntimeException re ) throw re;
-            throw new ModpackException( "Modpack content sync failed", t );
+            throw new ModpackException( LocalizationManager.format( "launch.error.contentSyncFailed", extractMessage( t ) ), t );
         }
     }
 
@@ -938,7 +936,7 @@ class GameModPackLauncher
             if ( handle != null ) handle.markFailed( extractMessage( t ) );
             if ( t instanceof ModpackException me ) throw me;
             if ( t instanceof RuntimeException re ) throw re;
-            throw new ModpackException( "Modloader library sync failed", t );
+            throw new ModpackException( LocalizationManager.format( "launch.error.loaderLibsFailed", extractMessage( t ) ), t );
         }
     }
 
@@ -993,7 +991,7 @@ class GameModPackLauncher
             if ( mcHandle != null ) mcHandle.markFailed( extractMessage( t ) );
             if ( t instanceof ModpackException me ) throw me;
             if ( t instanceof RuntimeException re ) throw re;
-            throw new ModpackException( "Minecraft libraries / assets sync failed", t );
+            throw new ModpackException( LocalizationManager.format( "launch.error.minecraftFilesFailed", extractMessage( t ) ), t );
         }
 
         // Then JRE install (depends on libraryManifest above)
@@ -1018,7 +1016,7 @@ class GameModPackLauncher
             if ( jreHandle != null ) jreHandle.markFailed( extractMessage( t ) );
             if ( t instanceof ModpackException me ) throw me;
             if ( t instanceof RuntimeException re ) throw re;
-            throw new ModpackException( "Java runtime install failed", t );
+            throw new ModpackException( LocalizationManager.format( "launch.error.runtimeFailed", extractMessage( t ) ), t );
         }
 
         return new McLibsAndJreResult( libraryManifest, classpath );
@@ -1057,7 +1055,7 @@ class GameModPackLauncher
             if ( handle != null ) handle.markFailed( extractMessage( t ) );
             if ( t instanceof ModpackException me ) throw me;
             if ( t instanceof RuntimeException re ) throw re;
-            throw new ModpackException( "Forge processors run failed", t );
+            throw new ModpackException( LocalizationManager.format( "launch.error.processorsFailed", extractMessage( t ) ), t );
         }
     }
 
@@ -1149,17 +1147,17 @@ class GameModPackLauncher
         }
         catch ( IOException e ) {
             if ( handle != null ) handle.markFailed( extractMessage( e ) );
-            throw new ModpackException( "Unable to scan downloaded files due to an exception!", e );
+            throw new ModpackException( LocalizationManager.format( "launch.error.scanFailed", extractMessage( e ) ), e );
         }
         catch ( InterruptedException e ) {
             if ( handle != null ) handle.markFailed( extractMessage( e ) );
-            throw new ModpackException( "Unable to scan downloaded files due to an interruption!", e );
+            throw new ModpackException( LocalizationManager.get( "launch.error.scanInterrupted" ), e );
         }
         catch ( Throwable t ) {
             if ( handle != null ) handle.markFailed( extractMessage( t ) );
             if ( t instanceof ModpackException me ) throw me;
             if ( t instanceof RuntimeException re ) throw re;
-            throw new ModpackException( "Security scan failed", t );
+            throw new ModpackException( LocalizationManager.format( "launch.error.scanFailed", extractMessage( t ) ), t );
         }
         finally {
             // Always restore so the scan-step handle doesn't outlive its phase.
@@ -1710,7 +1708,7 @@ class GameModPackLauncher
             return lastLaunchedProcess;
         }
         catch ( IOException e ) {
-            throw new ModpackException( "Unable to execute mod pack game.", e );
+            throw new ModpackException( LocalizationManager.format( "launch.error.startFailed", extractMessage( e ) ), e );
         }
     }
 
