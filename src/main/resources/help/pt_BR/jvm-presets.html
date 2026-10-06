@@ -1,0 +1,104 @@
+<h1>Predefinições da JVM</h1>
+
+<p>O menu suspenso <strong>Predefinição da JVM</strong> em Configurações → Avançado escolhe um
+conjunto nomeado de argumentos que o launcher passa para a JVM ao iniciar o
+Minecraft. Os argumentos ajustam o coletor de lixo (GC), controlam o tamanho
+das regiões do heap e ativam ou desativam o log do GC — eles não mudam o comportamento
+do jogo em si, apenas a forma como a JVM que o hospeda gerencia a memória.</p>
+
+<p>Escolher a predefinição certa importa mais em modpacks grandes (200+
+mods), em que o GC precisa limpar a memória depois de milhares de chunks sendo carregados e
+descarregados. Para o vanilla e modpacks pequenos, qualquer predefinição serve, e o
+padrão "Performance" funciona bem.</p>
+
+<h2>Performance (Aikar's Flags)</h2>
+
+<p>A predefinição padrão e a recomendada para a grande maioria dos usuários. Usa
+o coletor de lixo G1 com o ajuste de parâmetros que Aikar (autor do servidor
+de Minecraft Paper) publicou anos atrás e que muitos tutoriais ainda
+citam. Foi pensada para minimizar os engasgos causados por pausas do GC durante partidas pesadas.</p>
+
+<p>Ideal para: <strong>modpacks com 6+ GB de RAM alocados</strong>,
+modpacks com muitos mods em que você notou quedas periódicas de taxa de quadros
+sob carga.</p>
+
+<h2>Low Memory</h2>
+
+<p>Flags enxutas para sistemas com pouca RAM sobrando. Usa o G1 com uma
+meta de pausa menor e regiões de heap menores, sacrificando um pouco de
+desempenho em troca de previsibilidade quando a memória está apertada.</p>
+
+<p>Ideal para: <strong>sistemas com ≤ 8 GB de RAM no total</strong>,
+notebooks na bateria ou quando você quer manter vários modpacks
+rodando junto com outros aplicativos. Não é recomendada para modpacks grandes
+(200+ mods), em que as flags do Aikar recuperam memória com mais eficiência
+mesmo com a mesma alocação total.</p>
+
+<h2>Debug</h2>
+
+<p>As flags de Performance mais log detalhado do GC e asserções do Java
+ativadas. Grava um arquivo {@code gc.log} na pasta de instalação do modpack
+que registra cada evento do GC com data e hora. Útil principalmente para
+desenvolvedores de mods e para quem está investigando travamentos OOM recorrentes — adiciona uma
+pequena sobrecarga constante, então não a deixe ativada no dia a dia.</p>
+
+<p>Ideal para: <strong>diagnosticar reclamações de pausas do GC</strong>,
+investigar relatos de "para de responder por alguns segundos a cada minuto".</p>
+
+<h2>None</h2>
+
+<p>Lista de argumentos vazia — a JVM usa os próprios padrões. Útil para
+testar se um problema de desempenho percebido é causado pelas próprias flags
+da predefinição (raro, mas possível se a versão do JDK for muito mais recente
+do que quando as flags do Aikar foram escritas).</p>
+
+<p>Ideal para: <strong>verificar o comportamento de referência</strong> quando há suspeita
+de que uma predefinição interage mal com um mod específico ou uma versão do
+JDK.</p>
+
+<h2>Observações sobre a alocação de RAM</h2>
+
+<p>As predefinições ajustam a JVM na inicialização, mas os controles deslizantes
+<strong>RAM mínima</strong> e <strong>RAM máxima</strong> do launcher,
+em Configurações → Conta / Jogo, decidem quanta memória a JVM pode
+usar. A quantidade certa depende do modpack:</p>
+
+<ul>
+    <li>Minecraft vanilla: 2 GB é mais que suficiente.</li>
+    <li>Modpacks leves (≤ 50 mods): 4 GB.</li>
+    <li>Modpacks médios (50-150 mods): 6 GB.</li>
+    <li>Modpacks pesados (150+ mods, shaders): 8-12 GB.</li>
+    <li>Modpacks extremos (300+ mods, geração de mundo personalizada): 12-16 GB.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Aviso</div>
+    <p>Alocar mais RAM do que o sistema pode ceder faz o Minecraft
+    usar o disco como memória de troca, o que deixa os engasgos <em>piores</em>, não melhores.
+    Mantenha a RAM máxima em no máximo metade da RAM total do sistema. Um
+    sistema com 16 GB não deve alocar mais de 8 GB para o Minecraft.</p>
+</div>
+
+<h2>Flags personalizadas</h2>
+
+<p>O campo de Configurações abaixo do menu suspenso de predefinições é editável — você pode
+colar sua própria string de argumentos se nenhuma predefinição atender às suas necessidades.
+Adições comuns:</p>
+
+<ul>
+    <li><code>-XX:+UseZGC</code> — troca para o coletor de lixo Z
+        (pausas curtas, requer JDK 15+). Às vezes supera o G1 em
+        heaps muito grandes (32 GB+), mas em geral não vale a pena trocar
+        o G1 em configurações típicas de Minecraft.</li>
+    <li><code>-Dfile.encoding=UTF-8</code> — útil quando mods geram
+        arquivos de configuração com conteúdo não ASCII no Windows, onde o
+        conjunto de caracteres padrão pode ser Latin-1.</li>
+    <li><code>-Xss2M</code> — aumenta o tamanho da pilha das threads em relação ao padrão
+        da JVM; alguns modpacks com cadeias de chamadas profundas (mods pesados de geração
+        de mundo, geradores de dimensões grandes) precisam disso.</li>
+</ul>
+
+<p>Erros em flags personalizadas aparecem como falhas ao iniciar, com mensagens
+como "Error: Could not create the Java Virtual Machine" ou
+"Unrecognized VM option". Se você vir uma delas, volte para
+Performance e tente de novo antes de recorrer ao campo personalizado.</p>

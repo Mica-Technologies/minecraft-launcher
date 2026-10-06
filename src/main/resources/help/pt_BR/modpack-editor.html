@@ -1,0 +1,57 @@
+<h1>Editor de modpacks</h1>
+
+<p>O editor de modpacks é uma ferramenta integrada para criar e editar os arquivos JSON de definição de modpacks.
+Ele oferece uma interface estruturada com validação, pesquisa integrada e acompanhamento de diferenças.</p>
+
+<h2>Barra de ferramentas</h2>
+
+<ul>
+    <li><strong>Novo</strong> — cria uma definição de modpack em branco a partir de um modelo.</li>
+    <li><strong>Abrir arquivo</strong> — carrega uma definição JSON existente do disco.</li>
+    <li><strong>Abrir URL</strong> — busca e carrega uma definição de uma URL remota.</li>
+    <li><strong>Salvar</strong> — grava a definição atual em um arquivo local.</li>
+    <li><strong>Validar</strong> — verifica se a definição tem erros (campos ausentes, URLs inválidas, hashes divergentes).</li>
+    <li><strong>Comparar</strong> — compara o estado atual com a última versão salva para mostrar o que mudou.</li>
+</ul>
+
+<h2>Campos de metadados</h2>
+
+<p>A seção superior contém as informações principais do modpack: nome, versão, descrição, autor,
+versão do Minecraft e versão do Forge. O <strong>seletor de versão do Forge</strong> permite procurar
+as builds do Forge disponíveis para a versão do Minecraft selecionada.</p>
+
+<h2>Abas de arquivos</h2>
+
+<p>Os arquivos ficam organizados em abas por categoria:</p>
+
+<table class="settings-table">
+    <tr><td>Mods</td><td>JARs de mods do Forge colocados na pasta <code>mods/</code>.</td></tr>
+    <tr><td>Configurações</td><td>Arquivos de configuração dos mods, colocados em <code>config/</code>.</td></tr>
+    <tr><td>Recursos</td><td>Pacotes de recursos e outros recursos.</td></tr>
+    <tr><td>Shaders</td><td>Shader packs para OptiFine ou Iris.</td></tr>
+    <tr><td>Arquivos iniciais</td><td>Arquivos copiados só na primeira instalação (por exemplo, um options.txt padrão).</td></tr>
+</table>
+
+<p>Cada arquivo inclui uma URL de download e um hash SHA-1. O editor pode
+<strong>calcular os hashes automaticamente</strong> baixando o arquivo e computando a soma de verificação.</p>
+
+<h2>Pesquisa no Modrinth</h2>
+
+<p>Use a pesquisa integrada do Modrinth para encontrar mods pelo nome. Selecione um resultado para preencher
+automaticamente a URL de download e o hash com a versão correta.</p>
+
+<h2>Incremento de versão</h2>
+
+<p>Os botões de <strong>incremento de versão</strong> aumentam o número da versão do modpack, facilitando
+a publicação de atualizações que o launcher detecta automaticamente.</p>
+
+<h2>Verificação de URLs</h2>
+
+<p>O editor pode verificar se todas as URLs de download dos arquivos estão acessíveis, ajudando você a encontrar
+links quebrados antes de publicar.</p>
+
+<div class="tip">
+    <div class="callout-title">Dica</div>
+    <p>Use <strong>Validar</strong> antes de salvar para encontrar problemas cedo. O validador verifica
+    os campos obrigatórios, se as URLs são válidas e se os hashes estão no formato correto.</p>
+</div>
