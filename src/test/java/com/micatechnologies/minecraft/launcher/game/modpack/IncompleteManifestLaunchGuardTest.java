@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizedMessages;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import org.junit.jupiter.api.Test;
 
@@ -57,8 +58,7 @@ class IncompleteManifestLaunchGuardTest
         GameModPackFileSync sync = new GameModPackFileSync( failed, null );
 
         ModpackException thrown = assertThrows( ModpackException.class, sync::fetchLatestMods );
-        assertTrue( thrown.getMessage().contains( "manifest fetch failed" ),
-                    "Failure reason should name the failed fetch, got: " + thrown.getMessage() );
+        LocalizedMessages.assertFromKey( "fileSync.error.manifestFetchFailed", thrown.getMessage() );
     }
 
     /**
@@ -74,8 +74,7 @@ class IncompleteManifestLaunchGuardTest
         GameModPackFileSync sync = new GameModPackFileSync( stub, null );
 
         ModpackException thrown = assertThrows( ModpackException.class, sync::fetchLatestMods );
-        assertTrue( thrown.getMessage().contains( "unpopulated index stub" ),
-                    "Failure reason should name the stub, got: " + thrown.getMessage() );
+        LocalizedMessages.assertFromKey( "fileSync.error.manifestStub", thrown.getMessage() );
     }
 
     /**
