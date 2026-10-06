@@ -719,7 +719,7 @@ public class MCLauncherHelpWindow
          */
         public void navigateTo( String topicName )
         {
-            String normalized = topicName.toUpperCase().replace( "-", "_" );
+            String normalized = topicName.toUpperCase( java.util.Locale.ROOT ).replace( "-", "_" );
             try {
                 HelpTopic linked = HelpTopic.valueOf( normalized );
                 GUIUtilities.JFXPlatformRun( () -> {

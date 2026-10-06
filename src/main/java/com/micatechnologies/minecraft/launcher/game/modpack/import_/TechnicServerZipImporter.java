@@ -132,7 +132,7 @@ public final class TechnicServerZipImporter
             // every reasonable producer but the check is cheap.
             String n = name.replace( '\\', '/' );
             if ( n.startsWith( "mods/" ) ) hasMods = true;
-            else if ( !n.contains( "/" ) && n.toLowerCase().endsWith( ".jar" ) ) hasServerJar = true;
+            else if ( !n.contains( "/" ) && n.toLowerCase( java.util.Locale.ROOT ).endsWith( ".jar" ) ) hasServerJar = true;
             else if ( n.equalsIgnoreCase( "launch.bat" )
                     || n.equalsIgnoreCase( "launch.sh" ) ) hasLaunchScript = true;
             if ( hasMods && hasServerJar && hasLaunchScript ) return true;
@@ -157,7 +157,7 @@ public final class TechnicServerZipImporter
         Enumeration< ? extends ZipEntry > entries = zip.entries();
         while ( entries.hasMoreElements() ) {
             String name = entries.nextElement().getName().replace( '\\', '/' );
-            if ( !name.contains( "/" ) && name.toLowerCase().endsWith( ".jar" ) ) {
+            if ( !name.contains( "/" ) && name.toLowerCase( java.util.Locale.ROOT ).endsWith( ".jar" ) ) {
                 return name;
             }
         }
@@ -351,7 +351,7 @@ public final class TechnicServerZipImporter
             String name = entry.getName().replace( '\\', '/' );
 
             // Skip server-side cruft.
-            if ( !name.contains( "/" ) && name.toLowerCase().endsWith( ".jar" ) ) continue;
+            if ( !name.contains( "/" ) && name.toLowerCase( java.util.Locale.ROOT ).endsWith( ".jar" ) ) continue;
             if ( name.equalsIgnoreCase( "launch.bat" )
                     || name.equalsIgnoreCase( "launch.sh" ) ) continue;
 
@@ -377,7 +377,7 @@ public final class TechnicServerZipImporter
             if ( name.startsWith( "mods/" ) ) {
                 String rel = name.substring( "mods/".length() );
                 if ( !rel.isEmpty() && !rel.contains( "/" ) ) {
-                    String lower = rel.toLowerCase();
+                    String lower = rel.toLowerCase( java.util.Locale.ROOT );
                     if ( lower.endsWith( ".jar" ) || lower.endsWith( ".zip" ) ) {
                         topLevelModNames.add( rel );
                     }

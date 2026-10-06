@@ -182,7 +182,7 @@ public final class JarSigningStripper
     private static boolean isSignatureFile( String name )
     {
         if ( name == null ) return false;
-        String upper = name.toUpperCase();
+        String upper = name.toUpperCase( java.util.Locale.ROOT );
         if ( !upper.startsWith( "META-INF/" ) ) {
             return false;
         }

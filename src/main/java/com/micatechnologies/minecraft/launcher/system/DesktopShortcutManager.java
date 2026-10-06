@@ -104,7 +104,7 @@ public class DesktopShortcutManager
         String processCommand = ProcessHandle.current().info().command().orElse( null );
         if ( processCommand != null ) {
             // If it's a native executable (not java/javaw), use it directly
-            String lowerCmd = processCommand.toLowerCase();
+            String lowerCmd = processCommand.toLowerCase( java.util.Locale.ROOT );
             if ( !lowerCmd.endsWith( "java" ) && !lowerCmd.endsWith( "java.exe" ) &&
                  !lowerCmd.endsWith( "javaw" ) && !lowerCmd.endsWith( "javaw.exe" ) ) {
                 return processCommand;
@@ -169,7 +169,7 @@ public class DesktopShortcutManager
         if ( SystemUtils.IS_OS_WINDOWS ) {
             // Look for .exe files that are NOT java/javaw (those belong to the bundled JRE)
             File[] exeFiles = installDir.listFiles( ( dir, name ) -> {
-                String lower = name.toLowerCase();
+                String lower = name.toLowerCase( java.util.Locale.ROOT );
                 return lower.endsWith( ".exe" ) && !lower.equals( "java.exe" ) && !lower.equals( "javaw.exe" );
             } );
             File chosen = pickBestExecutable( exeFiles );
@@ -189,7 +189,7 @@ public class DesktopShortcutManager
         else {
             // Linux: look for executable files directly in installDir (fvarrui) or bin/ (jpackage)
             File[] files = installDir.listFiles( f -> {
-                String name = f.getName().toLowerCase();
+                String name = f.getName().toLowerCase( java.util.Locale.ROOT );
                 return f.isFile() && f.canExecute() && !name.equals( "java" ) && !name.endsWith( ".jar" );
             } );
             File chosen = pickBestExecutable( files );
@@ -256,7 +256,7 @@ public class DesktopShortcutManager
     // can exercise this directly.
     static boolean isNativeExecutable( String launcherPath )
     {
-        String lower = launcherPath.toLowerCase();
+        String lower = launcherPath.toLowerCase( java.util.Locale.ROOT );
         return !lower.endsWith( ".jar" ) && !lower.endsWith( "java" ) && !lower.endsWith( "java.exe" ) &&
                !lower.endsWith( "javaw" ) && !lower.endsWith( "javaw.exe" );
     }
@@ -280,7 +280,7 @@ public class DesktopShortcutManager
         if ( isNativeExecutable( launcherPath ) ) {
             return LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " " + quotedPackName;
         }
-        else if ( launcherPath.toLowerCase().endsWith( ".jar" ) ) {
+        else if ( launcherPath.toLowerCase( java.util.Locale.ROOT ).endsWith( ".jar" ) ) {
             return "-jar \"" + launcherPath + "\" " + LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " " + quotedPackName;
         }
         else {

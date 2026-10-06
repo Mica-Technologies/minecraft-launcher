@@ -2950,7 +2950,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     describeElapsed( now - entry.timestampMs() ),
                     entry.toolName(),
                     LocalizationManager.get( "settings.mcp.activity.decision."
-                                                     + entry.decision().name().toLowerCase() ) ) ) );
+                                                     + entry.decision().name().toLowerCase( java.util.Locale.ROOT ) ) ) ) );
         }
     }
 
@@ -3046,7 +3046,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             javafx.scene.layout.HBox row = new javafx.scene.layout.HBox( 8 );
             row.setAlignment( javafx.geometry.Pos.CENTER_LEFT );
 
-            Label name = new Label( tool.title() + "  (" + tool.riskClass().name().toLowerCase()
+            Label name = new Label( tool.title() + "  (" + tool.riskClass().name().toLowerCase( java.util.Locale.ROOT )
                                             .replace( '_', ' ' ) + ")" );
             name.setMinWidth( 240 );
 

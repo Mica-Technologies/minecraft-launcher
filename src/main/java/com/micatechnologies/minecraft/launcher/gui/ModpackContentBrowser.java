@@ -204,7 +204,7 @@ public final class ModpackContentBrowser
                        () -> scanSortedFiles( pack, "screenshots",
                                               f -> {
                                                   if ( !f.isFile() ) return false;
-                                                  String n = f.getName().toLowerCase();
+                                                  String n = f.getName().toLowerCase( java.util.Locale.ROOT );
                                                   return n.endsWith( ".png" )
                                                           || n.endsWith( ".jpg" )
                                                           || n.endsWith( ".jpeg" );
@@ -260,13 +260,13 @@ public final class ModpackContentBrowser
                        () -> scanSortedFiles( pack, "mods",
                                               f -> {
                                                   if ( !f.isFile() ) return false;
-                                                  String n = f.getName().toLowerCase();
+                                                  String n = f.getName().toLowerCase( java.util.Locale.ROOT );
                                                   return n.endsWith( ".jar" ) || n.endsWith( ".jar.disabled" );
                                               },
                                               // Group enabled + disabled together by sorting by
                                               // case-insensitive filename — the .disabled suffix
                                               // naturally sorts after the bare .jar.
-                                              Comparator.comparing( ( File f ) -> f.getName().toLowerCase() ) ),
+                                              Comparator.comparing( ( File f ) -> f.getName().toLowerCase( java.util.Locale.ROOT ) ) ),
                        ( sec, mods ) -> {
                            if ( mods == null || mods.length == 0 ) {
                                sec.getChildren().add( emptyLabel() );
@@ -395,7 +395,7 @@ public final class ModpackContentBrowser
             // Track the row's update-label so the background scan can
             // populate it. Only attach for enabled .jar entries — disabled
             // mods aren't on the loader path so update status doesn't apply.
-            if ( !mod.getName().toLowerCase().endsWith( ".jar.disabled" ) ) {
+            if ( !mod.getName().toLowerCase( java.util.Locale.ROOT ).endsWith( ".jar.disabled" ) ) {
                 Label updateLabel = new Label();
                 updateLabel.getStyleClass().add( "muted" );
                 row.getChildren().add( row.getChildren().size() - 1, updateLabel );
@@ -445,7 +445,7 @@ public final class ModpackContentBrowser
         // Render once for the initial state, then again after each rename.
         Runnable renderRowState = () -> {
             File f = currentFile[ 0 ];
-            boolean disabled = f.getName().toLowerCase().endsWith( ".jar.disabled" );
+            boolean disabled = f.getName().toLowerCase( java.util.Locale.ROOT ).endsWith( ".jar.disabled" );
             String displayName = disabled
                     ? f.getName().substring( 0, f.getName().length() - ".disabled".length() )
                     : f.getName();
@@ -493,7 +493,7 @@ public final class ModpackContentBrowser
         FxAsyncTask.run( () -> {
             File mod = currentFile[ 0 ];
             try {
-                boolean disabled = mod.getName().toLowerCase().endsWith( ".jar.disabled" );
+                boolean disabled = mod.getName().toLowerCase( java.util.Locale.ROOT ).endsWith( ".jar.disabled" );
                 File renamed = disabled
                         ? new File( mod.getParentFile(),
                                     mod.getName().substring( 0, mod.getName().length() - ".disabled".length() ) )
@@ -578,7 +578,7 @@ public final class ModpackContentBrowser
             // Modrinth download URLs end in the filename — use it so a renamed jar lands correctly.
             String newName = downloadUrl.substring( downloadUrl.lastIndexOf( '/' ) + 1 );
             newName = java.net.URLDecoder.decode( newName, java.nio.charset.StandardCharsets.UTF_8 );
-            if ( newName.isBlank() || !newName.toLowerCase().endsWith( ".jar" ) ) {
+            if ( newName.isBlank() || !newName.toLowerCase( java.util.Locale.ROOT ).endsWith( ".jar" ) ) {
                 newName = oldJarName;
             }
             File tempFile = new File( modsDir, "." + newName + ".update.tmp" );
@@ -1290,7 +1290,7 @@ public final class ModpackContentBrowser
         populateAsync( section,
                        () -> scanSortedFiles( pack, folderName, f -> !f.getName().startsWith( "." )
                                && ( f.isFile() || f.isDirectory() ),
-                                              Comparator.comparing( ( File f ) -> f.getName().toLowerCase() ) ),
+                                              Comparator.comparing( ( File f ) -> f.getName().toLowerCase( java.util.Locale.ROOT ) ) ),
                        ( sec, entries ) -> {
                            if ( entries == null || entries.length == 0 ) {
                                sec.getChildren().add( emptyLabel() );

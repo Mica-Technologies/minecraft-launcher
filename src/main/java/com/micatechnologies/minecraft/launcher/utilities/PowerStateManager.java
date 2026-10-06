@@ -358,7 +358,7 @@ public final class PowerStateManager
         if ( s == null || s.isEmpty() ) {
             return false;
         }
-        String upper = s.toUpperCase();
+        String upper = s.toUpperCase( java.util.Locale.ROOT );
         return upper.contains( "UPS" )
                 || upper.contains( "APC " )
                 || upper.contains( "CYBERPOWER" )

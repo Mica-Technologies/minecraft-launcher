@@ -176,7 +176,7 @@ public final class LauncherUriHandler
 
         Logger.logDebug( LocalizationManager.format( "log.uriHandler.dispatch", action, String.valueOf( params ) ) );
 
-        switch ( action.toLowerCase() ) {
+        switch ( action.toLowerCase( Locale.ROOT ) ) {
             case "add"  -> handleAdd( params.get( "url" ) );
             case "play" -> handlePlay( params.get( "name" ) );
             case "join" -> handleJoin( params.get( "url" ), params.get( "vanilla" ) );
