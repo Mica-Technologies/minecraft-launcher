@@ -26,8 +26,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Pure-logic coverage for the Settings "Save &amp; Restart" button's
- * decision seam — the language-dropdown-label → override-tag mapping and the
+ * decision seam — the language-dropdown-index → override-tag mapping and the
  * "is a language change pending?" comparison that drives button visibility.
+ *
+ * <p>The dropdown's item 0 is the localized "Use OS Language" sentinel and item
+ * {@code i > 0} is {@code SupportedLocales.ENTRIES[i - 1]}; the mapping works by
+ * index so it never depends on the sentinel's translated label.</p>
  *
  * <p>No FX scene required: both methods under test are static and side-effect
  * free, so this runs in CI alongside the other seam tests. The interactive
@@ -36,56 +40,65 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class MCLauncherSettingsLanguageLogicTest
 {
-    // The OS-default dropdown entry is a composite label ("Use OS Language
-    // (detected: ...)"), never one of the SupportedLocales display names, so
-    // any non-entry string stands in for it here.
-    private static final String OS_DEFAULT_LABEL = SupportedLocales.OS_DEFAULT_LABEL_PREFIX + " (detected: English)";
+    /** Dropdown index of the OS-default sentinel. */
+    private static final int OS_DEFAULT = 0;
+
+    /** Dropdown index of the supported locale with the given tag. */
+    private static int indexOf( String tag )
+    {
+        for ( int i = 0; i < SupportedLocales.ENTRIES.size(); i++ ) {
+            if ( SupportedLocales.ENTRIES.get( i ).tag().equals( tag ) ) {
+                return i + 1;
+            }
+        }
+        throw new IllegalArgumentException( tag );
+    }
 
     @Test
-    void overrideTagForKnownDisplayResolvesToItsTag()
+    void overrideTagForEveryLocaleIndexResolvesToItsTag()
     {
-        for ( SupportedLocales.Entry entry : SupportedLocales.ENTRIES ) {
-            assertEquals( entry.tag(),
-                    MCLauncherSettingsGui.overrideTagForDisplay( entry.displayName() ),
-                    "display \"" + entry.displayName() + "\" should map to tag " + entry.tag() );
+        for ( int i = 0; i < SupportedLocales.ENTRIES.size(); i++ ) {
+            SupportedLocales.Entry entry = SupportedLocales.ENTRIES.get( i );
+            assertEquals( entry.tag(), MCLauncherSettingsGui.overrideTagForIndex( i + 1 ),
+                          "index " + ( i + 1 ) + " should map to tag " + entry.tag() );
         }
     }
 
     @Test
-    void overrideTagForOsDefaultOrUnknownOrNullIsEmpty()
+    void overrideTagForOsDefaultOrOutOfRangeIsEmpty()
     {
-        assertEquals( "", MCLauncherSettingsGui.overrideTagForDisplay( OS_DEFAULT_LABEL ) );
-        assertEquals( "", MCLauncherSettingsGui.overrideTagForDisplay( "Some Language We Don't Ship" ) );
-        assertEquals( "", MCLauncherSettingsGui.overrideTagForDisplay( null ) );
+        assertEquals( "", MCLauncherSettingsGui.overrideTagForIndex( OS_DEFAULT ) );
+        assertEquals( "", MCLauncherSettingsGui.overrideTagForIndex( -1 ) );
+        assertEquals( "", MCLauncherSettingsGui.overrideTagForIndex( SupportedLocales.ENTRIES.size() + 1 ) );
     }
 
     @Test
     void noChangeWhenSelectionMatchesSavedOverride()
     {
         // Saved French, French still selected → nothing pending.
-        assertFalse( MCLauncherSettingsGui.isLanguageChangePending( "Français", "fr" ) );
+        assertFalse( MCLauncherSettingsGui.isLanguageChangePending( indexOf( "fr" ), "fr" ) );
         // Saved OS-default (empty), OS-default still selected → nothing pending.
-        assertFalse( MCLauncherSettingsGui.isLanguageChangePending( OS_DEFAULT_LABEL, "" ) );
+        assertFalse( MCLauncherSettingsGui.isLanguageChangePending( OS_DEFAULT, "" ) );
     }
 
     @Test
     void changeWhenSelectionDiffersFromSavedOverride()
     {
         // Saved OS-default, user picked French → pending.
-        assertTrue( MCLauncherSettingsGui.isLanguageChangePending( "Français", "" ) );
+        assertTrue( MCLauncherSettingsGui.isLanguageChangePending( indexOf( "fr" ), "" ) );
         // Saved French, user switched back to OS-default → pending.
-        assertTrue( MCLauncherSettingsGui.isLanguageChangePending( OS_DEFAULT_LABEL, "fr" ) );
+        assertTrue( MCLauncherSettingsGui.isLanguageChangePending( OS_DEFAULT, "fr" ) );
         // Saved French, user picked German → pending.
-        assertTrue( MCLauncherSettingsGui.isLanguageChangePending( "Deutsch", "fr" ) );
+        assertTrue( MCLauncherSettingsGui.isLanguageChangePending( indexOf( "de" ), "fr" ) );
     }
 
     @Test
     void savedOverrideComparisonIsCaseInsensitiveAndNullSafe()
     {
         // BCP-47 tags compare case-insensitively (config could carry "FR").
-        assertFalse( MCLauncherSettingsGui.isLanguageChangePending( "Français", "FR" ) );
+        assertFalse( MCLauncherSettingsGui.isLanguageChangePending( indexOf( "fr" ), "FR" ) );
         // A null saved override behaves like OS-default ("").
-        assertFalse( MCLauncherSettingsGui.isLanguageChangePending( OS_DEFAULT_LABEL, null ) );
-        assertTrue( MCLauncherSettingsGui.isLanguageChangePending( "Français", null ) );
+        assertFalse( MCLauncherSettingsGui.isLanguageChangePending( OS_DEFAULT, null ) );
+        assertTrue( MCLauncherSettingsGui.isLanguageChangePending( indexOf( "fr" ), null ) );
     }
 }

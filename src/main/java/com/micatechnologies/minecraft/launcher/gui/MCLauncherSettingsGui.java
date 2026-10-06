@@ -638,7 +638,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     /** RGB tab: master enable for RGB integration. Backed by {@link ConfigManager#getRgbEnable};
      *  toggling it restarts the RGB controller. */
     /** RGB tab: backend selection (Auto / OpenRGB / Chroma / Windows DL / Corsair / Aura / None).
-     *  Display labels map to config tokens via {@link #backendForLabel(String)}. */
+     *  Selections map to config tokens by index via {@link #backendForIndex(int)}. */
     /** RGB tab: status chip showing connection state, refreshed by {@link #refreshRgbStatusChip()}. */
     /** RGB tab: enable the menu (idle) lighting effect. Backed by
      *  {@link ConfigManager#getRgbMenuEffectEnable}; toggling repaints immediately. */
@@ -1168,13 +1168,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // "Español" rather than "Spanish").
         if ( languageSelection != null ) {
             languageSelection.getItems().clear();
+            // Item 0 is the OS-default sentinel; item i > 0 is SupportedLocales.ENTRIES[i - 1].
+            // Selections map back to a tag by index (overrideTagForIndex), never by label.
             String osDetectedName = com.micatechnologies.minecraft.launcher.consts.localization
                     .LocaleBootstrap.detectOsLocale()
-                    .getDisplayName( java.util.Locale.ENGLISH );
+                    .getDisplayName( LocalizationManager.currentLocale() );
             languageSelection.getItems().add(
-                    com.micatechnologies.minecraft.launcher.consts.localization
-                            .SupportedLocales.OS_DEFAULT_LABEL_PREFIX
-                            + " (detected: " + osDetectedName + ")" );
+                    LocalizationManager.format( "settings.language.osDefault", osDetectedName ) );
             for ( var entry : com.micatechnologies.minecraft.launcher.consts.localization
                     .SupportedLocales.ENTRIES ) {
                 languageSelection.getItems().add( entry.displayName() );
@@ -1186,16 +1186,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 languageSelection.selectFirst();
             }
             else {
-                String matchedDisplay = null;
-                for ( var entry : com.micatechnologies.minecraft.launcher.consts.localization
-                        .SupportedLocales.ENTRIES ) {
-                    if ( entry.tag().equalsIgnoreCase( savedTag ) ) {
-                        matchedDisplay = entry.displayName();
+                int matchedIndex = -1;
+                var entries = com.micatechnologies.minecraft.launcher.consts.localization.SupportedLocales.ENTRIES;
+                for ( int i = 0; i < entries.size(); i++ ) {
+                    if ( entries.get( i ).tag().equalsIgnoreCase( savedTag ) ) {
+                        matchedIndex = i + 1;
                         break;
                     }
                 }
-                if ( matchedDisplay != null ) {
-                    languageSelection.selectItem( matchedDisplay );
+                if ( matchedIndex > 0 ) {
+                    languageSelection.selectIndex( matchedIndex );
                 }
                 else {
                     // Override is set to something we don't ship — fall back
@@ -1209,7 +1209,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             // language different from the saved override (and hide it again on
             // revert). The listener fires after the initial selectItem/selectFirst
             // above, so seed the correct hidden state explicitly afterwards.
-            languageSelection.selectedItemProperty().addListener(
+            languageSelection.selectedIndexProperty().addListener(
                     ( obs, oldV, newV ) -> refreshSaveAndRestartButton() );
             refreshSaveAndRestartButton();
         }
@@ -1975,13 +1975,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // below compares against the persisted config value rather than
         // trusting the event-firing order.
         if ( rgbBackendCombo != null ) {
-            rgbBackendCombo.setItems( javafx.collections.FXCollections.observableArrayList(
-                    "Auto", "OpenRGB", "Razer Chroma (Native)", "Razer Chroma (REST)",
-                    "Windows Dynamic Lighting", "Corsair iCUE", "ASUS Aura", "None" ) );
-            rgbBackendCombo.selectItem( labelForBackend( ConfigManager.getRgbBackend() ) );
+            // Items follow RGB_BACKEND_TOKENS order; selections map back by index.
+            javafx.collections.ObservableList< String > rgbLabels = javafx.collections.FXCollections.observableArrayList();
+            for ( String token : RGB_BACKEND_TOKENS ) {
+                rgbLabels.add( labelForBackend( token ) );
+            }
+            rgbBackendCombo.setItems( rgbLabels );
+            rgbBackendCombo.selectIndex( rgbBackendIndex( ConfigManager.getRgbBackend() ) );
             rgbBackendCombo.setOnAction( e -> {
-                String label = rgbBackendCombo.getValue();
-                String newBackend = backendForLabel( label );
+                String newBackend = backendForIndex( rgbBackendCombo.getSelectedIndex() );
                 if ( newBackend.equals( ConfigManager.getRgbBackend() ) ) {
                     return; // value didn't actually change — don't churn the controller
                 }
@@ -2131,8 +2133,21 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
     }
 
+    /** Config tokens for the RGB backend dropdown, in display order. The dropdown's
+     *  item {@code i} is {@code labelForBackend(RGB_BACKEND_TOKENS[i])}. */
+    private static final String[] RGB_BACKEND_TOKENS = {
+            com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_AUTO,
+            com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_OPENRGB,
+            com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA_NATIVE,
+            com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA,
+            com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_WINDOWS_DL,
+            com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CORSAIR,
+            com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_ASUS_AURA,
+            com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE };
+
     /** Maps the config-stored backend identifier to the user-facing
-     *  combo label. Defaults to "Auto" for unknown values. */
+     *  combo label. Product names stay as-is; "Auto" and "None" are localized.
+     *  Defaults to the Auto label for unknown values. */
     private static String labelForBackend( String backend )
     {
         return switch ( backend == null ? "" : backend ) {
@@ -2142,9 +2157,29 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_WINDOWS_DL    -> "Windows Dynamic Lighting";
             case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CORSAIR       -> "Corsair iCUE";
             case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_ASUS_AURA     -> "ASUS Aura";
-            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE          -> "None";
-            default -> "Auto";
+            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE          ->
+                    LocalizationManager.get( "settings.rgb.backend.none" );
+            default -> LocalizationManager.get( "settings.rgb.backend.auto" );
         };
+    }
+
+    /** Dropdown index of a config backend token; unknown tokens select Auto (index 0). */
+    static int rgbBackendIndex( String backend )
+    {
+        for ( int i = 0; i < RGB_BACKEND_TOKENS.length; i++ ) {
+            if ( RGB_BACKEND_TOKENS[ i ].equals( backend ) ) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    /** Config backend token for a dropdown index; anything out of range is Auto. */
+    static String backendForIndex( int index )
+    {
+        return index >= 0 && index < RGB_BACKEND_TOKENS.length
+               ? RGB_BACKEND_TOKENS[ index ]
+               : com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_AUTO;
     }
 
     /** Localized, human-readable label for an image-cycle interval token (e.g.
@@ -2167,21 +2202,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             case "7d"  -> LocalizationManager.get( "settings.cycle.weekly" );
             case "never" -> LocalizationManager.get( "settings.cycle.never" );
             default -> token;
-        };
-    }
-
-    /** Inverse of {@link #labelForBackend}. */
-    private static String backendForLabel( String label )
-    {
-        return switch ( label == null ? "" : label ) {
-            case "OpenRGB"               -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_OPENRGB;
-            case "Razer Chroma (Native)"    -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA_NATIVE;
-            case "Razer Chroma (REST)"      -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA;
-            case "Windows Dynamic Lighting" -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_WINDOWS_DL;
-            case "Corsair iCUE"             -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CORSAIR;
-            case "ASUS Aura"                -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_ASUS_AURA;
-            case "None"                     -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE;
-            default                      -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_AUTO;
         };
     }
 
@@ -2751,51 +2771,45 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Resolves the BCP-47 override tag a language-dropdown display label maps to:
-     * a concrete tag for a named locale, or the empty string for the "Use OS
-     * Language" sentinel / any unrecognized label (which clears the override).
-     * Mirrors the lookup {@link #persistSettings()} writes, so visibility logic
-     * and the actual save agree on what "changed" means. Pure + static so it can
-     * be unit-tested without an FX scene.
+     * Resolves the BCP-47 override tag a language-dropdown index maps to: index 0
+     * is the "Use OS Language" sentinel and any index outside the list (including
+     * -1, no selection) clears the override; index {@code i > 0} is
+     * {@code SupportedLocales.ENTRIES[i - 1]}. Mapping by index keeps the lookup
+     * independent of the localized sentinel label. Pure + static so it can be
+     * unit-tested without an FX scene.
      *
-     * @param selectedDisplay the dropdown's selected display label (may be null)
+     * @param selectedIndex the dropdown's selected index
      *
-     * @return the override tag for that label, or {@code ""} for OS-default
+     * @return the override tag for that index, or {@code ""} for OS-default
      */
-    static String overrideTagForDisplay( String selectedDisplay ) {
-        if ( selectedDisplay == null ) {
+    static String overrideTagForIndex( int selectedIndex ) {
+        var entries = com.micatechnologies.minecraft.launcher.consts.localization.SupportedLocales.ENTRIES;
+        if ( selectedIndex < 1 || selectedIndex > entries.size() ) {
             return "";
         }
-        for ( var entry : com.micatechnologies.minecraft.launcher.consts.localization
-                .SupportedLocales.ENTRIES ) {
-            if ( entry.displayName().equals( selectedDisplay ) ) {
-                return entry.tag();
-            }
-        }
-        // OS-default sentinel (or any unrecognized display) → clear the override.
-        return "";
+        return entries.get( selectedIndex - 1 ).tag();
     }
 
     /**
      * Whether the dropdown selection represents a language change relative to the
      * saved override — i.e. the Save &amp; Restart shortcut should be shown. Pure +
-     * static for unit testing; the live UI passes the current selection label and
+     * static for unit testing; the live UI passes the current selection index and
      * {@code ConfigManager.getLocaleOverride()}.
      *
-     * @param selectedDisplay the dropdown's selected display label
+     * @param selectedIndex    the dropdown's selected index
      * @param savedOverrideTag the persisted locale override (may be null/blank for OS-default)
      *
      * @return true when the selection differs from what is saved
      */
-    static boolean isLanguageChangePending( String selectedDisplay, String savedOverrideTag ) {
+    static boolean isLanguageChangePending( int selectedIndex, String savedOverrideTag ) {
         String saved = savedOverrideTag == null ? "" : savedOverrideTag;
-        return !overrideTagForDisplay( selectedDisplay ).equalsIgnoreCase( saved );
+        return !overrideTagForIndex( selectedIndex ).equalsIgnoreCase( saved );
     }
 
     /**
      * Resolves the BCP-47 override tag the language dropdown's current selection
      * maps to (or {@code ""} for OS-default). Instance wrapper over
-     * {@link #overrideTagForDisplay(String)} used by {@link #persistSettings()}.
+     * {@link #overrideTagForIndex(int)} used by {@link #persistSettings()}.
      *
      * @return the override tag for the current selection, or {@code ""} for OS-default
      */
@@ -2803,7 +2817,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( languageSelection == null ) {
             return "";
         }
-        return overrideTagForDisplay( languageSelection.getSelectedItem() );
+        return overrideTagForIndex( languageSelection.getSelectedIndex() );
     }
 
     /**
@@ -2817,8 +2831,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( saveAndRestartBtn == null ) {
             return;
         }
-        String selectedDisplay = languageSelection == null ? null : languageSelection.getSelectedItem();
-        boolean pending = isLanguageChangePending( selectedDisplay, ConfigManager.getLocaleOverride() );
+        int selectedIndex = languageSelection == null ? -1 : languageSelection.getSelectedIndex();
+        boolean pending = isLanguageChangePending( selectedIndex, ConfigManager.getLocaleOverride() );
         saveAndRestartBtn.setVisible( pending );
         saveAndRestartBtn.setManaged( pending );
     }

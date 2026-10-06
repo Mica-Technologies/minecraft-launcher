@@ -100,12 +100,4 @@ public final class SupportedLocales
             new Entry( "tr",    "Türkçe" ),
             new Entry( "sv",    "Svenska" )
     );
-
-    /**
-     * Sentinel display label for the "no override — use OS detection"
-     *  Settings-dropdown option.
-     *
-     * @since 2026.5
-     */
-    public static final String OS_DEFAULT_LABEL_PREFIX = "Use OS Language";
 }
