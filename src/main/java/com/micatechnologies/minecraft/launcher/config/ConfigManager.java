@@ -669,6 +669,10 @@ public class ConfigManager
     public synchronized static boolean getRunningGamesDocked()          { return AppConfig.getRunningGamesDocked(); }
     /** Sets whether the Running Games view is docked in the main window. @param v the new flag. @see AppConfig#setRunningGamesDocked(boolean) @since 2026.10 */
     public synchronized static void    setRunningGamesDocked( boolean v ) { AppConfig.setRunningGamesDocked( v ); }
+    /** @return the docked Running Games height, in thousandths of the main window's height. @see AppConfig#getRunningGamesDockHeight() @since 2026.10 */
+    public synchronized static int     getRunningGamesDockHeight()       { return AppConfig.getRunningGamesDockHeight(); }
+    /** Sets the docked Running Games height. @param v thousandths of the main window's height. @see AppConfig#setRunningGamesDockHeight(int) @since 2026.10 */
+    public synchronized static void    setRunningGamesDockHeight( int v ) { AppConfig.setRunningGamesDockHeight( v ); }
     /** @return the in-game console visible-line cap (0 = unlimited). @see AppConfig#getConsoleLogMaxLines() @since 1.0 */
     public synchronized static int     getConsoleLogMaxLines()          { return AppConfig.getConsoleLogMaxLines(); }
     /** Sets the in-game console visible-line cap. @param v the line cap (0 = unlimited). @see AppConfig#setConsoleLogMaxLines(int) @since 1.0 */

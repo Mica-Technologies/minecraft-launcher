@@ -2609,6 +2609,24 @@
     -fx-background-color: -md-surface-container;
     -fx-cursor: hand;
 }
+/* Docked and expanded, a strip over the top edge resizes the view (double-click resets it).
+ * The small pill marks it, like a bottom sheet's drag handle. */
+.runningGamesResizeGrip {
+    -fx-pref-height: 8;
+    -fx-alignment: center;
+}
+.runningGamesResizeHandle {
+    -fx-min-width: 36;
+    -fx-max-width: 36;
+    -fx-min-height: 4;
+    -fx-max-height: 4;
+    -fx-background-color: -md-outline-variant;
+    -fx-background-radius: 999;
+}
+.runningGamesResizeGrip:hover .runningGamesResizeHandle,
+.runningGamesResizeGrip:pressed .runningGamesResizeHandle {
+    -fx-background-color: -md-on-surface-variant;
+}
 .runningGamesTitle {
     -fx-text-fill: -md-on-surface;
     -fx-font-size: 14px;

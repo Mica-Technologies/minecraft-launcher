@@ -486,6 +486,21 @@ public class ConfigConstants
     public static final boolean RUNNING_GAMES_DOCKED_DEFAULT = false;
 
     /**
+     * Key for the docked Running Games view's expanded height, as thousandths of the main
+     * window's height, so it keeps its proportion when the window is resized.
+     *
+     * @since 2026.10
+     */
+    public static final String RUNNING_GAMES_DOCK_HEIGHT_KEY = "runningGamesDockHeight";
+
+    /**
+     * The default docked Running Games height: 42% of the main window.
+     *
+     * @since 2026.10
+     */
+    public static final int RUNNING_GAMES_DOCK_HEIGHT_DEFAULT = 420;
+
+    /**
      * Maximum number of log lines retained in the in-game console's
      * visible TextArea. When the running log exceeds this count the
      * oldest lines are dropped from the view and a "showing last N

@@ -308,6 +308,31 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /**
+     * Returns the docked Running Games view's expanded height, as thousandths of the main
+     * window's height.
+     *
+     * @return the height share, in thousandths
+     *
+     * @since 2026.10
+     */
+    public static synchronized int getRunningGamesDockHeight() {
+        return ConfigStore.getOrInitInt( ConfigConstants.RUNNING_GAMES_DOCK_HEIGHT_KEY,
+                                         ConfigConstants.RUNNING_GAMES_DOCK_HEIGHT_DEFAULT );
+    }
+
+    /**
+     * Sets the docked Running Games view's expanded height, and schedules a debounced disk flush.
+     *
+     * @param permille the height share, in thousandths of the main window's height
+     *
+     * @since 2026.10
+     */
+    public static synchronized void setRunningGamesDockHeight( int permille ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.RUNNING_GAMES_DOCK_HEIGHT_KEY, permille );
+        ConfigStore.scheduleWrite();
+    }
+
     /** Visible-log-line cap for the in-game console TextArea. 0 means
      *  unlimited (no trimming). Read on each line-batch flush so the
      *  user can change the setting mid-session without restarting. */

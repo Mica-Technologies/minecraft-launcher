@@ -19,6 +19,7 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.config.ConfigStore;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.game.session.FakeProcess;
@@ -52,6 +53,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -60,7 +62,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Renders the Running Games view docked along the bottom of a stand-in main-window screen,
- * expanded and collapsed, then popped out into its own window and docked back, writing PNGs to
+ * expanded, dragged taller, and collapsed, then popped out into its own window and docked back, writing PNGs to
  * {@code build/target/snapshots/} for visual review. Opt-in, like the other TestFX tests.
  *
  * @since 2026.10
@@ -110,7 +112,7 @@ class RunningGamesDockSnapshotFxTest
             screen.setStyle( "-fx-padding: 24;" );
             screen.getStyleClass().add( "rootPane" );
             MCLauncherGuiWindow.installCurrentThemeStylesheets( screen );
-            Scene scene = new Scene( UiScale.wrap( screen ), 1000, 720 );
+            Scene scene = new Scene( UiScale.wrap( screen ), 1000, 1000 );
             stage.setScene( scene );
             stage.show();
             RunningGamesWindow.followScreen( scene );
@@ -120,6 +122,26 @@ class RunningGamesDockSnapshotFxTest
         ScaledRoot root = (ScaledRoot) stage.getScene().getRoot();
         assertNotNull( root.dock(), "the view docks into the screen's wrapper" );
         write( robot, stage.getScene(), "running-games-docked.png" );
+
+        // Drag the grip on the dock's top edge 100 px up: the dock grows and the height is saved.
+        double before = root.dock().getHeight();
+        Node grip = root.dock().lookup( ".runningGamesResizeGrip" );
+        assertNotNull( grip, "the expanded dock has a resize grip" );
+        assertTrue( grip.isVisible(), "the grip shows while the dock is expanded" );
+        drag( robot, grip, 400, 300 );
+        settle();
+        assertEquals( before + 100, root.dock().getHeight(), 2, "the dock follows the drag" );
+        int saved = ConfigManager.getRunningGamesDockHeight();
+        assertEquals( Math.round( ( before + 100 ) / 1000 * 1000 ), saved, 3, "the new height is saved" );
+        write( robot, stage.getScene(), "running-games-docked-resized.png" );
+
+        // A double-click puts it back to the default.
+        robot.interact( () -> {
+            grip.fireEvent( mouse( javafx.scene.input.MouseEvent.MOUSE_CLICKED, 400, 2 ) );
+        } );
+        settle();
+        assertEquals( ConfigConstants.RUNNING_GAMES_DOCK_HEIGHT_DEFAULT, ConfigManager.getRunningGamesDockHeight() );
+        assertEquals( before, root.dock().getHeight(), 2, "double-click resets the height" );
 
         RunningGamesWindow.hideUnlessPreparing();
         settle();
@@ -163,6 +185,27 @@ class RunningGamesDockSnapshotFxTest
         session.attachProcess( new FakeProcess() );
         assertTrue( GameSessionRegistry.get().tryRegister( session ).ok() );
         return session;
+    }
+
+    /** Drags a node from one screen y to another with synthetic events (robot clicks don't reach
+     *  windows on every desktop). */
+    private static void drag( FxRobot robot, Node node, double fromY, double toY )
+    {
+        robot.interact( () -> {
+            node.fireEvent( mouse( javafx.scene.input.MouseEvent.MOUSE_PRESSED, fromY, 1 ) );
+            node.fireEvent( mouse( javafx.scene.input.MouseEvent.MOUSE_DRAGGED, ( fromY + toY ) / 2, 1 ) );
+            node.fireEvent( mouse( javafx.scene.input.MouseEvent.MOUSE_DRAGGED, toY, 1 ) );
+            node.fireEvent( mouse( javafx.scene.input.MouseEvent.MOUSE_RELEASED, toY, 1 ) );
+        } );
+    }
+
+    private static javafx.scene.input.MouseEvent mouse( javafx.event.EventType< javafx.scene.input.MouseEvent > type,
+                                                         double screenY, int clicks )
+    {
+        return new javafx.scene.input.MouseEvent( type, 10, 4, 500, screenY,
+                                                  javafx.scene.input.MouseButton.PRIMARY, clicks,
+                                                  false, false, false, false, true, false, false,
+                                                  false, false, true, null );
     }
 
     /** Fires the header button whose accessible text is the given string's value. */
