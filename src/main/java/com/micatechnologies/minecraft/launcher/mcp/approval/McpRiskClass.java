@@ -17,6 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.mcp.approval;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
+
 /**
  * How much damage a tool can do, which decides what the launcher asks the user before running
  * it.
@@ -66,6 +68,24 @@ public enum McpRiskClass
     public McpApprovalPolicy getDefaultPolicy()
     {
         return defaultPolicy;
+    }
+
+    /**
+     * Returns a short label for this class in the launcher's UI language, as shown next to a
+     * tool in the Settings permission list.
+     *
+     * @return the localized label
+     *
+     * @since 2026.10
+     */
+    public String displayName()
+    {
+        return switch ( this ) {
+            case READ_ONLY -> LocalizationManager.get( "mcp.risk.readOnly" );
+            case MUTATING -> LocalizationManager.get( "mcp.risk.mutating" );
+            case DESTRUCTIVE -> LocalizationManager.get( "mcp.risk.destructive" );
+            case EXECUTE -> LocalizationManager.get( "mcp.risk.execute" );
+        };
     }
 
     /**

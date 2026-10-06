@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.mcp.tools;
 
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpRiskClass;
 
 /**
@@ -47,13 +48,47 @@ public interface McpTool
     String name();
 
     /**
-     * Returns a short human-readable title, shown in the Settings per-tool permission list.
+     * Returns a short English title, sent to MCP clients as the tool's protocol title.
+     * <p>
+     * What the user sees in the consent dialog and the Settings list is
+     * {@link #displayTitle()}, in the launcher's UI language.
      *
-     * @return the display title
+     * @return the protocol title
      *
      * @since 3.0
      */
     String title();
+
+    /**
+     * Returns the tool's title in the launcher's UI language, for the consent dialog and the
+     * Settings per-tool permission list.
+     * <p>
+     * Looks up {@code mcp.tool.<name>.title}, falling back to {@link #title()} for a tool with
+     * no translation.
+     *
+     * @return the localized title
+     *
+     * @since 2026.10
+     */
+    default String displayTitle()
+    {
+        return LocalizationManager.getOr( "mcp.tool." + name() + ".title", title() );
+    }
+
+    /**
+     * Returns what the tool does, in the launcher's UI language, for the consent dialog.
+     * <p>
+     * Looks up {@code mcp.tool.<name>.description}, falling back to {@link #description()}. The
+     * protocol description stays English: it is written for the model, which reads it.
+     *
+     * @return the localized description
+     *
+     * @since 2026.10
+     */
+    default String displayDescription()
+    {
+        return LocalizationManager.getOr( "mcp.tool." + name() + ".description", description() );
+    }
 
     /**
      * Returns the description shown to the model. This is what the model reasons over when

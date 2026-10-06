@@ -3060,8 +3060,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             javafx.scene.layout.HBox row = new javafx.scene.layout.HBox( 8 );
             row.setAlignment( javafx.geometry.Pos.CENTER_LEFT );
 
-            Label name = new Label( tool.title() + "  (" + tool.riskClass().name().toLowerCase( java.util.Locale.ROOT )
-                                            .replace( '_', ' ' ) + ")" );
+            Label name = new Label( LocalizationManager.format( "settings.mcp.tool.label", tool.title(),
+                                                                tool.riskClass().displayName() ) );
             name.setMinWidth( 240 );
 
             MFXComboBox< String > combo = new MFXComboBox<>();
