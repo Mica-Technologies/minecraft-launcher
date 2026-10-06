@@ -298,9 +298,9 @@ class GameModPackLauncher
         // isFailedLoad-only check and launched modless. Both states mean the same thing — we never
         // loaded this pack's real manifest, so we don't know what its mod set is.
         if ( pack.isFailedLoad() || pack.isStub() ) {
-            throw new ModpackException( LocalizationManager.format(
-                    pack.isFailedLoad() ? "launch.error.manifestNotLoaded" : "launch.error.manifestNotFullyLoaded",
-                    pack.getPackName() ) );
+            throw new ModpackException( pack.isFailedLoad()
+                    ? LocalizationManager.format( "launch.error.manifestNotLoaded", pack.getPackName() )
+                    : LocalizationManager.format( "launch.error.manifestNotFullyLoaded", pack.getPackName() ) );
         }
 
         if ( progressProvider != null ) {
