@@ -204,9 +204,11 @@ public final class LoaderInstallerRunner
         );
         pb.redirectErrorStream( false );
 
+        Process started = null;
         try {
             Logger.logStd( "LoaderInstallerRunner: running " + String.join( " ", pb.command() ) );
             Process proc = pb.start();
+            started = proc;
 
             // Read stderr in a background thread so the process can't
             // deadlock if it writes more than the OS pipe buffer.
@@ -283,6 +285,10 @@ public final class LoaderInstallerRunner
         }
         catch ( InterruptedException e ) {
             Thread.currentThread().interrupt();
+            // Cancelled: don't leave the installer JVM writing into .minecraft behind us.
+            if ( started != null && started.isAlive() ) {
+                started.destroyForcibly();
+            }
             return Result.failure( "Loader installer wait was interrupted." );
         }
     }

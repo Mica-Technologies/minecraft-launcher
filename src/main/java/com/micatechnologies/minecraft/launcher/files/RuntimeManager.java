@@ -299,6 +299,11 @@ public class RuntimeManager
             Logger.logStd( LocalizationManager.format( "log.runtimeManager.installing",
                                                        component, versionName, totalFiles ) );
 
+            // From here the folder's files change. Drop the version marker first, so a run that
+            // fails part-way leaves no marker and the folder isn't mistaken for a complete
+            // runtime (by the fallback below, or by the next launch).
+            java.nio.file.Files.deleteIfExists( versionFile.toPath() );
+
             // Process each file entry. Each "relativePath" is attacker-controllable in
             // principle (Mojang publishes the manifest, but defense-in-depth: a path
             // like "../../launcher/config.json" would escape the runtime folder). Treat
@@ -446,9 +451,10 @@ public class RuntimeManager
                 newJavaPath = findJavaExecutable( runtimeFolder );
                 newJavaVersion = versionName;
                 if ( newJavaPath == null ) {
-                    Logger.logError( LocalizationManager.get( "log.runtimeManager.javaExecNotFoundFallback" ) );
-                    newJavaPath = "java";
-                    newJavaVersion = "Unknown (System Java)";
+                    // No java in the runtime we just installed. Falling back to whatever "java" is
+                    // on PATH launched games on the wrong Java version; fail the step instead.
+                    throw new IllegalStateException(
+                            LocalizationManager.get( "log.runtimeManager.javaExecMissing" ) );
                 }
             }
         }
@@ -456,9 +462,18 @@ public class RuntimeManager
             Logger.logError( LocalizationManager.format( "log.runtimeManager.installFailed",
                                                          component, e.getMessage() ) );
             Logger.logThrowable( e );
-            // Try to use existing installation even if update check failed
+            // Use the existing runtime only when it is known to be whole: the version marker is
+            // written last on success and dropped before an install starts changing files, so it
+            // is there only if this attempt failed before touching anything (offline, say). A
+            // cancel is never papered over.
             File javaExec = new File( runtimeFolderPath, RuntimeConstants.getJavaExecPathForOs() );
-            if ( javaExec.exists() ) {
+            File marker = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
+            if ( Thread.currentThread().isInterrupted() || e instanceof java.io.InterruptedIOException
+                    || !marker.isFile() || !javaExec.exists() ) {
+                throw new IllegalStateException( LocalizationManager.format(
+                        "log.runtimeManager.installFailed", component, e.getMessage() ), e );
+            }
+            {
                 newJavaPath = javaExec.getAbsolutePath();
                 File versionFile = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
                 try {
@@ -468,10 +483,6 @@ public class RuntimeManager
                     newJavaVersion = "Unknown";
                 }
                 Logger.logStd( LocalizationManager.format( "log.runtimeManager.usingExisting", newJavaPath ) );
-            }
-            else {
-                newJavaPath = "java";
-                newJavaVersion = "Unknown (System Java)";
             }
         }
 
@@ -880,6 +891,9 @@ public class RuntimeManager
             // Extract
             reportProgress( progressWindow, progressCallback, label,
                             LocalizationManager.get( "runtime.status.extractingJre8" ), 75 );
+            // From here the old runtime is removed: drop the version marker first, so a failed
+            // extract leaves nothing that looks like a complete install.
+            java.nio.file.Files.deleteIfExists( versionFile.toPath() );
             if ( extractedFolder.exists() ) {
                 FileUtils.deleteDirectory( extractedFolder );
             }
@@ -935,8 +949,24 @@ public class RuntimeManager
             Logger.logError( LocalizationManager.format( "log.runtimeManager.jre8InstallFailed",
                                                          e.getMessage() ) );
             Logger.logThrowable( e );
-            newJavaPath = "java";
-            newJavaVersion = "Unknown (System Java)";
+            // As for the Mojang runtimes: keep a previous install only while its marker shows it
+            // is whole (the update failed before touching it). Otherwise fail the step rather than
+            // launch on whatever "java" is on PATH, which ran Java 8 packs on the wrong version.
+            File marker = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
+            String existing = marker.isFile() ? findJavaExecutable( runtimeFolder ) : null;
+            if ( existing == null || Thread.currentThread().isInterrupted()
+                    || e instanceof java.io.InterruptedIOException ) {
+                throw new IllegalStateException( LocalizationManager.format(
+                        "log.runtimeManager.jre8InstallFailed", e.getMessage() ), e );
+            }
+            newJavaPath = existing;
+            try {
+                newJavaVersion = org.apache.commons.io.FileUtils.readFileToString( marker, "UTF-8" ).trim();
+            }
+            catch ( IOException ignored ) {
+                newJavaVersion = "Unknown";
+            }
+            Logger.logStd( LocalizationManager.format( "log.runtimeManager.usingExisting", newJavaPath ) );
         }
 
         reportProgress( progressWindow, progressCallback, label,
