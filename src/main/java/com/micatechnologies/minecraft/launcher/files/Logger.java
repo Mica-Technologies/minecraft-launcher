@@ -210,13 +210,13 @@ public class Logger
                     fileBufferedOutputStream.flush();
                 }
                 catch ( IOException e ) {
-                    Logger.logError( "Unable to flush log stream to file!" );
+                    Logger.logError( LocalizationManager.get( "log.logger.flushFailed" ) );
                 }
             }, 5, 5, TimeUnit.SECONDS );
             scheduled = true;
         }
         catch ( Exception e ) {
-            Logger.logError( "Unable to schedule log stream flush!" );
+            Logger.logError( LocalizationManager.get( "log.logger.flushScheduleFailed" ) );
         }
 
         /*
@@ -249,7 +249,7 @@ public class Logger
                               : new PrintStream( new TeeOutputStream( console, fileOutputStream ) );
             sysErr = fileOnly ? new PrintStream( fileOutputStream )
                               : new PrintStream( new TeeOutputStream( consoleErr, fileOutputStream ) );
-            Logger.logErrorSilent( "Falling back to non-buffered log stream. Performance may be degraded!" );
+            Logger.logErrorSilent( LocalizationManager.get( "log.logger.unbufferedFallback" ) );
         }
 
         // Assign tee-d print streams
@@ -303,8 +303,7 @@ public class Logger
             com.micatechnologies.minecraft.launcher.utilities.FilePermissions.applyOwnerOnly( to );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Could not rotate log file " + from.getFileName()
-                                             + ": " + e.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.logger.rotateFailed", from.getFileName(), e.getClass().getSimpleName() ) );
         }
     }
 
@@ -569,9 +568,10 @@ public class Logger
             logWarningSilent( klass + ( msg == null ? "" : ": " + msg ) );
         }
         else {
-            logWarningSilent( prefix + " failed (" + klass
-                                      + ( msg == null ? "" : "): " + msg )
-                                      + ( msg == null ? ")" : "" ) );
+            logWarningSilent( msg == null
+                              ? LocalizationManager.format( "log.logger.operationFailed", prefix, klass )
+                              : LocalizationManager.format( "log.logger.operationFailedMessage", prefix, klass,
+                                                            msg ) );
         }
     }
 }

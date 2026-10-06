@@ -327,14 +327,12 @@ public class RuntimeManager
                 String type = JsonHelper.getRequiredString( fileEntry, "type" );
 
                 if ( isUnsafeRuntimeManifestEntryName( relativePath ) ) {
-                    Logger.logWarningSilent(
-                            "Skipping unsafe runtime manifest entry name: " + relativePath );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.runtimeManager.unsafeEntryName", relativePath ) );
                     continue;
                 }
                 java.nio.file.Path resolved = resolveWithinRuntimeBase( runtimeBase, relativePath );
                 if ( resolved == null ) {
-                    Logger.logWarningSilent(
-                            "Skipping runtime manifest entry that escapes base dir: " + relativePath );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.runtimeManager.entryEscapesBase", relativePath ) );
                     continue;
                 }
                 final File localFile = resolved.toFile();
@@ -366,9 +364,7 @@ public class RuntimeManager
                                 if ( !downloadVerified ) {
                                     //noinspection ResultOfMethodCallIgnored
                                     localFile.delete();
-                                    Logger.logWarningSilent(
-                                            "Runtime file failed hash verification (attempt " + attempt + " of " +
-                                                    maxAttempts + "): " + relativePathFinal );
+                                    Logger.logWarningSilent( LocalizationManager.format( "log.runtimeManager.hashRetry", attempt, maxAttempts, relativePathFinal ) );
                                 }
                             }
                             if ( !downloadVerified ) {
@@ -1271,8 +1267,7 @@ public class RuntimeManager
         if ( binFiles != null ) {
             for ( File f : binFiles ) {
                 if ( f.isFile() && !f.canExecute() && !f.setExecutable( true ) ) {
-                    Logger.logWarningSilent(
-                            "Failed to mark JRE binary executable: " + f.getAbsolutePath() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.runtimeManager.markExecutableFailed", f.getAbsolutePath() ) );
                 }
             }
         }
