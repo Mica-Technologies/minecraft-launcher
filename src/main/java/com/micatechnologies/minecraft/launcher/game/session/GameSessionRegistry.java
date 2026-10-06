@@ -156,6 +156,19 @@ public final class GameSessionRegistry
     }
 
     /**
+     * The game keyboard RGB and Discord presence follow: the running one that started last.
+     *
+     * @return that session, or {@code null} when no game is running (one still preparing does
+     *         not count)
+     *
+     * @since 2026.10
+     */
+    public synchronized GameSession newestRunning()
+    {
+        return RunningGameFollower.pick( sessions );
+    }
+
+    /**
      * The active session for a pack.
      *
      * @param packKey the pack's stable identity

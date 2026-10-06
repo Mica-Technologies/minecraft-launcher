@@ -76,6 +76,16 @@ public final class RgbIntegration
             try {
                 RgbController.getInstance().start(
                         RgbBackendRegistry.resolveBackendsFromConfig() );
+                // After an in-process restart a game may still be running: show its
+                // effect, as the running-game follower did before the restart, rather
+                // than the menu.
+                com.micatechnologies.minecraft.launcher.game.session.GameSession running =
+                        com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get()
+                                                                                           .newestRunning();
+                if ( running != null ) {
+                    onPlayStarted( running.pack() );
+                    return;
+                }
                 // Now that backends are up, paint the idle "menu" effect
                 // so devices don't sit dark on the main screen. No-op when
                 // the user has the menu effect toggle off in Settings —
@@ -96,13 +106,22 @@ public final class RgbIntegration
      * detail modal (use the pack's sampled colors for an immersive
      * "this is the modpack you're hovering" feel).
      *
-     * <p>No-op when RGB is master-disabled or when the menu-effect
-     * toggle is off in Settings; in the latter case devices stay dark
-     * between game launches.</p>
+     * <p>No-op when RGB is master-disabled or while a game is running
+     * (the devices show the game). When the menu-effect toggle is off in
+     * Settings, devices stay dark between game launches.</p>
+     *
+     * @param contextPack the pack in focus, or {@code null} for the generic menu
      */
     public static void onMenu( GameModPack contextPack )
     {
         if ( !ConfigManager.getRgbEnable() ) return;
+        // While a game runs the devices show it (see RunningGameFollower); browsing the
+        // launcher meanwhile — a pack's details, saving Settings — mustn't replace that with
+        // the menu effect, since nothing would put the game's effect back. Discord presence
+        // follows the same rule.
+        if ( com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().newestRunning() != null ) {
+            return;
+        }
         try {
             applyMenuEffect( contextPack );
         }
