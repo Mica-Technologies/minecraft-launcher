@@ -21,7 +21,8 @@ icon families on the same screen. Most icons are Material Symbols as published
 normalised from Material's 960-unit box to a 24 px box. A few categories get Minecraft-flavoured
 glyphs drawn here in the same language (filled shapes, softened corners, detail cut as gaps):
 a grass block for Game, a pickaxe for Advanced, a redstone torch for RGB lighting, and a blocky
-player head for Account.
+player head for Account. Security gets an outlined shield crossed by an S, after the badge Pixel
+phones use for Security & privacy (drawn here, not traced).
 
     python3 tools/launcher-icons/build_icons.py
 """
@@ -182,6 +183,47 @@ def player_head():
              rounded([(3.4, 21.6), (3.4, 19.6), (6.6, 16.4), (17.4, 16.4), (20.6, 19.6), (20.6, 21.6)], 2.2)]
     return ' '.join(parts)
 
+def shield_outline(inset=0.0):
+    """A shield's outline, inset by `inset`: a peaked top, flat shoulders, straight sides that
+    curve in to a point. Points run clockwise from the peak."""
+    top, sx, shoulder_y, side_end = 2.0 + inset, 19.9 - inset, 5.0 + inset * 0.45, 11.0
+    tip = (12.0, 22.0 - inset * 1.35)
+    right = [(12.0, top), (sx, shoulder_y), (sx, side_end)]
+    p0, c, p1 = (sx, side_end), (sx, 17.6 - inset * 0.6), tip
+    for k in range(1, 9):
+        t = k / 9
+        right.append(((1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * c[0] + t * t * p1[0],
+                      (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * c[1] + t * t * p1[1]))
+    right.append(tip)
+    return right + [(24 - x, y) for x, y in reversed(right[1:-1])]
+
+
+def stroke(p0, p1, p2, p3, width, samples=28):
+    """A band `width` wide along a cubic Bezier, with square ends, as a polygon."""
+    def at(t):
+        u = 1 - t
+        return (u ** 3 * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t ** 3 * p3[0],
+                u ** 3 * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t ** 3 * p3[1])
+
+    centre = [at(k / samples) for k in range(samples + 1)]
+    side_a, side_b = [], []
+    for k, (x, y) in enumerate(centre):
+        a, b = centre[max(k - 1, 0)], centre[min(k + 1, samples)]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        length = math.hypot(dx, dy)
+        nx, ny = -dy / length * width / 2, dx / length * width / 2
+        side_a.append((x + nx, y + ny))
+        side_b.append((x - nx, y - ny))
+    return side_a + side_b[::-1]
+
+
+def security_shield():
+    """An outlined shield crossed by an S that runs into the outline at both ends. The S overlaps
+    the outline's band where it meets it, and non-zero filling merges the two."""
+    ring = rounded(shield_outline(), 1.2) + ' ' + rounded(shield_outline(2.0), 0.8, hole=True)
+    s = rounded(stroke((5.1, 8.2), (15.6, 4.8), (8.6, 19.4), (18.2, 14.6), 1.9), 0.01)
+    return ring + ' ' + s
+
 # ---------------------------------------------------------------- the set
 
 def build():
@@ -193,7 +235,7 @@ def build():
         ('APPEARANCE', m('palette'), 'Appearance: Material Symbols "palette".'),
         ('ADVANCED', pickaxe(), 'Advanced: a pickaxe (custom).'),
         ('NETWORK', m('wifi'), 'Network: Material Symbols "wifi".'),
-        ('SECURITY', m('shield'), 'Security: Material Symbols "shield".'),
+        ('SECURITY', security_shield(), 'Security: an outlined shield crossed by an S (custom).'),
         ('SYSTEM', m('settings'), 'System: Material Symbols "settings".'),
         ('DISCORD', m('forum'), 'Discord: Material Symbols "forum".'),
         ('RGB', redstone_torch(), 'RGB lighting: a redstone torch (custom).'),
@@ -233,8 +275,9 @@ def build():
             ' *',
             ' * <p>Following Mica\'s design guidelines, they are Google\'s Material Symbols, Rounded and filled',
             ' * (Apache 2.0), with a few Minecraft-flavoured glyphs drawn in the same language: a grass block,',
-            ' * a pickaxe, a redstone torch and a blocky player head. Use these rather than icons from any',
-            ' * other family. Draw them with an {@code SVGPath}, scaled from 24 px to the size you need.',
+            ' * a pickaxe, a redstone torch, a blocky player head and a security shield. Use these rather',
+            ' * than icons from any other family. Draw them with an {@code SVGPath}, scaled from 24 px to the',
+            ' * size you need.',
             ' *',
             ' * @since 2026.10',
             ' */',
