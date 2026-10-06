@@ -1,0 +1,109 @@
+<h1>Bläddra</h1>
+
+<p>Skärmen Bläddra är där du installerar och hanterar. Härifrån kan du installera nya modpaket
+från det offentliga manifestet, installera rena vanilla-versioner av Minecraft, installera tomma startpaket för Forge / NeoForge /
+Fabric, redigera paket du redan har och avinstallera sådant du inte längre vill ha.</p>
+
+<h2>Kort &amp; filterfältet</h2>
+
+<p>Varje post visas som ett stort kort med logotyp, märke, namn, etiketter (modladdare / Minecraft-version),
+en statusrad och åtgärdsknappar. Filterfältet högst upp används för att begränsa visningen.</p>
+
+<ul>
+    <li><strong>Sök</strong> – fritextsökning mot korttitlarna. Uppdateras medan du skriver
+        (med en kort fördröjning så att layouten inte ritas om hela tiden).</li>
+    <li><strong>Typ</strong> – Alla, Modpaket eller någon av versionskatalogerna:
+        Vanilla (Utgåvor / Snapshots / Old Beta / Old Alpha) och versioner av Forge / NeoForge / Fabric.
+        Filtren för modladdarversioner ingår avsiktligt <em>inte</em> i ”Alla” – den sammanslagna listan
+        skulle bli tusentals poster och är inte vad en ”visa allt”-sökning är ute efter.</li>
+    <li><strong>Status</strong> – Alla, Installerad eller Tillgänglig. ”Tillgänglig” visar sådant du
+        inte har installerat än; ”Installerad” visar det som redan finns på disken.</li>
+    <li><strong>Sortera</strong> – Standard, Namn (A–Z / Z–A), Utgivningsdatum, Senast spelade, Mest spelade,
+        Nyligen uppdaterade. Sorteringar som bygger på spel- eller uppdateringshistorik (Senast spelade, Mest spelade,
+        Nyligen uppdaterade) placerar poster som inte är modpaket längst ned i stället för att blanda in dem
+        på ett förvirrande sätt.</li>
+</ul>
+
+<h2>Installerade modpaket</h2>
+
+<p>Kort för paket som redan finns på disken visar två knappar:</p>
+
+<ul>
+    <li><strong>Avinstallera</strong> – frågar om installationsmappen också ska tas bort. ”Avinstallera
+        (behåll filer)” behåller dina världar, konfigurationer och mods även om startprogrammet inte längre känner
+        till paketet – praktiskt om du tänker installera samma paket igen senare.</li>
+    <li><strong>Redigera</strong> – öppnar <a href="help://topic/MODPACK_EDITOR">Modpaketredigerare</a>
+        med paketets lokala manifest. Ändringarna skrivs till disk och gäller från nästa start.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Tips</div>
+    <p>Högerklicka på ett installerat modpakets kort för att få samma snabbmeny som i huvudmenyn:
+    öppna paketmappen, öppna mods-mappen, skapa en skrivbordsgenväg, visa spelstatistik och
+    avinstallera.</p>
+</div>
+
+<h2>Tillgängliga modpaket</h2>
+
+<p>Kort från det offentliga manifestet som du ännu inte har visar knappen <strong>Installera</strong>.
+När du klickar på den hämtas manifestet, modpaketet installeras och kortet flyttas till gruppen
+Installerad vid nästa uppdatering av vyn. Du kan fortsätta använda filtren medan en installation pågår –
+kortet som installeras ligger kvar högst upp i rutnätet tills installationen är klar.</p>
+
+<h2>Vanilla-versioner</h2>
+
+<p>Mojangs fullständiga katalog med utgåvor / snapshots / betor / alfor. Varje kort installerar exakt den
+Minecraft-versionen som ett syntetiskt tomt modpaket som du kan spela direkt från huvudmenyn. Gamla
+betor och alfor går också att köra – startprogrammet hämtar automatiskt rätt Java-körmiljö för varje
+version.</p>
+
+<h2>Versioner av Forge / NeoForge / Fabric</h2>
+
+<p>Filtren för modladdarversioner visar varje version som respektive projekts versionstjänst publicerar:
+Forge-promotions, NeoForges Maven-metadata och Fabrics meta-API. Om du klickar på Installera för någon av
+dessa skrivs ett syntetiskt manifest för ett ”tomt modpaket” till din konfigurationsmapp och registreras i
+startprogrammet – så resultatet fungerar som vilket annat installerat modpaket som helst:</p>
+
+<ul>
+    <li>det visas bland huvudmenyns stora kort;</li>
+    <li>det kan redigeras i Modpaketredigerare (så att du kan lägga till mods ovanpå och bygga ditt eget paket);</li>
+    <li>det kan avinstalleras som vilket annat paket som helst;</li>
+    <li>det använder samma mekanism för automatiska uppdateringar som ett vanligt modpaket.</li>
+</ul>
+
+<div class="note">
+    <div class="callout-title">Obs</div>
+    <p>Korten visar respektive projekts officiella logotyp när startprogrammet har den sparad lokalt. Vid
+    första besöket i ett modladdarfilter visas en platshållare i varumärkets färg medan de riktiga logotyperna
+    laddas ner i bakgrunden – när de väl är sparade går senare besök direkt.</p>
+</div>
+
+<h2>Lägg till via URL</h2>
+
+<p>Knappen <strong>Lägg till från URL</strong> i nedre fältet tar en direkt URL till ett publicerat
+<code>installable.json</code>-manifest och installerar det på samma sätt som korten för tillgängliga paket.
+Använd den för modpaket som distribueras utanför det offentliga manifestet – klistra in länken, klicka på knappen,
+så hämtas och valideras manifestets metadata innan installationen börjar.</p>
+
+<h2>Modpaketredigerare</h2>
+
+<p>Knappen <strong>Modpaketredigerare</strong> i nedre fältet öppnar
+<a href="help://topic/MODPACK_EDITOR">Modpaketredigerare</a> med ett tomt manifest så att du kan bygga
+ett nytt paket från grunden – ange modladdare (Forge / NeoForge / Fabric / vanilla), Minecraft-version,
+modlista osv. Redigeraren kan också öppnas för ett befintligt paket via knappen <strong>Redigera</strong>
+på dess kort.</p>
+
+<h2>Generera manifest för webbhotell</h2>
+
+<p>Knappen <strong>Generera manifest för webbhotell</strong> i nedre fältet skapar en
+<code>installable.json</code> för det modpaket som för närvarande är öppet i redigeraren, redo att publiceras på valfri webbserver
+eller fildelningstjänst. Alla som har den resulterande URL:en kan installera ditt paket via Lägg till från
+URL.</p>
+
+<h2>Sidindelning</h2>
+
+<p>Långa listor delas upp i sidor. Använd knapparna <strong>Föreg</strong> / <strong>Nästa</strong> i
+sidfältet (ovanför korten) för att växla mellan sidor och listrutan <strong>Per sida</strong>
+för att ange sidstorleken – 24, 48, 72 eller 96. Standardvärdet 48 räcker för ett typiskt installerat
+bibliotek på en sida; med 96 går det att bläddra igenom modladdarfiltren på en enda
+sida.</p>

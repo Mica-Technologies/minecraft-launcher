@@ -1,0 +1,91 @@
+<h1>Inställningar</h1>
+
+<p>På inställningsskärmen kan du anpassa minnestilldelning, utseende, JVM-beteende, nätverks-
+konfiguration med mera. Ändringar sparas automatiskt.</p>
+
+<h2>Spelminne</h2>
+
+<table class="settings-table">
+    <tr><td>Minsta RAM</td><td>Den initiala heapstorleken som tilldelas spelets JVM. Låt normalt standardvärdet (512 MB) stå kvar om inte ett modpaket anger något annat.</td></tr>
+    <tr><td>Högsta RAM</td><td>Spelets övre minnesgräns. De flesta modpaket fungerar bäst med <strong>4–8 GB</strong>. Om du tilldelar mer än systemet kan avvara kan det leda till instabilitet.</td></tr>
+</table>
+
+<div class="tip">
+    <div class="callout-title">Tips</div>
+    <p>En bra tumregel: ställ in högsta RAM på högst hälften av systemets totala minne.
+    På en dator med 16 GB är till exempel 6–8 GB en rimlig övre gräns.</p>
+</div>
+
+<h2>Tema</h2>
+
+<table class="settings-table">
+    <tr><td>Automatic</td><td>Följer operativsystemets inställning för ljust/mörkt läge.</td></tr>
+    <tr><td>Dark</td><td>Mörk bakgrund med ljus text – skonsamt för ögonen.</td></tr>
+    <tr><td>Light</td><td>Klassisk ljus bakgrund med mörk text.</td></tr>
+    <tr><td>Blue + Gray</td><td>Ett accenttema i svala toner.</td></tr>
+    <tr><td>Orange + Purple</td><td>Ett accenttema i varma toner.</td></tr>
+</table>
+
+<h2>Avancerat</h2>
+
+<table class="settings-table">
+    <tr><td>Felsökningsläge</td><td>Aktiverar utförlig loggning i startprogrammets konsol för att felsöka problem.</td></tr>
+    <tr><td>Ändra fönsterstorlek</td><td>Gör att startprogrammets fönster fritt kan ändras i storlek utöver standardmåtten.</td></tr>
+    <tr><td>Discord-integrering</td><td>Visar ditt aktuella modpaket som Discord Rich Presence-status.</td></tr>
+    <tr><td>Förbättrad loggning</td><td>Skriver detaljerade loggfiler till disk för analys efter sessionen.</td></tr>
+    <tr><td>Spelkonsol</td><td>Öppnar ett fönster med <a href="help://topic/GAME_CONSOLE">Spelkonsol</a> bredvid Minecraft för att visa utdata i realtid.</td></tr>
+</table>
+
+<h2>JVM-förinställningar</h2>
+
+<p>Färdiga uppsättningar JVM-flaggor som läggs till i spelets startkommando. Se
+<a href="help://topic/JVM_PRESETS">JVM-förinställningar</a> för en utförligare förklaring av vad varje förinställning
+gör, vilka anpassade flaggor du kan vilja lägga till och hur valet av förinställning samverkar med RAM-
+tilldelningen.</p>
+
+<table class="settings-table">
+    <tr><td>Performance (Aikar's Flags)</td><td><strong>Rekommenderas.</strong> Optimerade flaggor för skräpinsamling som används flitigt i Minecraft-communityn. Bäst prestanda totalt sett för de flesta modpaket.</td></tr>
+    <tr><td>Low Memory</td><td>Försiktiga flaggor för system med begränsat RAM. Minskar GC-belastningen på bekostnad av en del genomströmning.</td></tr>
+    <tr><td>Debug</td><td>Aktiverar felsökningsutdata från JVM:en, inklusive GC-loggar. Användbart för att felsöka krascher eller prestandaproblem.</td></tr>
+    <tr><td>None</td><td>Inga extra flaggor – använder JVM:ens standardvärden. Använd bara detta om du vet vad du gör eller om ett modpaket kräver det.</td></tr>
+</table>
+
+<h2>Nätverk / Proxy</h2>
+
+<p>Konfigurera en proxy om ditt nätverk kräver det (vanligt i företags- eller skolnätverk).</p>
+
+<table class="settings-table">
+    <tr><td>HTTP-proxy</td><td>Vanlig webbproxy. Ange värd och port som du har fått av din nätverksadministratör.</td></tr>
+    <tr><td>SOCKS-proxy</td><td>Proxyprotokoll på lägre nivå. Använd detta om ditt nätverk uttryckligen kräver SOCKS.</td></tr>
+</table>
+
+<div class="note">
+    <div class="callout-title">Obs</div>
+    <p>De flesta användare kan lämna proxyinställningarna tomma. Konfigurera dem bara om nedladdningar eller
+    autentisering misslyckas i ett begränsat nätverk.</p>
+</div>
+
+<h2>Skanning efter skadlig kod</h2>
+
+<p>Startprogrammet har en inbyggd skanner som kontrollerar nedladdade JAR-filer efter signaturer för
+<strong>fractureiser</strong> – skadlig kod riktad mot Minecraft som spreds via komprometterade mods under 2023.
+Skanningen körs automatiskt före varje spelstart.</p>
+
+<h2>Återställning och körmiljöer</h2>
+
+<table class="settings-table">
+    <tr><td>Återställ startprogrammet</td><td>Återställer alla inställningar till standardvärden och rensar cachelagrade data. <strong>Detta kan inte ångras.</strong></td></tr>
+    <tr><td>Hantera körmiljöer</td><td>Öppnar skärmen <a href="help://topic/RUNTIME_MANAGEMENT">Hantera körmiljöer</a> där du kan visa, verifiera eller ta bort installerade Java-körmiljöer.</td></tr>
+</table>
+
+<div class="warning">
+    <div class="callout-title">Varning</div>
+    <p>Om du återställer startprogrammet tas alla inställningar, sparade token och modpaketens tillstånd bort.
+    Modpaketens filer på disken bevaras, men du måste lägga till dem igen.</p>
+</div>
+
+<h2>Importera / exportera inställningar</h2>
+
+<p>Använd <strong>Exportera inställningar</strong> för att spara din aktuella konfiguration till en fil och <strong>Importera inställningar</strong> för att
+läsa in en tidigare sparad konfiguration. Det är praktiskt för att dela inställningar mellan datorer
+eller återställa en fungerande konfiguration efter en återställning.</p>

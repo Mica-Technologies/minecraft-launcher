@@ -1,0 +1,122 @@
+<h1>Språk och lokalisering</h1>
+
+<p>Mica Minecraft Launcher visar sitt gränssnitt på 17 språk och väljer
+rätt språk automatiskt vid första starten. Du kan också åsidosätta det
+identifierade språket när som helst i Inställningar.</p>
+
+<h2>Så väljer startprogrammet språk</h2>
+
+<p>Varje gång du startar startprogrammet bestäms det aktiva språket i den här
+ordningen:</p>
+
+<ol class="steps">
+    <li><strong>Ditt sparade val</strong>, om du har angett ett under
+        <a href="help://topic/SETTINGS">Inställningar</a> &rarr; Utseende &rarr;
+        Språk. Det vinner alltid.</li>
+    <li><strong>Operativsystemets språk</strong>, som identifieras via JVM:ens
+        standardlokal. På Windows är det din inställning för Region / Språk;
+        på macOS är det Systeminställningar &rarr; Språk och region;
+        på Linux är det miljövariablerna <code>LANG</code> / <code>LC_*</code>.</li>
+    <li><strong>Engelska (USA)</strong> som reserv om
+        plattformen rapporterar en lokal utan språk (t.ex. <code>POSIX</code> eller
+        <code>C</code>), eller om ditt systemspråk inte är något av de 17 som
+        vi levererar översättningar för.</li>
+</ol>
+
+<div class="tip">
+    <div class="callout-title">Språkbytet gäller efter omstart</div>
+    <p>När du ändrar valet i Inställningar uppdateras inställningen direkt,
+    men skärmar som redan visas fortsätter att använda det tidigare språket
+    tills startprogrammet startas om. Inställningssidan påminner dig om
+    detta när du ändrar listrutan.</p>
+</div>
+
+<h2>Välja språk manuellt</h2>
+
+<ol class="steps">
+    <li>Öppna <a href="help://topic/SETTINGS">Inställningar</a> från navigeringsfältet
+        (eller tryck på <kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Cmd</kbd>+<kbd>,</kbd>).</li>
+    <li>Gå till fliken <strong>Utseende</strong>.</li>
+    <li>Välj ett språk i listrutan <strong>Språk</strong>. Det
+        första alternativet (”Använd operativsystemets språk”) återställer den automatiska identifiering
+        som beskrivs ovan och visar inom parentes vilket språk operativsystemet
+        skulle ge.</li>
+    <li>Klicka på <strong>Spara</strong>. Starta om startprogrammet för att se det nya
+        språket på alla skärmar.</li>
+</ol>
+
+<h2>Språk som stöds</h2>
+
+<p>Startprogrammet levereras med översättningar till världens 17 mest talade
+språk plus engelska:</p>
+
+<ul>
+    <li>Arabiska (&#1593;&#1585;&#1576;&#1610;)</li>
+    <li>Kinesiska, förenklad (&#31616;&#20307;&#20013;&#25991;)</li>
+    <li>Kinesiska, traditionell (&#32321;&#39636;&#20013;&#25991;)</li>
+    <li>Nederländska (Nederlands)</li>
+    <li>Engelska (källspråk)</li>
+    <li>Franska (Fran&ccedil;ais)</li>
+    <li>Tyska (Deutsch)</li>
+    <li>Hindi (&#2361;&#2367;&#2306;&#2342;&#2368;)</li>
+    <li>Italienska (Italiano)</li>
+    <li>Japanska (&#26085;&#26412;&#35486;)</li>
+    <li>Koreanska (&#54620;&#44397;&#50612;)</li>
+    <li>Polska (Polski)</li>
+    <li>Portugisiska, brasiliansk (Portugu&ecirc;s do Brasil)</li>
+    <li>Ryska (&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;)</li>
+    <li>Spanska (Espa&ntilde;ol)</li>
+    <li>Svenska (Svenska)</li>
+    <li>Turkiska (T&uuml;rk&ccedil;e)</li>
+</ul>
+
+<p>Varje språk identifieras med sin BCP-47-tagg (t.ex. <code>fr-FR</code>,
+<code>pt-BR</code>, <code>zh-CN</code>). Listan finns i
+<code>SupportedLocales.ENTRIES</code> i startprogrammets källkod;
+egenskapsfilerna ligger bredvid som <code>DisplayStrings_&lt;tag&gt;.properties</code>
+under <code>src/main/resources/lang/</code>.</p>
+
+<h2>Översättningskvalitet &amp; rapportera problem</h2>
+
+<p>Översättningar till andra språk än engelska genereras av ett skript
+som anropar Google Translate med det engelska källpaketet och sedan
+efterbearbetar parameterplatshållare så att till exempel <code>{0}</code>
+överlever översättningen oförändrade. Resultatet är bra men inte perfekt &mdash;
+framför allt kan korta gränssnittsetiketter (knappar med ett ord, enstaka substantiv) ibland
+förlora sammanhang som de hade på engelska.</p>
+
+<p>Om du hittar en dålig översättning är det bästa att öppna ett ärende på
+GitHub med nyckelns namn (t.ex. <code>browse.filter.type.label</code>),
+din lokal, den nuvarande texten och ett förslag på rättelse.
+Handredigerade rättelser finns kvar efter nästa generering eftersom
+skriptet som standard bara fyller i nycklar som saknas.</p>
+
+<h2>Lägga till ett nytt språk</h2>
+
+<p>Om ditt språk inte finns i listan ovan och du vill bidra med
+en översättning går det till så här:</p>
+
+<ol>
+    <li>Lägg till en ny post i <code>SupportedLocales.ENTRIES</code>
+        (Java) och <code>TARGET_LOCALES</code> i
+        <code>tools/i18n/translate-locales.js</code> (Node).</li>
+    <li>Kör <code>cd tools/i18n &amp;&amp; npm run translate</code> &mdash;
+        skriptet genererar den första <code>DisplayStrings_&lt;tag&gt;.properties</code>
+        från den engelska källan.</li>
+    <li>Granska den genererade filen, rätta för hand allt som låter
+        konstigt och öppna sedan en pull request.</li>
+</ol>
+
+<p>Skriptet <code>tools/i18n/translate-locales.js</code> är inkrementellt:
+när det körs igen översätts bara nycklar som inte redan finns i
+målfilen, så handgjorda rättelser bevaras vid varje senare
+uppdatering av startprogrammet.</p>
+
+<h2>Se även</h2>
+
+<ul>
+    <li><a href="help://topic/SETTINGS">Inställningar</a> &mdash; där
+        språklistrutan finns</li>
+    <li><a href="help://topic/GETTING_STARTED">Kom igång</a> &mdash;
+        den allmänna introduktionen</li>
+</ul>

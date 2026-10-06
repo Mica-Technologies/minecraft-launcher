@@ -1,0 +1,43 @@
+<h1>Inloggning</h1>
+
+<p>Mica Minecraft Launcher använder <strong>Microsofts officiella autentisering</strong> för att verifiera ditt
+Minecraft-konto. Det är samma inloggningsflöde som den officiella Minecraft-startaren använder.</p>
+
+<h2>Så fungerar det</h2>
+
+<ol class="steps">
+    <li>Klicka på <strong>Logga in</strong> på inloggningsskärmen. Ett webbläsarfönster öppnas med Microsofts inloggningssida.</li>
+    <li>Ange uppgifterna för ditt Microsoft-konto och godkänn inloggningen.</li>
+    <li>När du har autentiserats stängs webbläsarfönstret och startprogrammet går vidare till
+        <a href="help://topic/MAIN_SCREEN">Huvudskärm</a>.</li>
+</ol>
+
+<h2>Cachelagring av token</h2>
+
+<p>Efter en lyckad inloggning sparas din autentiseringstoken lokalt med
+<strong>AES-256-GCM-kryptering</strong> och en nyckel som härleds från datorn. Det innebär att:</p>
+
+<ul>
+    <li>Du behöver inte logga in igen på ungefär <strong>4 timmar</strong>.</li>
+    <li>Den sparade token är krypterad och knuten till just din dator – den kan inte flyttas eller återanvändas någon annanstans.</li>
+    <li>När cachen har gått ut ber startprogrammet dig att logga in igen.</li>
+</ul>
+
+<h2>Felsöka inloggningsproblem</h2>
+
+<div class="warning">
+    <div class="callout-title">Internetanslutning krävs</div>
+    <p>En aktiv internetanslutning krävs för den första inloggningen. Startprogrammet kan inte
+    autentisera i helt frånkopplat läge.</p>
+</div>
+
+<p>Om du har problem med att logga in:</p>
+
+<ul>
+    <li><strong>Webbläsaren öppnas inte</strong> – kontrollera att en standardwebbläsare är inställd i systemet.</li>
+    <li><strong>Inloggningen tar för lång tid</strong> – kontrollera internetanslutningen och försök igen.</li>
+    <li><strong>Kontot känns inte igen</strong> – se till att du använder det Microsoft-konto som äger Minecraft.</li>
+    <li><strong>Upprepade inloggningsuppmaningar</strong> – den sparade token kan ha gått ut. Det är normalt efter 4 timmars inaktivitet.</li>
+</ul>
+
+<p>Vid bestående problem, se <a href="help://topic/TROUBLESHOOTING">Felsökning</a>.</p>
