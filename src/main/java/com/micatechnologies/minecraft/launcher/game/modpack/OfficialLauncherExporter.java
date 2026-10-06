@@ -416,7 +416,7 @@ public final class OfficialLauncherExporter
         if ( pack.isVanillaVersion() ) {
             String mc = pack.getMinecraftVersion();
             if ( mc == null || mc.isBlank() ) {
-                throw new ModpackException( "Vanilla pack has no MC version." );
+                throw new ModpackException( LocalizationManager.get( "officialExport.error.noMcVersion" ) );
             }
             return mc;
         }
@@ -557,7 +557,7 @@ public final class OfficialLauncherExporter
     {
         String packRoot = pack.getPackRootFolder();
         if ( packRoot == null ) {
-            throw new IOException( "Pack has no install folder; install it before exporting." );
+            throw new IOException( LocalizationManager.get( "officialExport.error.notInstalled" ) );
         }
         Path packPath = Paths.get( packRoot );
 
