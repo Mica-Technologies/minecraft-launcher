@@ -147,6 +147,33 @@ public class MCLauncherGuiController
     }
 
     /**
+     * Asks before restarting the launcher in-process while games are launching or running. The
+     * games and their logs carry on, but the restart closes the Running Games window until the
+     * launcher is back, and a game still preparing may be interrupted. The dialog's wording is
+     * for signing out of the last account, the only in-process restart a user can trigger.
+     *
+     * <p>Must be called off the FX thread: it shows a blocking dialog.</p>
+     *
+     * @return {@code true} to go ahead with the restart; {@code false} to cancel it
+     *
+     * @since 2026.10
+     */
+    public static boolean confirmRestartWhileGamesRun() {
+        var active = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().active();
+        if ( active.isEmpty() ) {
+            return true;
+        }
+        int answer = GUIUtilities.showQuestionMessage(
+                LocalizationManager.get( "session.restart.title" ),
+                LocalizationManager.format( "session.restart.header", active.size() ),
+                LocalizationManager.get( "session.restart.body" ),
+                LocalizationManager.get( "session.restart.confirm" ),
+                LocalizationManager.get( "dialog.button.cancel" ),
+                getTopStageOrNull() );
+        return answer == 1;
+    }
+
+    /**
      * Quits the launcher after {@link #confirmQuitWhileGamesRun()}. Safe from any thread.
      *
      * @since 2026.10

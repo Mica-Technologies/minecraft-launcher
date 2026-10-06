@@ -246,6 +246,11 @@ class LauncherSession
             Logger.logDebug( LocalizationManager.get( "log.launcherSession.devModeNotice" ) );
         }
 
+        // After an in-process restart (signing out the last account, for one) games may still
+        // be running: reopen their tabs and re-push their presence and keyboard effect. Done
+        // before login, which can wait on the user, so the games stay reachable meanwhile.
+        LauncherCore.restoreRunningGamesAfterRestart();
+
         // If client, do login
         if ( GameModeManager.getCurrentGameMode() == GameMode.CLIENT ) {
             Logger.logDebug( LocalizationManager.LAUNCHER_CLIENT_MODE_STARTING_LOGIN_TEXT );

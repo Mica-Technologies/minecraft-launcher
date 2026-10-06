@@ -938,6 +938,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // respawn). Shown only while a language change is pending (see
         // refreshSaveAndRestartButton).
         saveAndRestartBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
+            // A relaunch ends this process, which is quitting as far as running games are
+            // concerned (their logs stop being saved), so it asks the same question.
+            if ( !MCLauncherGuiController.confirmQuitWhileGamesRun() ) {
+                return;
+            }
             persistSettings();
             LauncherCore.relaunchApp();
         } ) );
@@ -1881,9 +1886,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             if ( response != 1 ) {
                 return;
             }
+            // Signing out the last account restarts the launcher; ask first while games run,
+            // before anything is removed, so Cancel leaves everything as it was.
+            boolean lastAccount = MCLauncherAuthManager.accounts().accounts().size() <= 1;
+            if ( lastAccount && !MCLauncherGuiController.confirmRestartWhileGamesRun() ) {
+                return;
+            }
             MCLauncherAuthManager.accounts().remove( uuid );
             if ( MCLauncherAuthManager.accounts().accounts().isEmpty() ) {
-                GUIUtilities.JFXPlatformRun( LauncherCore::restartApp );
+                // restartApp moves off this background worker itself.
+                LauncherCore.restartApp();
             }
         } );
     }
