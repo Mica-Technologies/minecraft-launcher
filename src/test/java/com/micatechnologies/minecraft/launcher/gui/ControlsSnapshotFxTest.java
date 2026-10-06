@@ -106,10 +106,11 @@ class ControlsSnapshotFxTest
             AtomicReference< WritableImage > popup = new AtomicReference<>();
             robot.interact( () -> {
                 main.set( stage.getScene().snapshot( null ) );
+                // The open combo's menu: the showing popup whose content is MaterialFX's .combo-popup.
                 for ( Window window : Window.getWindows() ) {
-                    if ( window != stage && window.isShowing() && window.getScene() != null ) {
+                    if ( window != stage && window.isShowing() && window.getScene() != null
+                         && window.getScene().getRoot().lookup( ".combo-popup" ) != null ) {
                         popup.set( window.getScene().snapshot( null ) );
-                        System.out.println( "FILL " + window.getScene().getFill() );
                     }
                 }
             } );
