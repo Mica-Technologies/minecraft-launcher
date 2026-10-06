@@ -2650,21 +2650,45 @@
 .stat-chip.sessionStatusChip.sessionStatus-crashed,
 .stat-chip.sessionStatusChip.sessionStatus-failed    { -fx-background-color: -md-error-container; -fx-text-fill: -md-on-error-container; }
 
-.text-area.sessionLog {
+/* The game log (SessionLogView): a virtualized list, one row per line, that looks like a
+ * monospace text area. Rows are flat (no list-cell pill), as tall as their wrapped text, and
+ * the search's current match sits on the active-indicator highlight. Selected rows (for
+ * copying) take the secondary container. */
+.list-view.sessionLog,
+.list-view.sessionLog:focused {
     -fx-background-color: -md-surface-container-lowest;
     -fx-background-radius: 16;
+    -fx-background-insets: 0;
     -fx-border-width: 0;
-    -fx-padding: 8 4 8 8;
-    -fx-text-fill: -md-on-surface;
-    -fx-highlight-fill: -md-active-indicator;
-    -fx-highlight-text-fill: -md-on-active-indicator;
+    -fx-padding: 10 4 10 8;
 }
-.text-area.sessionLog:focused { -fx-background-color: -md-surface-container-lowest; -fx-border-width: 0; }
-.text-area.sessionLog .content {
+.list-view.sessionLog .virtual-flow .clipped-container .sheet .list-cell,
+.list-view.sessionLog .virtual-flow .clipped-container .sheet .list-cell:hover,
+.list-view.sessionLog .virtual-flow .clipped-container .sheet .list-cell:focused,
+.list-view.sessionLog .virtual-flow .clipped-container .sheet .list-cell:odd,
+.list-view.sessionLog .virtual-flow .clipped-container .sheet .list-cell:empty {
     -fx-background-color: transparent;
-    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-background-insets: 0;
+    -fx-padding: 1 10 0 10;
 }
-.text-area.sessionLog .scroll-pane { -fx-background-color: transparent; }
+.list-view.sessionLog .virtual-flow .clipped-container .sheet .list-cell:selected,
+.list-view.sessionLog .virtual-flow .clipped-container .sheet .list-cell:selected:hover,
+.list-view.sessionLog .virtual-flow .clipped-container .sheet .list-cell:selected:focused {
+    -fx-background-color: -md-secondary-container;
+    -fx-background-radius: 4;
+}
+.list-view.sessionLog .list-cell .sessionLogText {
+    -fx-fill: -md-on-surface;
+    -fx-font-family: "JetBrains Mono", "Consolas", "Menlo", monospace;
+    -fx-font-size: 12px;
+}
+.list-view.sessionLog .list-cell:selected .sessionLogText { -fx-fill: -md-on-secondary-container; }
+.list-view.sessionLog .list-cell:filled .sessionLogText.sessionLogMatch { -fx-fill: -md-on-active-indicator; }
+.list-view.sessionLog .list-cell .sessionLogHighlight {
+    -fx-fill: -md-active-indicator;
+    -fx-stroke: transparent;
+}
 
 /* The launch steps while a game is preparing, on a tonal card like the header. */
 .sessionSteps {
