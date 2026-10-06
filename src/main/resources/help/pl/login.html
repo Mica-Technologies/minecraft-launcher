@@ -1,0 +1,43 @@
+<h1>Logowanie</h1>
+
+<p>Mica Minecraft Launcher korzysta z <strong>oficjalnego uwierzytelniania Microsoft</strong>, aby zweryfikować Twoje
+konto Minecraft. To ten sam proces logowania, którego używa oficjalny launcher Minecrafta.</p>
+
+<h2>Jak to działa</h2>
+
+<ol class="steps">
+    <li>Kliknij <strong>Zaloguj się</strong> na ekranie logowania. Otworzy się okno przeglądarki ze stroną logowania Microsoft.</li>
+    <li>Wprowadź dane logowania do konta Microsoft i zatwierdź logowanie.</li>
+    <li>Po uwierzytelnieniu okno przeglądarki zamknie się, a launcher przejdzie do
+        <a href="help://topic/MAIN_SCREEN">Ekranu głównego</a>.</li>
+</ol>
+
+<h2>Przechowywanie tokenu</h2>
+
+<p>Po udanym zalogowaniu Twój token uwierzytelniający jest przechowywany lokalnie z użyciem
+<strong>szyfrowania AES-256-GCM</strong> i klucza wyprowadzonego z danych komputera. Oznacza to, że:</p>
+
+<ul>
+    <li>Nie będziesz musiał logować się ponownie przez około <strong>4 godziny</strong>.</li>
+    <li>Zapisany token jest zaszyfrowany i powiązany z Twoim komputerem — nie można go przenieść ani użyć gdzie indziej.</li>
+    <li>Po wygaśnięciu tokenu launcher poprosi Cię o ponowne zalogowanie.</li>
+</ul>
+
+<h2>Rozwiązywanie problemów z logowaniem</h2>
+
+<div class="warning">
+    <div class="callout-title">Wymagany dostęp do internetu</div>
+    <p>Pierwsze logowanie wymaga aktywnego połączenia z internetem. Launcher nie może
+    przeprowadzić uwierzytelnienia w trybie całkowicie offline.</p>
+</div>
+
+<p>Jeśli masz problemy z zalogowaniem się:</p>
+
+<ul>
+    <li><strong>Przeglądarka się nie otwiera</strong> — sprawdź, czy w systemie jest ustawiona domyślna przeglądarka.</li>
+    <li><strong>Upływa limit czasu logowania</strong> — sprawdź połączenie z internetem i spróbuj ponownie.</li>
+    <li><strong>Konto nie zostało rozpoznane</strong> — upewnij się, że używasz konta Microsoft, na którym kupiono Minecrafta.</li>
+    <li><strong>Powtarzające się prośby o zalogowanie</strong> — zapisany token mógł wygasnąć. To normalne po 4 godzinach nieaktywności.</li>
+</ul>
+
+<p>W przypadku utrzymujących się problemów zobacz <a href="help://topic/TROUBLESHOOTING">Rozwiązywanie problemów</a>.</p>

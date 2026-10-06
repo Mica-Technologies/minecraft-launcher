@@ -1,0 +1,112 @@
+<h1>Rozwiązywanie problemów</h1>
+
+<p>Ta strona opisuje typowe problemy i ich rozwiązania. Jeśli Twojego problemu tu nie ma,
+sprawdź szczegóły błędu w dziennikach launchera.</p>
+
+<h2>Błędy pobierania</h2>
+
+<p>Pliki nie pobierają się lub podczas uruchamiania pojawiają się błędy weryfikacji.</p>
+
+<ul>
+    <li>Sprawdź połączenie z internetem i spróbuj ponownie.</li>
+    <li>Jeśli korzystasz z sieci firmowej lub szkolnej, skonfiguruj serwer proxy w
+        <a href="help://topic/SETTINGS">Ustawieniach</a> w sekcji Sieć / Proxy.</li>
+    <li>Ponów uruchomienie — przejściowe błędy sieci często znikają przy drugiej próbie.</li>
+    <li>Jeśli konkretny plik stale się nie pobiera, jego adres URL może być nieprawidłowy. Zgłoś to autorowi modpacka.</li>
+</ul>
+
+<h2>Wskaźnik trybu offline</h2>
+
+<p>Gdy launcher wykryje brak połączenia z internetem, na każdym głównym ekranie obok przycisku pomocy
+pojawia się czerwona etykieta <strong>Offline</strong>. W trybie offline:</p>
+
+<ul>
+    <li>Nadal możesz uruchomić każdy modpack, którego pliki zostały już w całości pobrane.</li>
+    <li>Instalacje, aktualizacje i okna wyboru wersji w Edytorze modpacków nie zadziałają lub
+        pokażą nieaktualne dane.</li>
+    <li>Dostępne modpacki i filtry wersji loaderów na ekranie <a href="help://topic/BROWSE_LIBRARY">Przeglądaj</a>
+        pozostaną puste do czasu przywrócenia połączenia.</li>
+    <li>Uwierzytelnianie działa normalnie, dopóki Twój istniejący token jest ważny (jest przechowywany
+        na dysku między uruchomieniami).</li>
+</ul>
+
+<p>Wskaźnik odświeża się podczas przechodzenia między ekranami, więc gdy sieć
+znów działa, przejście na inny ekran i z powrotem zaktualizuje etykietę.</p>
+
+<h2>Awarie gry</h2>
+
+<p>Gra się uruchamia, ale wkrótce ulega awarii lub zawiesza się podczas rozgrywki.</p>
+
+<ul>
+    <li>Włącz <a href="help://topic/GAME_CONSOLE">Konsolę gry</a> w ustawieniach, aby na bieżąco widzieć komunikaty o awarii.</li>
+    <li>Sprawdź raport o awarii w folderze <code>crash-reports/</code> modpacka, aby poznać szczegóły błędu.</li>
+    <li>Spróbuj zwiększyć maksymalny przydział RAM w <a href="help://topic/SETTINGS">Ustawieniach</a> — wiele modpacków potrzebuje co najmniej 4 - 6 GB.</li>
+    <li>Kliknij modpack na ekranie głównym prawym przyciskiem myszy i wybierz <strong>Otwórz folder instalacyjny</strong>, a następnie usuń
+        folder <code>mods/</code> i uruchom grę ponownie, aby wymusić ponowne pobranie.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Ostrzeżenie</div>
+    <p>Przydzielenie zbyt dużej ilości RAM (więcej, niż system może oddać) może powodować awarie równie
+    łatwo jak przydzielenie zbyt małej. Ustaw maksymalną ilość RAM na nie więcej niż połowę całkowitej pamięci systemu.</p>
+</div>
+
+<h2>Launcher zawiesza się podczas wczytywania</h2>
+
+<p>Launcher wydaje się zamrożony lub pasek postępu przestaje się przesuwać.</p>
+
+<ul>
+    <li>Poczekaj kilka minut — weryfikacja plików dużych modpacków może potrwać, zwłaszcza przy pierwszym uruchomieniu.</li>
+    <li>Sprawdź dzienniki launchera pod kątem błędów (włącz Rozszerzone rejestrowanie w ustawieniach).</li>
+    <li>W ostateczności użyj opcji <strong>Zresetuj launcher</strong> w <a href="help://topic/SETTINGS">Ustawieniach</a>,
+        aby przywrócić czysty stan.</li>
+</ul>
+
+<h2>Tryb offline</h2>
+
+<p>Launcher wymaga połączenia z internetem do uwierzytelniania i pobierania plików. Jednak
+manifesty modpacków i pliki gry są zapisywane lokalnie po pierwszym udanym pobraniu.</p>
+
+<ul>
+    <li>Jeśli utracisz połączenie po początkowej konfiguracji, gra może nadal uruchomić się z użyciem zapisanych plików.</li>
+    <li>Tokeny uwierzytelniające są przechowywane przez około 4 godziny — jeśli Twój token jest nadal ważny, możesz w tym czasie grać offline.</li>
+</ul>
+
+<h2>Problemy z wydajnością</h2>
+
+<p>Gra działa, ale z niską liczbą klatek na sekundę lub częstymi przycięciami.</p>
+
+<ul>
+    <li>Przełącz profil JVM na <strong>Performance (Aikar's Flags)</strong> w
+        <a href="help://topic/SETTINGS">Ustawieniach</a>.</li>
+    <li>Upewnij się, że przydzielono wystarczająco dużo RAM — co najmniej 4 GB dla większości modpacków.</li>
+    <li>Podczas gry zamknij inne aplikacje zużywające dużo pamięci.</li>
+    <li>Sprawdź, czy sterowniki karty graficznej są aktualne.</li>
+</ul>
+
+<h2>Brakujące mody lub pliki</h2>
+
+<p>Gra się uruchamia, ale brakuje modów lub konfiguracje są nieprawidłowe.</p>
+
+<ul>
+    <li>Launcher przy każdym uruchomieniu weryfikuje sumy kontrolne plików. Jeśli pliki zostały zmienione ręcznie, zostaną pobrane ponownie zgodnie z definicją modpacka.</li>
+    <li>Jeśli moda brakuje w samym modpacku, skontaktuj się z autorem modpacka.</li>
+    <li>Spróbuj usunąć modpack i dodać go ponownie, aby wymusić pełne ponowne pobranie.</li>
+</ul>
+
+<h2>Problemy z uwierzytelnianiem</h2>
+
+<p>Nie możesz się zalogować lub launcher ciągle prosi o ponowne uwierzytelnienie.</p>
+
+<ul>
+    <li>Tokeny wygasają po około 4 godzinach — ponowne uwierzytelnienie jest normalne.</li>
+    <li>Jeśli logowanie wielokrotnie się nie udaje, spróbuj wyczyścić pliki cookie przeglądarki dla <code>login.microsoftonline.com</code>.</li>
+    <li>Upewnij się, że Twoje konto Microsoft ma aktywną licencję Minecrafta.</li>
+    <li>Więcej informacji o procesie uwierzytelniania znajdziesz w sekcji <a href="help://topic/LOGIN">Logowanie</a>.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Wskazówka</div>
+    <p>Zgłaszając problem, zawsze podaj: nazwę i wersję modpacka, system operacyjny,
+    plik dziennika launchera i ewentualne raporty o awariach. To znacznie przyspiesza diagnozę.</p>
+</div>

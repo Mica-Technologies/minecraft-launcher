@@ -1,0 +1,109 @@
+<h1>Przeglądaj</h1>
+
+<p>Ekran Przeglądaj służy do instalowania i zarządzania. Możesz tu instalować nowe modpacki
+z publicznego manifestu, instalować czyste wersje Minecrafta (vanilla), instalować puste modpacki startowe
+Forge / NeoForge / Fabric, edytować posiadane modpacki i odinstalowywać to, czego już nie potrzebujesz.</p>
+
+<h2>Karty i pasek filtrów</h2>
+
+<p>Każda pozycja jest wyświetlana jako duża karta z logo, plakietką, nazwą, etykietami (loader / wersja Minecrafta),
+wierszem statusu i przyciskami akcji. Pasek filtrów u góry pozwala zawęzić widok.</p>
+
+<ul>
+    <li><strong>Szukaj</strong> — dopasowanie dowolnego tekstu do tytułów kart. Wyniki aktualizują się podczas pisania
+        (z krótkim opóźnieniem, aby układ nie przebudowywał się bez przerwy).</li>
+    <li><strong>Typ</strong> — Wszystkie, Modpacki lub jeden z katalogów wersji:
+        Vanilla (wydania / snapshoty / Old Beta / Old Alpha) oraz wersje Forge / NeoForge / Fabric.
+        Filtry wersji loaderów celowo <em>nie</em> są uwzględniane w „Wszystkie” — połączona lista
+        liczyłaby tysiące pozycji, a nie tego oczekuje się od wyszukiwania „pokaż wszystko”.</li>
+    <li><strong>Status</strong> — Wszystkie, Zainstalowane lub Dostępne. „Dostępne” pokazuje to, czego
+        jeszcze nie zainstalowałeś; „Zainstalowane” pokazuje to, co jest już na dysku.</li>
+    <li><strong>Sortuj</strong> — Domyślnie, Nazwa (A–Z / Z–A), Data wydania, Ostatnio grane, Najczęściej grane,
+        Ostatnio zaktualizowane. Sortowania zależne od historii gry / aktualizacji (Ostatnio grane, Najczęściej grane,
+        Ostatnio zaktualizowane) przenoszą pozycje niebędące modpackami na koniec listy, zamiast mieszać je
+        w mylący sposób.</li>
+</ul>
+
+<h2>Zainstalowane modpacki</h2>
+
+<p>Karty modpacków znajdujących się już na dysku mają dwa przyciski:</p>
+
+<ul>
+    <li><strong>Odinstaluj</strong> — pyta, czy usunąć także folder instalacyjny. „Odinstaluj
+        (zachowaj pliki)” zachowuje Twoje światy, konfiguracje i mody, mimo że launcher przestaje
+        wiedzieć o modpacku — przydatne, jeśli planujesz później ponownie zainstalować ten sam modpack.</li>
+    <li><strong>Edytuj</strong> — otwiera <a href="help://topic/MODPACK_EDITOR">Edytor modpacków</a>
+        z lokalnym manifestem modpacka. Zmiany są zapisywane na dysku i obowiązują od następnego uruchomienia.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Wskazówka</div>
+    <p>Kliknij kartę zainstalowanego modpacka prawym przyciskiem myszy, aby otworzyć to samo menu kontekstowe co w menu głównym:
+    otwórz folder modpacka, otwórz folder modów, utwórz skrót na pulpicie, wyświetl statystyki gry i
+    odinstaluj.</p>
+</div>
+
+<h2>Dostępne modpacki</h2>
+
+<p>Karty z publicznego manifestu, których jeszcze nie masz, mają przycisk <strong>Zainstaluj</strong>.
+Kliknięcie go pobiera manifest, instaluje modpack i przy następnym odświeżeniu przenosi kartę do grupy
+zainstalowanych. Podczas instalacji możesz nadal korzystać z filtrów — karta instalowanego modpacka
+pozostaje przypięta na górze siatki do zakończenia instalacji.</p>
+
+<h2>Wersje vanilla</h2>
+
+<p>Pełny katalog wydań / snapshotów / wersji beta / alfa od Mojang. Każda karta instaluje dokładnie tę
+wersję Minecrafta jako syntetyczny pusty modpack, który możesz uruchomić bezpośrednio z menu głównego. Stare
+wersje beta i alfa również działają — launcher automatycznie pobiera odpowiednie środowisko wykonawcze Java
+dla każdej wersji.</p>
+
+<h2>Wersje Forge / NeoForge / Fabric</h2>
+
+<p>Filtry wersji loaderów pokazują każde wydanie ogłoszone przez usługę wersji danego projektu:
+promocje Forge, metadane Maven NeoForge oraz API meta Fabric. Kliknięcie Zainstaluj przy jednej z nich
+zapisuje syntetyczny manifest „pustego modpacka” w Twoim folderze konfiguracji i rejestruje go w
+launcherze — dzięki temu zachowuje się on jak każdy inny zainstalowany modpack:</p>
+
+<ul>
+    <li>pojawia się na dużych kartach w menu głównym;</li>
+    <li>można go edytować w Edytorze modpacków (możesz dodać do niego mody i zbudować własny modpack);</li>
+    <li>można go odinstalować jak każdy inny modpack;</li>
+    <li>korzysta z tego samego mechanizmu automatycznych aktualizacji co zwykły modpack.</li>
+</ul>
+
+<div class="note">
+    <div class="callout-title">Uwaga</div>
+    <p>Karty pokazują oficjalne logo każdego projektu, gdy launcher ma je zapisane lokalnie. Przy
+    pierwszej wizycie w filtrze loadera wyświetlany jest zastępczy obraz w kolorach marki, a prawdziwe logo
+    pobierają się w tle — po zapisaniu w pamięci podręcznej kolejne wizyty są natychmiastowe.</p>
+</div>
+
+<h2>Dodawanie z adresu URL</h2>
+
+<p>Przycisk <strong>Dodaj z adresu URL</strong> na dolnym pasku przyjmuje bezpośredni adres URL hostowanego
+manifestu <code>installable.json</code> i instaluje go tak samo jak karty dostępnych modpacków.
+Używaj go dla modpacków rozpowszechnianych poza publicznym manifestem — wklej link, kliknij przycisk,
+a metadane manifestu zostaną pobrane i sprawdzone przed rozpoczęciem instalacji.</p>
+
+<h2>Edytor modpacków</h2>
+
+<p>Przycisk <strong>Edytor modpacków</strong> na dolnym pasku otwiera
+<a href="help://topic/MODPACK_EDITOR">Edytor modpacków</a> z pustym manifestem, abyś mógł zbudować
+nowy modpack od zera — ustawić loader (Forge / NeoForge / Fabric / vanilla), wersję Minecrafta,
+listę modów itd. Edytor można też otworzyć dla istniejącego modpacka przyciskiem <strong>Edytuj</strong>
+na jego karcie.</p>
+
+<h2>Generowanie manifestu hostingu</h2>
+
+<p>Przycisk <strong>Wygeneruj manifest hostingu</strong> na dolnym pasku tworzy plik
+<code>installable.json</code> dla modpacka otwartego w edytorze, gotowy do umieszczenia na dowolnym serwerze
+WWW lub w usłudze udostępniania plików. Każdy, kto ma uzyskany adres URL, może zainstalować Twój modpack przez
+Dodaj z adresu URL.</p>
+
+<h2>Stronicowanie</h2>
+
+<p>Długie listy są dzielone na strony. Użyj przycisków <strong>Poprzedni</strong> / <strong>Następny</strong> na
+pasku stronicowania (nad kartami), aby przechodzić między stronami, oraz listy <strong>Na stronie</strong>,
+aby ustawić rozmiar strony — 24, 48, 72 lub 96. Domyślne 48 mieści typową bibliotekę zainstalowanych
+modpacków na jednej stronie; zwiększenie do 96 pozwala przewijać filtry wersji loaderów na jednej
+stronie.</p>
