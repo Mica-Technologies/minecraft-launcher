@@ -550,7 +550,8 @@ public class ManagedGameFile
                 sessionVerified = true;
                 return false;
             }
-            sessionVerified = true;
+            // Not marked verified: the next launch must fail the same way, not skip the check and
+            // fail later with a vaguer error.
             throw new ModpackException(
                     "Required file is missing and no remote URL is configured for it: "
                             + getFullLocalFilePath()
