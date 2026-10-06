@@ -630,10 +630,19 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     LocalizationManager.get( "dialog.editor.openFromUrl.body" ),
                     LocalizationManager.get( "dialog.button.ok" ),
                     LocalizationManager.get( "dialog.button.cancel" ), stage );
+            if ( response != 1 ) {
+                return;  // Cancel, or the dialog closed: don't go on to ask for the URL
+            }
             // The question dialog doesn't support text input, so use a simpler approach:
             // Prompt via a JavaFX TextInputDialog
             GUIUtilities.JFXPlatformRun( () -> {
                 javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
+                // Themed and owned like the editor's other dialogs, so it isn't stock grey in a dark
+                // theme and can't open behind the editor.
+                GUIUtilities.themeAlertChrome( dialog );
+                if ( stage != null ) {
+                    dialog.initOwner( stage );
+                }
                 dialog.setTitle( LocalizationManager.get( "dialog.editor.urlInput.title" ) );
                 dialog.setHeaderText( LocalizationManager.get( "dialog.editor.urlInput.header" ) );
                 dialog.setContentText( LocalizationManager.get( "dialog.editor.urlInput.contentLabel" ) );
