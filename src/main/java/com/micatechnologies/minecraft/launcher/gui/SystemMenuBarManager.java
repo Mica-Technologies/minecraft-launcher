@@ -719,8 +719,9 @@ public final class SystemMenuBarManager
             about.setHeaderText( LauncherConstants.LAUNCHER_APPLICATION_NAME );
             about.setContentText( LocalizationManager.format( "dialog.about.body",
                                                               LauncherConstants.LAUNCHER_APPLICATION_VERSION ) );
-            // Initialize the dialog as a child of the launcher's top stage so it inherits theming
-            // and stays modal to the right window.
+            // A dialog is its own scene, so the owner's theme doesn't reach it; install it.
+            GUIUtilities.themeAlertChrome( about );
+            // Owned by the launcher's top stage so it stays modal to the right window.
             javafx.stage.Stage top = MCLauncherGuiController.getTopStageOrNull();
             if ( top != null ) {
                 about.initOwner( top );
