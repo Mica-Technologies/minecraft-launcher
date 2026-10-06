@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.security;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
 import java.util.ArrayList;
@@ -98,8 +99,7 @@ public final class ScanExclusionPolicy
         for ( String exclusion : untrusted ) {
             String rejection = rejectionReason( exclusion );
             if ( rejection != null ) {
-                Logger.logWarningSilent(
-                        "Ignoring manifest scan exclusion \"" + exclusion + "\": " + rejection );
+                Logger.logWarningSilent( LocalizationManager.format( "log.scanExclusion.ignored", exclusion, rejection ) );
                 continue;
             }
             allowed.add( exclusion );
@@ -135,13 +135,13 @@ public final class ScanExclusionPolicy
         }
 
         if ( segments.isEmpty() ) {
-            return "it covers the entire pack root";
+            return LocalizationManager.get( "log.scanExclusion.reasonPackRoot" );
         }
         if ( segments.contains( ".." ) ) {
-            return "it contains a path traversal segment";
+            return LocalizationManager.get( "log.scanExclusion.reasonTraversal" );
         }
         if ( PROTECTED_ROOTS.contains( segments.get( 0 ) ) ) {
-            return "it covers the protected content folder \"" + segments.get( 0 ) + "\"";
+            return LocalizationManager.format( "log.scanExclusion.reasonProtectedFolder", segments.get( 0 ) );
         }
         return null;
     }
