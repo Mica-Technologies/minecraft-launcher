@@ -168,6 +168,11 @@ public class LauncherCore
     public static void main( String[] args ) {
         ColdStartProfiler.mark( "main_entry" );
 
+        // Before anything that can fail: the main log only exists once the session starts, so a
+        // launch that ends earlier would otherwise leave no trace (see StartupDiagnostics).
+        StartupDiagnostics.installUncaughtExceptionHandler();
+        StartupDiagnostics.recordLaunch( args );
+
         // Raise the per-host keep-alive connection cap for the legacy
         // HttpURLConnection stack (JDK default is 5). The launcher fans out
         // availableProcessors-many concurrent downloads at the same Mojang /
@@ -227,34 +232,11 @@ public class LauncherCore
             return;
         }
 
-        // Enforce single instance. If another instance is already running:
-        //   - and we have a mmcl:// URI in argv, forward it to the running instance and exit
-        //     silently (the running instance brings itself to focus and dispatches the action).
-        //   - otherwise, show the existing "already running" popup so the user understands
-        //     why nothing happened.
+        // Enforce single instance. If another copy holds the lock, hand this launch to it (a
+        // mmcl:// URI from argv, or a plain "open" that brings its window forward) and exit; if
+        // that can't be done, say why instead of exiting silently.
         if ( !SingleInstanceLock.tryAcquire() ) {
-            for ( String arg : args ) {
-                if ( LauncherUriHandler.isLauncherUri( arg ) ) {
-                    boolean forwarded = SingleInstanceLock.forwardToRunningInstance( arg );
-                    System.exit( forwarded ? 0 : 1 );
-                    return;
-                }
-            }
-            // Terminal mode: a Swing popup would be wrong (and may not show over SSH). Print to the
-            // real console and exit cleanly.
-            if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() ) {
-                com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut()
-                        .println( LocalizationManager.get( "tui.alreadyRunning" ) );
-                System.exit( 0 );
-                return;
-            }
-            javax.swing.SwingUtilities.invokeLater( () -> {
-                javax.swing.JOptionPane.showMessageDialog( null,
-                        "Mica Minecraft Launcher is already running.",
-                        LauncherConstants.LAUNCHER_APPLICATION_NAME,
-                        javax.swing.JOptionPane.INFORMATION_MESSAGE );
-                System.exit( 0 );
-            } );
+            handleSecondLaunch( args );
             return;
         }
 
@@ -305,6 +287,7 @@ public class LauncherCore
                     // LauncherSession.run); use stderr so the message still
                     // surfaces for debugging.
                     System.err.println( "[mmcl] Early FX toolkit start failed: " + t );
+                    StartupDiagnostics.record( "Early JavaFX toolkit start failed", t );
                 }
                 finally {
                     fxToolkitReadyLatch.countDown();
@@ -339,6 +322,97 @@ public class LauncherCore
 
             currentSession = new LauncherSession( args, previousRestartError );
             currentSession.run();
+        }
+    }
+
+    /**
+     * Handles a launch that found the single-instance port taken. Hands the launch to the
+     * running copy: the {@code mmcl://} URI from argv, or {@code mmcl://open} for a plain
+     * launch, which brings its window forward. If no launcher took it, or the one that did has
+     * no window to show, tells the user why with a dialog that stays on top, rather than ending
+     * with a busy cursor and nothing else. Every outcome goes to the startup log. Exits.
+     *
+     * @param args the launcher's arguments
+     *
+     * @since 2026.10
+     */
+    private static void handleSecondLaunch( String[] args )
+    {
+        String uri = null;
+        for ( String arg : args ) {
+            if ( LauncherUriHandler.isLauncherUri( arg ) ) {
+                uri = arg;
+                break;
+            }
+        }
+        IOException bindFailure = SingleInstanceLock.lastAcquireFailure();
+        String reason = bindFailure == null || bindFailure.getMessage() == null
+                        ? String.valueOf( bindFailure )
+                        : bindFailure.getMessage();
+        int port = SingleInstanceLock.port();
+
+        // Terminal mode with nothing to hand over: the running launcher's window is no use to a
+        // --cli session. Keep the console message.
+        boolean tui = com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled();
+        if ( tui && uri == null ) {
+            StartupDiagnostics.record( "Port " + port + " unavailable (" + reason + "); --cli exits" );
+            com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut()
+                    .println( LocalizationManager.get( "tui.alreadyRunning" ) );
+            System.exit( 0 );
+            return;
+        }
+
+        SingleInstanceLock.ForwardResult result = SingleInstanceLock.forwardToRunningInstance(
+                uri != null ? uri : LauncherUriHandler.SCHEME + "://open" );
+        StartupDiagnostics.record( "Port " + port + " unavailable (" + reason + "); handed "
+                                   + ( uri != null ? "a deep link" : "an open request" )
+                                   + " to the running launcher: " + result );
+        if ( result.delivered() ) {
+            System.exit( 0 );
+            return;
+        }
+
+        String message = result == SingleInstanceLock.ForwardResult.DELIVERED_NO_WINDOW
+                         ? LocalizationManager.get( "startup.alreadyRunning.noWindow" )
+                         : LocalizationManager.format( "startup.portUnavailable", String.valueOf( port ), reason );
+        if ( tui || java.awt.GraphicsEnvironment.isHeadless() ) {
+            System.err.println( message );
+        }
+        else {
+            showStartupDialog( message );
+        }
+        System.exit( 1 );
+    }
+
+    /**
+     * Shows a message before any launcher window exists, on top of other windows. A Swing
+     * option pane with no owner gets no taskbar button and can open behind other apps, which
+     * looks like the launcher did nothing; this one is pinned on top. Blocks until dismissed.
+     *
+     * @param message the text to show
+     *
+     * @since 2026.10
+     */
+    private static void showStartupDialog( String message )
+    {
+        try {
+            javax.swing.SwingUtilities.invokeAndWait( () -> {
+                // Option panes don't wrap text; a fixed-width HTML body does.
+                String html = "<html><body style='width: 380px'>"
+                              + message.replace( "&", "&amp;" ).replace( "<", "&lt;" ).replace( ">", "&gt;" )
+                                       .replace( "\n", "<br>" )
+                              + "</body></html>";
+                javax.swing.JOptionPane pane = new javax.swing.JOptionPane( html,
+                                                                            javax.swing.JOptionPane.WARNING_MESSAGE );
+                javax.swing.JDialog dialog = pane.createDialog( null, LauncherConstants.LAUNCHER_APPLICATION_NAME );
+                dialog.setAlwaysOnTop( true );
+                dialog.setVisible( true );
+                dialog.dispose();
+            } );
+        }
+        catch ( Exception e ) {
+            StartupDiagnostics.record( "Could not show the startup dialog", e );
+            System.err.println( message );
         }
     }
 

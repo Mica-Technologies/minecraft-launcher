@@ -91,6 +91,53 @@ public class SingleInstanceLock
      *  release() may clear it from any thread. */
     private static volatile String ipcToken = null;
 
+    /** Why the last {@link #tryAcquire()} couldn't bind the port, or {@code null}. Kept so a
+     *  second launch can say why it stopped: "address in use" means another process holds the
+     *  port, while an access error on Windows usually means the port sits in a range the OS has
+     *  reserved (Hyper-V and WSL reserve ranges that move on reboot). */
+    private static volatile IOException lastBindFailure = null;
+
+    /** First word of the holder's reply when the forward was accepted. */
+    static final String REPLY_OK = "OK";
+
+    /** Second word of the reply: the holder has a launcher window to bring forward. */
+    static final String REPLY_WINDOW = "WINDOW";
+
+    /** Second word of the reply: the holder is running but has no window (still starting, or stuck). */
+    static final String REPLY_NO_WINDOW = "NOWINDOW";
+
+    /**
+     * What happened when a second launch handed its request to the copy holding the lock.
+     *
+     * @since 2026.10
+     */
+    public enum ForwardResult
+    {
+        /** The holder took the request and has a window, which it brings forward. */
+        DELIVERED,
+        /** The holder took the request but has no window to show: still starting up, or stuck. */
+        DELIVERED_NO_WINDOW,
+        /** The request was sent but the holder didn't acknowledge it. Launchers from before the
+         *  reply was added never send one, so this counts as delivered. */
+        UNCONFIRMED,
+        /** The holder's token file is missing or unreadable, so nothing could be sent. Seen when
+         *  the port is held by something other than a launcher, or by one still shutting down. */
+        NO_TOKEN,
+        /** Nothing on the port accepted the request, or what did never answered: the port is held
+         *  or reserved by something other than a launcher. */
+        UNREACHABLE;
+
+        /**
+         * Whether a running launcher has the request.
+         *
+         * @return {@code true} for {@link #DELIVERED} and {@link #UNCONFIRMED}
+         */
+        public boolean delivered()
+        {
+            return this == DELIVERED || this == UNCONFIRMED;
+        }
+    }
+
     /**
      * Attempts to acquire the single-instance lock by binding a {@link ServerSocket} on localhost. The port used depends
      * on whether the launcher is in development mode, allowing dev and release builds to run simultaneously.
@@ -129,9 +176,35 @@ public class SingleInstanceLock
             return true;
         }
         catch ( IOException e ) {
-            // Port is already bound -- another instance is running
+            // Usually another instance holds the port, but not always: the caller asks the holder
+            // to confirm, and reports this exception if nothing does.
+            lastBindFailure = e;
             return false;
         }
+    }
+
+    /**
+     * Returns why the last {@link #tryAcquire()} failed to bind its port.
+     *
+     * @return the bind exception, or {@code null} if the last attempt succeeded or none was made
+     *
+     * @since 2026.10
+     */
+    public static IOException lastAcquireFailure()
+    {
+        return lastBindFailure;
+    }
+
+    /**
+     * Returns the loopback port the single-instance lock binds.
+     *
+     * @return the port for this build (release and dev builds differ)
+     *
+     * @since 2026.10
+     */
+    public static int port()
+    {
+        return ipcPort();
     }
 
     /**
@@ -208,24 +281,24 @@ public class SingleInstanceLock
 
     /**
      * Forwards a single text payload to the running launcher instance. Used by a fresh
-     * second-instance startup to hand its {@code mmcl://...} URI to the running launcher
-     * before exiting. Connects, writes the payload + newline, closes — the receiving server
-     * dispatches the URI on its own thread.
+     * second-instance startup to hand its {@code mmcl://...} URI (or {@code mmcl://open} for a
+     * plain launch) to the running launcher before exiting. Connects, writes the token and the
+     * payload, and waits briefly for the holder's reply, which says whether it has a window to
+     * bring forward. The receiving server dispatches the URI on its own thread.
      *
      * @param payload the text to send (typically a {@code mmcl://...} URI); newlines in the
      *                payload itself would confuse the line-based protocol and are stripped.
      *
-     * @return {@code true} if the connection succeeded and the payload was written;
-     *         {@code false} if no running instance answered (in which case the caller should
-     *         fall back to the existing "already running" UX or, if it's the first instance
-     *         attempting tryAcquire, retry).
+     * @return what happened; see {@link ForwardResult}. Only {@link ForwardResult#delivered()}
+     *         results mean a running launcher has the request; for the rest the caller must tell
+     *         the user why this launch stopped rather than exit silently.
      *
      * @since 2.0
      */
-    public static boolean forwardToRunningInstance( String payload )
+    public static ForwardResult forwardToRunningInstance( String payload )
     {
         if ( payload == null ) {
-            return false;
+            return ForwardResult.UNREACHABLE;
         }
         // Read the running instance's shared-secret token. Only same-UID processes can
         // read this file (owner-only perms set by writeIpcToken). If we can't read it,
@@ -233,29 +306,69 @@ public class SingleInstanceLock
         // was never persisted — either way, refuse to forward.
         String token = readIpcTokenFromDisk();
         if ( token == null || token.isBlank() ) {
-            return false;
+            return ForwardResult.NO_TOKEN;
         }
         // Strip embedded newlines so a malformed argv can't smuggle multiple commands.
         String safePayload = payload.replace( '\n', ' ' ).replace( '\r', ' ' );
 
+        // This process was started by the user's click, so Windows lets it take the foreground;
+        // the running launcher is a background process and would only flash its taskbar button.
+        // Pass the right on so the holder's window can come to the front.
+        WindowsForeground.allowAnyProcess();
+
         int port = ipcPort();
         try ( Socket socket = new Socket( InetAddress.getLoopbackAddress(), port );
-              OutputStreamWriter writer = new OutputStreamWriter( socket.getOutputStream(), StandardCharsets.UTF_8 ) ) {
+              OutputStreamWriter writer = new OutputStreamWriter( socket.getOutputStream(), StandardCharsets.UTF_8 );
+              BufferedReader reader = new BufferedReader(
+                      new InputStreamReader( socket.getInputStream(), StandardCharsets.UTF_8 ) ) ) {
             socket.setSoTimeout( 2000 );
-            // Protocol: line 1 = token, line 2 = payload.
+            // Protocol: line 1 = token, line 2 = payload; the holder answers with one line.
             writer.write( token );
             writer.write( '\n' );
             writer.write( safePayload );
             writer.write( '\n' );
             writer.flush();
-            return true;
+            String reply;
+            try {
+                reply = reader.readLine();
+            }
+            catch ( java.net.SocketTimeoutException e ) {
+                // A launcher answers at once, and an older one hangs up at once without
+                // answering. Something that accepts and then stays silent isn't a launcher.
+                return ForwardResult.UNREACHABLE;
+            }
+            catch ( IOException e ) {
+                // Reset as an older launcher closed its end: same as hanging up.
+                reply = null;
+            }
+            return parseReply( reply );
         }
         catch ( IOException e ) {
-            // Couldn't reach the running instance — it may have crashed without releasing the
-            // port (unlikely, since the OS reclaims it), or there isn't actually one. Caller's
-            // fallback handles it.
-            return false;
+            // Nothing is listening on the port, so whatever holds it isn't a launcher.
+            return ForwardResult.UNREACHABLE;
         }
+    }
+
+    /**
+     * Interprets the holder's reply line. Package-private for tests.
+     *
+     * @param reply the line read, or {@code null} if none arrived
+     *
+     * @return the forward's result
+     */
+    static ForwardResult parseReply( String reply )
+    {
+        if ( reply == null ) {
+            // Written but not acknowledged: an older launcher, which never replies, or a holder
+            // that rejected the token and hung up. Both are rare enough to treat as delivered.
+            return ForwardResult.UNCONFIRMED;
+        }
+        String[] words = reply.trim().split( " " );
+        if ( words.length == 2 && REPLY_OK.equals( words[ 0 ] ) ) {
+            return REPLY_NO_WINDOW.equals( words[ 1 ] ) ? ForwardResult.DELIVERED_NO_WINDOW
+                                                        : ForwardResult.DELIVERED;
+        }
+        return ForwardResult.UNCONFIRMED;
     }
 
     /**
@@ -339,7 +452,9 @@ public class SingleInstanceLock
     {
         try ( client;
               BufferedReader reader = new BufferedReader(
-                      new InputStreamReader( client.getInputStream(), StandardCharsets.UTF_8 ) ) ) {
+                      new InputStreamReader( client.getInputStream(), StandardCharsets.UTF_8 ) );
+              OutputStreamWriter writer = new OutputStreamWriter( client.getOutputStream(),
+                                                                  StandardCharsets.UTF_8 ) ) {
             client.setSoTimeout( 2000 );
 
             // Protocol: line 1 = shared-secret token, line 2 = payload. Refuse if the
@@ -360,6 +475,13 @@ public class SingleInstanceLock
                 return;
             }
             line = line.trim();
+
+            // Tell the sender whether there is a window to bring forward. Without one (still
+            // starting, or stuck before the main window appeared) the sender says so, rather
+            // than leaving the user with a click that seemingly did nothing.
+            boolean hasWindow = MCLauncherGuiController.getTopStageOrNull() != null;
+            writer.write( REPLY_OK + " " + ( hasWindow ? REPLY_WINDOW : REPLY_NO_WINDOW ) + "\n" );
+            writer.flush();
 
             // Surface the launcher window before dispatching the URI. The user just clicked
             // a deep-link expecting to land here — if the existing window were buried under
