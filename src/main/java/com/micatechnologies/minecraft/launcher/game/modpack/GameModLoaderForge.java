@@ -841,20 +841,33 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             return;
         }
 
-        // Check if the patched output already exists
+        // Check if the patched output already exists, and is whole. A run cut short (the
+        // processor timing out, a cancel, a crash) can leave a truncated jar behind; trusting any
+        // non-empty file put that on every later launch's classpath. The profile records the
+        // patched jar's SHA-1, so check it when it is there.
         JsonObject data = installProfile.getAsJsonObject( "data" );
         JsonObject patchedObj = JsonHelper.getJsonObject( data, "PATCHED" );
+        File patchedFile = null;
         if ( patchedObj != null ) {
             String patchedCoord = JsonHelper.getString( patchedObj, side, null );
             if ( patchedCoord != null ) {
                 String patchedPath = mavenCoordToPath( patchedCoord );
-                File patchedFile = new File( libsFolder, patchedPath );
+                patchedFile = new File( libsFolder, patchedPath );
                 if ( patchedFile.exists() && patchedFile.length() > 0 ) {
-                    Logger.logStd( LocalizationManager.get( "log.forgeLoader.patchedClientExists" ) );
-                    return;
+                    String expectedSha = patchedSha( data, side );
+                    if ( expectedSha == null || HashUtilities.verifySHA1( patchedFile, expectedSha ) ) {
+                        Logger.logStd( LocalizationManager.get( "log.forgeLoader.patchedClientExists" ) );
+                        return;
+                    }
+                    Logger.logWarningSilent( LocalizationManager.get( "log.forgeLoader.patchedClientCorrupt" ) );
+                    if ( !patchedFile.delete() ) {
+                        throw new ModpackException( LocalizationManager.format(
+                                "log.forgeLoader.patchedClientUndeletable", patchedFile.getAbsolutePath() ) );
+                    }
                 }
             }
         }
+        final File patchedOutput = patchedFile;
 
         Logger.logStd( LocalizationManager.format( "log.forgeLoader.runningProcessors", side ) );
 
@@ -1070,26 +1083,45 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             command.addAll( resolvedArgs );
 
             // Run the processor (10-minute timeout to prevent indefinite hangs)
+            Process process = null;
+            boolean succeeded = false;
             try {
                 ProcessBuilder pb = new ProcessBuilder( command );
                 pb.directory( new File( parentModPack.getPackRootFolder() ) );
                 pb.inheritIO();
-                Process process = pb.start();
+                process = pb.start();
                 boolean completed = process.waitFor( 10, java.util.concurrent.TimeUnit.MINUTES );
                 if ( !completed ) {
-                    process.destroyForcibly();
                     throw new ModpackException(
                             "Forge processor timed out after 10 minutes: " + processorJar );
                 }
                 int exitCode = process.exitValue();
                 if ( exitCode != 0 ) {
-                    process.destroyForcibly();
                     throw new ModpackException(
                             "Forge processor failed (exit code " + exitCode + "): " + processorJar );
                 }
+                succeeded = true;
             }
-            catch ( IOException | InterruptedException e ) {
+            catch ( InterruptedException e ) {
+                // Cancelled: keep the interrupt for the launch to see.
+                Thread.currentThread().interrupt();
                 throw new ModpackException( "Failed to run Forge processor: " + processorJar, e );
+            }
+            catch ( IOException e ) {
+                throw new ModpackException( "Failed to run Forge processor: " + processorJar, e );
+            }
+            finally {
+                if ( !succeeded ) {
+                    // A processor left running would keep writing into libraries/ after the launch
+                    // ended, and a half-written patched jar must not survive to the next launch.
+                    if ( process != null && process.isAlive() ) {
+                        process.destroyForcibly();
+                    }
+                    if ( patchedOutput != null && patchedOutput.exists() && !patchedOutput.delete() ) {
+                        Logger.logWarningSilent( LocalizationManager.format(
+                                "log.forgeLoader.patchedClientUndeletable", patchedOutput.getAbsolutePath() ) );
+                    }
+                }
             }
 
             if ( progressProvider != null ) {
@@ -1224,6 +1256,24 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
      * Resolves a data value which can be a Maven coordinate [group:artifact:version], a path inside the installer JAR
      * (/data/file.lzma), or a literal string ('value').
      */
+    /**
+     * The SHA-1 the install profile records for the patched client or server jar, or {@code null}
+     * when it records none. Values are literals in single quotes.
+     */
+    private static String patchedSha( JsonObject data, String side )
+    {
+        JsonObject shaObj = JsonHelper.getJsonObject( data, "PATCHED_SHA" );
+        String value = shaObj == null ? null : JsonHelper.getString( shaObj, side, null );
+        if ( value == null || value.isBlank() ) {
+            return null;
+        }
+        value = value.trim();
+        if ( value.length() >= 2 && value.startsWith( "'" ) && value.endsWith( "'" ) ) {
+            value = value.substring( 1, value.length() - 1 );
+        }
+        return value.isBlank() ? null : value;
+    }
+
     private String resolveDataValue( String value, String libsFolder ) throws ModpackException {
         // Literal string in single quotes
         if ( value.startsWith( "'" ) && value.endsWith( "'" ) ) {
