@@ -2732,7 +2732,7 @@ public class MCLauncherModpackDetailModal extends StackPane
     private static boolean hasOwnLogo( GameModPack pack )
     {
         try {
-            String path = pack.getPackLogoFilepath();
+            String path = pack.getPackLogoFilepathRaw();
             return path != null && new File( path ).exists();
         }
         catch ( Exception e ) {
@@ -2754,7 +2754,7 @@ public class MCLauncherModpackDetailModal extends StackPane
     private static Image resolveLogoImage( GameModPack pack )
     {
         try {
-            String path = pack.getPackLogoFilepath();
+            String path = pack.getPackLogoFilepathRaw();
             if ( path != null ) {
                 File f = new File( path );
                 if ( f.exists() ) return new Image( f.toURI().toString(), true );
@@ -2781,7 +2781,7 @@ public class MCLauncherModpackDetailModal extends StackPane
     {
         try {
             if ( !pack.hasCustomBackground() ) return null;
-            String path = pack.getPackBackgroundFilepath();
+            String path = pack.getPackBackgroundFilepathRaw();
             if ( path != null ) {
                 File f = new File( path );
                 if ( f.exists() && f.length() > 0 ) return f.toURI().toString();
