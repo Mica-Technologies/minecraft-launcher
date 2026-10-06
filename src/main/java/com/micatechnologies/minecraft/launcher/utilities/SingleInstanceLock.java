@@ -106,6 +106,10 @@ public class SingleInstanceLock
     /** Second word of the reply: the holder is running but has no window (still starting, or stuck). */
     static final String REPLY_NO_WINDOW = "NOWINDOW";
 
+    /** The holder's reply when the token didn't match (a stale token file left by a copy that
+     *  crashed, or one this holder couldn't write). */
+    static final String REPLY_REJECTED = "REJECTED";
+
     /**
      * What happened when a second launch handed its request to the copy holding the lock.
      *
@@ -125,7 +129,9 @@ public class SingleInstanceLock
         NO_TOKEN,
         /** Nothing on the port accepted the request, or what did never answered: the port is held
          *  or reserved by something other than a launcher. */
-        UNREACHABLE;
+        UNREACHABLE,
+        /** A running launcher refused the request because the token on disk didn't match its own. */
+        REJECTED;
 
         /**
          * Whether a running launcher has the request.
@@ -359,11 +365,14 @@ public class SingleInstanceLock
     static ForwardResult parseReply( String reply )
     {
         if ( reply == null ) {
-            // Written but not acknowledged: an older launcher, which never replies, or a holder
-            // that rejected the token and hung up. Both are rare enough to treat as delivered.
+            // Written but not acknowledged: an older launcher, which hangs up without replying.
+            // Its window still comes forward, so this counts as delivered.
             return ForwardResult.UNCONFIRMED;
         }
         String[] words = reply.trim().split( " " );
+        if ( words.length == 1 && REPLY_REJECTED.equals( words[ 0 ] ) ) {
+            return ForwardResult.REJECTED;
+        }
         if ( words.length == 2 && REPLY_OK.equals( words[ 0 ] ) ) {
             return REPLY_NO_WINDOW.equals( words[ 1 ] ) ? ForwardResult.DELIVERED_NO_WINDOW
                                                         : ForwardResult.DELIVERED;
@@ -467,6 +476,10 @@ public class SingleInstanceLock
             if ( expected == null || tokenLine == null
                     || !slowEquals( expected, tokenLine.trim() ) ) {
                 Logger.logWarningSilent( LocalizationManager.get( "log.singleInstance.badToken" ) );
+                // Say so, rather than hang up: a bare hang-up reads as an older launcher that took
+                // the request, and the sender would exit with nothing shown.
+                writer.write( REPLY_REJECTED + "\n" );
+                writer.flush();
                 return;
             }
 

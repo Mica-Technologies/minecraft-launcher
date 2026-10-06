@@ -61,6 +61,14 @@ class SingleInstanceLockReplyTest
     }
 
     @Test
+    void aRejectedTokenIsReportedNotTreatedAsDelivered()
+    {
+        // A stale token file must not look like an older launcher's silent hang-up.
+        assertEquals( ForwardResult.REJECTED, SingleInstanceLock.parseReply( "REJECTED" ) );
+        assertFalse( ForwardResult.REJECTED.delivered() );
+    }
+
+    @Test
     void anUnknownReplyIsUnconfirmed()
     {
         assertEquals( ForwardResult.UNCONFIRMED, SingleInstanceLock.parseReply( "HELLO" ) );
