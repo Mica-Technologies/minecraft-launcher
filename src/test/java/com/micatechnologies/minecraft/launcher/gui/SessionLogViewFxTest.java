@@ -79,8 +79,14 @@ class SessionLogViewFxTest
                           + "x".repeat( 40 ) + " at net.minecraft.world.level.chunk.LevelChunk.tick".repeat( 30 );
         StringBuilder text = new StringBuilder();
         for ( int i = 0; i < 6000; i++ ) {
-            text.append( i % 500 == 7 ? longLine : "[12:00:00] [Render thread/INFO]: Loaded chunk batch " + i )
-                .append( '\n' );
+            String line = i % 500 == 7 ? longLine : "[12:00:00] [Render thread/INFO]: Loaded chunk batch " + i;
+            if ( i == 5509 ) {
+                line = "";
+            }
+            else if ( i == 5511 ) {
+                line = "y".repeat( 600 );
+            }
+            text.append( line ).append( '\n' );
         }
         robot.interact( () -> {
             view.setText( text.toString() );
@@ -118,6 +124,9 @@ class SessionLogViewFxTest
         assertTrue( wrapped.getHeight() > plain.getHeight() * 5,
                     "long line wraps: " + wrapped.getHeight() + " vs " + plain.getHeight() );
         assertTrue( plain.getHeight() < 22, "one line is about one line tall: " + plain.getHeight() );
+        assertEquals( plain.getHeight(), flow.getCell( 5509 ).getHeight(), 0.5, "a blank line keeps its height" );
+        assertTrue( flow.getCell( 5511 ).getHeight() > plain.getHeight() * 2,
+                    "a long word with no spaces wraps too: " + flow.getCell( 5511 ).getHeight() );
         shoot( robot, "session-log-wrapped" );
 
         // Scrolled up, the reader keeps their place while lines arrive, and while old lines are
