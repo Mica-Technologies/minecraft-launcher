@@ -623,37 +623,36 @@ final class GameSessionPane
         diagnosed = true;
         String report = session.crashReport();
         GameLog log = boundLog;
-        if ( report == null && log != null && log.isTruncated() ) {
-            // The log's memory holds only part of it; analyze the full text, read off the UI
-            // thread.
-            SystemUtilities.spawnNewTask( () -> {
-                String full = log.fullText();
-                Platform.runLater( () -> {
-                    if ( !disposed ) {
-                        showDiagnosis( null, full );
-                    }
-                } );
+        // Reading the log (the full text may come from its file) and running every detector over
+        // it can take a while on a big log, so both happen off the UI thread.
+        SystemUtilities.spawnNewTask( () -> {
+            String analyze = report != null ? report : ( log == null ? "" : log.fullText() );
+            CrashDiagnosis diagnosis;
+            try {
+                diagnosis = CrashReportAnalyzer.analyze( analyze, session.pack(), session.exitCode() );
+            }
+            catch ( RuntimeException e ) {
+                diagnosis = null;
+            }
+            CrashDiagnosis found = diagnosis;
+            boolean logBlank = log == null || log.text().isBlank();
+            Platform.runLater( () -> {
+                if ( !disposed ) {
+                    showDiagnosis( report, found, logBlank );
+                }
             } );
-            return;
-        }
-        showDiagnosis( report, report != null ? report : ( log != null ? log.text() : "" ) );
+        } );
     }
 
     /**
-     * Analyzes a crash and shows the diagnosis card.
+     * Shows the diagnosis card for an analyzed crash.
      *
-     * @param report  the crash report, or {@code null} when the game left none
-     * @param analyze the text to analyze: the report, else the game log
+     * @param report    the crash report, or {@code null} when the game left none
+     * @param diagnosis what the analyzer made of it, or {@code null} when it failed
+     * @param logBlank  whether the game logged nothing, so the crash report should open instead
      */
-    private void showDiagnosis( String report, String analyze )
+    private void showDiagnosis( String report, CrashDiagnosis diagnosis, boolean logBlank )
     {
-        CrashDiagnosis diagnosis;
-        try {
-            diagnosis = CrashReportAnalyzer.analyze( analyze, session.pack(), session.exitCode() );
-        }
-        catch ( RuntimeException e ) {
-            diagnosis = null;
-        }
         diagnosisCard.getChildren().clear();
         if ( diagnosis != null ) {
             Label t = new Label( diagnosis.title() );
@@ -692,7 +691,7 @@ final class GameSessionPane
             setShown( crashToggle, true );
             // Nothing captured (the game died before logging) leaves an empty log; open on the
             // crash report instead.
-            if ( boundLog == null || boundLog.text().isBlank() ) {
+            if ( logBlank && !showingCrashReport ) {
                 toggleCrashReport();
             }
         }
