@@ -891,6 +891,20 @@ public class ConfigManager
             }
         }
 
+        if ( storedVersion < 7 ) {
+            // v6 → v7: the default JVM args swapped -XX:+DisableExplicitGC for
+            // -XX:+ExplicitGCInvokesConcurrent (2026-10). DisableExplicitGC
+            // turns the System.gc() the JDK calls to reclaim dead direct
+            // buffers into a no-op, so games died with "OutOfMemoryError:
+            // Direct buffer memory". The old default was persisted on every
+            // install's first read, so it has to be rewritten here; only an
+            // exact (trimmed) match is replaced, never a value the player
+            // changed in any way.
+            if ( migrateDefaultJvmArgs( configObject ) ) {
+                Logger.logStd( LocalizationManager.get( "log.configManager.migrateV7JvmArgs" ) );
+            }
+        }
+
         // Touch every key so the default-write path fires for anything
         // a config from an older launcher version is missing.
         getMinRam();
@@ -915,6 +929,35 @@ public class ConfigManager
         // Stamp the current version and persist
         configObject.addProperty( ConfigConstants.CONFIG_VERSION_KEY, ConfigConstants.CONFIG_VERSION );
         writeConfigurationToDisk();
+    }
+
+    /**
+     * Replaces a saved custom JVM args value that is exactly the pre-2026.10 default
+     * ({@link ConfigConstants#JVM_ARGS_VALUE_DEFAULT_PRE_2026_10}, compared after trimming) with the
+     * current {@link ConfigConstants#JVM_ARGS_VALUE_DEFAULT}. Any other value, including an absent
+     * key, a non-string value, the old hardware-tuned output and anything the player edited, is
+     * left untouched. Idempotent: a second call finds the new default and changes nothing. Pure
+     * apart from mutating {@code config}, so it can be tested without touching the config file.
+     *
+     * @param config the configuration document to correct in place
+     *
+     * @return {@code true} when the value was replaced
+     *
+     * @since 2026.10
+     */
+    static boolean migrateDefaultJvmArgs( JsonObject config ) {
+        if ( config == null || !config.has( ConfigConstants.JVM_ARGS_KEY ) ) {
+            return false;
+        }
+        JsonElement stored = config.get( ConfigConstants.JVM_ARGS_KEY );
+        if ( stored == null || !stored.isJsonPrimitive() || !stored.getAsJsonPrimitive().isString() ) {
+            return false;
+        }
+        if ( !stored.getAsString().trim().equals( ConfigConstants.JVM_ARGS_VALUE_DEFAULT_PRE_2026_10 ) ) {
+            return false;
+        }
+        config.addProperty( ConfigConstants.JVM_ARGS_KEY, ConfigConstants.JVM_ARGS_VALUE_DEFAULT );
+        return true;
     }
 
     // ====================================================================

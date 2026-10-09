@@ -137,8 +137,13 @@ public final class HardwareTunedJvmArgs
         // pages in the entire heap at JVM start so the GC doesn't pay
         // demand-paging cost mid-collection. Worth it on dedicated game
         // launches; the up-front cost is amortised over the session.
+        // ExplicitGCInvokesConcurrent replaces Aikar's DisableExplicitGC: the
+        // JDK calls System.gc() to reclaim dead direct buffers when direct
+        // memory runs short, and disabling that call let them pile up until
+        // "OutOfMemoryError: Direct buffer memory". Running it as a concurrent
+        // G1 cycle keeps it working without the full-GC pause.
         sb.append( " -XX:+AlwaysPreTouch" );
-        sb.append( " -XX:+DisableExplicitGC" );
+        sb.append( " -XX:+ExplicitGCInvokesConcurrent" );
 
         // Helpful diagnostic comment as a config-side breadcrumb. Not a
         // JVM flag — `# ...` would break the launcher's split parser.
