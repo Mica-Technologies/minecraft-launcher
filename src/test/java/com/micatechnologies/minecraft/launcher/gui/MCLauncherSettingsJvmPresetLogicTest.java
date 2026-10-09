@@ -48,6 +48,16 @@ class MCLauncherSettingsJvmPresetLogicTest
     }
 
     @Test
+    void theMigratedDefaultSelectsPerformance()
+    {
+        int performance = MCLauncherSettingsGui.jvmPresetIndexOf( ConfigConstants.JVM_PRESET_PERFORMANCE );
+        assertEquals( performance, MCLauncherSettingsGui.jvmPresetIndexForArgs( ConfigConstants.JVM_ARGS_VALUE_DEFAULT ) );
+        // An unmigrated pre-2026.10 default is not a preset any more: it shows as Custom and is kept.
+        assertEquals( -1, MCLauncherSettingsGui.jvmPresetIndexForArgs(
+                ConfigConstants.JVM_ARGS_VALUE_DEFAULT_PRE_2026_10 ) );
+    }
+
+    @Test
     void customSelectionNeverOverwritesTheSavedArgs()
     {
         assertNull( MCLauncherSettingsGui.jvmArgsToPersist( -1, GENERATED ) );

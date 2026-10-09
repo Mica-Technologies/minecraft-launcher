@@ -58,7 +58,7 @@ public class ConfigConstants
      *
      * @since 3.0
      */
-    public static final int CONFIG_VERSION = 6;
+    public static final int CONFIG_VERSION = 7;
 
     /**
      * The default value for minimum RAM.
@@ -134,11 +134,40 @@ public class ConfigConstants
     public static final String JVM_ARGS_KEY = "jvmArgs";
 
     /**
-     * Default value for the custom JVM arguments (Aikar's Performance flags).
+     * Default value for the custom JVM arguments (Aikar's Performance flags), with
+     * {@code -XX:+ExplicitGCInvokesConcurrent} in place of Aikar's {@code -XX:+DisableExplicitGC}.
      *
+     * <p>Direct (off-heap) buffers are freed only when the GC finds them dead. When direct memory
+     * runs short the JDK calls {@code System.gc()} to reclaim them, and {@code DisableExplicitGC}
+     * turns that call into a no-op, so dead buffers pile up until the game dies with
+     * "OutOfMemoryError: Direct buffer memory". {@code ExplicitGCInvokesConcurrent} keeps the call
+     * working but runs it as a concurrent G1 cycle, avoiding the long full-GC pause that
+     * {@code DisableExplicitGC} was there to prevent.</p>
+     *
+     * @see #JVM_ARGS_VALUE_DEFAULT_PRE_2026_10
      * @since 1.1
      */
     public static final String JVM_ARGS_VALUE_DEFAULT =
+            "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 " +
+                    "-XX:+UnlockExperimentalVMOptions -XX:+ExplicitGCInvokesConcurrent -XX:+AlwaysPreTouch " +
+                    "-XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=16M " +
+                    "-XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 " +
+                    "-XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 " +
+                    "-XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 " +
+                    "-XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 " +
+                    "-Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true";
+
+    /**
+     * The default custom JVM arguments shipped before 2026.10, which carried
+     * {@code -XX:+DisableExplicitGC}. Kept only as the comparison target for the config v6 to v7
+     * migration in {@code ConfigManager}, which replaces a saved value exactly equal to this string
+     * with {@link #JVM_ARGS_VALUE_DEFAULT}. Every install persisted this string on its first read
+     * of the setting, so without the migration existing players would keep it. Never hand this
+     * value to a JVM: {@code DisableExplicitGC} stops direct buffer memory from being reclaimed.
+     *
+     * @since 2026.10
+     */
+    public static final String JVM_ARGS_VALUE_DEFAULT_PRE_2026_10 =
             "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 " +
                     "-XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch " +
                     "-XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=16M " +
