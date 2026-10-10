@@ -540,8 +540,17 @@ public class ManagedGameFile
         if ( context == null ) {
             context = LaunchPrepareContext.NONE;
         }
+        // The session flag only skips the hash, never the existence check: a file verified
+        // earlier this session can be deleted or emptied since (by the user, another tool, a
+        // content-browser action). Trusting the flag then left the file missing for good —
+        // every later launch and "verify this pack" skipped it, and the post-sync check
+        // aborted with the file still absent. A stat is cheap; re-run the full path on a miss.
         if ( sessionVerified ) {
-            return false;
+            File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
+            if ( localFile.isFile() && localFile.length() > 0 ) {
+                return false;
+            }
+            sessionVerified = false;
         }
         // No remote URL means the file is local-only (e.g. a Technic
         // server-pack mod referenced by filename, or a loader installer
