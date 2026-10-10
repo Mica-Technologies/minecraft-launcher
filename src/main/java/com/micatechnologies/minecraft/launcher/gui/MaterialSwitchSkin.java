@@ -82,14 +82,13 @@ public class MaterialSwitchSkin extends SkinBase< MFXToggleButton >
             requestLayout();
         }
     };
+    // Visual only: MFXToggleButton already calls fire() from its own MOUSE_CLICKED filter. Firing
+    // here as well toggled every switch twice per click, so none of them could be changed.
+    // The keyboard is ours, though; MFX only handles the mouse.
     private final EventHandler< MouseEvent > released = e -> {
-        boolean fire = armed && getSkinnable().contains( e.getX(), e.getY() );
         armed = false;
         pseudo( "pressed-handle", false );
         requestLayout();
-        if ( fire ) {
-            getSkinnable().fire();
-        }
     };
     private final EventHandler< KeyEvent > keys = e -> {
         if ( e.getCode() == KeyCode.SPACE || e.getCode() == KeyCode.ENTER ) {
