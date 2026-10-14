@@ -68,4 +68,8 @@
   <String Id="InstallScopeDlgPerUserDescription" Overridable="yes">Installs [ProductName] under your user profile. No administrator rights are required.</String>
   <String Id="InstallScopeDlgPerMachineDescription" Overridable="yes">Installs [ProductName] for every user on this PC. This requires administrator rights.</String>
 
+  <!-- Shown when the install aborts because the launcher is still running (see
+       MmclLauncherRunning in main.wxs). Nothing has been changed at that point. -->
+  <String Id="MmclLauncherRunningError">[ProductName] is still running. Close it, then run the installer again. Nothing has been changed.</String>
+
 </WixLocalization>
