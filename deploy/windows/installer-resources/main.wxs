@@ -137,9 +137,31 @@
     <Icon Id="JpARPPRODUCTICON" SourceFile="$(var.JpIcon)"/>
     <?endif?>
 
+    <!-- Refuse to upgrade while the launcher is running. RemoveExistingProducts
+         runs first (below), and the old product's uninstall cannot delete a file
+         the running JVM has memory-mapped (runtime\lib\modules). Windows Installer
+         then queues a path-keyed "delete at next reboot" for it, the new product
+         writes its own copy at that same path, and the next boot deletes the NEW
+         file. The JVM then cannot start at all and the launcher exits silently.
+         That happened on 2026-10-13 (26.10.09 -> 26.10.10 under Burn, which
+         suppresses the files-in-use prompt and only reports "reboot required").
+
+         WixCloseApplications only sets MMCL_LAUNCHER_RUNNING here (no close,
+         no reboot prompt). It is sequenced ahead of RemoveExistingProducts so
+         the check happens before anything is removed, and MmclLauncherRunning
+         then aborts the install with a message telling the user to close it. -->
+    <util:CloseApplication Id="MmclCloseLauncherCheck"
+                           Target="$(var.JpAppName).exe"
+                           Property="MMCL_LAUNCHER_RUNNING"
+                           CloseMessage="no"
+                           RebootPrompt="no"/>
+    <CustomAction Id="MmclLauncherRunning" Error="!(loc.MmclLauncherRunningError)"/>
+
     <UIRef Id="JpUI"/>
 
     <InstallExecuteSequence>
+      <Custom Action="WixCloseApplications" Before="MmclLauncherRunning"/>
+      <Custom Action="MmclLauncherRunning" Before="RemoveExistingProducts">MMCL_LAUNCHER_RUNNING</Custom>
       <Custom Action="JpSetARPINSTALLLOCATION" After="CostFinalize">Not Installed</Custom>
       <Custom Action="JpSetARPCOMMENTS" After="CostFinalize">Not Installed</Custom>
       <Custom Action="JpSetARPCONTACT" After="CostFinalize">Not Installed</Custom>
