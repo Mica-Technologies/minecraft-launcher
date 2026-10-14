@@ -149,9 +149,22 @@
          WixCloseApplications only sets MMCL_LAUNCHER_RUNNING here (no close,
          no reboot prompt). It is sequenced ahead of RemoveExistingProducts so
          the check happens before anything is removed, and MmclLauncherRunning
-         then aborts the install with a message telling the user to close it. -->
+         then aborts the install with a message telling the user to close it.
+
+         Two executables: "<name>.exe" is the native starter, which stays open
+         while the launcher runs, and "<name> Core.exe" is the jpackage launcher
+         it starts (also the process a taskbar pin of the window starts directly).
+
+         Only a new install, an upgrade or an uninstall is refused. A repair keeps
+         the product and replaces files in place, which a reboot finishes safely;
+         and the starter's own Repair button runs one while the starter is open. -->
     <util:CloseApplication Id="MmclCloseLauncherCheck"
                            Target="$(var.JpAppName).exe"
+                           Property="MMCL_LAUNCHER_RUNNING"
+                           CloseMessage="no"
+                           RebootPrompt="no"/>
+    <util:CloseApplication Id="MmclCloseLauncherCoreCheck"
+                           Target="$(var.JpAppName) Core.exe"
                            Property="MMCL_LAUNCHER_RUNNING"
                            CloseMessage="no"
                            RebootPrompt="no"/>
@@ -161,7 +174,7 @@
 
     <InstallExecuteSequence>
       <Custom Action="WixCloseApplications" Before="MmclLauncherRunning"/>
-      <Custom Action="MmclLauncherRunning" Before="RemoveExistingProducts">MMCL_LAUNCHER_RUNNING</Custom>
+      <Custom Action="MmclLauncherRunning" Before="RemoveExistingProducts">MMCL_LAUNCHER_RUNNING AND (NOT Installed OR REMOVE~="ALL")</Custom>
       <Custom Action="JpSetARPINSTALLLOCATION" After="CostFinalize">Not Installed</Custom>
       <Custom Action="JpSetARPCOMMENTS" After="CostFinalize">Not Installed</Custom>
       <Custom Action="JpSetARPCONTACT" After="CostFinalize">Not Installed</Custom>

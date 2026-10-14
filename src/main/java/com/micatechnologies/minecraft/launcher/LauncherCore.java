@@ -171,6 +171,8 @@ public class LauncherCore
         // Before anything that can fail: the main log only exists once the session starts, so a
         // launch that ends earlier would otherwise leave no trace (see StartupDiagnostics).
         StartupDiagnostics.installUncaughtExceptionHandler();
+        // Tell the Windows starter the JVM came up; it reports a launch that never gets here.
+        StarterHandshake.reachedMain();
         // Not the --mcp relay: MCP clients spawn it often, and it would crowd out the launches.
         if ( args.length == 0 || !LauncherConstants.PROGRAM_ARG_MCP.equalsIgnoreCase( args[ 0 ] ) ) {
             StartupDiagnostics.recordLaunch( args );
@@ -217,6 +219,8 @@ public class LauncherCore
         // single-instance lock + GUI/auth bootstrap so it works standalone with
         // the launcher open, needs no auth, and never spawns the game.
         if ( args.length == 2 && LauncherConstants.PROGRAM_ARG_DIAG_MANIFEST.equalsIgnoreCase( args[ 0 ] ) ) {
+            // A console tool: its exit code and output are the report.
+            StarterHandshake.reportedOutcome();
             runManifestDiagnostic( args[ 1 ] );
             return;
         }
@@ -232,6 +236,8 @@ public class LauncherCore
         // stdout is reserved for protocol -- a stray log line there would corrupt the stream --
         // so this path returns before the logger is configured and reports only on stderr.
         if ( args.length >= 1 && LauncherConstants.PROGRAM_ARG_MCP.equalsIgnoreCase( args[ 0 ] ) ) {
+            // The MCP client reads the relay's stderr and exit code; no dialog for it.
+            StarterHandshake.reportedOutcome();
             System.exit( com.micatechnologies.minecraft.launcher.mcp.transport.StdioProxy.run(
                     com.micatechnologies.minecraft.launcher.mcp.McpEndpointFile.defaultPath(),
                     System.in, System.out, System.err ) );
@@ -391,6 +397,7 @@ public class LauncherCore
         else {
             showStartupDialog( message );
         }
+        StarterHandshake.reportedOutcome();
         System.exit( 1 );
     }
 

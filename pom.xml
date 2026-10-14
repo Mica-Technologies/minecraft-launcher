@@ -683,8 +683,15 @@
                 <jpackage.app.version>25.1.2</jpackage.app.version>
                 <!-- Requires WiX Toolset 3.x for exe/msi installer generation.
                      Install via: winget install WiXToolset.WiX
-                     Override with -Djpackage.type=app-image if WiX is not available. -->
+                     Without WiX, pass -Dwindows.installers.skip=true: the build then stops at
+                     the app image (with the starter) under ${windows.app.image.dir}. -->
                 <jpackage.type>msi</jpackage.type>
+                <windows.installers.skip>false</windows.installers.skip>
+                <!-- The jpackage app image both MSIs are built from. -->
+                <windows.app.image.dir>${project.build.directory}/app-image</windows.app.image.dir>
+                <!-- MSI UpgradeCode, shared by both install scopes (and compiled into the starter,
+                     which looks the install up by it to repair it). -->
+                <windows.upgrade.uuid>3699f9a3-0d10-4228-ab2f-b86ca9a500ac</windows.upgrade.uuid>
                 <!-- Root of the WiX 3.x install. CI may override via -Dwix.toolset.bin
                      when WiX lives somewhere other than the default Program Files path. -->
                 <wix.toolset.bin>C:/Program Files (x86)/WiX Toolset v3.14/bin</wix.toolset.bin>
@@ -769,23 +776,21 @@
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
                         <executions>
-                            <!-- Per-user MSI. Installs under %LOCALAPPDATA%\Programs, no
-                                 admin rights required. Matches the convention used by
-                                 Minecraft Launcher, MultiMC, and similar modpack launchers. -->
+                            <!-- Step 1: the application image, built once and packaged twice
+                                 below. Every option that shapes the installed app (runtime,
+                                 launcher config, JVM options, icon) belongs here; jpackage
+                                 refuses them when packaging from an existing image. -->
                             <execution>
-                                <id>jpackage-user</id>
+                                <id>jpackage-app-image</id>
                                 <phase>package</phase>
                                 <goals><goal>exec</goal></goals>
                                 <configuration>
                                     <!--suppress UnresolvedMavenProperty -->
                                     <executable>${jlink.jdk.path}/bin/jpackage</executable>
                                     <arguments>
-                                        <!-- Surface candle.exe / light.exe stdout+stderr in the
-                                             Maven log. Without this, WiX errors are swallowed and
-                                             a failure shows up as a bare "exited with NNN code"
-                                             IOException with no underlying detail (see commit
-                                             that renamed wixhelper.dll -> msica.dll for context). -->
                                         <argument>--verbose</argument>
+                                        <argument>--type</argument>
+                                        <argument>app-image</argument>
                                         <argument>--input</argument>
                                         <argument>${project.build.directory}/jpackage-input</argument>
                                         <argument>--main-jar</argument>
@@ -809,7 +814,7 @@
                                         <argument>--description</argument>
                                         <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
-                                        <argument>${msi.user.dir}</argument>
+                                        <argument>${windows.app.image.dir}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
                                         <argument>--java-options</argument>
@@ -832,8 +837,83 @@
                                         <argument>${jpackage.appcds.folder.property}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Step 2: put the native starter (deploy/windows/starter) in front
+                                 of the jpackage launcher. "<name>.exe", which every shortcut, pin,
+                                 URL handler and relaunch runs, becomes the starter, and the
+                                 jpackage launcher moves to "<name> Core.exe". The starter checks
+                                 the install, runs Core, and shows a dialog (with a repair) when
+                                 the launcher cannot start or crashes, which the JVM itself only
+                                 reports on a console nobody sees. Needs the Visual Studio C++
+                                 build tools (windows-latest has them). -->
+                            <execution>
+                                <id>windows-starter</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>powershell.exe</executable>
+                                    <arguments>
+                                        <argument>-NoProfile</argument>
+                                        <argument>-ExecutionPolicy</argument>
+                                        <argument>RemoteSigned</argument>
+                                        <argument>-File</argument>
+                                        <argument>${project.basedir}/deploy/windows/starter/build-starter.ps1</argument>
+                                        <argument>-AppImage</argument>
+                                        <argument>${windows.app.image.dir}/${packaging.name}</argument>
+                                        <argument>-Name</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>-Version</argument>
+                                        <argument>${jpackage.app.version}</argument>
+                                        <argument>-Environment</argument>
+                                        <argument>${launcher.environment}</argument>
+                                        <argument>-Icon</argument>
+                                        <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
+                                        <argument>-UpgradeCode</argument>
+                                        <argument>${windows.upgrade.uuid}</argument>
+                                        <argument>-LangDir</argument>
+                                        <argument>${project.basedir}/src/main/resources/lang</argument>
+                                        <argument>-WorkDir</argument>
+                                        <argument>${project.build.directory}/starter</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Step 3a: per-user MSI from the image. Installs under
+                                 %LOCALAPPDATA%\Programs, no admin rights required. Matches the
+                                 convention used by Minecraft Launcher, MultiMC, and similar
+                                 modpack launchers. -->
+                            <execution>
+                                <id>jpackage-user</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <skip>${windows.installers.skip}</skip>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <executable>${jlink.jdk.path}/bin/jpackage</executable>
+                                    <arguments>
+                                        <!-- Surface candle.exe / light.exe stdout+stderr in the
+                                             Maven log. Without this, WiX errors are swallowed and
+                                             a failure shows up as a bare "exited with NNN code"
+                                             IOException with no underlying detail (see commit
+                                             that renamed wixhelper.dll -> msica.dll for context). -->
+                                        <argument>--verbose</argument>
                                         <argument>--type</argument>
                                         <argument>${jpackage.type}</argument>
+                                        <argument>--app-image</argument>
+                                        <argument>${windows.app.image.dir}/${packaging.name}</argument>
+                                        <argument>--name</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${jpackage.app.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>Mica Technologies</argument>
+                                        <argument>--description</argument>
+                                        <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${msi.user.dir}</argument>
                                         <argument>--license-file</argument>
                                         <argument>${project.basedir}/LICENSE</argument>
                                         <argument>--win-dir-chooser</argument>
@@ -844,74 +924,42 @@
                                         <argument>--win-shortcut-prompt</argument>
                                         <argument>--win-per-user-install</argument>
                                         <argument>--win-upgrade-uuid</argument>
-                                        <argument>3699f9a3-0d10-4228-ab2f-b86ca9a500ac</argument>
+                                        <argument>${windows.upgrade.uuid}</argument>
                                         <argument>--resource-dir</argument>
                                         <argument>${project.build.directory}/installer-resources</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
 
-                            <!-- Per-machine MSI. Installs under %ProgramFiles%, requires
-                                 elevation. The Burn bootstrapper picks this one when the
-                                 user selects "All users" on the scope chooser screen. -->
+                            <!-- Step 3b: per-machine MSI from the same image. Installs under
+                                 %ProgramFiles%, requires elevation. The Burn bootstrapper picks
+                                 this one when the user selects "All users" on the scope chooser
+                                 screen. -->
                             <execution>
                                 <id>jpackage-machine</id>
                                 <phase>package</phase>
                                 <goals><goal>exec</goal></goals>
                                 <configuration>
+                                    <skip>${windows.installers.skip}</skip>
                                     <!--suppress UnresolvedMavenProperty -->
                                     <executable>${jlink.jdk.path}/bin/jpackage</executable>
                                     <arguments>
                                         <!-- See jpackage-user above for the rationale. -->
                                         <argument>--verbose</argument>
-                                        <argument>--input</argument>
-                                        <argument>${project.build.directory}/jpackage-input</argument>
-                                        <argument>--main-jar</argument>
-                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
-                                        <argument>--main-class</argument>
-                                        <argument>${main.class}</argument>
+                                        <argument>--type</argument>
+                                        <argument>${jpackage.type}</argument>
+                                        <argument>--app-image</argument>
+                                        <argument>${windows.app.image.dir}/${packaging.name}</argument>
                                         <argument>--name</argument>
                                         <argument>${packaging.name}</argument>
                                         <argument>--app-version</argument>
                                         <argument>${jpackage.app.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
-                                        <!-- Forward jlink options to the embedded jlink that
-                                             jpackage runs to assemble the bundled JRE. See the
-                                             jlink.options property at the top of this POM for
-                                             the exact options + rationale (smaller bundled JDK
-                                             via aggressive ZIP recompression plus dropping JNI
-                                             headers and man pages). -->
-                                        <argument>--jlink-options</argument>
-                                        <argument>${jlink.options}</argument>
                                         <argument>--description</argument>
                                         <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
                                         <argument>${msi.machine.dir}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jfxtaskbarprogressbar.export}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.native.access}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.final.field.mutation}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${webview.transparency.opens}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.appcds.archive}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.appcds.autocreate}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.log.disable}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.log.stderr}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.output.stderr}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.appcds.folder.property}</argument>
-                                        <argument>--icon</argument>
-                                        <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
-                                        <argument>--type</argument>
-                                        <argument>${jpackage.type}</argument>
                                         <argument>--license-file</argument>
                                         <argument>${project.basedir}/LICENSE</argument>
                                         <argument>--win-dir-chooser</argument>
@@ -924,7 +972,7 @@
                                              stages this MSI under %ProgramFiles% and registers it
                                              under HKLM. -->
                                         <argument>--win-upgrade-uuid</argument>
-                                        <argument>3699f9a3-0d10-4228-ab2f-b86ca9a500ac</argument>
+                                        <argument>${windows.upgrade.uuid}</argument>
                                         <argument>--resource-dir</argument>
                                         <argument>${project.build.directory}/installer-resources</argument>
                                     </arguments>
@@ -938,6 +986,7 @@
                                 <phase>package</phase>
                                 <goals><goal>exec</goal></goals>
                                 <configuration>
+                                    <skip>${windows.installers.skip}</skip>
                                     <executable>${wix.toolset.bin}/candle.exe</executable>
                                     <arguments>
                                         <argument>-nologo</argument>
@@ -969,6 +1018,7 @@
                                 <phase>package</phase>
                                 <goals><goal>exec</goal></goals>
                                 <configuration>
+                                    <skip>${windows.installers.skip}</skip>
                                     <executable>${wix.toolset.bin}/light.exe</executable>
                                     <arguments>
                                         <argument>-nologo</argument>

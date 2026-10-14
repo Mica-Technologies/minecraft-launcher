@@ -184,6 +184,39 @@ library.
 - **URL scheme / file association** — `SchemeRegistrar` registers `mmcl://` and `.mmcjson` in the
   registry at startup.
 
+### Native starter — `deploy/windows/starter`
+
+The installed `Mica Minecraft Launcher.exe` is a small C program, not the jpackage launcher, which
+sits beside it as `Mica Minecraft Launcher Core.exe` (with `app\Mica Minecraft Launcher Core.cfg`).
+Every shortcut, pin, `mmcl://` handler, jump-list entry and relaunch runs the starter: the Java
+side gets its path from `StarterHandshake.launcherExecutable()` (env `MMCL_STARTER_PATH`), not
+`jpackage.app-path`. It exists because a JVM that cannot start reports that only on stdout/stderr,
+which a GUI program never shows: a damaged install looked like "nothing happens".
+
+- **Before launching** it checks the files the JVM cannot start without (Core exe and `.cfg`,
+  `runtime\bin\server\jvm.dll`, `runtime\lib\modules`, the classpath jars) and, if any is missing,
+  says which and offers **Repair the installation**.
+- **While running** it passes stdin/stdout straight through (the `--mcp` relay) and keeps the tail of
+  stderr; launched from a shortcut, with no stdout of its own, it keeps stdout's tail too.
+- **Afterwards** it reads how far the launcher got from a state file (env `MMCL_STARTER_STATE`) that
+  `StarterHandshake` writes: `main` at the top of `main()`, `ready` once any launcher window shows,
+  `handled` when the launcher reported the outcome itself (its own dialog, `--mcp`, the TUI, the
+  diagnostic CLI). A non-zero exit before `main` gets "couldn't start" with Repair; before a window,
+  or any crash (an NTSTATUS exit code), gets "closed unexpectedly" with the output tail. Every such
+  outcome is appended to `startup.log`.
+- **Repair** finds the MSI by upgrade code and install folder and runs `msiexec /fpums` (missing
+  files, registry, shortcuts; elevated for per-machine installs), then starts the launcher again.
+  It leaves present files alone, so it works while the starter itself is running, and the MSI's
+  running-launcher gate only refuses installs, upgrades and uninstalls, never a repair.
+
+Built by `build-starter.ps1` during `mvn package` (needs the Visual Studio C++ build tools), which
+also generates the dialog text from the `starter.*` bundle keys. Packaging runs jpackage once for
+the app image, stages the starter into it, then builds both MSIs from that image; pass
+`-Dwindows.installers.skip=true` to stop at the image when WiX is unavailable.
+
+Not covered yet: a taskbar pin made from the running window relaunches the Core exe directly
+(the window sets an AppUserModelID but no relaunch command), and macOS / Linux have no starter.
+
 ## Linux
 
 - **Recent modpacks** — `JumpListManager` rewrites the installed `.desktop` file's `Actions=` block
@@ -225,6 +258,7 @@ native side actually succeeding.
 | Recent-modpacks façade | `utilities/JumpListManager` |
 | Dark/light probe | `utilities/OsThemeUtilities` |
 | URL scheme / file association | `utilities/SchemeRegistrar` |
+| Windows native starter | `deploy/windows/starter/starter.c`, `utilities/StarterHandshake` |
 | Per-pack desktop shortcuts | `system/DesktopShortcutManager` |
 | macOS hidden-inset title bar + drag | `utilities/MacOsTitleBarManager` |
 | macOS native title-bar toolbar (centers lights + hosts nav) | `utilities/MacOsToolbarManager` |

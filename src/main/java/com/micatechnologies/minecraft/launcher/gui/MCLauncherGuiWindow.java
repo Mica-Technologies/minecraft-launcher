@@ -684,6 +684,9 @@ public class MCLauncherGuiWindow extends Application
                     UiScale.unwrap( gui.scene.getRoot() ),
                     () -> MCLauncherHelpWindow.show( sceneGui.getHelpTopic() ) );
 
+            // A window is up: from here the launcher shows its own errors, so the Windows
+            // starter no longer needs to.
+            com.micatechnologies.minecraft.launcher.utilities.StarterHandshake.windowShown();
             gui.afterShow();
         } );
 
