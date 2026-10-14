@@ -687,6 +687,8 @@ public class MCLauncherGuiWindow extends Application
             // A window is up: from here the launcher shows its own errors, so the Windows
             // starter no longer needs to.
             com.micatechnologies.minecraft.launcher.utilities.StarterHandshake.windowShown();
+            // A taskbar pin of any launcher window should start the starter, not the Core exe.
+            com.micatechnologies.minecraft.launcher.utilities.WindowsRelaunchProperties.applyToAllWindows();
             gui.afterShow();
         } );
 
