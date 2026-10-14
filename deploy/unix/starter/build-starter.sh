@@ -61,7 +61,8 @@ case "$(uname -s)" in
         cfg_dir="$app_image/Contents/app"
         ;;
     Linux)
-        cc "${cflags[@]}" -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -pie "$source_dir/starter_unix.c" \
+        # Paths are bounded by PATH_MAX and truncated on purpose if longer; GCC warns regardless.
+        cc "${cflags[@]}" -Wno-format-truncation -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE -pie "$source_dir/starter_unix.c" \
             -o "$work_dir/starter" -ldl -lpthread
         launcher_dir="$app_image/bin"
         cfg_dir="$app_image/lib/app"

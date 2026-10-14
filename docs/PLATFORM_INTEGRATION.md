@@ -220,7 +220,7 @@ and icon pointing at the starter, and clears them when the window hides. Without
 running window pinned the Core exe and skipped the starter. When the Core exe was started directly
 (a pin from before this), `StarterHandshake.launcherExecutable()` still finds the starter beside it.
 
-Not covered yet: macOS / Linux have no starter.
+macOS and Linux have their own starter; see "Native starter on macOS and Linux" below.
 
 ## Linux
 
@@ -233,6 +233,32 @@ Not covered yet: macOS / Linux have no starter.
 - **URL scheme / file association / shortcuts** — `SchemeRegistrar` + `DesktopShortcutManager` via
   `.desktop` files.
 - No system-wide vibrancy equivalent — the Native theme routes to the opaque Dark/Light palette.
+
+## Native starter on macOS and Linux — `deploy/unix/starter`
+
+The same idea as the Windows starter, in `starter_unix.c`: the launcher executable
+(`<app>.app/Contents/MacOS/<name>`, `/opt/<pkg>/bin/<name>`) is the starter, the jpackage launcher
+sits beside it as `<name> Core`, and its config is `<name> Core.cfg`. It checks the same files
+(`lib/modules` and `libjvm` in the runtime, the `.cfg`, the classpath jars), keeps the tail of
+stderr (and of stdout when it has none of its own), reads the `StarterHandshake` stage, and writes
+to `startup.log`. With no Windows Installer cache to repair from, its dialog offers **Download the
+launcher again** (the latest release page) and the log folder.
+
+- **Linux** — the starter stays the parent: it gets the exit code or crash signal, forwards
+  SIGTERM / SIGINT / SIGHUP / SIGQUIT to the launcher, and treats being told to stop as no crash.
+  The dialog is GTK 3, loaded with `dlopen` (JavaFX needs GTK 3 on Linux anyway), with `zenity` as
+  a fallback.
+- **macOS** — Launch Services delivers `mmcl://` links, opened files and Dock activity to the
+  process it started, so the starter forks a watcher and then `exec`s the Core launcher in its own
+  process. The watcher sees the exit through kqueue but not its status, so it decides on the stage
+  alone: an exit before `main` gets "couldn't start", before a window "closed unexpectedly", later
+  nothing (macOS reports real crashes itself). An early exit that needs no dialog must therefore
+  call `StarterHandshake.reportedOutcome()`, as the second-launch hand-off does. The dialog is
+  `CFUserNotificationDisplayAlert`, and the bundle is signed again (ad hoc) once the starter is in.
+
+Built by `build-starter.sh` during `mvn package` (needs a C compiler: the Xcode command-line tools
+or gcc). Both platforms package from a jpackage app image, as Windows does. The dialog text of all
+three starters comes from `deploy/starter/GenerateStarterStrings.java`.
 
 ## Fallback philosophy (important)
 
@@ -263,7 +289,7 @@ native side actually succeeding.
 | Recent-modpacks façade | `utilities/JumpListManager` |
 | Dark/light probe | `utilities/OsThemeUtilities` |
 | URL scheme / file association | `utilities/SchemeRegistrar` |
-| Windows native starter | `deploy/windows/starter/starter.c`, `utilities/StarterHandshake` |
+| Native starters | `deploy/windows/starter/starter.c`, `deploy/unix/starter/starter_unix.c`, `utilities/StarterHandshake` |
 | Per-pack desktop shortcuts | `system/DesktopShortcutManager` |
 | macOS hidden-inset title bar + drag | `utilities/MacOsTitleBarManager` |
 | macOS native title-bar toolbar (centers lights + hosts nav) | `utilities/MacOsToolbarManager` |

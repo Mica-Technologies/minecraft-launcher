@@ -14,7 +14,7 @@ LOG="$HOME/.MicaMinecraftLauncher/logs/startup.log"
 SUMMARY="$OUT/summary.txt"
 
 shot() { screencapture -x "$OUT/$1.png" 2>>"$OUT/screencapture.err" || true; }
-starter_lines() { grep -c "Starter:" "$LOG" 2>/dev/null || echo 0; }
+starter_lines() { local n; n=$(grep -c "Starter:" "$LOG" 2>/dev/null); echo "${n:-0}"; }
 note() { echo "$*" | tee -a "$SUMMARY"; }
 procs() { pgrep -fl "$NAME" || true; }
 killall_app() { pkill -9 -f "Contents/MacOS/$NAME" || true; sleep 2; }
@@ -39,6 +39,8 @@ note "== T5 second launch hands off to the running one (exits 0 before any windo
 sleep 5
 shot t5-after-second-launch
 osascript -e "quit app \"$NAME\"" 2>&1 | tee -a "$SUMMARY"
+sleep 10
+pkill -TERM -f "Contents/MacOS/$NAME Core" && note "quit declined; sent SIGTERM to Core"
 sleep 20
 shot t1-after-quit
 note "processes after quit:"; procs | tee -a "$SUMMARY"

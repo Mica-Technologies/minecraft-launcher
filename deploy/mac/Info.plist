@@ -1,6 +1,8 @@
 <?xml version="1.0" ?>
 <!--
-  Custom Info.plist template for jpackage's --resource-dir hook.
+  Custom Info.plist template for jpackage's resource-dir hook. (No double dashes in this
+  comment: jpackage parses the generated Info.plist as XML when packaging an app image, and
+  XML forbids them inside comments.)
 
   Mirrors the default jpackage template (DEPLOY_* placeholders are string-replaced
   by jpackage at build time) plus a CFBundleURLTypes block that registers the
@@ -10,7 +12,7 @@
   Desktop.setOpenURIHandler bridge wired in SystemMenuBarManager.
 
   The DEPLOY_FILE_ASSOCIATIONS placeholder is intentionally preserved so the
-  existing --file-associations flag in the pom keeps injecting the .mmcjson
+  existing file-associations option in the pom keeps injecting the .mmcjson
   CFBundleDocumentTypes block right above the URL types.
 
   If a future jpackage version renames any of the DEPLOY_* placeholders the

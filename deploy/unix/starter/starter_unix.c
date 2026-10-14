@@ -92,7 +92,12 @@ static const StarterLocale *g_locale;
 static pthread_mutex_t g_tailLock = PTHREAD_MUTEX_INITIALIZER;
 static char g_tail[ TAIL_BYTES ];
 static size_t g_tailLen;
-static volatile int g_pumpDone;
+static int g_pumpsRunning;   /* guarded by g_tailLock */
+
+/* Internal argument that starts the macOS watcher (see runMac). */
+#define WATCHER_ARG "--mmcl-starter-watcher"
+
+static int usableOutput( int fd );
 
 /* ---------------------------------------------------------------------------------------- */
 /*  Strings, paths, startup log, locale                                                      */
@@ -398,33 +403,109 @@ static void *pump( void *arg )
         if ( p->to >= 0 && write( p->to, buf, ( size_t ) n ) < 0 ) {
             p->to = -1;
         }
+        /* One read is at most sizeof buf, less than the tail, so it always fits after a drop. */
         pthread_mutex_lock( &g_tailLock );
         size_t len = ( size_t ) n;
-        if ( len >= TAIL_BYTES ) {
-            memcpy( g_tail, buf + len - TAIL_BYTES, TAIL_BYTES );
-            g_tailLen = TAIL_BYTES;
+        if ( g_tailLen + len > TAIL_BYTES ) {
+            size_t drop = g_tailLen + len - TAIL_BYTES;
+            memmove( g_tail, g_tail + drop, g_tailLen - drop );
+            g_tailLen -= drop;
         }
-        else {
-            if ( g_tailLen + len > TAIL_BYTES ) {
-                size_t drop = g_tailLen + len - TAIL_BYTES;
-                memmove( g_tail, g_tail + drop, g_tailLen - drop );
-                g_tailLen -= drop;
-            }
-            memcpy( g_tail + g_tailLen, buf, len );
-            g_tailLen += len;
-        }
+        memcpy( g_tail + g_tailLen, buf, len );
+        g_tailLen += len;
         pthread_mutex_unlock( &g_tailLock );
     }
-    g_pumpDone = 1;
+    pthread_mutex_lock( &g_tailLock );
+    g_pumpsRunning--;
+    pthread_mutex_unlock( &g_tailLock );
     return NULL;
 }
 
-/* Waits up to ~750 ms for the pump to drain: processes the launcher started may keep the pipe. */
-static void waitForPump( void )
+/* Starts a detached pump copying from one fd to another (or nowhere) and into the tail. */
+static void startPump( int from, int to )
 {
-    for ( int i = 0; i < 75 && !g_pumpDone; i++ ) {
+    if ( from < 0 ) {
+        return;
+    }
+    struct Pump *p = malloc( sizeof *p );
+    p->from = from;
+    p->to = to;
+    pthread_t thread;
+    pthread_mutex_lock( &g_tailLock );
+    g_pumpsRunning++;
+    pthread_mutex_unlock( &g_tailLock );
+    if ( pthread_create( &thread, NULL, pump, p ) != 0 ) {
+        pthread_mutex_lock( &g_tailLock );
+        g_pumpsRunning--;
+        pthread_mutex_unlock( &g_tailLock );
+        return;
+    }
+    pthread_detach( thread );
+}
+
+/* Waits up to ~750 ms for the pumps to drain: processes the launcher started may keep a pipe. */
+static void waitForPumps( void )
+{
+    for ( int i = 0; i < 75; i++ ) {
+        pthread_mutex_lock( &g_tailLock );
+        int running = g_pumpsRunning;
+        pthread_mutex_unlock( &g_tailLock );
+        if ( running == 0 ) {
+            return;
+        }
         usleep( 10000 );
     }
+}
+
+/*
+ * Output capture for one run. stderr always goes through a pipe the starter reads. stdout does
+ * too, except for the --mcp relay, whose stdout is a JSON-RPC channel that must stay untouched:
+ * the JVM prints "Error occurred during initialization of VM" there. Each pipe is forwarded to
+ * the starter's own stream when that is a real destination, and both feed the tail.
+ */
+struct Capture { int out[ 2 ]; int err[ 2 ]; int realOut; int realErr; };
+
+static void openCapture( struct Capture *c, int captureStdout )
+{
+    c->out[ 0 ] = c->out[ 1 ] = c->err[ 0 ] = c->err[ 1 ] = -1;
+    if ( pipe( c->err ) != 0 ) {
+        c->err[ 0 ] = c->err[ 1 ] = -1;
+    }
+    if ( captureStdout && pipe( c->out ) != 0 ) {
+        c->out[ 0 ] = c->out[ 1 ] = -1;
+    }
+    c->realOut = c->out[ 0 ] >= 0 && usableOutput( STDOUT_FILENO ) ? dup( STDOUT_FILENO ) : -1;
+    c->realErr = usableOutput( STDERR_FILENO ) ? dup( STDERR_FILENO ) : -1;
+}
+
+/* In the process that becomes the launcher: point stdout/stderr at the pipes, keep nothing else. */
+static void attachCapture( struct Capture *c )
+{
+    if ( c->err[ 1 ] >= 0 ) {
+        dup2( c->err[ 1 ], STDERR_FILENO );
+    }
+    if ( c->out[ 1 ] >= 0 ) {
+        dup2( c->out[ 1 ], STDOUT_FILENO );
+    }
+    int fds[] = { c->out[ 0 ], c->out[ 1 ], c->err[ 0 ], c->err[ 1 ], c->realOut, c->realErr };
+    for ( int i = 0; i < 6; i++ ) {
+        if ( fds[ i ] > STDERR_FILENO ) {
+            close( fds[ i ] );
+        }
+    }
+}
+
+/* In the process that reads: drop the write ends, so the pipes close when the launcher exits. */
+static void readCapture( struct Capture *c )
+{
+    if ( c->out[ 1 ] >= 0 ) {
+        close( c->out[ 1 ] );
+    }
+    if ( c->err[ 1 ] >= 0 ) {
+        close( c->err[ 1 ] );
+    }
+    startPump( c->out[ 0 ], c->realOut );
+    startPump( c->err[ 0 ], c->realErr );
 }
 
 /* Whether fd is a real destination (a terminal, file, pipe or socket), not closed or /dev/null. */
@@ -770,31 +851,17 @@ static void forwardSignal( int sig )
     }
 }
 
-static int runLinux( int argc, char **argv )
+static int runLinux( int argc, char **argv, int captureStdout )
 {
-    int out[ 2 ];
-    if ( pipe( out ) != 0 ) {
-        out[ 0 ] = out[ 1 ] = -1;
-    }
-    int captureStdout = !usableOutput( STDOUT_FILENO );
-    int realErr = usableOutput( STDERR_FILENO ) ? dup( STDERR_FILENO ) : -1;
+    struct Capture capture;
+    openCapture( &capture, captureStdout );
 
     pid_t child = fork();
     if ( child == 0 ) {
-        if ( out[ 1 ] >= 0 ) {
-            dup2( out[ 1 ], STDERR_FILENO );
-            if ( captureStdout ) {
-                dup2( out[ 1 ], STDOUT_FILENO );
-            }
-            close( out[ 0 ] );
-            close( out[ 1 ] );
-        }
+        attachCapture( &capture );
         execv( g_core, coreArgv( argc, argv ) );
         fprintf( stderr, "Could not start %s: %s\n", g_core, strerror( errno ) );
         _exit( 127 );
-    }
-    if ( out[ 1 ] >= 0 ) {
-        close( out[ 1 ] );
     }
     if ( child < 0 ) {
         startupLog( "fork failed: %s", strerror( errno ) );
@@ -809,18 +876,11 @@ static int runLinux( int argc, char **argv )
     sigaction( SIGHUP, &sa, NULL );
     sigaction( SIGQUIT, &sa, NULL );
 
-    struct Pump p = { out[ 0 ], realErr };
-    pthread_t thread;
-    int pumping = out[ 0 ] >= 0 && pthread_create( &thread, NULL, pump, &p ) == 0;
-    if ( pumping ) {
-        pthread_detach( thread );
-    }
+    readCapture( &capture );
     int status = 0;
     while ( waitpid( child, &status, 0 ) < 0 && errno == EINTR ) {
     }
-    if ( pumping ) {
-        waitForPump();
-    }
+    waitForPumps();
     enum Stage stage = readStage();
 
     char description[ 64 ];
@@ -845,63 +905,85 @@ static int runLinux( int argc, char **argv )
 #else
 
 /*
- * macOS: fork the watcher, then become the launcher. Launch Services, the Dock and Apple events
+ * The watcher, started by runMac in a fresh process (exec'd, not just forked: CoreFoundation,
+ * which the dialog needs, refuses to run in a forked child). Reads the launcher's output from
+ * the inherited pipes, waits for the launcher to exit, and reports what it could not.
+ */
+static int runWatcher( void )
+{
+    setsid();   /* not part of the app's session: a Ctrl+C or logout there is the app's */
+    signal( SIGHUP, SIG_IGN );
+    signal( SIGINT, SIG_IGN );
+    const char *state = getenv( "MMCL_STARTER_STATE" );
+    snprintf( g_state, sizeof g_state, "%s", state != NULL ? state : "" );
+    pid_t launcher = ( pid_t ) atol( getenv( "MMCL_STARTER_WATCH_PID" ) );
+    const char *fds[] = { "MMCL_STARTER_WATCH_OUT", "MMCL_STARTER_WATCH_REAL_OUT",
+                          "MMCL_STARTER_WATCH_ERR", "MMCL_STARTER_WATCH_REAL_ERR" };
+    int fd[ 4 ];
+    for ( int i = 0; i < 4; i++ ) {
+        const char *v = getenv( fds[ i ] );
+        fd[ i ] = v != NULL ? atoi( v ) : -1;
+    }
+    startPump( fd[ 0 ], fd[ 1 ] );
+    startPump( fd[ 2 ], fd[ 3 ] );
+
+    int kq = kqueue();
+    struct kevent change;
+    EV_SET( &change, launcher, EVFILT_PROC, EV_ADD | EV_ONESHOT, NOTE_EXIT, 0, NULL );
+    struct kevent event;
+    if ( kq >= 0 && kevent( kq, &change, 1, NULL, 0, NULL ) == 0 ) {
+        while ( kevent( kq, NULL, 0, &event, 1, NULL ) < 0 && errno == EINTR ) {
+        }
+    }
+    /* else: ESRCH, the launcher is already gone. */
+    waitForPumps();
+    reportOutcome( readStage(), 0, NULL );
+    return 0;
+}
+
+/*
+ * macOS: start the watcher, then become the launcher. Launch Services, the Dock and Apple events
  * (mmcl:// links, opened files) all track this process, so it must stay the launcher's.
  */
-static int runMac( int argc, char **argv )
+static int runMac( int argc, char **argv, int captureStdout )
 {
-    int out[ 2 ];
-    if ( pipe( out ) != 0 ) {
-        out[ 0 ] = out[ 1 ] = -1;
-    }
-    int captureStdout = !usableOutput( STDOUT_FILENO );
-    int realErr = usableOutput( STDERR_FILENO ) ? dup( STDERR_FILENO ) : -1;
+    struct Capture capture;
+    openCapture( &capture, captureStdout );
     pid_t launcher = getpid();
 
     pid_t watcher = fork();
     if ( watcher == 0 ) {
-        /* The watcher: not part of the app's session, so a Ctrl+C or logout of it is the app's. */
-        setsid();
-        signal( SIGHUP, SIG_IGN );
-        signal( SIGINT, SIG_IGN );
-        if ( out[ 1 ] >= 0 ) {
-            close( out[ 1 ] );
+        if ( capture.out[ 1 ] >= 0 ) {
+            close( capture.out[ 1 ] );
         }
-        struct Pump p = { out[ 0 ], realErr };
-        pthread_t thread;
-        int pumping = out[ 0 ] >= 0 && pthread_create( &thread, NULL, pump, &p ) == 0;
-        if ( pumping ) {
-            pthread_detach( thread );
+        if ( capture.err[ 1 ] >= 0 ) {
+            close( capture.err[ 1 ] );
         }
-        int kq = kqueue();
-        struct kevent change;
-        EV_SET( &change, launcher, EVFILT_PROC, EV_ADD | EV_ONESHOT, NOTE_EXIT, 0, NULL );
-        struct kevent event;
-        if ( kq >= 0 && kevent( kq, &change, 1, NULL, 0, NULL ) == 0 ) {
-            while ( kevent( kq, NULL, 0, &event, 1, NULL ) < 0 && errno == EINTR ) {
+        char value[ 32 ];
+        snprintf( value, sizeof value, "%ld", ( long ) launcher );
+        setenv( "MMCL_STARTER_WATCH_PID", value, 1 );
+        const char *names[] = { "MMCL_STARTER_WATCH_OUT", "MMCL_STARTER_WATCH_REAL_OUT",
+                                "MMCL_STARTER_WATCH_ERR", "MMCL_STARTER_WATCH_REAL_ERR" };
+        int fds[] = { capture.out[ 0 ], capture.realOut, capture.err[ 0 ], capture.realErr };
+        for ( int i = 0; i < 4; i++ ) {
+            snprintf( value, sizeof value, "%d", fds[ i ] );
+            setenv( names[ i ], value, 1 );
+        }
+        execl( g_self, g_self, WATCHER_ARG, ( char * ) NULL );
+        _exit( 127 );
+    }
+    if ( watcher > 0 ) {
+        attachCapture( &capture );
+    }
+    else {
+        /* No watcher, nobody to read the pipes: run uncaptured rather than block on them. */
+        int fds[] = { capture.out[ 0 ], capture.out[ 1 ], capture.err[ 0 ], capture.err[ 1 ],
+                      capture.realOut, capture.realErr };
+        for ( int i = 0; i < 6; i++ ) {
+            if ( fds[ i ] > STDERR_FILENO ) {
+                close( fds[ i ] );
             }
         }
-        /* else: ESRCH, the launcher is already gone. */
-        if ( pumping ) {
-            waitForPump();
-        }
-        reportOutcome( readStage(), 0, NULL );
-        _exit( 0 );
-    }
-    if ( out[ 0 ] >= 0 ) {
-        close( out[ 0 ] );
-    }
-    if ( realErr >= 0 ) {
-        close( realErr );
-    }
-    if ( watcher > 0 && out[ 1 ] >= 0 ) {
-        dup2( out[ 1 ], STDERR_FILENO );
-        if ( captureStdout ) {
-            dup2( out[ 1 ], STDOUT_FILENO );
-        }
-    }
-    if ( out[ 1 ] >= 0 ) {
-        close( out[ 1 ] );
     }
     execv( g_core, coreArgv( argc, argv ) );
     fprintf( stderr, "Could not start %s: %s\n", g_core, strerror( errno ) );
@@ -914,6 +996,11 @@ int main( int argc, char **argv )
 {
     resolvePaths();
     pickLocale();
+#ifdef __APPLE__
+    if ( argc == 2 && strcmp( argv[ 1 ], WATCHER_ARG ) == 0 && getenv( "MMCL_STARTER_WATCH_PID" ) != NULL ) {
+        return runWatcher();
+    }
+#endif
 
     char missing[ TEXT ];
     findMissingFiles( missing, sizeof missing );
@@ -927,9 +1014,11 @@ int main( int argc, char **argv )
 
     createStateFile();
     setenv( "MMCL_STARTER_PATH", g_self, 1 );
+    /* The --mcp relay's stdout is a JSON-RPC channel: never route it through a pipe of ours. */
+    int captureStdout = !( argc > 1 && strcmp( argv[ 1 ], "--mcp" ) == 0 );
 #ifdef __APPLE__
-    return runMac( argc, argv );
+    return runMac( argc, argv, captureStdout );
 #else
-    return runLinux( argc, argv );
+    return runLinux( argc, argv, captureStdout );
 #endif
 }

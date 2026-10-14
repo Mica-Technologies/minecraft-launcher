@@ -15,7 +15,7 @@ Xvfb :99 -screen 0 1600x1000x24 >/dev/null 2>&1 &
 sleep 3
 
 shot() { import -window root "$OUT/$1.png" 2>>"$OUT/import.err" || true; }
-starter_lines() { grep -c "Starter:" "$LOG" 2>/dev/null || echo 0; }
+starter_lines() { local n; n=$(grep -c "Starter:" "$LOG" 2>/dev/null); echo "${n:-0}"; }
 note() { echo "$*" | tee -a "$SUMMARY"; }
 killall_app() { pkill -9 -f "$ROOT/bin/" || true; sleep 2; }
 
