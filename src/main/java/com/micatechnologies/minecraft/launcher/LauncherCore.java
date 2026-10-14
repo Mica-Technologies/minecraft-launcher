@@ -1475,9 +1475,9 @@ public class LauncherCore
         // Initialize user model ID
         try {
             if ( SystemUtils.IS_OS_WINDOWS ) {
-                String appUserModelId = LauncherConstants.LAUNCHER_IS_DEV ?
-                                        LauncherCore.class.getCanonicalName() + "DEV" :
-                                        LauncherCore.class.getCanonicalName();
+                // Each launcher window carries the same id plus a relaunch command (see
+                // WindowsRelaunchProperties), so a pin starts the native starter.
+                String appUserModelId = WindowsRelaunchProperties.appUserModelId();
                 Logger.logDebug( LocalizationManager.format( "log.launcherCore.settingAppUserModelId",
                                                              appUserModelId ) );
                 WString appUserModelIdWString = new WString( appUserModelId );

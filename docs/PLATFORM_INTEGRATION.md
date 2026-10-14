@@ -214,8 +214,13 @@ also generates the dialog text from the `starter.*` bundle keys. Packaging runs 
 the app image, stages the starter into it, then builds both MSIs from that image; pass
 `-Dwindows.installers.skip=true` to stop at the image when WiX is unavailable.
 
-Not covered yet: a taskbar pin made from the running window relaunches the Core exe directly
-(the window sets an AppUserModelID but no relaunch command), and macOS / Linux have no starter.
+**Taskbar pins** — `WindowsRelaunchProperties` gives every launcher window (via
+`SHGetPropertyStoreForWindow`) the process's AppUserModelID plus a relaunch command, display name
+and icon pointing at the starter, and clears them when the window hides. Without that, pinning the
+running window pinned the Core exe and skipped the starter. When the Core exe was started directly
+(a pin from before this), `StarterHandshake.launcherExecutable()` still finds the starter beside it.
+
+Not covered yet: macOS / Linux have no starter.
 
 ## Linux
 

@@ -122,7 +122,36 @@ public final class StarterHandshake
                 // Fall through to the jpackage launcher.
             }
         }
-        return jpackage == null || jpackage.isBlank() ? null : jpackage;
+        if ( jpackage == null || jpackage.isBlank() ) {
+            return null;
+        }
+        // Started as "<name> Core.exe" without the starter (an old pin of the running window):
+        // the starter is still "<name>.exe" beside it.
+        String sibling = starterBesideCore( jpackage );
+        return sibling != null ? sibling : jpackage;
+    }
+
+    /**
+     * The starter beside a jpackage launcher named {@code "<name> Core.exe"}, if it is there.
+     *
+     * @param core the jpackage launcher's path
+     *
+     * @return the starter's path, or {@code null}
+     */
+    static String starterBesideCore( String core )
+    {
+        String suffix = " Core.exe";
+        if ( core.length() <= suffix.length() || !core.regionMatches( true, core.length() - suffix.length(), suffix, 0,
+                                                                      suffix.length() ) ) {
+            return null;
+        }
+        String starter = core.substring( 0, core.length() - suffix.length() ) + ".exe";
+        try {
+            return Files.isRegularFile( Path.of( starter ) ) ? starter : null;
+        }
+        catch ( InvalidPathException e ) {
+            return null;
+        }
     }
 
     private static synchronized void advance( Stage stage )
