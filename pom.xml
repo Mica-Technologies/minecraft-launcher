@@ -132,14 +132,21 @@
              additional cold-start reduction in the manual benchmark we ran
              during the 2026-05-26 perf sweep.
 
-             Path scope: $APPDIR is the app subdir of the install
-             (under Program Files for per-machine, %LOCALAPPDATA%\Programs
-             for per-user). On a per-machine install the user can't write
-             there at runtime, so the dump fails silently and AppCDS provides
-             no benefit — degrades to "base CDS only" with no regression. Per-
-             user installs (the recommended path for jpackage GUI apps) get
-             the full win. -->
-        <jpackage.appcds.archive>-XX:SharedArchiveFile=$APPDIR\launcher.jsa</jpackage.appcds.archive>
+             Path scope: the archive must sit somewhere the user can write.
+             A failed dump is NOT harmless: HotSpot 26.0.2 logs "Unable to
+             create shared archive file", then seeks on the descriptor it
+             never got, and on Windows the C runtime kills the process with
+             0xC0000409. With the archive at $APPDIR, under Program Files on
+             a per-machine install, that crashed every launcher exit. So the
+             windows-packaging profile moves it under $LOCALAPPDATA (the
+             packaged launcher expands that macro), and AppCdsArchiveFolder
+             creates the folder at startup, as the JVM won't. macOS and Linux
+             keep $APPDIR for now. -->
+        <jpackage.appcds.path>$APPDIR\launcher.jsa</jpackage.appcds.path>
+        <!-- Per-flavour folder under %LOCALAPPDATA% for the Windows archive, named like the
+             ~/.MicaMinecraftLauncher[DEV] data folder so the two flavours never share one. -->
+        <appcds.folder.name>MicaMinecraftLauncher</appcds.folder.name>
+        <jpackage.appcds.archive>-XX:SharedArchiveFile=${jpackage.appcds.path}</jpackage.appcds.archive>
         <jpackage.appcds.autocreate>-XX:+AutoCreateSharedArchive</jpackage.appcds.autocreate>
 
         <!-- Options passed to the jlink invocation that jpackage runs to
@@ -676,6 +683,13 @@
                 <msi.machine.dir>${project.basedir}/build/packaging/machine</msi.machine.dir>
                 <msi.user.path>${msi.user.dir}/${packaging.name}-${jpackage.app.version}.msi</msi.user.path>
                 <msi.machine.path>${msi.machine.dir}/${packaging.name}-${jpackage.app.version}.msi</msi.machine.path>
+                <!-- The AppCDS archive goes in the user's local app data, which every install
+                     scope can write (see jpackage.appcds.path above). The launcher reads the same
+                     path from mica.appcds.archive to create the folder before the JVM writes.
+                     No spaces: jpackage splits each java-options value on whitespace, so the
+                     folder can't use packaging.name. -->
+                <jpackage.appcds.path>$LOCALAPPDATA\${appcds.folder.name}\appcds\launcher.jsa</jpackage.appcds.path>
+                <jpackage.appcds.folder.property>-Dmica.appcds.archive=${jpackage.appcds.path}</jpackage.appcds.folder.property>
                 <!-- ${bundle.build.revision} is computed at build time by the
                      compute-bundle-revision antrun step below (tools/scripts/compute_bundle_revision.ps1)
                      and exported as a Maven property via exportAntProperties=true. Each
@@ -797,6 +811,8 @@
                                         <argument>${jpackage.appcds.archive}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.appcds.autocreate}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.folder.property}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
                                         <argument>--type</argument>
@@ -867,6 +883,8 @@
                                         <argument>${jpackage.appcds.archive}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.appcds.autocreate}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.folder.property}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
                                         <argument>--type</argument>
@@ -1282,6 +1300,7 @@
             <id>dev</id>
             <properties>
                 <launcher.environment>DEV</launcher.environment>
+                <appcds.folder.name>MicaMinecraftLauncherDEV</appcds.folder.name>
                 <packaging.displayName>Mica Minecraft Launcher DEV</packaging.displayName>
                 <packaging.name>${packaging.displayName}</packaging.name>
             </properties>
