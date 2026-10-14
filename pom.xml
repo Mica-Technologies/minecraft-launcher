@@ -148,6 +148,17 @@
         <appcds.folder.name>MicaMinecraftLauncher</appcds.folder.name>
         <jpackage.appcds.archive>-XX:SharedArchiveFile=${jpackage.appcds.path}</jpackage.appcds.archive>
         <jpackage.appcds.autocreate>-XX:+AutoCreateSharedArchive</jpackage.appcds.autocreate>
+        <!-- Keep the JVM's own output off stdout. HotSpot logs warnings and errors to stdout by
+             default, and AppCDS has plenty to say: a stale or mismatched archive (after any
+             upgrade) prints "[error][cds] shared class paths mismatch" and the like. stdout is
+             the protocol channel of the MCP stdio relay mode, so those lines corrupted its
+             JSON-RPC stream. -Xlog:disable drops the default stdout output and the second option
+             restores warnings and errors on stderr; DisplayVMOutputToStderr does the same for
+             the VM's other messages ("Error occurred during initialization of VM", fatal error
+             banners), which the Windows starter then shows when the JVM cannot start. -->
+        <jpackage.vm.log.disable>-Xlog:disable</jpackage.vm.log.disable>
+        <jpackage.vm.log.stderr>-Xlog:all=warning:stderr:uptime,level,tags</jpackage.vm.log.stderr>
+        <jpackage.vm.output.stderr>-XX:+DisplayVMOutputToStderr</jpackage.vm.output.stderr>
 
         <!-- Options passed to the jlink invocation that jpackage runs to
              assemble the bundled JRE. Each platform's jpackage execution
@@ -812,6 +823,12 @@
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.appcds.autocreate}</argument>
                                         <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.disable}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.stderr}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.output.stderr}</argument>
+                                        <argument>--java-options</argument>
                                         <argument>${jpackage.appcds.folder.property}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
@@ -883,6 +900,12 @@
                                         <argument>${jpackage.appcds.archive}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.appcds.autocreate}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.disable}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.stderr}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.output.stderr}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.appcds.folder.property}</argument>
                                         <argument>--icon</argument>
@@ -1026,6 +1049,12 @@
                                         <argument>${jpackage.appcds.archive}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.appcds.autocreate}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.disable}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.stderr}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.output.stderr}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
                                         <argument>--type</argument>
@@ -1109,6 +1138,12 @@
                                         <argument>${jpackage.appcds.archive}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.appcds.autocreate}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.disable}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.stderr}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.output.stderr}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
                                         <argument>--type</argument>
@@ -1198,6 +1233,12 @@
                                         <argument>${jpackage.appcds.archive}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.appcds.autocreate}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.disable}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.stderr}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.output.stderr}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
                                         <!-- System package identifier (lowercase, no spaces). Kept
@@ -1269,6 +1310,12 @@
                                         <argument>${jpackage.appcds.archive}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.appcds.autocreate}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.disable}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.stderr}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.output.stderr}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
                                         <!-- System package identifier (lowercase, no spaces). Kept
