@@ -33,7 +33,9 @@ import java.util.Optional;
  * seeks on the file descriptor it never got; on Windows the C runtime treats that as an invalid
  * parameter and kills the process with {@code 0xC0000409}. That is how every launcher exit
  * crashed while the archive sat in the read-only install folder under Program Files. The archive
- * now lives under the user's local app data, and the JVM does not create missing folders, so this
+ * now lives in a per-user folder (local app data on Windows, the user's cache folder on macOS and
+ * Linux, whose installs under /Applications or /opt are not writable either), and the JVM does
+ * not create missing folders, so this
  * creates the folder at the start of every launch, before any path that can exit early (the
  * single-instance hand-off, the {@code --mcp} relay) gets the chance to.
  *

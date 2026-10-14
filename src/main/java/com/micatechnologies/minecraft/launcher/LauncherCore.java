@@ -352,6 +352,9 @@ public class LauncherCore
      */
     private static void handleSecondLaunch( String[] args )
     {
+        // Every outcome below is reported by this method or by the running launcher, before any
+        // window of ours. The macOS starter cannot see exit codes, so it must be told up front.
+        StarterHandshake.reportedOutcome();
         String uri = null;
         for ( String arg : args ) {
             if ( LauncherUriHandler.isLauncherUri( arg ) ) {
@@ -397,7 +400,6 @@ public class LauncherCore
         else {
             showStartupDialog( message );
         }
-        StarterHandshake.reportedOutcome();
         System.exit( 1 );
     }
 
