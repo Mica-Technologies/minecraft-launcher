@@ -175,6 +175,9 @@ public class LauncherCore
         if ( args.length == 0 || !LauncherConstants.PROGRAM_ARG_MCP.equalsIgnoreCase( args[ 0 ] ) ) {
             StartupDiagnostics.recordLaunch( args );
         }
+        // Every exit, including the early hand-off and relay ones below, may write the class-data
+        // archive; the JVM crashes if its folder is missing.
+        com.micatechnologies.minecraft.launcher.utilities.AppCdsArchiveFolder.ensureExists();
 
         // Raise the per-host keep-alive connection cap for the legacy
         // HttpURLConnection stack (JDK default is 5). The launcher fans out
