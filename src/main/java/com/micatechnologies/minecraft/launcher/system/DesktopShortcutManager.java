@@ -94,8 +94,8 @@ public class DesktopShortcutManager
     // rather than a generic example. Behaviour unchanged; only the visibility widened.
     public static String resolveLauncherPath()
     {
-        // Check for jpackage app path (set by jpackage-based launchers)
-        String jpackagePath = System.getProperty( "jpackage.app-path" );
+        // The Windows starter, else the jpackage app path (set by jpackage-based launchers)
+        String jpackagePath = com.micatechnologies.minecraft.launcher.utilities.StarterHandshake.launcherExecutable();
         if ( jpackagePath != null && !jpackagePath.isEmpty() ) {
             return jpackagePath;
         }

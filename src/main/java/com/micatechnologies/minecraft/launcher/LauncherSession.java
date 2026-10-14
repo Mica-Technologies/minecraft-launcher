@@ -148,6 +148,8 @@ class LauncherSession
         // sign-in), load the installed packs, and hand the terminal to the Lanterna app. Returns
         // only when the user quits the TUI; then the launcher shuts down.
         if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() ) {
+            // The terminal is this mode's window; it reports its own errors there.
+            com.micatechnologies.minecraft.launcher.utilities.StarterHandshake.reportedOutcome();
             if ( !com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.hasExistingLogin() ) {
                 com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut().println(
                         LocalizationManager.get( "tui.auth.noAccount" ) );
