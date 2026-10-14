@@ -276,6 +276,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // instances to manage or clean up here.
         UpdateCheckManager.checkAndConfigureUI( updateImgView, stage );
 
+        // Windows: warn (once per process) if a queued boot-time delete would wipe files this
+        // install needs, which leaves a launcher that cannot start and cannot say why.
+        com.micatechnologies.minecraft.launcher.system.PendingRebootDeleteGuard.checkOnceAsync( stage );
+
         // Announcements — dev banner if applicable, otherwise whatever the announcement service returns.
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
             setAnnouncementRow( LocalizationManager.get( "main.announcement.devMode" ) );
