@@ -495,7 +495,9 @@ static void attachCapture( struct Capture *c )
     }
 }
 
-/* In the process that reads: drop the write ends, so the pipes close when the launcher exits. */
+#ifndef __APPLE__
+/* In the process that reads: drop the write ends, so the pipes close when the launcher exits.
+   (The macOS watcher gets its ends through exec instead; see runWatcher.) */
 static void readCapture( struct Capture *c )
 {
     if ( c->out[ 1 ] >= 0 ) {
@@ -507,6 +509,7 @@ static void readCapture( struct Capture *c )
     startPump( c->out[ 0 ], c->realOut );
     startPump( c->err[ 0 ], c->realErr );
 }
+#endif
 
 /* Whether fd is a real destination (a terminal, file, pipe or socket), not closed or /dev/null. */
 static int usableOutput( int fd )

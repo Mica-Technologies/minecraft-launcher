@@ -21,6 +21,8 @@ killall_app() { pkill -9 -f "$ROOT/bin/" || true; sleep 2; }
 
 note "== install"
 ls -la build/packaging | tee -a "$SUMMARY"
+# Headless runners lack the XDG menu folders that the postinst xdg-desktop-menu call needs.
+sudo mkdir -p /etc/xdg/menus/applications-merged /usr/share/desktop-directories
 sudo apt-get install -y ./build/packaging/*.deb > "$OUT/apt-install.txt" 2>&1; note "deb install exit $?"
 ls -la "$ROOT/bin" "$ROOT/lib/app" | tee -a "$SUMMARY"
 cat "$ROOT/lib/app/$NAME Core.cfg" > "$OUT/core.cfg" 2>&1
@@ -65,13 +67,13 @@ tail -n 1 "$LOG" | tee -a "$SUMMARY"
 kill "$pid" 2>/dev/null; killall_app
 sudo cp /tmp/modules.keep "$MODULES"
 
-note "== T6 crash after the window is up (SIGSEGV to the JVM)"
+note "== T6 crash after the window is up (SIGABRT to the JVM; HotSpot handles a sent SIGSEGV itself)"
 before=$(starter_lines)
 "$BIN" & pid=$!
 sleep 40
 jvm=$(pgrep -f "$ROOT/bin/$NAME Core" | tail -n 1)
-note "killing JVM pid $jvm with SIGSEGV"
-kill -SEGV "$jvm"
+note "killing JVM pid $jvm with SIGABRT"
+kill -ABRT "$jvm"
 sleep 8
 shot t6-crash
 tail -n 1 "$LOG" | tee -a "$SUMMARY"
