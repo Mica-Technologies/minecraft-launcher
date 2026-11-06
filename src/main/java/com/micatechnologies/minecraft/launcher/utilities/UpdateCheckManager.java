@@ -153,6 +153,41 @@ public class UpdateCheckManager
     public static void promptAndOpenUpdate( String latestVersionURL, Stage stage )
     {
         SystemUtilities.spawnNewTask( () -> {
+            // Installs the launcher can update itself get the update dialog; a Flatpak is told its
+            // software store updates it; everything else keeps the release-page prompt below.
+            java.util.Optional< com.micatechnologies.minecraft.launcher.update.LauncherRelease > release;
+            try {
+                release = UpdateCheckUtilities.getLatestRelease();
+            }
+            catch ( IOException e ) {
+                release = java.util.Optional.empty();
+            }
+            com.micatechnologies.minecraft.launcher.update.InstallKind kind =
+                    com.micatechnologies.minecraft.launcher.update.InstallKind.current(
+                            com.micatechnologies.minecraft.launcher.consts.LauncherConstants.LAUNCHER_IS_DEV );
+            java.util.Optional< com.micatechnologies.minecraft.launcher.update.ReleaseAsset > asset =
+                    release.flatMap( r -> com.micatechnologies.minecraft.launcher.update.UpdateAssetSelector.select(
+                            kind, System.getProperty( "os.arch" ), r.assets() ) );
+            if ( release.isPresent() ) {
+                final com.micatechnologies.minecraft.launcher.update.LauncherRelease latest = release.get();
+                switch ( com.micatechnologies.minecraft.launcher.update.LauncherUpdater.routeFor( kind, asset ) ) {
+                    case IN_APP -> {
+                        GUIUtilities.JFXPlatformRun(
+                                () -> com.micatechnologies.minecraft.launcher.gui.MCLauncherUpdateDialog.show(
+                                        latest, asset.get(), kind, stage ) );
+                        return;
+                    }
+                    case SOFTWARE_STORE -> {
+                        GUIUtilities.JFXPlatformRun(
+                                () -> com.micatechnologies.minecraft.launcher.gui.MCLauncherUpdateDialog
+                                        .showSoftwareStoreNotice( latest.version(), stage ) );
+                        return;
+                    }
+                    case RELEASE_PAGE -> {
+                        // Falls through to the prompt below.
+                    }
+                }
+            }
             int response = GUIUtilities.showQuestionMessage(
                     LocalizationManager.get( "dialog.update.available.title" ),
                     LocalizationManager.get( "dialog.update.available.header" ),
