@@ -75,6 +75,14 @@ public class ConfigConstants
     public static final long MAX_RAM_MEGABYTES_DEFAULT = 2048;
 
     /**
+     * The first-run maximum RAM on a Steam Deck, which has 16 GB shared with its GPU: enough for
+     * most modpacks while leaving room for graphics and SteamOS.
+     *
+     * @since 2026.11
+     */
+    public static final long MAX_RAM_MEGABYTES_DEFAULT_STEAM_DECK = 4096;
+
+    /**
      * The default value for debug logging being enabled.
      *
      * @since 1.0
