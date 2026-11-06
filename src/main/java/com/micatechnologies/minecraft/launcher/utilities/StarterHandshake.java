@@ -25,11 +25,14 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 /**
- * Tells the Windows native starter how far startup got, and names the executable to relaunch.
+ * Tells the native starter how far startup got, and names the executable to relaunch.
  *
- * <p>On Windows the installed {@code Mica Minecraft Launcher.exe} is a small native starter. It
- * runs the jpackage launcher ({@code ... Core.exe}), waits for it, and reports a failure the
- * launcher could not report itself: a JVM that never starts (a damaged install), or a crash. To
+ * <p>On every platform the installed launcher executable is a small native starter
+ * ({@code deploy/windows/starter}, {@code deploy/unix/starter}). It runs the jpackage launcher
+ * ({@code "<name> Core"}, {@code .exe} on Windows) and reports a failure the launcher could not
+ * report itself: a JVM that never starts (a damaged install), or a crash. On macOS the starter
+ * execs the launcher in its own process and only a watcher remains, which cannot see the exit
+ * code, so there an early exit that needs no dialog must be marked {@code handled}. To
  * tell those apart from exits the launcher already explained, it creates a state file, passes its
  * path in {@value #STATE_ENV}, and reads it back after the launcher exits. This class writes the
  * stages into that file:
@@ -39,8 +42,8 @@ import java.nio.file.StandardOpenOption;
  *   <li>{@code handled}: the launcher reported the outcome itself (its own dialog, a console
  *       tool's output), so an unusual exit code needs nothing more.</li>
  * </ul>
- * A later stage never goes back to an earlier one. Without the starter (macOS, Linux, an IDE run,
- * a taskbar pin that starts the Core exe directly) the variable is unset and this does nothing.
+ * A later stage never goes back to an earlier one. Without the starter (an IDE or raw-jar run, or
+ * the Core executable started directly) the variable is unset and this does nothing.
  *
  * <p>The starter's path arrives in {@value #STARTER_ENV}. Anything that starts the launcher
  * again, or registers it with the OS, should use {@link #launcherExecutable()} so it goes
@@ -132,7 +135,8 @@ public final class StarterHandshake
     }
 
     /**
-     * The starter beside a jpackage launcher named {@code "<name> Core.exe"}, if it is there.
+     * The starter beside a jpackage launcher named {@code "<name> Core.exe"} (Windows) or
+     * {@code "<name> Core"} (macOS, Linux), if it is there.
      *
      * @param core the jpackage launcher's path
      *
@@ -140,12 +144,13 @@ public final class StarterHandshake
      */
     static String starterBesideCore( String core )
     {
-        String suffix = " Core.exe";
+        String extension = core.regionMatches( true, Math.max( 0, core.length() - 4 ), ".exe", 0, 4 ) ? ".exe" : "";
+        String suffix = " Core" + extension;
         if ( core.length() <= suffix.length() || !core.regionMatches( true, core.length() - suffix.length(), suffix, 0,
                                                                       suffix.length() ) ) {
             return null;
         }
-        String starter = core.substring( 0, core.length() - suffix.length() ) + ".exe";
+        String starter = core.substring( 0, core.length() - suffix.length() ) + extension;
         try {
             return Files.isRegularFile( Path.of( starter ) ) ? starter : null;
         }

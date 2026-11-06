@@ -138,10 +138,11 @@
              never got, and on Windows the C runtime kills the process with
              0xC0000409. With the archive at $APPDIR, under Program Files on
              a per-machine install, that crashed every launcher exit. So the
-             windows-packaging profile moves it under $LOCALAPPDATA (the
-             packaged launcher expands that macro), and AppCdsArchiveFolder
-             creates the folder at startup, as the JVM won't. macOS and Linux
-             keep $APPDIR for now. -->
+             packaging profiles move it to a per-user folder ($LOCALAPPDATA on
+             Windows, the user's cache folder under $HOME on macOS and Linux;
+             the packaged launcher expands both), and AppCdsArchiveFolder
+             creates the folder at startup, as the JVM won't. The $APPDIR
+             default below only applies when no packaging profile is active. -->
         <jpackage.appcds.path>$APPDIR\launcher.jsa</jpackage.appcds.path>
         <!-- Per-flavour folder under %LOCALAPPDATA% for the Windows archive, named like the
              ~/.MicaMinecraftLauncher[DEV] data folder so the two flavours never share one. -->
@@ -877,6 +878,8 @@
                                         <argument>${project.basedir}/src/main/resources/lang</argument>
                                         <argument>-WorkDir</argument>
                                         <argument>${project.build.directory}/starter</argument>
+                                        <argument>-Java</argument>
+                                        <argument>${java.home}/bin/java</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -1044,17 +1047,119 @@
             <activation>
                 <os><family>mac</family></os>
             </activation>
+            <properties>
+                <!-- The AppCDS archive goes in the user's cache folder, which the user can always
+                     write; an install in /Applications may not be. The launcher reads the same
+                     path from mica.appcds.archive and creates the folder before the JVM writes.
+                     No spaces: jpackage splits each java-options value on whitespace. -->
+                <jpackage.appcds.path>$HOME/Library/Caches/${appcds.folder.name}/appcds/launcher.jsa</jpackage.appcds.path>
+                <jpackage.appcds.folder.property>-Dmica.appcds.archive=${jpackage.appcds.path}</jpackage.appcds.folder.property>
+                <!-- The jpackage app image the installers are built from. -->
+                <unix.app.image.dir>${project.build.directory}/app-image</unix.app.image.dir>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
                         <executions>
-                            <!-- DMG build (drag-to-Applications disk image). Run by default
-                                 in the package phase alongside the PKG build below; `mvn package`
-                                 on macOS produces both installers. The two executions only differ
-                                 in their type flag; jpackage names the outputs with distinct
-                                 extensions (.dmg / .pkg) so they coexist in the same dest dir. -->
+                            <!-- Step 1: the .app, built once and packaged as both DMG and PKG below. Every option that shapes
+                                 the installed app (runtime, launcher config, JVM options, icon, Info.plist, file associations)
+                                 belongs here; jpackage refuses them when packaging an existing image.
+                                 CODE SIGNING (macOS): when an Apple Developer ID certificate is available, sign here with the
+                                 mac-sign and mac-signing-key-user-name options (identity in env MAC_SIGNING_IDENTITY), and have
+                                 build-starter.sh sign with that identity instead of ad hoc. -->
+                            <execution>
+                                <id>jpackage-app-image</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <executable>${jlink.jdk.path}/bin/jpackage</executable>
+                                    <arguments>
+                                        <argument>--verbose</argument>
+                                        <argument>--type</argument>
+                                        <argument>app-image</argument>
+                                        <argument>--input</argument>
+                                        <argument>${project.build.directory}/jpackage-input</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>${main.class}</argument>
+                                        <argument>--name</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${revision.numeric}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>Mica Technologies</argument>
+                                        <!-- Forward jlink options to the embedded jlink that jpackage runs to assemble the bundled JRE; see
+                                             the jlink.options property at the top of this POM. -->
+                                        <argument>--jlink-options</argument>
+                                        <argument>${jlink.options}</argument>
+                                        <argument>--description</argument>
+                                        <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${unix.app.image.dir}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.native.access}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.final.field.mutation}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${webview.transparency.opens}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.archive}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.autocreate}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.disable}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.stderr}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.output.stderr}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.folder.property}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
+                                        <!-- Register the .mmcjson modpack manifest extension with macOS Launch Services: jpackage emits the
+                                             matching CFBundleDocumentTypes entry in Info.plist. The .properties file is staged with an
+                                             absolute icon path (see stage-jar-for-jpackage). -->
+                                        <argument>--file-associations</argument>
+                                        <argument>${project.build.directory}/jpackage-file-assoc/mac.properties</argument>
+                                        <!-- Our Info.plist template (deploy/mac/Info.plist) declares CFBundleURLTypes for mmcl:// and keeps
+                                             the DEPLOY_FILE_ASSOCIATIONS placeholder. A staged dir holding only Info.plist (see
+                                             stage-jar-for-jpackage); pointing at deploy/mac directly double-copies the .icns. -->
+                                        <argument>--resource-dir</argument>
+                                        <argument>${project.build.directory}/jpackage-mac-resources</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Step 2: put the native starter (deploy/unix/starter) in front of the jpackage launcher, which
+                                 moves to "<name> Core". The starter checks the install, keeps the JVM's last output, and shows a
+                                 dialog (with a link to download the launcher again) when the launcher cannot start, which the JVM
+                                 otherwise reports only on a console nobody sees. Needs a C compiler (Xcode command-line tools on
+                                 macOS, gcc on Linux). -->
+                            <execution>
+                                <id>unix-starter</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>bash</executable>
+                                    <arguments>
+                                        <argument>${project.basedir}/deploy/unix/starter/build-starter.sh</argument>
+                                        <argument>${unix.app.image.dir}/${packaging.name}.app</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>${launcher.environment}</argument>
+                                        <argument>${project.basedir}/src/main/resources/lang</argument>
+                                        <argument>${project.build.directory}/starter</argument>
+                                        <argument>${java.home}/bin/java</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Step 3a: DMG (drag-to-Applications disk image) from the image. -->
                             <execution>
                                 <id>jpackage-dmg</id>
                                 <phase>package</phase>
@@ -1063,87 +1168,25 @@
                                     <!--suppress UnresolvedMavenProperty -->
                                     <executable>${jlink.jdk.path}/bin/jpackage</executable>
                                     <arguments>
-                                        <argument>--input</argument>
-                                        <argument>${project.build.directory}/jpackage-input</argument>
-                                        <argument>--main-jar</argument>
-                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
-                                        <argument>--main-class</argument>
-                                        <argument>${main.class}</argument>
+                                        <argument>--verbose</argument>
+                                        <argument>--type</argument>
+                                        <argument>dmg</argument>
+                                        <argument>--app-image</argument>
+                                        <argument>${unix.app.image.dir}/${packaging.name}.app</argument>
                                         <argument>--name</argument>
                                         <argument>${packaging.name}</argument>
                                         <argument>--app-version</argument>
                                         <argument>${revision.numeric}</argument>
-                                        <argument>--vendor</argument>
-                                        <argument>Mica Technologies</argument>
-                                        <!-- Forward jlink options to the embedded jlink that
-                                             jpackage runs to assemble the bundled JRE. See the
-                                             jlink.options property at the top of this POM for
-                                             the exact options + rationale (smaller bundled JDK
-                                             via aggressive ZIP recompression plus dropping JNI
-                                             headers and man pages). -->
-                                        <argument>--jlink-options</argument>
-                                        <argument>${jlink.options}</argument>
-                                        <argument>--description</argument>
-                                        <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.basedir}/build/packaging</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jfxtaskbarprogressbar.export}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.native.access}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.final.field.mutation}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${webview.transparency.opens}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.appcds.archive}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.appcds.autocreate}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.log.disable}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.log.stderr}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.output.stderr}</argument>
-                                        <argument>--icon</argument>
-                                        <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
-                                        <argument>--type</argument>
-                                        <argument>dmg</argument>
                                         <argument>--license-file</argument>
                                         <argument>${project.basedir}/LICENSE</argument>
-                                        <!-- Register the .mmcjson modpack manifest extension with macOS Launch
-                                             Services. jpackage emits the matching CFBundleDocumentTypes entry
-                                             in the bundled Info.plist so double-clicking a .mmcjson file in
-                                             Finder routes through to the launcher. The .properties file is
-                                             staged with an absolute icon path (see stage-jar-for-jpackage). -->
-                                        <argument>--file-associations</argument>
-                                        <argument>${project.build.directory}/jpackage-file-assoc/mac.properties</argument>
-                                        <!-- Use our custom Info.plist template (deploy/mac/Info.plist) so the
-                                             bundled .app declares CFBundleURLTypes for the mmcl:// scheme.
-                                             The template preserves the DEPLOY_FILE_ASSOCIATIONS placeholder
-                                             jpackage substitutes for file-associations content, so the URL
-                                             scheme + file association coexist in one plist.
-                                             Points at a staged dir holding only Info.plist (see
-                                             stage-jar-for-jpackage); pointing at deploy/mac directly
-                                             causes jpackage to double-copy the .icns into the bundle. -->
-                                        <argument>--resource-dir</argument>
-                                        <argument>${project.build.directory}/jpackage-mac-resources</argument>
-                                        <!-- CODE SIGNING (macOS): Uncomment when an Apple Developer
-                                             ID certificate is available. Requires the cert imported
-                                             via apple-actions/import-codesign-certs in CI. Set
-                                             MAC_SIGNING_IDENTITY to "Developer ID Application: ..."
-                                        <argument>- -mac-sign</argument>
-                                        <argument>- -mac-signing-key-user-name</argument>
-                                        <argument>${env.MAC_SIGNING_IDENTITY}</argument>
-                                        -->
                                     </arguments>
                                 </configuration>
                             </execution>
 
-                            <!-- PKG build (macOS Installer-app package). Same args as DMG
-                                 except for the type flag. PKG is preferred for managed
-                                 deployments and unattended installs; DMG remains the
-                                 typical drag-and-drop experience for individual users. -->
+                            <!-- Step 3b: PKG (macOS Installer package) from the same image. PKG is preferred for managed
+                                 deployments and unattended installs; DMG remains the typical drag-and-drop experience. -->
                             <execution>
                                 <id>jpackage-pkg</id>
                                 <phase>package</phase>
@@ -1152,58 +1195,19 @@
                                     <!--suppress UnresolvedMavenProperty -->
                                     <executable>${jlink.jdk.path}/bin/jpackage</executable>
                                     <arguments>
-                                        <argument>--input</argument>
-                                        <argument>${project.build.directory}/jpackage-input</argument>
-                                        <argument>--main-jar</argument>
-                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
-                                        <argument>--main-class</argument>
-                                        <argument>${main.class}</argument>
+                                        <argument>--verbose</argument>
+                                        <argument>--type</argument>
+                                        <argument>pkg</argument>
+                                        <argument>--app-image</argument>
+                                        <argument>${unix.app.image.dir}/${packaging.name}.app</argument>
                                         <argument>--name</argument>
                                         <argument>${packaging.name}</argument>
                                         <argument>--app-version</argument>
                                         <argument>${revision.numeric}</argument>
-                                        <argument>--vendor</argument>
-                                        <argument>Mica Technologies</argument>
-                                        <!-- Forward jlink options to the embedded jlink that
-                                             jpackage runs to assemble the bundled JRE. See the
-                                             jlink.options property at the top of this POM for
-                                             the exact options + rationale (smaller bundled JDK
-                                             via aggressive ZIP recompression plus dropping JNI
-                                             headers and man pages). -->
-                                        <argument>--jlink-options</argument>
-                                        <argument>${jlink.options}</argument>
-                                        <argument>--description</argument>
-                                        <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.basedir}/build/packaging</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jfxtaskbarprogressbar.export}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.native.access}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.final.field.mutation}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${webview.transparency.opens}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.appcds.archive}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.appcds.autocreate}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.log.disable}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.log.stderr}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.output.stderr}</argument>
-                                        <argument>--icon</argument>
-                                        <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
-                                        <argument>--type</argument>
-                                        <argument>pkg</argument>
                                         <argument>--license-file</argument>
                                         <argument>${project.basedir}/LICENSE</argument>
-                                        <argument>--file-associations</argument>
-                                        <argument>${project.build.directory}/jpackage-file-assoc/mac.properties</argument>
-                                        <argument>--resource-dir</argument>
-                                        <argument>${project.build.directory}/jpackage-mac-resources</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -1218,6 +1222,14 @@
                 <os><family>unix</family><name>Linux</name></os>
             </activation>
             <properties>
+                <!-- The AppCDS archive goes in the user's cache folder: /opt is not writable for
+                     the user. The launcher reads the same path from mica.appcds.archive and
+                     creates the folder before the JVM writes. No spaces: jpackage splits each
+                     java-options value on whitespace. -->
+                <jpackage.appcds.path>$HOME/.cache/${appcds.folder.name}/appcds/launcher.jsa</jpackage.appcds.path>
+                <jpackage.appcds.folder.property>-Dmica.appcds.archive=${jpackage.appcds.path}</jpackage.appcds.folder.property>
+                <!-- The jpackage app image the installers are built from. -->
+                <unix.app.image.dir>${project.build.directory}/app-image</unix.app.image.dir>
                 <!-- Linux deb/rpm package identifier: lowercase, no spaces. This is ONLY the system
                      package name (dpkg / rpm) and the /opt install sub-path, NOT the user-facing name.
                      It is passed via jpackage's dedicated linux-package-name flag so the name flag can
@@ -1233,12 +1245,89 @@
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
                         <executions>
-                            <!-- DEB build for Debian/Ubuntu family. Run by default in the
-                                 package phase alongside the RPM build below; `mvn package`
-                                 on Linux produces both installers in a single invocation.
-                                 The two executions only differ in their `type` flag; jpackage
-                                 names the outputs distinctly (`*_amd64.deb` vs `*.x86_64.rpm`)
-                                 so they coexist in the same dest directory. -->
+                            <!-- Step 1: the application image, built once and packaged as both DEB and RPM below. Every option
+                                 that shapes the installed app (runtime, launcher config, JVM options, icon) belongs here. -->
+                            <execution>
+                                <id>jpackage-app-image</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <executable>${jlink.jdk.path}/bin/jpackage</executable>
+                                    <arguments>
+                                        <argument>--verbose</argument>
+                                        <argument>--type</argument>
+                                        <argument>app-image</argument>
+                                        <argument>--input</argument>
+                                        <argument>${project.build.directory}/jpackage-input</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>${main.class}</argument>
+                                        <argument>--name</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${revision.numeric}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>Mica Technologies</argument>
+                                        <!-- Forward jlink options to the embedded jlink that jpackage runs to assemble the bundled JRE; see
+                                             the jlink.options property at the top of this POM. -->
+                                        <argument>--jlink-options</argument>
+                                        <argument>${jlink.options}</argument>
+                                        <argument>--description</argument>
+                                        <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${unix.app.image.dir}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.native.access}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.final.field.mutation}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${webview.transparency.opens}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.archive}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.autocreate}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.disable}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.log.stderr}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.vm.output.stderr}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.folder.property}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Step 2: put the native starter (deploy/unix/starter) in front of the jpackage launcher, which
+                                 moves to "<name> Core". The starter checks the install, keeps the JVM's last output, and shows a
+                                 dialog (with a link to download the launcher again) when the launcher cannot start, which the JVM
+                                 otherwise reports only on a console nobody sees. Needs a C compiler (Xcode command-line tools on
+                                 macOS, gcc on Linux). -->
+                            <execution>
+                                <id>unix-starter</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>bash</executable>
+                                    <arguments>
+                                        <argument>${project.basedir}/deploy/unix/starter/build-starter.sh</argument>
+                                        <argument>${unix.app.image.dir}/${packaging.name}</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>${launcher.environment}</argument>
+                                        <argument>${project.basedir}/src/main/resources/lang</argument>
+                                        <argument>${project.build.directory}/starter</argument>
+                                        <argument>${java.home}/bin/java</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Step 3a: DEB (Debian/Ubuntu family) from the image. -->
                             <execution>
                                 <id>jpackage-deb</id>
                                 <phase>package</phase>
@@ -1247,75 +1336,38 @@
                                     <!--suppress UnresolvedMavenProperty -->
                                     <executable>${jlink.jdk.path}/bin/jpackage</executable>
                                     <arguments>
-                                        <argument>--input</argument>
-                                        <argument>${project.build.directory}/jpackage-input</argument>
-                                        <argument>--main-jar</argument>
-                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
-                                        <argument>--main-class</argument>
-                                        <argument>${main.class}</argument>
+                                        <argument>--verbose</argument>
+                                        <argument>--type</argument>
+                                        <argument>deb</argument>
+                                        <argument>--app-image</argument>
+                                        <argument>${unix.app.image.dir}/${packaging.name}</argument>
                                         <argument>--name</argument>
                                         <argument>${packaging.name}</argument>
                                         <argument>--app-version</argument>
                                         <argument>${revision.numeric}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
-                                        <!-- Forward jlink options to the embedded jlink that
-                                             jpackage runs to assemble the bundled JRE. See the
-                                             jlink.options property at the top of this POM for
-                                             the exact options + rationale (smaller bundled JDK
-                                             via aggressive ZIP recompression plus dropping JNI
-                                             headers and man pages). -->
-                                        <argument>--jlink-options</argument>
-                                        <argument>${jlink.options}</argument>
                                         <argument>--description</argument>
                                         <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.basedir}/build/packaging</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jfxtaskbarprogressbar.export}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.native.access}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.final.field.mutation}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${webview.transparency.opens}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.appcds.archive}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.appcds.autocreate}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.log.disable}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.log.stderr}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.output.stderr}</argument>
-                                        <argument>--icon</argument>
-                                        <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
-                                        <!-- System package identifier (lowercase, no spaces). Kept
-                                             separate from the name flag so the .desktop entry shows the
-                                             real display name; see the linux-packaging profile. -->
+                                        <!-- System package identifier (lowercase, no spaces). Kept separate from the name flag so the .desktop
+                                             entry shows the real display name; see the linux-packaging profile. -->
                                         <argument>--linux-package-name</argument>
                                         <argument>${packaging.linux.packageName}</argument>
-                                        <argument>--type</argument>
-                                        <argument>deb</argument>
                                         <argument>--license-file</argument>
                                         <argument>${project.basedir}/LICENSE</argument>
                                         <argument>--linux-shortcut</argument>
-                                        <!-- Register the .mmcjson modpack manifest extension with the Linux
-                                             desktop environment via the installed .desktop file's MimeType
-                                             field. SchemeRegistrar also writes a user-level .desktop file at
-                                             runtime as a fallback for users running from a portable JAR.
-                                             The .properties file is staged with an absolute icon path
-                                             (see stage-jar-for-jpackage). -->
+                                        <!-- Register the .mmcjson modpack manifest extension via the installed .desktop file's MimeType field.
+                                             The .properties file is staged with an absolute icon path (see stage-jar-for-jpackage). -->
                                         <argument>--file-associations</argument>
                                         <argument>${project.build.directory}/jpackage-file-assoc/linux.properties</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
 
-                            <!-- RPM build for Fedora/RHEL/openSUSE family. Requires
-                                 `rpmbuild` from the `rpm` package on the build host
-                                 (`sudo apt-get install rpm` on Ubuntu CI runners). -->
+                            <!-- Step 3b: RPM (Fedora/RHEL/openSUSE family) from the same image. Requires rpmbuild from the rpm
+                                 package on the build host (sudo apt-get install rpm on Ubuntu CI runners). -->
                             <execution>
                                 <id>jpackage-rpm</id>
                                 <phase>package</phase>
@@ -1324,60 +1376,30 @@
                                     <!--suppress UnresolvedMavenProperty -->
                                     <executable>${jlink.jdk.path}/bin/jpackage</executable>
                                     <arguments>
-                                        <argument>--input</argument>
-                                        <argument>${project.build.directory}/jpackage-input</argument>
-                                        <argument>--main-jar</argument>
-                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
-                                        <argument>--main-class</argument>
-                                        <argument>${main.class}</argument>
+                                        <argument>--verbose</argument>
+                                        <argument>--type</argument>
+                                        <argument>rpm</argument>
+                                        <argument>--app-image</argument>
+                                        <argument>${unix.app.image.dir}/${packaging.name}</argument>
                                         <argument>--name</argument>
                                         <argument>${packaging.name}</argument>
                                         <argument>--app-version</argument>
                                         <argument>${revision.numeric}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
-                                        <!-- Forward jlink options to the embedded jlink that
-                                             jpackage runs to assemble the bundled JRE. See the
-                                             jlink.options property at the top of this POM for
-                                             the exact options + rationale (smaller bundled JDK
-                                             via aggressive ZIP recompression plus dropping JNI
-                                             headers and man pages). -->
-                                        <argument>--jlink-options</argument>
-                                        <argument>${jlink.options}</argument>
                                         <argument>--description</argument>
                                         <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.basedir}/build/packaging</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jfxtaskbarprogressbar.export}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.native.access}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.final.field.mutation}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${webview.transparency.opens}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.appcds.archive}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.appcds.autocreate}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.log.disable}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.log.stderr}</argument>
-                                        <argument>--java-options</argument>
-                                        <argument>${jpackage.vm.output.stderr}</argument>
-                                        <argument>--icon</argument>
-                                        <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
-                                        <!-- System package identifier (lowercase, no spaces). Kept
-                                             separate from the name flag so the .desktop entry shows the
-                                             real display name; see the linux-packaging profile. -->
+                                        <!-- System package identifier (lowercase, no spaces). Kept separate from the name flag so the .desktop
+                                             entry shows the real display name; see the linux-packaging profile. -->
                                         <argument>--linux-package-name</argument>
                                         <argument>${packaging.linux.packageName}</argument>
-                                        <argument>--type</argument>
-                                        <argument>rpm</argument>
                                         <argument>--license-file</argument>
                                         <argument>${project.basedir}/LICENSE</argument>
                                         <argument>--linux-shortcut</argument>
+                                        <!-- Register the .mmcjson modpack manifest extension via the installed .desktop file's MimeType field.
+                                             The .properties file is staged with an absolute icon path (see stage-jar-for-jpackage). -->
                                         <argument>--file-associations</argument>
                                         <argument>${project.build.directory}/jpackage-file-assoc/linux.properties</argument>
                                     </arguments>
