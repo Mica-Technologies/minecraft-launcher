@@ -338,6 +338,12 @@
                     <Label text="%settings.fxml.thirdPartyIntegrations" styleClass="settingsSectionTitle"/>
                     <VBox styleClass="settingsGroup" spacing="2">
                         <VBox styleClass="settingsRow" spacing="6">
+                            <Label text="%settings.steam.hint" wrapText="true" styleClass="settingsHint"/>
+                            <HBox spacing="8">
+                                <MFXButton minWidth="-Infinity" fx:id="addLauncherToSteamBtn" prefHeight="30.0" text="%settings.steam.addLauncher" styleClass="type-label-medium"/>
+                            </HBox>
+                        </VBox>
+                        <VBox styleClass="settingsRow" spacing="6">
                             <Label text="%settings.fxml.curseforgeCoreApi" wrapText="true" styleClass="settingsHint"/>
                             <HBox spacing="8" alignment="CENTER_LEFT">
                                 <MFXPasswordField fx:id="curseForgeApiKeyField" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="320.0" floatingText="%settings.curseforge.apiKey.label" />

@@ -340,6 +340,10 @@ class LauncherSession
             com.micatechnologies.minecraft.launcher.utilities.LauncherUriHandler.handle( pendingUri );
         }
 
+        // Started from a modpack's Steam library entry (--steam "<pack>"): go straight into the
+        // game now that the main window is up, and quit when it ends. No-op for other starts.
+        com.micatechnologies.minecraft.launcher.gui.SteamPlaySession.startIfRequested( initialModPackSelection );
+
         // Deferred .mmcjson import. Symmetric to the URI dispatch above — when the macOS
         // Desktop.setOpenFileHandler bridge fires before the main GUI is up (cold-start
         // drag-drop / Finder double-click), files get queued via
