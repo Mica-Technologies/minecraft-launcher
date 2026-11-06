@@ -1557,6 +1557,13 @@ public class LauncherCore
         // while logging is still alive and we have full control over
         // the timing.
         cleanupStep( "config", com.micatechnologies.minecraft.launcher.config.ConfigManager::flushPendingWrite );
+        // An update downloaded but not yet installed ("Later") is installed now, so it runs from
+        // the next start. Only where the launcher installs updates itself (the AppImage); the
+        // running launcher is unaffected by the file swap.
+        cleanupStep( "pendingUpdate", () -> com.micatechnologies.minecraft.launcher.update.LauncherUpdater
+                .installStagedOnExit()
+                .ifPresent( version -> Logger.logStd(
+                        LocalizationManager.format( "log.update.installedOnExit", version ) ) ) );
         // Release the single-instance lock only once the config is on disk: a launcher started
         // the moment the lock frees (a quick relaunch) would otherwise read the config while
         // this one is still writing it.
