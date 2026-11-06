@@ -23,6 +23,7 @@ import com.micatechnologies.minecraft.launcher.utilities.VersionUtilities;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Decides how an available launcher update reaches this install, and installs one that is staged
@@ -68,8 +69,24 @@ public final class LauncherUpdater
     }
 
     /**
-     * Whether the launcher can install updates itself for this kind yet. Grows as each
-     * platform's installer lands (plan phases 3 to 6).
+     * What the launcher does once {@link #install(StagedUpdate)} returns.
+     *
+     * @since 2026.11
+     */
+    public enum AfterInstall
+    {
+        /** The update is in place: restart into it. */
+        RELAUNCH,
+        /** A helper installs the update once the launcher has exited: quit, and the helper
+         *  restarts the launcher if it can. */
+        EXIT
+    }
+
+    /** Set once a helper that installs the update after exit has been started. */
+    private static final AtomicBoolean HANDOFF_SCHEDULED = new AtomicBoolean();
+
+    /**
+     * Whether the launcher can install updates itself for this kind.
      *
      * @param kind how the launcher was installed
      *
@@ -79,35 +96,100 @@ public final class LauncherUpdater
      */
     public static boolean installsInApp( InstallKind kind )
     {
-        return kind == InstallKind.LINUX_APPIMAGE;
+        return kind == InstallKind.LINUX_APPIMAGE || kind == InstallKind.LINUX_DEB || kind == InstallKind.LINUX_RPM;
     }
 
     /**
-     * Installs the staged update now, so it runs from the next start. For the AppImage this swaps
-     * the file (see {@link AppImageUpdateInstaller}); the running launcher is unaffected.
+     * Whether installing an update for this kind asks for an administrator's permission. Such
+     * updates are never installed on quit, where a password prompt would appear out of nowhere.
+     *
+     * @param kind how the launcher was installed
+     *
+     * @return {@code true} when a permission prompt is part of the install
+     *
+     * @since 2026.11
+     */
+    public static boolean needsPermission( InstallKind kind )
+    {
+        return kind == InstallKind.LINUX_DEB || kind == InstallKind.LINUX_RPM;
+    }
+
+    /**
+     * Whether a downloaded update is installed when the launcher quits ("Later"). Only kinds that
+     * install without asking anything.
+     *
+     * @param kind how the launcher was installed
+     *
+     * @return {@code true} when quitting installs a staged update
+     *
+     * @since 2026.11
+     */
+    public static boolean installsOnQuit( InstallKind kind )
+    {
+        return installsInApp( kind ) && !needsPermission( kind );
+    }
+
+    /**
+     * Installs the staged update, as the user asked from the update dialog.
      *
      * @param staged the staged update
      *
-     * @throws IOException when it cannot be installed; the current version stays in place
+     * @return whether to restart now or quit and leave the rest to a helper
+     *
+     * @throws UpdateCancelledException when the user declined the permission prompt
+     * @throws IOException              when it cannot be installed; the current version stays
      * @since 2026.11
      */
-    public static void install( StagedUpdate staged ) throws IOException
+    public static AfterInstall install( StagedUpdate staged ) throws IOException
     {
-        if ( staged.kind() != InstallKind.LINUX_APPIMAGE ) {
-            throw new IOException( "No in-app installer for " + staged.kind() );
+        return install( staged, true );
+    }
+
+    /**
+     * Installs the staged update.
+     *
+     * @param staged   the staged update
+     * @param relaunch whether a helper that runs after exit starts the launcher again
+     *
+     * @return whether to restart now or quit and leave the rest to a helper
+     *
+     * @throws IOException when it cannot be installed
+     */
+    private static AfterInstall install( StagedUpdate staged, boolean relaunch ) throws IOException
+    {
+        switch ( staged.kind() ) {
+            case LINUX_APPIMAGE -> {
+                String appImage = System.getenv( "APPIMAGE" );
+                if ( appImage == null || appImage.isBlank() ) {
+                    throw new IOException( "Not running from an AppImage" );
+                }
+                AppImageUpdateInstaller.standard().install( staged, Path.of( appImage ),
+                                                             LauncherConstants.LAUNCHER_APPLICATION_VERSION );
+                return AfterInstall.RELAUNCH;
+            }
+            case LINUX_DEB, LINUX_RPM -> {
+                verify( staged );
+                LinuxPackageInstaller.install( staged, ProcessRunner.system() );
+                UpdateStager.standard().clear();
+                return AfterInstall.RELAUNCH;
+            }
+            default -> throw new IOException( "No in-app installer for " + staged.kind() );
         }
-        String appImage = System.getenv( "APPIMAGE" );
-        if ( appImage == null || appImage.isBlank() ) {
-            throw new IOException( "Not running from an AppImage" );
+    }
+
+    private static void verify( StagedUpdate staged ) throws IOException
+    {
+        if ( !UpdateStager.standard().verify( staged ) ) {
+            throw new UpdateStager.ChecksumMismatchException( "The staged update no longer matches its checksum" );
         }
-        AppImageUpdateInstaller.standard().install( staged, Path.of( appImage ),
-                                                     LauncherConstants.LAUNCHER_APPLICATION_VERSION );
     }
 
     /**
      * Run as the launcher quits: installs a staged update that is newer than the running
      * version and was downloaded for this kind of install, so "Later" still updates by the next
-     * start. Failures are left for the next attempt; the staged file stays.
+     * start, where that needs no permission prompt. A staged update that is not newer than the
+     * running version (already installed, or left over) is removed. Failures are left for the next
+     * attempt; the staged file stays.
      *
      * @return the version installed, or empty when there was nothing to install
      *
@@ -116,17 +198,52 @@ public final class LauncherUpdater
      */
     public static Optional< String > installStagedOnExit() throws IOException
     {
+        if ( HANDOFF_SCHEDULED.get() ) {
+            return Optional.empty();   // A helper already installs it after this exit.
+        }
         InstallKind kind = InstallKind.current( LauncherConstants.LAUNCHER_IS_DEV );
         if ( !installsInApp( kind ) ) {
             return Optional.empty();
         }
-        Optional< StagedUpdate > staged = UpdateStager.standard().staged();
-        if ( staged.isEmpty() || !shouldInstall( staged.get(), kind,
-                                                 LauncherConstants.LAUNCHER_APPLICATION_VERSION ) ) {
+        UpdateStager stager = UpdateStager.standard();
+        Optional< StagedUpdate > staged = stager.staged();
+        if ( staged.isEmpty() ) {
             return Optional.empty();
         }
-        install( staged.get() );
+        if ( isStale( staged.get(), LauncherConstants.LAUNCHER_APPLICATION_VERSION ) ) {
+            stager.clear();
+            return Optional.empty();
+        }
+        if ( !installsOnQuit( kind ) || !shouldInstall( staged.get(), kind,
+                                                        LauncherConstants.LAUNCHER_APPLICATION_VERSION ) ) {
+            return Optional.empty();
+        }
+        install( staged.get(), false );
         return Optional.of( staged.get().version() );
+    }
+
+    /**
+     * Records that a helper will install the update once the launcher has exited, so quitting
+     * does not start a second one.
+     */
+    static void markHandoffScheduled()
+    {
+        HANDOFF_SCHEDULED.set( true );
+    }
+
+    /**
+     * Whether a staged update is no longer needed: not newer than what runs.
+     *
+     * @param staged         the staged update
+     * @param runningVersion the running version
+     *
+     * @return {@code true} when it can be removed
+     *
+     * @since 2026.11
+     */
+    static boolean isStale( StagedUpdate staged, String runningVersion )
+    {
+        return VersionUtilities.compareVersionNumbers( runningVersion, staged.version() ) >= 0;
     }
 
     /**

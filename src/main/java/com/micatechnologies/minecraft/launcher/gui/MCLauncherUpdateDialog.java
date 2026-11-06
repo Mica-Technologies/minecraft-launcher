@@ -26,6 +26,7 @@ import com.micatechnologies.minecraft.launcher.update.LauncherRelease;
 import com.micatechnologies.minecraft.launcher.update.LauncherUpdater;
 import com.micatechnologies.minecraft.launcher.update.ReleaseAsset;
 import com.micatechnologies.minecraft.launcher.update.StagedUpdate;
+import com.micatechnologies.minecraft.launcher.update.UpdateCancelledException;
 import com.micatechnologies.minecraft.launcher.update.UpdateStager;
 import com.micatechnologies.minecraft.launcher.utilities.DownloadTracker;
 import javafx.animation.KeyFrame;
@@ -206,9 +207,9 @@ public final class MCLauncherUpdateDialog
         stopPolling();
         staged = result;
         alert.setHeaderText( LocalizationManager.format( "update.dialog.ready.header", release.version() ) );
-        body.setText( LocalizationManager.get( "update.dialog.ready.body" ) );
+        body.setText( LocalizationManager.get( readyBodyKey( kind ) ) );
         hideProgress();
-        restartButton = new ButtonType( LocalizationManager.get( "update.dialog.button.restart" ),
+        restartButton = new ButtonType( LocalizationManager.get( restartButtonKey( kind ) ),
                                         ButtonBar.ButtonData.OK_DONE );
         setButtons( restartButton, later() );
         onPress( restartButton, this::installAndRestart );
@@ -241,8 +242,17 @@ public final class MCLauncherUpdateDialog
         StagedUpdate toInstall = staged;
         Thread installer = new Thread( () -> {
             try {
-                LauncherUpdater.install( toInstall );
-                LauncherCore.relaunchApp();
+                if ( LauncherUpdater.install( toInstall ) == LauncherUpdater.AfterInstall.RELAUNCH ) {
+                    LauncherCore.relaunchApp();
+                }
+                else {
+                    // A helper installs it once the launcher has exited, then starts it again.
+                    LauncherCore.closeApp();
+                }
+            }
+            catch ( UpdateCancelledException e ) {
+                GUIUtilities.JFXPlatformRun(
+                        () -> showFailed( LocalizationManager.get( "update.dialog.failed.cancelled" ) ) );
             }
             catch ( Exception e ) {
                 Logger.logWarningSilent( LocalizationManager.format( "log.update.installFailed", e.getMessage() ) );
@@ -273,6 +283,37 @@ public final class MCLauncherUpdateDialog
     }
 
     // ---- helpers ---------------------------------------------------------------------------
+
+    /**
+     * The "ready" explanation for an install kind: installed on quit, or needing permission (then
+     * never installed on quit), or the macOS installer package.
+     *
+     * @param kind the install kind
+     *
+     * @return the bundle key
+     */
+    static String readyBodyKey( InstallKind kind )
+    {
+        if ( kind == InstallKind.MAC_APP_PKG ) {
+            return "update.dialog.ready.bodyPkg";
+        }
+        return LauncherUpdater.installsOnQuit( kind ) ? "update.dialog.ready.body"
+                                                      : "update.dialog.ready.bodyPermission";
+    }
+
+    /**
+     * The button that installs: "Restart now", or "Close and install" where the launcher does
+     * not start again by itself (the macOS installer package).
+     *
+     * @param kind the install kind
+     *
+     * @return the bundle key
+     */
+    static String restartButtonKey( InstallKind kind )
+    {
+        return kind == InstallKind.MAC_APP_PKG ? "update.dialog.button.closeAndInstall"
+                                               : "update.dialog.button.restart";
+    }
 
     private ButtonType later()
     {
