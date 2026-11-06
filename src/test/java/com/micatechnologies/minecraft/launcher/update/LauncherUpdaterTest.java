@@ -45,13 +45,44 @@ class LauncherUpdaterTest
     }
 
     @Test
-    void kindsWithoutAnInstallerYetUseTheReleasePage()
+    void kindsWithAnInstallerUpdateInAppAndTheRestUseTheReleasePage()
     {
         for ( InstallKind kind : InstallKind.values() ) {
-            if ( kind != InstallKind.LINUX_APPIMAGE && kind != InstallKind.FLATPAK ) {
-                assertEquals( LauncherUpdater.Route.RELEASE_PAGE, LauncherUpdater.routeFor( kind, FILE ), kind.name() );
+            if ( kind == InstallKind.FLATPAK ) {
+                continue;
+            }
+            LauncherUpdater.Route expected = LauncherUpdater.installsInApp( kind ) ? LauncherUpdater.Route.IN_APP
+                                                                                   : LauncherUpdater.Route.RELEASE_PAGE;
+            assertEquals( expected, LauncherUpdater.routeFor( kind, FILE ), kind.name() );
+        }
+        assertTrue( LauncherUpdater.installsInApp( InstallKind.LINUX_DEB ) );
+        assertTrue( LauncherUpdater.installsInApp( InstallKind.LINUX_RPM ) );
+        assertFalse( LauncherUpdater.installsInApp( InstallKind.JAR ) );
+        assertFalse( LauncherUpdater.installsInApp( InstallKind.UNSUPPORTED ) );
+    }
+
+    @Test
+    void updatesThatAskForPermissionAreNeverInstalledOnQuit()
+    {
+        for ( InstallKind kind : InstallKind.values() ) {
+            if ( LauncherUpdater.needsPermission( kind ) ) {
+                assertFalse( LauncherUpdater.installsOnQuit( kind ), kind.name() );
+                assertTrue( LauncherUpdater.installsInApp( kind ), kind.name() );
             }
         }
+        assertTrue( LauncherUpdater.needsPermission( InstallKind.LINUX_DEB ) );
+        assertTrue( LauncherUpdater.installsOnQuit( InstallKind.LINUX_APPIMAGE ) );
+        assertFalse( LauncherUpdater.installsOnQuit( InstallKind.FLATPAK ) );
+    }
+
+    @Test
+    void aStagedUpdateNoNewerThanTheRunningVersionIsStale()
+    {
+        StagedUpdate staged = new StagedUpdate( "2026.11.20", InstallKind.LINUX_DEB, Path.of( "x" ), "0" );
+
+        assertTrue( LauncherUpdater.isStale( staged, "2026.11.20" ), "already installed" );
+        assertTrue( LauncherUpdater.isStale( staged, "2026.12.01" ), "left over from before" );
+        assertFalse( LauncherUpdater.isStale( staged, "2026.11.13" ) );
     }
 
     @Test
