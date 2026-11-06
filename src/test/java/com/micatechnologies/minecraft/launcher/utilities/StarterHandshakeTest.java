@@ -88,6 +88,15 @@ class StarterHandshakeTest
     }
 
     @Test
+    void aMacOrLinuxCoreStartedDirectlyNamesTheStarterBesideIt( @TempDir Path dir ) throws IOException
+    {
+        Path starter = Files.createFile( dir.resolve( "Mica Minecraft Launcher" ) );
+        String core = Files.createFile( dir.resolve( "Mica Minecraft Launcher Core" ) ).toString();
+
+        assertEquals( starter.toString(), StarterHandshake.launcherExecutable( null, core ) );
+    }
+
+    @Test
     void aCoreWithoutAStarterBesideItIsUsedAsIs( @TempDir Path dir )
     {
         String core = dir.resolve( "Mica Minecraft Launcher Core.exe" ).toString();

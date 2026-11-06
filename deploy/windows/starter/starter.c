@@ -36,7 +36,7 @@
  *
  * Every such outcome is also appended to ~/.MicaMinecraftLauncher[DEV]/logs/startup.log, the
  * launcher's pre-startup log. User-facing text comes from the launcher's resource bundles
- * (starter.* keys), generated into starter_strings.h by build-starter.ps1.
+ * (starter.* keys), generated into starter_strings.h by deploy/starter/GenerateStarterStrings.java.
  */
 
 #define WIN32_LEAN_AND_MEAN
@@ -48,10 +48,14 @@
 #include <shlobj.h>
 #include <knownfolders.h>
 #include <msi.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <wchar.h>
 
 #include "starter_build.h"
+/* The generated strings are T("...") literals; here they are wide strings. */
+#define STARTER_CHAR wchar_t
+#define T( s ) L##s
 #include "starter_strings.h"
 
 #pragma comment( lib, "comctl32.lib" )
@@ -188,13 +192,14 @@ static void startupLog( const wchar_t *message )
     }
 }
 
-static int sameLanguage( const wchar_t *a, const wchar_t *b )
+/* Compares two locale tags up to the end of the language subtag ("pt-BR" vs "pt_PT": same). */
+static int sameLanguage( const char *a, const char *b )
 {
     for ( ;; a++, b++ ) {
-        wchar_t x = *a == L'_' ? L'-' : towlower( *a );
-        wchar_t y = *b == L'_' ? L'-' : towlower( *b );
-        int endA = x == 0 || x == L'-';
-        int endB = y == 0 || y == L'-';
+        char x = *a == '_' ? '-' : ( char ) tolower( ( unsigned char ) *a );
+        char y = *b == '_' ? '-' : ( char ) tolower( ( unsigned char ) *b );
+        int endA = x == 0 || x == '-';
+        int endB = y == 0 || y == '-';
         if ( endA || endB ) {
             return endA && endB;
         }
@@ -204,13 +209,20 @@ static int sameLanguage( const wchar_t *a, const wchar_t *b )
     }
 }
 
-static const StarterLocale *findLocale( const wchar_t *tag )
+static const StarterLocale *findLocale( const wchar_t *wide )
 {
-    if ( tag == NULL || tag[ 0 ] == 0 ) {
+    /* Locale tags are ASCII. */
+    char tag[ 64 ];
+    size_t n = 0;
+    for ( ; wide != NULL && wide[ n ] != 0 && n + 1 < sizeof tag; n++ ) {
+        tag[ n ] = wide[ n ] == L'_' ? '-' : ( char ) ( wide[ n ] < 128 ? wide[ n ] : '?' );
+    }
+    tag[ n ] = 0;
+    if ( n == 0 ) {
         return NULL;
     }
     for ( int i = 0; i < STARTER_LOCALE_COUNT; i++ ) {
-        if ( _wcsicmp( STARTER_LOCALES[ i ].tag, tag ) == 0 ) {
+        if ( _stricmp( STARTER_LOCALES[ i ].tag, tag ) == 0 ) {
             return &STARTER_LOCALES[ i ];
         }
     }
