@@ -2481,6 +2481,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 // the folder (when asked) and removes the pack from the list.
                 boolean removed = GameModPackManager.uninstallModPack( pack, deleteFiles );
                 if ( removed && onComplete != null ) GUIUtilities.JFXPlatformRun( onComplete );
+                // A Steam library entry for the pack would now only open the launcher: offer to
+                // remove it too. Asks only when a library actually has one.
+                if ( removed ) SteamEntryFlow.offerRemovalAfterUninstall( pack.getPackName(), owner );
             }
             finally {
                 if ( hideProgress != null ) GUIUtilities.JFXPlatformRun( hideProgress );
