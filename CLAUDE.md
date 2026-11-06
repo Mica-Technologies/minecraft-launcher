@@ -90,6 +90,8 @@ Every build, `mvn test` and `mvn compile` included, first wipes `build/` (except
 | `config/` | JSON-based config persistence via GSON (`ConfigManager`) |
 | `consts/` | Constants classes (`RuntimeConstants`, `LauncherConstants`, `ModPackConstants`, `ConfigConstants`) and `localization/LocalizationManager` |
 | `utilities/` | HTTP downloads, hashing (SHA-1 verification), Discord RPC, system theme detection, process execution |
+| `update/` | In-app launcher updates: `InstallKind` (how this copy was installed), `UpdateAssetSelector`, `UpdateStager` (download + SHA-256 into `updates/`), `LauncherUpdater` (route and install), per-platform installers (AppImage swap with starter rollback, macOS, Windows MSI, `.deb`/`.rpm`). See `docs/PLATFORM_INTEGRATION.md` |
+| `steam/` | "Add to Steam" and Steam Deck support: `SteamLocator`, `BinaryVdf` + `SteamShortcuts` (`shortcuts.vdf`), `SteamArtwork`, `SteamLibrary`, `SteamProcess`, `SteamDeck`. Entries start the launcher with `--steam [pack]` |
 | `mcp/` | Model Context Protocol server, off by default: `McpBootstrap` (lifecycle), `McpServer` + `transport/` (loopback HTTP, admission checks, `--mcp` stdio relay), `tools/` + `resources/` (what is exposed, and the redaction boundary), `approval/` (risk classes, per-tool policy, consent). See `docs/MCP_SERVER_GUIDE.pdf` |
 
 ### Game Launch Flow

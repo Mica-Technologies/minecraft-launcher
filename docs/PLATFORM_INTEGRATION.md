@@ -281,6 +281,68 @@ Built by `build-starter.sh` during `mvn package` (needs a C compiler: the Xcode 
 or gcc). Both platforms package from a jpackage app image, as Windows does. The dialog text of all
 three starters comes from `deploy/starter/GenerateStarterStrings.java`.
 
+## Launcher updates — `update/`
+
+The update check (`UpdateCheckManager`, GitHub `releases/latest`) now keeps the whole release
+(`LauncherRelease`): every file with its URL, size and the SHA-256 GitHub reports for it
+(`digest`). Updates are not signed; the checksum catches a corrupt or truncated download, not a
+tampered release.
+
+- **Which file** — `InstallKind` works out how this copy was installed (per-user or per-machine
+  MSI, a macOS bundle the user can replace or one the PKG installed, the AppImage, `.deb`, `.rpm`,
+  Flatpak, bare jar; DEV builds and IDE runs never update) and `UpdateAssetSelector` picks the
+  release file by the end of its name. Only files with a checksum are offered.
+- **Route** — `LauncherUpdater.routeFor`: in-app for the installs above, a notice for a Flatpak
+  (its software store updates it), the release page for the rest.
+- **Download** — `UpdateStager` downloads into `~/.MicaMinecraftLauncher/updates` with the shared
+  downloader, checks the SHA-256, and records it in `staged-update.properties` (plain `key=value`,
+  bare file name). `MCLauncherUpdateDialog` shows progress; Restart is disabled while games run.
+  "Later" keeps it staged, and it is installed when the launcher quits where that needs no
+  administrator prompt.
+- **Install, per platform:**
+  - *AppImage* (`AppImageUpdateInstaller`): the launcher swaps the file itself (Linux allows
+    replacing a running AppImage), keeping `<file>.previous` and recording the swap in
+    `applied-update.properties`. The new version deletes both once it shows a window; if it exits
+    with an error first, the Linux starter puts `.previous` back, says so, and starts it.
+  - *macOS* (`MacUpdateInstaller`): a replaceable bundle is copied out of the mounted DMG beside the
+    old one, and a detached `/bin/sh` helper swaps them once the launcher has exited, then reopens
+    it; a PKG install opens the package in Installer after quitting.
+  - *Windows* (`WindowsMsiInstaller`): a PowerShell helper in the temp folder waits for the starter
+    and Core to exit (the MSI refuses to upgrade a running launcher), runs
+    `msiexec /i … /passive /norestart` (through UAC only for the per-machine MSI; it never switches
+    scope), and starts the launcher again.
+  - *`.deb` / `.rpm`* (`LinuxPackageInstaller`): `pkexec` with `apt-get` / `dnf`, else `dpkg` /
+    `rpm`, then a restart.
+
+  Helpers note their result in `logs/update-install.log`.
+
+## Steam library and Steam Deck — `steam/`
+
+**Add to Steam** (a pack's menu or detail view; Settings → Third-party integrations for the
+launcher itself) adds a non-Steam game entry with artwork. `SteamLocator` finds Steam and its
+accounts (`userdata/<id>`, names from `loginusers.vdf`; the most recent account, or a picker);
+`SteamShortcuts` / `BinaryVdf` edit `userdata/<id>/config/shortcuts.vdf`; `SteamArtwork` writes the
+capsule, banner, logo and icon images to `config/grid` from the pack's logo and background.
+
+- Entries run the launcher's starter (on Linux, the AppImage file) with `--steam` (the launcher)
+  or `--steam "<pack>"`; that prefix is also how the launcher recognises its own entries, so the
+  user's other shortcuts are never changed. Updating an entry keeps its Steam app ID, artwork and
+  play time.
+- Steam reads the list only when it starts and overwrites it when it exits, so `SteamEntryFlow`
+  closes Steam (`steam -shutdown`, `osascript`, `steam.exe -shutdown`), writes, and starts it again.
+  In the Deck's Game Mode Steam can't be closed: the user adds entries once from Desktop Mode.
+- Flatpak Steam isn't supported yet (its entries run inside Steam's sandbox).
+
+**Starting a pack from Steam** (`SteamPlaySession`): `--steam "<pack>"` starts the pack once the
+main window is up and quits when the game exits normally, so Steam, which counts the game as
+running until every process it started has exited, returns to the library. In Game Mode
+(`XDG_CURRENT_DESKTOP=gamescope`) the launcher's windows are hidden while the game runs, because
+gamescope shows only the most recently mapped window. If the launch fails or the game crashes,
+the windows come back and the launcher stays open.
+
+`SteamDeck.isSteamDeck()` (DMI vendor `Valve`, product `Jupiter` or `Galileo`) makes sign-in start
+with a code instead of Microsoft's page (see `docs/AUTHENTICATION_SYSTEM.md`).
+
 ## Fallback philosophy (important)
 
 Every adapter here is best-effort. The expected pattern, used consistently:
@@ -312,6 +374,8 @@ native side actually succeeding.
 | URL scheme / file association | `utilities/SchemeRegistrar` |
 | Native starters | `deploy/windows/starter/starter.c`, `deploy/unix/starter/starter_unix.c`, `utilities/StarterHandshake` |
 | Linux AppImage | `deploy/linux/appimage/build-appimage.sh` (pinned appimagetool + static type2-runtime) |
+| Launcher updates | `update/` (`InstallKind`, `UpdateAssetSelector`, `UpdateStager`, `LauncherUpdater`, per-platform installers), `gui/MCLauncherUpdateDialog` |
+| Steam library | `steam/` (`SteamLocator`, `BinaryVdf`, `SteamShortcuts`, `SteamArtwork`, `SteamLibrary`, `SteamProcess`, `SteamDeck`), `gui/SteamEntryFlow`, `gui/SteamPlaySession` |
 | Per-pack desktop shortcuts | `system/DesktopShortcutManager` |
 | macOS hidden-inset title bar + drag | `utilities/MacOsTitleBarManager` |
 | macOS native title-bar toolbar (centers lights + hosts nav) | `utilities/MacOsToolbarManager` |

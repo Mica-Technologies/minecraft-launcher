@@ -159,6 +159,27 @@ joins the one in flight. They run on one daemon executor, spaced by the rate lim
 (unless there is none). Signing an existing account in again (after Microsoft rejected its saved
 sign-in) replaces its credentials.
 
+### Signing in with a code
+
+Both screens can also sign in with a code instead of Microsoft's page ("Sign in with a code
+instead"); on a Steam Deck that is the mode shown first (`SteamDeck.isSteamDeck`), since typing a
+password with a controller is painful. `DeviceCodeSignIn` runs the OAuth device authorization grant
+against `login.live.com` with the same client ID and scope as the browser sign-in
+(`00000000402b5328`, `XboxLive.signin offline_access`):
+
+1. `start()` posts to `oauth20_connect.srf` (`response_type=device_code`) and gets a short user code
+   and `https://www.microsoft.com/link`, which `SignInPanel` shows.
+2. `awaitRefreshToken` polls `oauth20_token.srf` with the device-code grant at the interval
+   Microsoft gives (`authorization_pending` → wait, `slow_down` → +5 s; expired, declined and
+   cancelled are reported separately).
+3. `MCLauncherAuthManager.signInWithDeviceCodeToken(refreshToken, remember, makeDefault)` hands the
+   refresh token to `minecraft_authenticator` as a `MicrosoftAuthenticationFile`, which redeems it
+   and runs the usual Xbox Live, XSTS and Minecraft steps, then records the account like any other.
+
+The device code itself is never logged. Requesting a code for this client ID was confirmed against
+Microsoft on 2026-11-06; a full sign-in and a later refresh through this path still need confirming
+with a real account.
+
 ### Startup
 
 `LauncherCore.performClientLogin`: if there is a default account (`hasExistingLogin`), its cached
@@ -227,6 +248,7 @@ void setStatusCallback( AuthStatusCallback callback )
 | `AccountStore` | `profiles/<uuid>/` files: atomic, owner-only, uuid-validated |
 | `AccountCipher` | Encryption seam; `machineBound()` delegates to `MachineSecretCipher` |
 | `MCLauncherAuthManager` | Microsoft calls with timeout, shared rate limit/backoff, default-account facade |
+| `DeviceCodeSignIn` | Sign-in with a code at microsoft.com/link: device code request and polling, behind an HTTP seam |
 | `LaunchAccountResolver` | Pure: pack override vs default vs blocked |
 | `MCLauncherAuthResult` | Result wrapper (user, or an `ERROR_*` sentinel) |
 
