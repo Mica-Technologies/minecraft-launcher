@@ -41,13 +41,16 @@ import com.micatechnologies.minecraft.launcher.utilities.LauncherUriHandler;
  * @param pendingUri  the {@code mmcl://} deep link found in argv, or {@code null} when absent
  * @param invalid     {@code true} when the arguments do not match any accepted form, in which
  *                    case the caller should print usage and exit
+ * @param steam       {@code true} for {@code --steam [modpack_name]}: started from a Steam library
+ *                    entry the launcher added (client mode; with a pack, straight into that game)
  *
  * @since 2026.9
  */
 public record LauncherArgs( ModeAction modeAction,
                             String modPackSelection,
                             String pendingUri,
-                            boolean invalid )
+                            boolean invalid,
+                            boolean steam )
 {
     /**
      * What the caller should do about the game mode. Distinct from
@@ -74,6 +77,19 @@ public record LauncherArgs( ModeAction modeAction,
         NONE
     }
 
+    /**
+     * The record without the {@code steam} flag, for every form but {@code --steam}.
+     *
+     * @param modeAction       what to do about the game mode
+     * @param modPackSelection the modpack name to pre-select, or {@code ""}
+     * @param pendingUri       the deep link, or {@code null}
+     * @param invalid          whether the arguments matched no form
+     */
+    public LauncherArgs( ModeAction modeAction, String modPackSelection, String pendingUri, boolean invalid )
+    {
+        this( modeAction, modPackSelection, pendingUri, invalid, false );
+    }
+
     /** Convenience accessor for the common "no deep link present" check. */
     public boolean hasPendingUri()
     {
@@ -91,6 +107,8 @@ public record LauncherArgs( ModeAction modeAction,
      *       finish auth and pack loading before the deep-link action can run.</li>
      *   <li>TUI mode ({@code --cli} / {@code --tui}, already detected by the caller) implies
      *       client mode; the last non-flag token becomes the modpack selection.</li>
+     *   <li>{@code --steam} or {@code --steam <name>}: a Steam library entry the launcher
+     *       added; client mode, with {@code steam} set.</li>
      *   <li>Otherwise the positional grammar:
      *       {@code [] | -c | -s | <name> | -c <name> | -s <name>}.</li>
      * </ol>
@@ -125,6 +143,14 @@ public record LauncherArgs( ModeAction modeAction,
                 tuiSelection = a;
             }
             return new LauncherArgs( ModeAction.CLIENT, tuiSelection, null, false );
+        }
+
+        if ( safeArgs.length > 0 && LauncherConstants.PROGRAM_ARG_STEAM.equalsIgnoreCase( safeArgs[ 0 ] ) ) {
+            return switch ( safeArgs.length ) {
+                case 1 -> new LauncherArgs( ModeAction.CLIENT, "", null, false, true );
+                case 2 -> new LauncherArgs( ModeAction.CLIENT, safeArgs[ 1 ], null, false, true );
+                default -> new LauncherArgs( ModeAction.NONE, "", null, true, false );
+            };
         }
 
         if ( safeArgs.length == 0 ) {
