@@ -1238,6 +1238,8 @@
                      Previously the name flag was overridden to this lowercase id, so the desktop entry
                      showed "mica-minecraft-launcher" instead of the real display name. -->
                 <packaging.linux.packageName>mica-minecraft-launcher</packaging.linux.packageName>
+                <!-- Set to true to skip the AppImage (Step 3c), e.g. on a build host without network access. -->
+                <linux.appimage.skip>false</linux.appimage.skip>
             </properties>
             <build>
                 <plugins>
@@ -1402,6 +1404,29 @@
                                              The .properties file is staged with an absolute icon path (see stage-jar-for-jpackage). -->
                                         <argument>--file-associations</argument>
                                         <argument>${project.build.directory}/jpackage-file-assoc/linux.properties</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Step 3c: AppImage from the same image, for systems where neither package installs (SteamOS:
+                                 read-only system partition). Downloads pinned, checksummed appimagetool and static runtime
+                                 releases, so it needs network access; pass -Dlinux.appimage.skip=true to leave it out. -->
+                            <execution>
+                                <id>linux-appimage</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <skip>${linux.appimage.skip}</skip>
+                                    <executable>bash</executable>
+                                    <arguments>
+                                        <argument>${project.basedir}/deploy/linux/appimage/build-appimage.sh</argument>
+                                        <argument>${unix.app.image.dir}/${packaging.name}</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>${revision.numeric}</argument>
+                                        <argument>${launcher.environment}</argument>
+                                        <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
+                                        <argument>${project.build.directory}/appimage</argument>
+                                        <argument>${project.basedir}/build/packaging</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

@@ -234,6 +234,27 @@ macOS and Linux have their own starter; see "Native starter on macOS and Linux" 
   `.desktop` files.
 - No system-wide vibrancy equivalent — the Native theme routes to the opaque Dark/Light palette.
 
+### AppImage — `deploy/linux/appimage`
+
+Besides the `.deb` and `.rpm`, Linux packaging builds `Mica-Minecraft-Launcher-<version>-x86_64.AppImage`
+from the same app image. It exists for systems where neither package installs, above all SteamOS
+(Steam Deck), whose system partition is read-only and replaced on every update; only the home folder
+survives. The AppImage is one file the user keeps there.
+
+- **Build** — `build-appimage.sh`, run by the `linux-packaging` profile after the starter step. It
+  downloads pinned releases of `appimagetool` and the **static** type2-runtime, checks their SHA-256,
+  and packs the image with `AppRun` linked to the starter. The static runtime needs no libfuse2 on the
+  user's system. Needs network access; `-Dlinux.appimage.skip=true` leaves it out. x86_64 only.
+- **Paths** — inside an AppImage the starter runs from a temporary mount (`/tmp/.mount_*`) that goes
+  away when the launcher exits. The starter therefore sets `MMCL_STARTER_PATH` to `$APPIMAGE` (the
+  file itself), so the `.desktop` entry, the `mmcl://` handler, pack shortcuts and relaunches written
+  through `StarterHandshake.launcherExecutable()` all name the AppImage. The user can move or rename
+  it; the next start writes the new path.
+- **Install on a Steam Deck** — in Desktop Mode, download the AppImage, move it to a folder in the
+  home folder (for example `~/Applications`), allow it to run (file Properties → Permissions, or
+  `chmod +x`), and start it. The first start adds the launcher to the application menu. Removing it
+  is deleting the file; the launcher's data stays in `~/.MicaMinecraftLauncher`.
+
 ## Native starter on macOS and Linux — `deploy/unix/starter`
 
 The same idea as the Windows starter, in `starter_unix.c`: the launcher executable
@@ -290,6 +311,7 @@ native side actually succeeding.
 | Dark/light probe | `utilities/OsThemeUtilities` |
 | URL scheme / file association | `utilities/SchemeRegistrar` |
 | Native starters | `deploy/windows/starter/starter.c`, `deploy/unix/starter/starter_unix.c`, `utilities/StarterHandshake` |
+| Linux AppImage | `deploy/linux/appimage/build-appimage.sh` (pinned appimagetool + static type2-runtime) |
 | Per-pack desktop shortcuts | `system/DesktopShortcutManager` |
 | macOS hidden-inset title bar + drag | `utilities/MacOsTitleBarManager` |
 | macOS native title-bar toolbar (centers lights + hosts nav) | `utilities/MacOsToolbarManager` |

@@ -172,6 +172,22 @@ static void resolvePaths( void )
     snprintf( g_dataDir, sizeof g_dataDir, "%s/%s", home != NULL ? home : "", MMCL_DATA_FOLDER );
 }
 
+/*
+ * The path that starts this launcher again, for shortcuts, the mmcl:// handler, Steam entries and
+ * relaunches. Normally the starter itself. In an AppImage the starter sits in a temporary mount
+ * (/tmp/.mount_*) that disappears when the launcher exits; the AppImage runtime names the file
+ * the user actually has in $APPIMAGE.
+ */
+static const char *launcherPath( void )
+{
+    const char *appImage = getenv( "APPIMAGE" );
+    struct stat st;
+    if ( appImage != NULL && appImage[ 0 ] == '/' && stat( appImage, &st ) == 0 && S_ISREG( st.st_mode ) ) {
+        return appImage;
+    }
+    return g_self;
+}
+
 static void mkdirs( const char *path )
 {
     char tmp[ PATH_MAX ];
@@ -1016,7 +1032,7 @@ int main( int argc, char **argv )
     }
 
     createStateFile();
-    setenv( "MMCL_STARTER_PATH", g_self, 1 );
+    setenv( "MMCL_STARTER_PATH", launcherPath(), 1 );
     /* The --mcp relay's stdout is a JSON-RPC channel: never route it through a pipe of ours. */
     int captureStdout = !( argc > 1 && strcmp( argv[ 1 ], "--mcp" ) == 0 );
 #ifdef __APPLE__
