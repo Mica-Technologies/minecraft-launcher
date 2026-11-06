@@ -684,9 +684,13 @@ public class MCLauncherGuiWindow extends Application
                     UiScale.unwrap( gui.scene.getRoot() ),
                     () -> MCLauncherHelpWindow.show( sceneGui.getHelpTopic() ) );
 
-            // A window is up: from here the launcher shows its own errors, so the Windows
+            // A window is up: from here the launcher shows its own errors, so the native
             // starter no longer needs to.
             com.micatechnologies.minecraft.launcher.utilities.StarterHandshake.windowShown();
+            // ...and a just-installed AppImage update has proven it starts: drop the copy of the
+            // previous version the starter would have rolled back to.
+            com.micatechnologies.minecraft.launcher.update.AppImageUpdateInstaller.confirmStartedOnce(
+                    com.micatechnologies.minecraft.launcher.consts.LauncherConstants.LAUNCHER_APPLICATION_VERSION );
             // A taskbar pin of any launcher window should start the starter, not the Core exe.
             com.micatechnologies.minecraft.launcher.utilities.WindowsRelaunchProperties.applyToAllWindows();
             gui.afterShow();

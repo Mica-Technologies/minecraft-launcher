@@ -861,6 +861,104 @@ static char **coreArgv( int argc, char **argv )
 
 #ifndef __APPLE__
 
+/* ---------------------------------------------------------------------------------------- */
+/*  AppImage update rollback                                                                 */
+/* ---------------------------------------------------------------------------------------- */
+
+/*
+ * The launcher installs an AppImage update by renaming the new file over $APPIMAGE and keeping the
+ * old one as "<file>.previous", recorded in updates/applied-update.properties (version, from,
+ * appimage, previous; see AppImageUpdateInstaller.java). The new version deletes both once it shows
+ * a window. So if the record is still there, names this AppImage, and the launcher has just failed
+ * before a window, this was the update's first start and it did not work: put the previous file
+ * back. Returns 1 when it did, with the failed and restored versions.
+ */
+static int readRecordValue( const char *file, const char *key, char *out, size_t cap )
+{
+    FILE *f = fopen( file, "r" );
+    if ( f == NULL ) {
+        return 0;
+    }
+    char line[ PATH_MAX + 64 ];
+    size_t keyLen = strlen( key );
+    int found = 0;
+    while ( !found && fgets( line, sizeof line, f ) != NULL ) {
+        line[ strcspn( line, "\r\n" ) ] = 0;
+        if ( strncmp( line, key, keyLen ) == 0 && line[ keyLen ] == '=' ) {
+            snprintf( out, cap, "%s", line + keyLen + 1 );
+            found = 1;
+        }
+    }
+    fclose( f );
+    return found;
+}
+
+static int rollBackAppImageUpdate( char *failedVersion, size_t failedCap, char *restoredVersion, size_t restoredCap )
+{
+    const char *appImage = getenv( "APPIMAGE" );
+    if ( appImage == NULL || appImage[ 0 ] != '/' ) {
+        return 0;
+    }
+    char record[ PATH_MAX + 64 ];
+    snprintf( record, sizeof record, "%s/updates/applied-update.properties", g_dataDir );
+    char target[ PATH_MAX ];
+    char previous[ PATH_MAX ];
+    if ( !readRecordValue( record, "appimage", target, sizeof target )
+         || !readRecordValue( record, "previous", previous, sizeof previous )
+         || strcmp( target, appImage ) != 0 ) {
+        return 0;
+    }
+    struct stat st;
+    if ( stat( previous, &st ) != 0 || !S_ISREG( st.st_mode ) ) {
+        return 0;
+    }
+    if ( !readRecordValue( record, "version", failedVersion, failedCap ) ) {
+        snprintf( failedVersion, failedCap, "?" );
+    }
+    if ( !readRecordValue( record, "from", restoredVersion, restoredCap ) ) {
+        snprintf( restoredVersion, restoredCap, "?" );
+    }
+    if ( rename( previous, appImage ) != 0 ) {
+        startupLog( "Could not restore %s after a failed update: %s", previous, strerror( errno ) );
+        return 0;
+    }
+    unlink( record );
+    startupLog( "Version %s exited before showing a window; restored version %s (%s)", failedVersion,
+                restoredVersion, appImage );
+    return 1;
+}
+
+/* After a rollback: say what happened, then start the restored version in this process. */
+static void reportRollbackAndRestart( const char *failedVersion, int argc, char **argv )
+{
+    char body[ TEXT ];
+    char details[ TEXT ];
+    format1( body, sizeof body, S( S_ROLLBACK_BODY ), failedVersion );
+    buildDetails( details, sizeof details, NULL );
+    report( S( S_ROLLBACK_HEADING ), body, details, 0 );
+
+    const char *appImage = getenv( "APPIMAGE" );
+    char **args = calloc( ( size_t ) argc + 1, sizeof *args );
+    args[ 0 ] = ( char * ) appImage;
+    for ( int i = 1; i < argc; i++ ) {
+        args[ i ] = argv[ i ];
+    }
+    execv( appImage, args );
+    startupLog( "Could not start the restored launcher %s: %s", appImage, strerror( errno ) );
+}
+
+/* Rolls back a just-installed AppImage update that failed before a window; 1 when it did. */
+static int rolledBack( enum Stage stage, int argc, char **argv )
+{
+    char failed[ 128 ];
+    char restored[ 128 ];
+    if ( stage >= STAGE_READY || !rollBackAppImageUpdate( failed, sizeof failed, restored, sizeof restored ) ) {
+        return 0;
+    }
+    reportRollbackAndRestart( failed, argc, argv );
+    return 1;
+}
+
 static volatile pid_t g_child;
 
 static void forwardSignal( int sig )
@@ -908,6 +1006,9 @@ static int runLinux( int argc, char **argv, int captureStdout )
         /* Being told to stop (logout, kill, Ctrl+C) is not a crash. */
         int asked = sig == SIGTERM || sig == SIGINT || sig == SIGHUP || sig == SIGKILL || sig == SIGQUIT;
         snprintf( description, sizeof description, "signal %d (%s)", sig, strsignal( sig ) );
+        if ( !asked && rolledBack( stage, argc, argv ) ) {
+            return 128 + sig;
+        }
         if ( !asked || stage < STAGE_READY ) {
             reportOutcome( stage, !asked, description );
         }
@@ -915,6 +1016,9 @@ static int runLinux( int argc, char **argv, int captureStdout )
     }
     int code = WIFEXITED( status ) ? WEXITSTATUS( status ) : 1;
     if ( code != 0 ) {
+        if ( rolledBack( stage, argc, argv ) ) {
+            return code;
+        }
         snprintf( description, sizeof description, "%d", code );
         reportOutcome( stage, 0, description );
     }
@@ -1025,6 +1129,11 @@ int main( int argc, char **argv )
     findMissingFiles( missing, sizeof missing );
     if ( missing[ 0 ] != 0 ) {
         startupLog( "Not starting, files are missing:%s", missing );
+#ifndef __APPLE__
+        if ( rolledBack( STAGE_LAUNCHING, argc, argv ) ) {
+            return 1;
+        }
+#endif
         char body[ TEXT ];
         format1( body, sizeof body, S( S_REINSTALL_MISSING_BODY ), missing + 1 );
         report( S( S_FAILED_HEADING ), body, "", 1 );
