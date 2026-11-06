@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.update;
 
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.utilities.VersionUtilities;
 
 import java.io.IOException;
@@ -96,7 +97,10 @@ public final class LauncherUpdater
      */
     public static boolean installsInApp( InstallKind kind )
     {
-        return kind == InstallKind.LINUX_APPIMAGE || kind == InstallKind.LINUX_DEB || kind == InstallKind.LINUX_RPM;
+        return switch ( kind ) {
+            case LINUX_APPIMAGE, LINUX_DEB, LINUX_RPM, MAC_APP_DMG, MAC_APP_PKG -> true;
+            default -> false;
+        };
     }
 
     /**
@@ -111,7 +115,7 @@ public final class LauncherUpdater
      */
     public static boolean needsPermission( InstallKind kind )
     {
-        return kind == InstallKind.LINUX_DEB || kind == InstallKind.LINUX_RPM;
+        return kind == InstallKind.LINUX_DEB || kind == InstallKind.LINUX_RPM || kind == InstallKind.MAC_APP_PKG;
     }
 
     /**
@@ -173,8 +177,35 @@ public final class LauncherUpdater
                 UpdateStager.standard().clear();
                 return AfterInstall.RELAUNCH;
             }
+            case MAC_APP_DMG -> {
+                verify( staged );
+                Path bundle = MacUpdateInstaller.bundleOf( System.getProperty( "jpackage.app-path" ) );
+                if ( bundle == null ) {
+                    throw new IOException( "Not running from an app bundle" );
+                }
+                MacUpdateInstaller.installDmg( staged.file(), bundle, ProcessHandle.current().pid(), relaunch,
+                                               helperLog(), ProcessRunner.system() );
+                markHandoffScheduled();
+                // The new bundle is copied out; the disk image is no longer needed.
+                UpdateStager.standard().clear();
+                return AfterInstall.EXIT;
+            }
+            case MAC_APP_PKG -> {
+                verify( staged );
+                // The package stays staged until Installer has read it; the next start removes it.
+                MacUpdateInstaller.schedulePkg( staged.file(), ProcessHandle.current().pid(), helperLog(),
+                                                ProcessRunner.system() );
+                markHandoffScheduled();
+                return AfterInstall.EXIT;
+            }
             default -> throw new IOException( "No in-app installer for " + staged.kind() );
         }
+    }
+
+    /** The log the after-exit helpers append their result to, beside the launcher's own logs. */
+    private static Path helperLog()
+    {
+        return Path.of( LocalPathManager.getLauncherLogFolderPath(), "update-install.log" );
     }
 
     private static void verify( StagedUpdate staged ) throws IOException
