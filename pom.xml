@@ -1657,6 +1657,13 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- QR code for microsoft.com/link on the sign-in-with-a-code screen (encoding only;
+             no camera or image I/O modules). Apache 2.0. -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.4</version>
+        </dependency>
         <!-- Pinned to the 6.x line: oshi 7.0 removed the deprecated static
              `SystemInfo.getCurrentPlatform()` method, which jSystemThemeDetector
              3.8 still calls from `OsInfo.<clinit>`. Bumping to 7.x makes the

@@ -75,6 +75,8 @@ final class SignInPanel
     private final Label            codeLabel;
     private final Label            codeWhere;
     private final Label            codeStatus;
+    private final javafx.scene.image.ImageView codeQr = new javafx.scene.image.ImageView();
+    private final Label            codeScanHint;
     private final LoadingIndicator codeSpinner;
     private final MFXButton        codeRetryButton;
     private final MFXButton        modeSwitch;
@@ -198,7 +200,11 @@ final class SignInPanel
         codeRetryButton.getStyleClass().add( "primary" );
         codeRetryButton.setPrefHeight( 32 );
         codeRetryButton.setOnAction( e -> startCode() );
-        codePane = new VBox( 16, codeHeading, codeWhere, codeLabel, codeSpinner, codeStatus, codeRetryButton );
+        codeQr.setSmooth( false );   // keep the modules crisp
+        codeScanHint = new Label( LocalizationManager.get( "signIn.code.scan" ) );
+        codeScanHint.getStyleClass().add( "subtle" );
+        codePane = new VBox( 14, codeHeading, codeWhere, codeLabel, codeQr, codeScanHint, codeSpinner, codeStatus,
+                             codeRetryButton );
         codePane.setAlignment( Pos.CENTER );
         codePane.getStyleClass().add( "signInOverlay" );
         codePane.setVisible( false );
@@ -319,6 +325,7 @@ final class SignInPanel
         int generation = codeGeneration.incrementAndGet();
         codeLabel.setText( "" );
         codeWhere.setText( "" );
+        showQr( null );
         setCodeStatus( LocalizationManager.get( "signIn.code.getting" ), true, false );
         Thread worker = new Thread( () -> {
             com.micatechnologies.minecraft.launcher.game.auth.DeviceCodeSignIn flow =
@@ -333,6 +340,7 @@ final class SignInPanel
                     // "microsoft.com/link" reads (and types) better than the full URL.
                     String where = code.verificationUri().replaceFirst( "^https?://(www\\.)?", "" );
                     codeWhere.setText( LocalizationManager.format( "signIn.code.where", where ) );
+                    showQr( code.verificationUri() );
                     setCodeStatus( LocalizationManager.get( "signIn.code.waiting" ), true, false );
                 } );
                 String token = flow.awaitRefreshToken( code, () -> generation != codeGeneration.get() );
@@ -373,6 +381,18 @@ final class SignInPanel
         }, "Sign-In-Code" );
         worker.setDaemon( true );
         worker.start();
+    }
+
+    /** Shows a QR code that opens the given address, or hides it for {@code null}. */
+    private void showQr( String uri )
+    {
+        javafx.scene.image.Image image = uri == null ? null : QrCodeImage.render( uri, 150 );
+        codeQr.setImage( image );
+        boolean show = image != null;
+        codeQr.setVisible( show );
+        codeQr.setManaged( show );
+        codeScanHint.setVisible( show );
+        codeScanHint.setManaged( show );
     }
 
     private void setCodeStatus( String text, boolean busy, boolean offerRetry )
