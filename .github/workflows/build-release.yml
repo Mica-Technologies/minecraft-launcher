@@ -298,9 +298,10 @@ jobs:
       - name: Install packaging tools
         run: sudo apt-get install -y dpkg fakeroot rpm
 
-      # Single `mvn package` produces both DEB and RPM via the two jpackage
-      # executions in the linux-packaging profile (jpackage-deb + jpackage-rpm).
-      - name: Build and package (DEB + RPM)
+      # Single `mvn package` produces the DEB and RPM (the two jpackage executions in
+      # the linux-packaging profile) and the AppImage (linux-appimage, which downloads
+      # pinned appimagetool + static runtime releases) from one app image.
+      - name: Build and package (DEB + RPM + AppImage)
         run: >
           mvn -B -s .mvn/ci-settings.xml package --file pom.xml
           -Drevision=${{ needs.prepare.outputs.version }}
@@ -321,6 +322,7 @@ jobs:
           path: |
             build/packaging/*.deb
             build/packaging/*.rpm
+            build/packaging/*.AppImage
 
       - name: Upload fat JAR (platform-independent)
         uses: actions/upload-artifact@v7
@@ -388,6 +390,7 @@ jobs:
             artifacts/**/*.pkg
             artifacts/**/*.deb
             artifacts/**/*.rpm
+            artifacts/**/*.AppImage
             artifacts/**/*-jar-with-dependencies.jar
 
       - name: Create Pre-Release
@@ -417,4 +420,5 @@ jobs:
             artifacts/**/*.pkg
             artifacts/**/*.deb
             artifacts/**/*.rpm
+            artifacts/**/*.AppImage
             artifacts/**/*-jar-with-dependencies.jar

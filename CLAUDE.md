@@ -69,7 +69,7 @@ Build outputs (note: the POM sets `<directory>${project.basedir}/build/target</d
 - `build/target/*-jar-with-dependencies.jar` -- runnable fat JAR
 - `build/target/surefire-reports/` -- per-test-class results
 - `build/target/site/jacoco/index.html` -- coverage report
-- `packaging/` -- native installers (EXE/MSI, DMG/PKG, DEB/RPM)
+- `packaging/` -- native installers (EXE/MSI, DMG/PKG, DEB/RPM, Linux AppImage)
 
 Every build, `mvn test` and `mvn compile` included, first wipes `build/` (except `build/jdk`) through an auto-clean bound to `initialize`. So snapshot PNGs and reports from the previous run are gone once the next build starts. On Windows, a shell or program whose working directory is inside `build/target/` (say, after `cd build/target/snapshots` to look at PNGs) fails the whole build with "The process cannot access the file because it is being used by another process". That looks like a flaky test but isn't one.
 
