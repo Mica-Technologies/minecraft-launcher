@@ -19,10 +19,12 @@ package com.micatechnologies.minecraft.launcher.update;
 
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
+import com.micatechnologies.minecraft.launcher.utilities.StarterHandshake;
 import com.micatechnologies.minecraft.launcher.utilities.VersionUtilities;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -98,7 +100,8 @@ public final class LauncherUpdater
     public static boolean installsInApp( InstallKind kind )
     {
         return switch ( kind ) {
-            case LINUX_APPIMAGE, LINUX_DEB, LINUX_RPM, MAC_APP_DMG, MAC_APP_PKG -> true;
+            case LINUX_APPIMAGE, LINUX_DEB, LINUX_RPM, MAC_APP_DMG, MAC_APP_PKG, WINDOWS_MSI_USER,
+                 WINDOWS_MSI_SYSTEM -> true;
             default -> false;
         };
     }
@@ -115,7 +118,8 @@ public final class LauncherUpdater
      */
     public static boolean needsPermission( InstallKind kind )
     {
-        return kind == InstallKind.LINUX_DEB || kind == InstallKind.LINUX_RPM || kind == InstallKind.MAC_APP_PKG;
+        return kind == InstallKind.LINUX_DEB || kind == InstallKind.LINUX_RPM || kind == InstallKind.MAC_APP_PKG
+               || kind == InstallKind.WINDOWS_MSI_SYSTEM;
     }
 
     /**
@@ -195,6 +199,20 @@ public final class LauncherUpdater
                 // The package stays staged until Installer has read it; the next start removes it.
                 MacUpdateInstaller.schedulePkg( staged.file(), ProcessHandle.current().pid(), helperLog(),
                                                 ProcessRunner.system() );
+                markHandoffScheduled();
+                return AfterInstall.EXIT;
+            }
+            case WINDOWS_MSI_USER, WINDOWS_MSI_SYSTEM -> {
+                verify( staged );
+                ProcessHandle self = ProcessHandle.current();
+                Optional< ProcessHandle > parent = self.parent();
+                String starter = StarterHandshake.launcherExecutable();
+                List< Long > pids = WindowsMsiInstaller.processesToWaitFor(
+                        self.pid(), parent.map( ProcessHandle::pid ),
+                        parent.flatMap( p -> p.info().command() ), starter );
+                // The MSI stays staged until msiexec has read it; the next start removes it.
+                WindowsMsiInstaller.schedule( staged.file(), staged.kind() == InstallKind.WINDOWS_MSI_SYSTEM, pids,
+                                              relaunch ? starter : null, helperLog(), ProcessRunner.system() );
                 markHandoffScheduled();
                 return AfterInstall.EXIT;
             }
