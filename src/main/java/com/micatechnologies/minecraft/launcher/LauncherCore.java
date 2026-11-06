@@ -1414,6 +1414,21 @@ public class LauncherCore
         }
     }
 
+    /** Whether this run was started from a Steam library entry ({@code --steam}). */
+    private static volatile boolean steamLaunch = false;
+
+    /**
+     * Whether this run was started from a Steam library entry the launcher added
+     * ({@code --steam [modpack name]}).
+     *
+     * @return {@code true} for a Steam entry
+     *
+     * @since 2026.11
+     */
+    public static boolean isSteamLaunch() {
+        return steamLaunch;
+    }
+
     public static String parseLauncherArgs( String[] args ) {
         // Parsing is a pure function (LauncherArgs.parse); this method only applies the
         // side effects it decides on. Keeping the grammar out of here is what makes it
@@ -1427,6 +1442,7 @@ public class LauncherCore
         if ( parsed.hasPendingUri() ) {
             setPendingLauncherUri( parsed.pendingUri() );
         }
+        steamLaunch = parsed.steam();
 
         switch ( parsed.modeAction() ) {
             case CLIENT -> GameModeManager.setCurrentGameMode( GameMode.CLIENT );
@@ -1443,7 +1459,7 @@ public class LauncherCore
                                      LocalizationManager.USAGE_TEXT +
                                      ": launcher.jar [ -s [modpack_name] | -c" +
                                      " " +
-                                     "[modpack_name] | " +
+                                     "[modpack_name] | --steam [modpack_name] | " +
                                      "modpack_name ]" );
             closeApp();
         }
