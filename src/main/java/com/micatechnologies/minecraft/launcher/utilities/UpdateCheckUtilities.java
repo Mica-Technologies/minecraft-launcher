@@ -23,9 +23,11 @@ import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationM
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
+import com.micatechnologies.minecraft.launcher.update.LauncherRelease;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * Checks the launcher's GitHub releases API for the latest published release.
@@ -38,10 +40,8 @@ import java.io.IOException;
  */
 public class UpdateCheckUtilities
 {
-    /** Cached latest release version tag; {@code null} until first fetched. */
-    private static String latestReleaseVersion = null;
-    /** Cached latest release page URL; {@code null} until first fetched. */
-    private static String latestReleaseURL     = null;
+    /** Cached latest release; {@code null} until first fetched successfully. */
+    private static volatile LauncherRelease latestRelease = null;
 
     /**
      * Returns the latest released launcher version, fetching it from the GitHub
@@ -54,11 +54,7 @@ public class UpdateCheckUtilities
      * @since 1.0
      */
     public static String getLatestReleaseVersion() throws IOException {
-        if ( latestReleaseVersion == null ) {
-            fetchLatestInformation();
-        }
-
-        return latestReleaseVersion;
+        return getLatestRelease().map( LauncherRelease::version ).orElse( null );
     }
 
     /**
@@ -72,37 +68,48 @@ public class UpdateCheckUtilities
      * @since 1.0
      */
     public static String getLatestReleaseURL() throws IOException {
-        if ( latestReleaseURL == null ) {
+        return getLatestRelease().map( LauncherRelease::pageUrl ).orElse( null );
+    }
+
+    /**
+     * Returns the latest release with its files, fetching it from the GitHub releases API on first
+     * call and returning the memoized value thereafter.
+     *
+     * @return the latest release, or empty if the API response was empty or malformed
+     *
+     * @throws IOException if the release information could not be downloaded
+     * @since 2026.11
+     */
+    public static Optional< LauncherRelease > getLatestRelease() throws IOException {
+        if ( latestRelease == null ) {
             fetchLatestInformation();
         }
-
-        return latestReleaseURL;
+        return Optional.ofNullable( latestRelease );
     }
 
     /**
      * Downloads the latest-release JSON from the GitHub releases API and
-     * populates {@link #latestReleaseVersion} / {@link #latestReleaseURL}. Logs
-     * and leaves the fields untouched when the response is empty or missing the
-     * expected keys.
+     * populates {@link #latestRelease}. Logs and leaves it untouched when the
+     * response is empty or missing the expected keys.
      *
      * @throws IOException if the release information could not be downloaded
      * @since 1.0
      */
-    private static void fetchLatestInformation() throws IOException {
+    private static synchronized void fetchLatestInformation() throws IOException {
+        if ( latestRelease != null ) {
+            return;
+        }
         // Download latest version information from launcher GitHub releases API
         File latestVersionInfoFile = SynchronizedFileManager.getSynchronizedFile(
                 LocalPathManager.getUpdateInfoFilePath() );
         NetworkUtilities.downloadFileFromURL( UpdateCheckConstants.UPDATE_CHECK_API_URL, latestVersionInfoFile,
                                               "application/vnd.github.v3+json" );
 
-        // Extract latest version number and URL from JSON
+        // Extract the version, page URL and files from the JSON
         JsonObject releaseInfoObject = FileUtilities.readAsJsonObject( latestVersionInfoFile );
-        if ( releaseInfoObject.size() > 0 &&
-                releaseInfoObject.has( UpdateCheckConstants.UPDATE_CHECK_LATEST_VERSION_KEY ) &&
-                releaseInfoObject.has( UpdateCheckConstants.UPDATE_CHECK_LATEST_URL_KEY ) ) {
-            latestReleaseVersion = releaseInfoObject.get( UpdateCheckConstants.UPDATE_CHECK_LATEST_VERSION_KEY )
-                                                    .getAsString();
-            latestReleaseURL = releaseInfoObject.get( UpdateCheckConstants.UPDATE_CHECK_LATEST_URL_KEY ).getAsString();
+        Optional< LauncherRelease > release = LauncherRelease.fromJson( releaseInfoObject );
+        if ( release.isPresent() ) {
+            latestRelease = release.get();
         }
         else {
             Logger.logStd( LocalizationManager.get( "log.updateCheck.emptyApiResponse" ) );
