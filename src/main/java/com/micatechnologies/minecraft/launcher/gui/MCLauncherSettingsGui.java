@@ -580,6 +580,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     MFXButton verifyAllGameFilesBtn;
 
     /**
+     * Adds the launcher itself to the Steam library.
+     *
+     * @since 2026.11
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton addLauncherToSteamBtn;
+
+    /**
      * Advanced tab: launcher-wide default for the security-scan frequency.
      * The four-option combo backs
      * {@link com.micatechnologies.minecraft.launcher.config.ConfigManager#setDefaultScanFrequency}.
@@ -1656,6 +1665,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // runs a force-FULL verify on each via VerifyAction, with the launch progress
         // GUI driving the per-pack progress. Dispatch happens off the FX thread inside
         // VerifyAction.runForPacks.
+        if ( addLauncherToSteamBtn != null ) {
+            addLauncherToSteamBtn.setOnAction(
+                    e -> SteamEntryFlow.addLauncher( MCLauncherGuiController.getTopStageOrNull() ) );
+        }
         if ( verifyAllGameFilesBtn != null ) {
             verifyAllGameFilesBtn.setOnAction( e -> {
                 java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.GameModPack > installed =

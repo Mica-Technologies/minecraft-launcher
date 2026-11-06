@@ -236,6 +236,15 @@ public class LauncherConstants
     public static final String PROGRAM_ARG_MCP = "--mcp";
 
     /**
+     * Program argument used by the Steam library entries the launcher adds:
+     * {@code --steam} (the launcher) or {@code --steam <modpack name>} (straight into that pack).
+     * Also how the launcher recognizes its own entries in Steam's shortcut list.
+     *
+     * @since 2026.11
+     */
+    public static final String PROGRAM_ARG_STEAM = "--steam";
+
+    /**
      * The minimum value allowed for the minimum RAM configuration in settings.
      *
      * @since 1.1

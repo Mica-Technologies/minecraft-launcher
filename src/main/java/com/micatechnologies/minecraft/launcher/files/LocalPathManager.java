@@ -158,6 +158,18 @@ public class LocalPathManager
     }
 
     /**
+     * Gets the folder where a downloaded launcher update waits to be installed. Always under the
+     * client-mode launcher folder, which the native starter also uses, whatever the game mode.
+     *
+     * @return launcher updates folder path
+     *
+     * @since 2026.11
+     */
+    public static String getLauncherUpdatesFolderPath() {
+        return LocalPathConstants.CLIENT_MODE_LAUNCHER_FOLDER_PATH + LocalPathConstants.UPDATES_FOLDER;
+    }
+
+    /**
      * Gets the local path to the launcher update information file.
      *
      * @return launcher update info file path

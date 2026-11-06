@@ -694,13 +694,43 @@ public class MCLauncherAuthManager
         return signInWithMicrosoft( authCode, save, false );
     }
 
+    /**
+     * Signs in from a refresh token obtained with a code entered at {@code microsoft.com/link}
+     * ({@link DeviceCodeSignIn}). The token is handed to the authentication library as a saved
+     * sign-in, which redeems it and runs the same Xbox Live, XSTS and Minecraft steps as the
+     * browser sign-in.
+     *
+     * @param refreshToken the refresh token from {@link DeviceCodeSignIn#awaitRefreshToken}
+     * @param save         whether the account should survive a restart
+     * @param makeDefault  whether it becomes the default account (it does anyway when there is
+     *                     none yet)
+     *
+     * @return as {@link #loginWithMicrosoftAccount(String, boolean)}
+     *
+     * @since 2026.11
+     */
+    public static MCLauncherAuthResult signInWithDeviceCodeToken( String refreshToken, boolean save,
+                                                                  boolean makeDefault ) {
+        return signIn( () -> Authenticator.of( new net.hycrafthd.minecraft_authenticator.microsoft
+                .MicrosoftAuthenticationFile( java.util.UUID.randomUUID(), refreshToken ) ), save, makeDefault );
+    }
+
     private static MCLauncherAuthResult signInWithMicrosoft( String authCode, boolean save, boolean makeDefault ) {
+        return signIn( () -> Authenticator.ofMicrosoft( authCode ), save, makeDefault );
+    }
+
+    /**
+     * The shared sign-in: builds the authenticator from the given starting point (a browser
+     * authorization code or a refresh token), runs it with the timeout, and records the account.
+     */
+    private static MCLauncherAuthResult signIn( java.util.function.Supplier< Authenticator.Builder > start,
+                                                boolean save, boolean makeDefault ) {
         enforceRateLimit();
         User user;
         byte[] authFile;
         try {
             final Authenticator authenticator =
-                    Authenticator.ofMicrosoft( authCode ).serviceConnectTimeout( 5000 ).serviceReadTimeout( 10000 ).shouldAuthenticate().shouldRetrieveXBoxProfile().build();
+                    start.get().serviceConnectTimeout( 5000 ).serviceReadTimeout( 10000 ).shouldAuthenticate().shouldRetrieveXBoxProfile().build();
 
             Logger.logStd( LocalizationManager.format( "log.authManager.authenticatingMicrosoft", AUTH_TIMEOUT_SECONDS ) );
             try {

@@ -70,8 +70,23 @@ public final class RuntimeConfig
 
     /** Maximum heap size in megabytes (the {@code -Xmx} value). */
     public static synchronized long getMaxRam() {
-        return ConfigStore.getOrInitLong( ConfigConstants.MAX_RAM_KEY,
-                                          ConfigConstants.MAX_RAM_MEGABYTES_DEFAULT );
+        return ConfigStore.getOrInitLong( ConfigConstants.MAX_RAM_KEY, defaultMaxRam(
+                com.micatechnologies.minecraft.launcher.steam.SteamDeck.isSteamDeck() ) );
+    }
+
+    /**
+     * The maximum RAM a first run starts with: more on a Steam Deck. Only ever used before the
+     * setting is saved; an existing setting is never changed.
+     *
+     * @param steamDeck whether this is a Steam Deck
+     *
+     * @return the default in megabytes
+     *
+     * @since 2026.11
+     */
+    static long defaultMaxRam( boolean steamDeck ) {
+        return steamDeck ? ConfigConstants.MAX_RAM_MEGABYTES_DEFAULT_STEAM_DECK
+                         : ConfigConstants.MAX_RAM_MEGABYTES_DEFAULT;
     }
 
     /**

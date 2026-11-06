@@ -276,6 +276,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // instances to manage or clean up here.
         UpdateCheckManager.checkAndConfigureUI( updateImgView, stage );
 
+        // Windows: warn (once per process) if a queued boot-time delete would wipe files this
+        // install needs, which leaves a launcher that cannot start and cannot say why.
+        com.micatechnologies.minecraft.launcher.system.PendingRebootDeleteGuard.checkOnceAsync( stage );
+
         // Announcements — dev banner if applicable, otherwise whatever the announcement service returns.
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
             setAnnouncementRow( LocalizationManager.get( "main.announcement.devMode" ) );
@@ -2941,6 +2945,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         MenuItem openMods         = new MenuItem( LocalizationManager.get( "main.contextMenu.openMods" ) );
         MenuItem openConfig       = new MenuItem( LocalizationManager.get( "main.contextMenu.openConfig" ) );
         MenuItem createShortcut   = new MenuItem( LocalizationManager.get( "main.contextMenu.createShortcut" ) );
+        MenuItem addToSteam       = new MenuItem( LocalizationManager.get( "main.contextMenu.addToSteam" ) );
+        MenuItem removeFromSteam  = new MenuItem( LocalizationManager.get( "main.contextMenu.removeFromSteam" ) );
         MenuItem copyInviteLink   = new MenuItem( LocalizationManager.get( "main.contextMenu.copyInvite" ) );
         MenuItem editPack         = new MenuItem( LocalizationManager.get( "main.contextMenu.editPack" ) );
         MenuItem exportPack       = new MenuItem( LocalizationManager.get( "main.contextMenu.exportZip" ) );
@@ -2957,6 +2963,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         openMods.setOnAction(         e -> openPackSubfolder( pack, "mods" ) );
         openConfig.setOnAction(       e -> openPackSubfolder( pack, "config" ) );
         createShortcut.setOnAction(   e -> createDesktopShortcut( pack ) );
+        addToSteam.setOnAction(       e -> SteamEntryFlow.addPack( pack, MCLauncherGuiController.getTopStageOrNull() ) );
+        removeFromSteam.setOnAction(  e -> SteamEntryFlow.removePack( pack, MCLauncherGuiController.getTopStageOrNull() ) );
         copyInviteLink.setOnAction(   e -> copyInviteLinkToClipboard( pack ) );
         editPack.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
             try { MCLauncherGuiController.goToModPackEditorGui( pack ); }
@@ -3034,7 +3042,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                 openFolder, new SeparatorMenuItem(),
                                 openScreenshots, openResourcePks, openShaderPacks,
                                 new SeparatorMenuItem(), openMods, openConfig,
-                                new SeparatorMenuItem(), createShortcut, copyInviteLink,
+                                new SeparatorMenuItem(), createShortcut, addToSteam, removeFromSteam, copyInviteLink,
                                 new SeparatorMenuItem(), editPack, exportPack, addToOfficial );
         if ( exportedProfileExists ) {
             menu.getItems().add( removeOfficial );

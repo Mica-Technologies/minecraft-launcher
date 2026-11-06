@@ -289,6 +289,23 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
                 }
             } );
         } );
+        // Sign-in with a code entered at microsoft.com/link: the same redeem-and-report path.
+        signIn.onDeviceToken( token -> {
+            signIn.showRedeeming();
+            boolean remember = signIn.remember();
+            SystemUtilities.spawnNewTask( () -> {
+                MCLauncherAuthResult authResult = MCLauncherAuthManager.signInWithDeviceCodeToken( token, remember,
+                                                                                                   true );
+                if ( AuthUtilities.checkAuthResponse( authResult ) ) {
+                    loginSuccessLatch.countDown();
+                }
+                else {
+                    Logger.logError( LocalizationManager.get( "log.login.failed" ) );
+                    Platform.runLater( () -> signIn.failAndRetry(
+                            authResult == MCLauncherAuthResult.ERROR_NOT_OWNED ? "signIn.notOwned" : "signIn.failed" ) );
+                }
+            } );
+        } );
     }
 
     /**

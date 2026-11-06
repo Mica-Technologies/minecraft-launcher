@@ -261,7 +261,7 @@ final class WindowsJumpList
         if ( !SystemUtils.IS_OS_WINDOWS ) return;
         if ( LauncherConstants.LAUNCHER_IS_DEV ) return;
 
-        String exePath = System.getProperty( "jpackage.app-path" );
+        String exePath = StarterHandshake.launcherExecutable();
         if ( exePath == null || exePath.isBlank() ) {
             Logger.logDebug( LocalizationManager.get( "log.jumpList.noExePath" ) );
             return;

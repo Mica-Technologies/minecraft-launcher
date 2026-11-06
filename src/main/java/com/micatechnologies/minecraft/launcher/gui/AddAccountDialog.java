@@ -78,7 +78,10 @@ public final class AddAccountDialog
         stage.setOnShown( e -> com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
                 .applyTitleBarDarkMode( stage, !GUIUtilities.isLightChrome( ConfigManager.getTheme() ) ) );
         // Leave nothing running in the WebView once the window is gone.
-        stage.setOnHidden( e -> signIn.webView().getEngine().load( "about:blank" ) );
+        stage.setOnHidden( e -> {
+            signIn.stop();
+            signIn.webView().getEngine().load( "about:blank" );
+        } );
 
         signIn.onCallback( callback -> {
             if ( callback.userCancelled() ) {
@@ -94,27 +97,40 @@ public final class AddAccountDialog
             }
             signIn.showRedeeming();
             boolean save = signIn.remember();
-            SystemUtilities.spawnNewTask( () -> {
-                MCLauncherAuthResult result = MCLauncherAuthManager.addAccountWithMicrosoft( callback.code(), save );
-                boolean ok = AuthUtilities.checkAuthResponse( result );
-                GUIUtilities.JFXPlatformRun( () -> {
-                    if ( ok ) {
-                        stage.close();
-                        NotificationManager.success( LocalizationManager.get( "account.add.done.title" ),
-                                                     LocalizationManager.format( "account.add.done.body",
-                                                                                 result.getMinecraftUser().name() ) );
-                    }
-                    else if ( stage.isShowing() ) {
-                        // Closed while redeeming: retrying would reload the sign-in page into
-                        // the hidden WebView, undoing the about:blank it was left on.
-                        signIn.failAndRetry( result == MCLauncherAuthResult.ERROR_NOT_OWNED
-                                             ? "signIn.notOwned" : "signIn.failed" );
-                    }
-                } );
-            } );
+            redeem( stage, signIn, () -> MCLauncherAuthManager.addAccountWithMicrosoft( callback.code(), save ) );
+        } );
+        // Sign-in with a code entered at microsoft.com/link: the same redeem-and-report path.
+        signIn.onDeviceToken( token -> {
+            signIn.showRedeeming();
+            boolean save = signIn.remember();
+            redeem( stage, signIn, () -> MCLauncherAuthManager.signInWithDeviceCodeToken( token, save, false ) );
         } );
 
         stage.show();
         signIn.loadSignIn();
+    }
+
+    /** Redeems a sign-in off the FX thread, then closes the window or offers a retry. */
+    private static void redeem( Stage stage, SignInPanel signIn,
+                                java.util.function.Supplier< MCLauncherAuthResult > attempt )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            MCLauncherAuthResult result = attempt.get();
+            boolean ok = AuthUtilities.checkAuthResponse( result );
+            GUIUtilities.JFXPlatformRun( () -> {
+                if ( ok ) {
+                    stage.close();
+                    NotificationManager.success( LocalizationManager.get( "account.add.done.title" ),
+                                                 LocalizationManager.format( "account.add.done.body",
+                                                                             result.getMinecraftUser().name() ) );
+                }
+                else if ( stage.isShowing() ) {
+                    // Closed while redeeming: retrying would reload the sign-in page into
+                    // the hidden WebView, undoing the about:blank it was left on.
+                    signIn.failAndRetry( result == MCLauncherAuthResult.ERROR_NOT_OWNED
+                                         ? "signIn.notOwned" : "signIn.failed" );
+                }
+            } );
+        } );
     }
 }

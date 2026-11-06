@@ -334,6 +334,7 @@ jobs:
           path: |
             build/packaging/*.deb
             build/packaging/*.rpm
+            build/packaging/*.AppImage
           retention-days: 14
           if-no-files-found: error
 

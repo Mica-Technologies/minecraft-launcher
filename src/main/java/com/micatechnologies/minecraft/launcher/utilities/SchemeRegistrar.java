@@ -128,9 +128,9 @@ public final class SchemeRegistrar
     }
 
     /**
-     * Resolves the absolute path of the user-facing launcher executable. jpackage sets
-     *  {@code jpackage.app-path} as a system property pointing at the wrapper exe — without
-     *  that, we're running from a raw JAR / IDE classpath and there's no stable exe to
+     * Resolves the absolute path of the user-facing launcher executable: the Windows native
+     *  starter when there is one, else the jpackage launcher ({@code jpackage.app-path}). Without
+     *  either, we're running from a raw JAR / IDE classpath and there's no stable exe to
      *  register (or to relaunch — see {@code LauncherCore.relaunchApp}). Returns {@code null}
      *  in that case.
      *
@@ -138,11 +138,7 @@ public final class SchemeRegistrar
      */
     public static String resolveLauncherExePath()
     {
-        String jpackagePath = System.getProperty( "jpackage.app-path" );
-        if ( jpackagePath != null && !jpackagePath.isBlank() ) {
-            return jpackagePath;
-        }
-        return null;
+        return StarterHandshake.launcherExecutable();
     }
 
     // =========================================================================================
