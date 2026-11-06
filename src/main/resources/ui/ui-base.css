@@ -2548,6 +2548,13 @@
     -fx-font-family: "Inter SemiBold", "Segoe UI Semibold", "Segoe UI Variable", "Segoe UI", "SF Pro Text", "Roboto", "system-ui", sans-serif;
 }
 
+/* Sign-in with a code: the code the user types at microsoft.com/link, large and unambiguous. */
+.signInCode {
+    -fx-font-size: 28px;
+    -fx-font-family: monospace;
+    -fx-font-weight: bold;
+}
+
 .signInStatus {
     -fx-text-fill: -color-danger;
     -fx-background-color: -color-danger-soft;

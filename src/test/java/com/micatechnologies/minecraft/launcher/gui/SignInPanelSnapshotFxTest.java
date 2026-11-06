@@ -68,6 +68,39 @@ class SignInPanelSnapshotFxTest
         render( robot, "light", "ui/ui-tokens-light.css" );
     }
 
+    /** Sign-in with a code, at the Steam Deck's screen size. */
+    @Test
+    void rendersTheCodeModeAtSteamDeckSize( FxRobot robot ) throws Exception
+    {
+        AtomicReference< SignInPanel > panel = new AtomicReference<>();
+        robot.interact( () -> {
+            SignInPanel signIn = new SignInPanel( "signIn.login.heading", "signIn.login.subtitle", "login.exitBtn" );
+            panel.set( signIn );
+            StackPane root = new StackPane( signIn.root() );
+            root.getStyleClass().addAll( "rootPane", "hero-surface" );
+            for ( String sheet : new String[]{ "ui/ui-base.css", "ui/ui-tokens-dark.css" } ) {
+                root.getStylesheets().add( getClass().getClassLoader().getResource( sheet ).toExternalForm() );
+            }
+            stage.setScene( new Scene( root, 1280, 800 ) );
+            stage.sizeToScene();
+            stage.show();
+            signIn.useCodeMode( true );
+            signIn.loadSignIn();
+        } );
+        // Give Microsoft time to hand out a code (or fail) so the pane has settled.
+        WaitForAsyncUtils.sleep( 6, java.util.concurrent.TimeUnit.SECONDS );
+        WaitForAsyncUtils.waitForFxEvents();
+
+        AtomicReference< WritableImage > shot = new AtomicReference<>();
+        robot.interact( () -> shot.set( stage.getScene().snapshot( null ) ) );
+        File out = new File( "build/target/snapshots/signin-code-deck.png" );
+        out.getParentFile().mkdirs();
+        ImageIO.write( toBuffered( shot.get() ), "png", out );
+        robot.interact( () -> panel.get().stop() );
+
+        assertTrue( panel.get().root().getWidth() <= 1280, "the card fits the Deck's width" );
+    }
+
     private void render( FxRobot robot, String name, String tokenSheet ) throws Exception
     {
         AtomicReference< SignInPanel > panel = new AtomicReference<>();
