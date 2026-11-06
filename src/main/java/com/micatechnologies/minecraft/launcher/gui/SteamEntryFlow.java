@@ -32,12 +32,12 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.apache.commons.lang3.SystemUtils;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 
 /**
  * "Add to Steam" for the launcher and for a modpack (plan phase 7): picks the Steam account,
@@ -55,6 +55,31 @@ public final class SteamEntryFlow
 
     private SteamEntryFlow() { /* static-only */ }
 
+    /** One change to a Steam library, made while Steam is closed. */
+    @FunctionalInterface
+    private interface Change
+    {
+        /**
+         * @param target  the account
+         * @param program the launcher program entries run
+         *
+         * @throws IOException when the shortcut list can't be read or written
+         */
+        void apply( SteamLibrary.Target target, Path program ) throws IOException;
+    }
+
+    /** The messages a change uses, by localization key. */
+    private record Texts( String closeBody, String closeButton, String doneTitle, String doneBody, String failed )
+    {
+    }
+
+    private static final Texts ADD = new Texts( "steam.add.closeSteam.body", "steam.add.closeSteam.button",
+                                                "steam.add.done.title", "steam.add.done.body",
+                                                "steam.add.error.failed" );
+    private static final Texts REMOVE = new Texts( "steam.remove.closeSteam.body", "steam.remove.closeSteam.button",
+                                                   "steam.remove.done.title", "steam.remove.done.body",
+                                                   "steam.remove.error.failed" );
+
     /**
      * Adds a modpack to the Steam library; starting it there goes straight into the pack.
      *
@@ -66,10 +91,11 @@ public final class SteamEntryFlow
     public static void addPack( GameModPack pack, Stage owner )
     {
         String name = pack.getPackName();
-        run( name, owner, () -> List.of( new SteamLibrary.Request(
-                name, SteamShortcuts.packOptions( name, SystemUtils.IS_OS_WINDOWS ),
-                SteamArtwork.read( pack.getPackLogoFilepath() ),
-                SteamArtwork.read( pack.getPackBackgroundFilepath() ) ) ) );
+        SystemUtilities.spawnNewTask( () -> run( name, owner, ADD, SteamLibrary.targets(), ( target, program ) ->
+                SteamLibrary.add( target, program, List.of( new SteamLibrary.Request(
+                        name, SteamShortcuts.packOptions( name, SystemUtils.IS_OS_WINDOWS ),
+                        SteamArtwork.read( pack.getPackLogoFilepath() ),
+                        SteamArtwork.read( pack.getPackBackgroundFilepath() ) ) ) ) ) );
     }
 
     /**
@@ -81,77 +107,138 @@ public final class SteamEntryFlow
      */
     public static void addLauncher( Stage owner )
     {
-        run( LauncherConstants.LAUNCHER_APPLICATION_NAME, owner, () -> List.of( SteamLibrary.launcherRequest() ) );
+        SystemUtilities.spawnNewTask( () -> run( LauncherConstants.LAUNCHER_APPLICATION_NAME, owner, ADD,
+                                                 SteamLibrary.targets(), ( target, program ) -> SteamLibrary.add(
+                        target, program, List.of( SteamLibrary.launcherRequest() ) ) ) );
     }
 
-    private static void run( String name, Stage owner, Supplier< List< SteamLibrary.Request > > requests )
+    /**
+     * Removes a modpack's entry (and its artwork) from the Steam library (plan decision D25).
+     *
+     * @param pack  the modpack
+     * @param owner the window dialogs belong to, or {@code null}
+     *
+     * @since 2026.11
+     */
+    public static void removePack( GameModPack pack, Stage owner )
     {
         SystemUtilities.spawnNewTask( () -> {
-            Path program = SteamLibrary.launcherProgram();
-            if ( program == null ) {
-                GUIUtilities.showErrorMessage( LocalizationManager.get( "steam.add.error.notInstalled" ), owner );
+            String name = pack.getPackName();
+            List< SteamLibrary.Target > holding = targetsWith( name );
+            if ( holding.isEmpty() ) {
+                NotificationManager.info( LocalizationManager.get( "steam.remove.done.title" ),
+                                          LocalizationManager.format( "steam.remove.notFound", name ) );
                 return;
             }
-            List< SteamLibrary.Target > targets = SteamLibrary.targets();
-            if ( targets.isEmpty() ) {
-                GUIUtilities.showErrorMessage( LocalizationManager.get( "steam.add.error.noSteam" ), owner );
-                return;
-            }
-            Optional< SteamLibrary.Target > target = targets.size() == 1 ? Optional.of( targets.get( 0 ) )
-                                                                           : chooseAccount( targets, owner );
-            if ( target.isEmpty() ) {
-                return;
-            }
+            run( name, owner, REMOVE, holding, ( target, program ) -> SteamLibrary.remove(
+                    target, SteamShortcuts.packOptions( name, SystemUtils.IS_OS_WINDOWS ) ) );
+        } );
+    }
 
-            boolean closedSteam = false;
-            try {
-                if ( SteamProcess.isRunning() ) {
-                    if ( SteamProcess.inGameMode( System.getenv() ) ) {
-                        GUIUtilities.showErrorMessage( LocalizationManager.get( "steam.add.error.gameMode" ), owner );
-                        return;
-                    }
-                    int answer = GUIUtilities.showQuestionMessage(
-                            LocalizationManager.get( "steam.add.title" ),
-                            LocalizationManager.get( "steam.add.closeSteam.header" ),
-                            LocalizationManager.format( "steam.add.closeSteam.body", name ),
-                            LocalizationManager.get( "steam.add.closeSteam.button" ),
-                            LocalizationManager.get( "dialog.button.cancel" ), owner );
-                    if ( answer != 1 ) {
-                        return;
-                    }
-                    if ( !SteamProcess.shutdown( target.get().install(), STEAM_SHUTDOWN_TIMEOUT_MS ) ) {
-                        GUIUtilities.showErrorMessage( LocalizationManager.get( "steam.add.error.closeFailed" ),
-                                                       owner );
-                        return;
-                    }
-                    closedSteam = true;
-                }
-
-                SteamLibrary.add( target.get(), program, requests.get() );
-                NotificationManager.success( LocalizationManager.get( "steam.add.done.title" ),
-                                             LocalizationManager.format( "steam.add.done.body", name ) );
+    /**
+     * After a modpack is uninstalled: if a Steam library still has its entry, offers to remove it
+     * there too (plan decision D25). Does nothing when no library has it.
+     *
+     * @param packName the uninstalled modpack's name
+     * @param owner    the window dialogs belong to, or {@code null}
+     *
+     * @since 2026.11
+     */
+    public static void offerRemovalAfterUninstall( String packName, Stage owner )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            List< SteamLibrary.Target > holding = targetsWith( packName );
+            if ( holding.isEmpty() ) {
+                return;
             }
-            catch ( InterruptedException e ) {
-                Thread.currentThread().interrupt();
-            }
-            catch ( Exception e ) {
-                Logger.logWarningSilent( LocalizationManager.format( "log.steam.addFailed", String.valueOf( e ) ) );
-                GUIUtilities.showErrorMessage(
-                        LocalizationManager.format( "steam.add.error.failed", String.valueOf( e.getMessage() ) ),
-                        owner );
-            }
-            finally {
-                if ( closedSteam ) {
-                    try {
-                        SteamProcess.start( target.get().install() );
-                    }
-                    catch ( Exception e ) {
-                        Logger.logWarningSilent( LocalizationManager.format( "log.steam.restartFailed",
-                                                                             String.valueOf( e ) ) );
-                    }
-                }
+            int answer = GUIUtilities.showQuestionMessage(
+                    LocalizationManager.get( "steam.remove.title" ),
+                    LocalizationManager.format( "steam.remove.afterUninstall.header", packName ),
+                    LocalizationManager.get( "steam.remove.afterUninstall.body" ),
+                    LocalizationManager.get( "steam.remove.afterUninstall.remove" ),
+                    LocalizationManager.get( "steam.remove.afterUninstall.keep" ), owner );
+            if ( answer == 1 ) {
+                run( packName, owner, REMOVE, holding, ( target, program ) -> SteamLibrary.remove(
+                        target, SteamShortcuts.packOptions( packName, SystemUtils.IS_OS_WINDOWS ) ) );
             }
         } );
+    }
+
+    /** The libraries that hold this pack's entry. */
+    private static List< SteamLibrary.Target > targetsWith( String packName )
+    {
+        String options = SteamShortcuts.packOptions( packName, SystemUtils.IS_OS_WINDOWS );
+        return SteamLibrary.targets().stream().filter( t -> SteamLibrary.has( t, options ) ).toList();
+    }
+
+    /**
+     * Picks the account, closes Steam if it runs (D13), applies the change, reports, and starts
+     * Steam again. Runs on a background thread.
+     */
+    private static void run( String name, Stage owner, Texts texts, List< SteamLibrary.Target > targets,
+                             Change change )
+    {
+        Path program = SteamLibrary.launcherProgram();
+        if ( program == null ) {
+            GUIUtilities.showErrorMessage( LocalizationManager.get( "steam.add.error.notInstalled" ), owner );
+            return;
+        }
+        if ( targets.isEmpty() ) {
+            GUIUtilities.showErrorMessage( LocalizationManager.get( "steam.add.error.noSteam" ), owner );
+            return;
+        }
+        Optional< SteamLibrary.Target > target = targets.size() == 1 ? Optional.of( targets.get( 0 ) )
+                                                                       : chooseAccount( targets, owner );
+        if ( target.isEmpty() ) {
+            return;
+        }
+
+        boolean closedSteam = false;
+        try {
+            if ( SteamProcess.isRunning() ) {
+                if ( SteamProcess.inGameMode( System.getenv() ) ) {
+                    GUIUtilities.showErrorMessage( LocalizationManager.get( "steam.add.error.gameMode" ), owner );
+                    return;
+                }
+                int answer = GUIUtilities.showQuestionMessage(
+                        LocalizationManager.get( "steam.add.title" ),
+                        LocalizationManager.get( "steam.add.closeSteam.header" ),
+                        LocalizationManager.format( texts.closeBody(), name ),
+                        LocalizationManager.get( texts.closeButton() ),
+                        LocalizationManager.get( "dialog.button.cancel" ), owner );
+                if ( answer != 1 ) {
+                    return;
+                }
+                if ( !SteamProcess.shutdown( target.get().install(), STEAM_SHUTDOWN_TIMEOUT_MS ) ) {
+                    GUIUtilities.showErrorMessage( LocalizationManager.get( "steam.add.error.closeFailed" ), owner );
+                    return;
+                }
+                closedSteam = true;
+            }
+
+            change.apply( target.get(), program );
+            NotificationManager.success( LocalizationManager.get( texts.doneTitle() ),
+                                         LocalizationManager.format( texts.doneBody(), name ) );
+        }
+        catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( LocalizationManager.format( "log.steam.addFailed", String.valueOf( e ) ) );
+            GUIUtilities.showErrorMessage(
+                    LocalizationManager.format( texts.failed(), String.valueOf( e.getMessage() ) ), owner );
+        }
+        finally {
+            if ( closedSteam ) {
+                try {
+                    SteamProcess.start( target.get().install() );
+                }
+                catch ( Exception e ) {
+                    Logger.logWarningSilent( LocalizationManager.format( "log.steam.restartFailed",
+                                                                         String.valueOf( e ) ) );
+                }
+            }
+        }
     }
 
     /** Plan decision D18: several accounts → ask which, the most recent preselected. */

@@ -1273,6 +1273,8 @@ public class MCLauncherModpackDetailModal extends StackPane
                 () -> createDesktopShortcut( pack ) ) );
         grid.getChildren().add( buildQuickActionBtn( LocalizationManager.get( "modal.quickAction.addToSteam" ),
                 () -> SteamEntryFlow.addPack( pack, MCLauncherGuiController.getTopStageOrNull() ) ) );
+        grid.getChildren().add( buildQuickActionBtn( LocalizationManager.get( "modal.quickAction.removeFromSteam" ),
+                () -> SteamEntryFlow.removePack( pack, MCLauncherGuiController.getTopStageOrNull() ) ) );
         grid.getChildren().add( buildQuickActionBtn(
                 com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.exportPack.label" ),
                 () -> showSmartExportDialog( pack ) ) );
