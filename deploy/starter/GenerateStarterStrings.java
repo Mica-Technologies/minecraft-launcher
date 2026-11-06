@@ -62,7 +62,9 @@ public class GenerateStarterStrings
             "starter.crashed.body.noCode",
             "starter.button.download",
             "starter.button.download.note",
-            "starter.button.close" );
+            "starter.button.close",
+            "starter.rollback.heading",
+            "starter.rollback.body" );
 
     public static void main( String[] args ) throws IOException
     {

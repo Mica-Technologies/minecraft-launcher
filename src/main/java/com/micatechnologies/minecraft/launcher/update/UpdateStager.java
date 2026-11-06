@@ -221,8 +221,9 @@ public final class UpdateStager
     }
 
     /**
-     * Removes everything in the updates folder: the marker first, so an interrupted clear never
-     * leaves a marker pointing at a half-deleted file.
+     * Removes the staged update from the updates folder: the marker first, so an interrupted clear
+     * never leaves a marker pointing at a half-deleted file. The record of an already installed
+     * update ({@link AppImageUpdateInstaller#APPLIED_MARKER}) stays.
      *
      * @throws IOException when a file cannot be removed
      * @since 2026.11
@@ -235,7 +236,9 @@ public final class UpdateStager
         Files.deleteIfExists( folder.resolve( MARKER_NAME ) );
         try ( DirectoryStream< Path > entries = Files.newDirectoryStream( folder ) ) {
             for ( Path entry : entries ) {
-                if ( Files.isRegularFile( entry ) ) {
+                // The record of an installed update belongs to the installer and the starter.
+                if ( Files.isRegularFile( entry )
+                     && !entry.getFileName().toString().equals( AppImageUpdateInstaller.APPLIED_MARKER ) ) {
                     Files.deleteIfExists( entry );
                 }
             }
