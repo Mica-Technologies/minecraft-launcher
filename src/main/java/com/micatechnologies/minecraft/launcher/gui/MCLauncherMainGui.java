@@ -2946,6 +2946,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         MenuItem openConfig       = new MenuItem( LocalizationManager.get( "main.contextMenu.openConfig" ) );
         MenuItem createShortcut   = new MenuItem( LocalizationManager.get( "main.contextMenu.createShortcut" ) );
         MenuItem addToSteam       = new MenuItem( LocalizationManager.get( "main.contextMenu.addToSteam" ) );
+        MenuItem removeFromSteam  = new MenuItem( LocalizationManager.get( "main.contextMenu.removeFromSteam" ) );
         MenuItem copyInviteLink   = new MenuItem( LocalizationManager.get( "main.contextMenu.copyInvite" ) );
         MenuItem editPack         = new MenuItem( LocalizationManager.get( "main.contextMenu.editPack" ) );
         MenuItem exportPack       = new MenuItem( LocalizationManager.get( "main.contextMenu.exportZip" ) );
@@ -2963,6 +2964,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         openConfig.setOnAction(       e -> openPackSubfolder( pack, "config" ) );
         createShortcut.setOnAction(   e -> createDesktopShortcut( pack ) );
         addToSteam.setOnAction(       e -> SteamEntryFlow.addPack( pack, MCLauncherGuiController.getTopStageOrNull() ) );
+        removeFromSteam.setOnAction(  e -> SteamEntryFlow.removePack( pack, MCLauncherGuiController.getTopStageOrNull() ) );
         copyInviteLink.setOnAction(   e -> copyInviteLinkToClipboard( pack ) );
         editPack.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
             try { MCLauncherGuiController.goToModPackEditorGui( pack ); }
@@ -3040,7 +3042,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                 openFolder, new SeparatorMenuItem(),
                                 openScreenshots, openResourcePks, openShaderPacks,
                                 new SeparatorMenuItem(), openMods, openConfig,
-                                new SeparatorMenuItem(), createShortcut, addToSteam, copyInviteLink,
+                                new SeparatorMenuItem(), createShortcut, addToSteam, removeFromSteam, copyInviteLink,
                                 new SeparatorMenuItem(), editPack, exportPack, addToOfficial );
         if ( exportedProfileExists ) {
             menu.getItems().add( removeOfficial );
