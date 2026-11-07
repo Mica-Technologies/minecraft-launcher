@@ -103,7 +103,7 @@ Lower crates expose plain async APIs and know nothing about the engine.
 ## Building on the dev machine
 
 - Use the shared target directory (`rust/target`); cargo's build lock lets only one build run at a
-  time, which is intended. Builds use 8 jobs (`rust/.cargo/config.toml`).
+  time, which is intended. Builds use 6 jobs (`rust/.cargo/config.toml`).
 - Prefer `cargo check -p <crate>` and `cargo test -p <crate>` over workspace-wide builds.
 - If cargo fails because another crate's `Cargo.toml` is mid-edit, wait a minute and retry; never edit
   another crate to make yours build. Report missing upstream APIs instead.
