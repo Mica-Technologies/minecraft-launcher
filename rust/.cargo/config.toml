@@ -1,0 +1,4 @@
+# Keep cargo to half of a 16-core machine so builds stay inside the
+# workstation's resource budget. Override per call with `-j N` if needed.
+[build]
+jobs = 8
