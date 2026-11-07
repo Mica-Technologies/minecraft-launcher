@@ -11,3 +11,5 @@ path = "src/main.rs"
 
 [dependencies]
 gpui.workspace = true
+gpui-platform.workspace = true
+gpui-component.workspace = true

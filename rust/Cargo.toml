@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/*", "xtask"]
 
 [workspace.package]
 version = "0.1.0"
@@ -10,7 +10,80 @@ authors = ["Mica Technologies"]
 repository = "https://github.com/Mica-Technologies/minecraft-launcher"
 
 [workspace.dependencies]
-gpui = "0.2.2"
+# gpui-component 0.9 is built on the gpui-pre snapshot, so the whole workspace
+# uses it under the plain `gpui` name.
+gpui = { package = "gpui-pre", version = "=0.3.11" }
+gpui-platform = { package = "gpui-pre-platform", version = "=0.3.11", features = ["wayland", "x11"] }
+gpui-component = "=0.9.0"
+
+# Shared versions. Crates use `name.workspace = true` for these.
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream", "gzip", "socks", "http2"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+json5 = "0.4"
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+parking_lot = "0.12"
+dashmap = "6"
+arc-swap = "1"
+indexmap = { version = "2", features = ["serde"] }
+sha1 = "0.10"
+sha2 = "0.10"
+md-5 = "0.10"
+hex = "0.4"
+subtle = "2"
+base64 = "0.22"
+uuid = { version = "1", features = ["v4", "serde"] }
+url = "2"
+regex = "1"
+chrono = { version = "0.4", features = ["serde"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+flate2 = "1"
+tar = "0.4"
+tempfile = "3"
+walkdir = "2"
+dirs = "6"
+aes-gcm = "0.10"
+pbkdf2 = "0.12"
+hmac = "0.12"
+rand = "0.9"
+raw-window-handle = "0.6"
+
+# Internal crates.
+mmcl-core = { path = "crates/mmcl-core" }
+mmcl-i18n = { path = "crates/mmcl-i18n" }
+mmcl-progress = { path = "crates/mmcl-progress" }
+mmcl-theme = { path = "crates/mmcl-theme" }
+mmcl-mojang = { path = "crates/mmcl-mojang" }
+mmcl-manifest = { path = "crates/mmcl-manifest" }
+mmcl-crash = { path = "crates/mmcl-crash" }
+mmcl-log = { path = "crates/mmcl-log" }
+mmcl-util = { path = "crates/mmcl-util" }
+mmcl-secure = { path = "crates/mmcl-secure" }
+mmcl-config = { path = "crates/mmcl-config" }
+mmcl-net = { path = "crates/mmcl-net" }
+mmcl-archive = { path = "crates/mmcl-archive" }
+mmcl-scan = { path = "crates/mmcl-scan" }
+mmcl-runtime = { path = "crates/mmcl-runtime" }
+mmcl-auth = { path = "crates/mmcl-auth" }
+mmcl-discord = { path = "crates/mmcl-discord" }
+mmcl-rgb = { path = "crates/mmcl-rgb" }
+mmcl-platform = { path = "crates/mmcl-platform" }
+mmcl-modpack = { path = "crates/mmcl-modpack" }
+mmcl-launch = { path = "crates/mmcl-launch" }
+mmcl-session = { path = "crates/mmcl-session" }
+mmcl-engine = { path = "crates/mmcl-engine" }
+mmcl-mcp = { path = "crates/mmcl-mcp" }
+mmcl-tui = { path = "crates/mmcl-tui" }
+mmcl-signin-webview = { path = "crates/mmcl-signin-webview" }
+mmcl-ui-kit = { path = "crates/mmcl-ui-kit" }
+mmcl-ui = { path = "crates/mmcl-ui" }
+mmcl-editor = { path = "crates/mmcl-editor" }
+mmcl-running-games = { path = "crates/mmcl-running-games" }
 
 [profile.dev]
 # Dependencies optimised a little so GPUI windows are usable in debug builds.

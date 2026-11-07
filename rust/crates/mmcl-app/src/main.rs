@@ -1,5 +1,5 @@
 use gpui::{
-    App, Application, Bounds, Context, SharedString, Window, WindowBounds, WindowOptions, div,
+    App, Bounds, Context, SharedString, Window, WindowBounds, WindowOptions, div,
     prelude::*, px, rgb, size,
 };
 
@@ -22,7 +22,8 @@ impl Render for Hello {
 }
 
 fn main() {
-    Application::new().run(|cx: &mut App| {
+    gpui_platform::application().run(|cx: &mut App| {
+        gpui_component::init(cx);
         let bounds = Bounds::centered(None, size(px(640.), px(400.)), cx);
         cx.open_window(
             WindowOptions {
