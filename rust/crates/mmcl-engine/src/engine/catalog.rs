@@ -178,6 +178,66 @@ impl Engine {
         })
     }
 
+    /// The installed pack (modpack or vanilla version) played most recently; `None` when none
+    /// was ever played.
+    pub fn last_played_pack(&self) -> Option<PackId> {
+        let modpacks = self.inner.packs.installed_snapshot();
+        modpacks
+            .iter()
+            .filter(|p| !p.is_failed_load() && !p.is_stub())
+            .cloned()
+            .chain(self.vanilla_packs())
+            .map(|p| (p.last_played_ms(), PackId::of(&p)))
+            .filter(|(t, _)| *t > 0)
+            .max_by_key(|(t, _)| *t)
+            .map(|(_, id)| id)
+    }
+
+    /// Warms the version-manifest and `client.json` cache for a pack's Minecraft version (Java
+    /// fetched it while the main menu was idle, so the first Play click does not wait for
+    /// piston-meta). The pack's first launch then copies the cached file instead of
+    /// downloading it. Best effort and quiet: `false` when offline, the version is unknown
+    /// without building the loader, or the fetch failed.
+    pub async fn prefetch_client_json(&self, id: &PackId) -> bool {
+        if self.inner.http.is_offline() {
+            return false;
+        }
+        let Some(pack) = self.any_pack(id) else {
+            return false;
+        };
+        let Some(mc) = pack
+            .minecraft_version_hint()
+            .filter(|v| !v.trim().is_empty())
+        else {
+            return false;
+        };
+        match mmcl_launch::vanilla::cached_client_json(&self.inner.launch_env, mc.trim()).await {
+            Ok(_) => {
+                mmcl_log::debug(&mmcl_i18n::tf!(
+                    "log.engine.prefetch.clientJson",
+                    mc.trim(),
+                    pack.name()
+                ));
+                true
+            }
+            Err(e) => {
+                mmcl_log::debug(&mmcl_i18n::tf!(
+                    "log.engine.prefetch.failed",
+                    mc.trim(),
+                    e.to_string()
+                ));
+                false
+            }
+        }
+    }
+
+    /// [`Engine::prefetch_client_json`] for [`Engine::last_played_pack`]; returns the pack it
+    /// warmed. Call it once the main screen is idle.
+    pub async fn prefetch_last_played(&self) -> Option<PackId> {
+        let id = self.last_played_pack()?;
+        self.prefetch_client_json(&id).await.then_some(id)
+    }
+
     /// The cached image files of an installed pack (modpack or vanilla), primary first, for
     /// cycling. Disk only: missing images are absent. Empty for a pack that is not installed.
     pub fn pack_images(&self, id: &PackId) -> PackImagesView {

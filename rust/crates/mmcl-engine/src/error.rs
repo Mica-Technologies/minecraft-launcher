@@ -92,6 +92,25 @@ pub enum EngineError {
     /// The engine was shut down.
     #[error("the engine has shut down")]
     ShutDown,
+    /// `add_mod`: the pack already has a mod installing to this local path.
+    #[error("{pack_name} already installs a mod to {local_path}")]
+    ModPathTaken {
+        pack_name: String,
+        local_path: String,
+    },
+    /// `remove_mod`: no mod of the pack matches the local path, name or slug.
+    #[error("no mod matching {identifier} in {pack_name}")]
+    ModNotFound {
+        identifier: String,
+        pack_name: String,
+    },
+    /// The loader installer for the official launcher failed (`message` = its error text,
+    /// `loader` = the loader's display name).
+    #[error("the {loader} installer failed: {message}")]
+    LoaderInstallFailed { message: String, loader: String },
+    /// The import token names no prepared import (committed, discarded or evicted).
+    #[error("no prepared import {0}")]
+    ImportNotPrepared(u64),
     /// Anything else (already localized text).
     #[error("{0}")]
     Other(String),
@@ -130,6 +149,10 @@ impl EngineError {
             EngineError::Offline => "engine.error.offline",
             EngineError::Cancelled => "engine.error.cancelled",
             EngineError::ShutDown => "engine.error.shutDown",
+            EngineError::ModPathTaken { .. } => "engine.error.modPathTaken",
+            EngineError::ModNotFound { .. } => "engine.error.modNotFound",
+            EngineError::LoaderInstallFailed { .. } => "officialExport.installLoader.failed.body",
+            EngineError::ImportNotPrepared(_) => "engine.error.importNotPrepared",
             EngineError::Other(_) => "engine.error.generic",
         }
     }
@@ -165,6 +188,17 @@ impl EngineError {
             EngineError::Config(e) => vec![e.to_string()],
             EngineError::InvalidSetting { key, reason } => vec![(*key).to_string(), reason.clone()],
             EngineError::Io(e) => vec![e.to_string()],
+            EngineError::ModPathTaken {
+                pack_name,
+                local_path,
+            } => vec![pack_name.clone(), local_path.clone()],
+            EngineError::ModNotFound {
+                identifier,
+                pack_name,
+            } => vec![identifier.clone(), pack_name.clone()],
+            EngineError::LoaderInstallFailed { message, loader } => {
+                vec![message.clone(), loader.clone()]
+            }
             EngineError::Other(s) => vec![s.clone()],
             _ => Vec::new(),
         }
@@ -185,6 +219,14 @@ impl EngineError {
                     .collect();
                 mmcl_i18n::format(self.l10n_key(), &fmt)
             }
+        }
+    }
+
+    /// The loader installer's own error text of a [`EngineError::LoaderInstallFailed`].
+    pub fn installer_message(&self) -> Option<&str> {
+        match self {
+            EngineError::LoaderInstallFailed { message, .. } => Some(message),
+            _ => None,
         }
     }
 
@@ -255,6 +297,19 @@ mod tests {
             EngineError::Offline,
             EngineError::Cancelled,
             EngineError::ShutDown,
+            EngineError::ModPathTaken {
+                pack_name: "p".into(),
+                local_path: "a.jar".into(),
+            },
+            EngineError::ModNotFound {
+                identifier: "sodium".into(),
+                pack_name: "p".into(),
+            },
+            EngineError::LoaderInstallFailed {
+                message: "exit 1".into(),
+                loader: "Forge".into(),
+            },
+            EngineError::ImportNotPrepared(3),
             EngineError::Other("o".into()),
         ];
         for e in samples {
@@ -287,6 +342,27 @@ mod tests {
                 .message()
                 .contains("Pack")
         );
+    }
+
+    #[test]
+    fn mod_errors_name_the_pack_and_the_mod() {
+        let e = EngineError::ModPathTaken {
+            pack_name: "My Pack".into(),
+            local_path: "sodium.jar".into(),
+        };
+        assert!(e.message().contains("My Pack") && e.message().contains("sodium.jar"));
+        let e = EngineError::ModNotFound {
+            identifier: "lithium".into(),
+            pack_name: "My Pack".into(),
+        };
+        assert!(e.message().contains("lithium") && e.message().contains("My Pack"));
+        let e = EngineError::LoaderInstallFailed {
+            message: "installer exited with 1".into(),
+            loader: "Forge".into(),
+        };
+        assert_eq!(e.installer_message(), Some("installer exited with 1"));
+        assert!(e.message().contains("installer exited with 1") && e.message().contains("Forge"));
+        assert_eq!(EngineError::Offline.installer_message(), None);
     }
 
     #[test]

@@ -537,3 +537,158 @@ pub struct ModConflictView {
     pub first_jar: String,
     pub second_jar: String,
 }
+
+/// Names an import waiting for confirmation ([`crate::Engine::prepare_import`]); pass it to
+/// [`crate::Engine::commit_import`] or [`crate::Engine::discard_import`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
+pub struct ImportToken(pub u64);
+
+/// What a prepared import reads from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum ImportPreviewSource {
+    /// A Modrinth project page (its `.mrpack` was downloaded and read).
+    ModrinthProject,
+    /// A local `.mrpack` file.
+    MrpackFile,
+    /// A Mica manifest URL (installed as is on confirm; no file list).
+    MicaUrl,
+    /// A Mica export / Technic server zip (read on confirm; no file list).
+    ZipFile,
+    /// A `.mmcjson` / `.json` manifest file (copied on confirm; no file list).
+    ManifestFile,
+    /// A Prism / MultiMC instance folder (copied on confirm; no file list).
+    PrismInstance,
+}
+
+/// The folder a `.mrpack` file goes to, by path prefix (Java's import-confirm totals).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+pub enum ImportFileCategory {
+    Mod,
+    Config,
+    ResourcePack,
+    ShaderPack,
+    Other,
+}
+
+impl ImportFileCategory {
+    /// The category of a pack-relative path (`mods/`, `config/`, `resourcepacks/`,
+    /// `shaderpacks/`, ASCII case-insensitive, `\` read as `/`).
+    pub fn of_path(path: &str) -> ImportFileCategory {
+        let p = path.replace('\\', "/");
+        let starts = |prefix: &str| {
+            p.len() >= prefix.len()
+                && p.is_char_boundary(prefix.len())
+                && p[..prefix.len()].eq_ignore_ascii_case(prefix)
+        };
+        if starts("mods/") {
+            ImportFileCategory::Mod
+        } else if starts("config/") {
+            ImportFileCategory::Config
+        } else if starts("resourcepacks/") {
+            ImportFileCategory::ResourcePack
+        } else if starts("shaderpacks/") {
+            ImportFileCategory::ShaderPack
+        } else {
+            ImportFileCategory::Other
+        }
+    }
+}
+
+/// One file of a prepared import (a `modrinth.index.json` entry).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ImportFileView {
+    /// The pack-relative path (`mods/sodium.jar`).
+    pub path: String,
+    /// The file name (`sodium.jar`), what Java's dialog listed.
+    pub file_name: String,
+    /// Download size in bytes (0 when the index has none).
+    pub size: u64,
+    pub category: ImportFileCategory,
+    /// `false` for files marked client-unsupported (server-only); the launcher skips them.
+    pub client_supported: bool,
+}
+
+/// The totals line of the import-confirm dialog: counts per category and the summed size of
+/// every file, as Java computed them (every entry with a path).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct ImportTotals {
+    pub mods: usize,
+    pub configs: usize,
+    pub resource_packs: usize,
+    pub shader_packs: usize,
+    pub other: usize,
+    pub total_bytes: u64,
+}
+
+impl ImportTotals {
+    /// The totals of `files`.
+    pub fn of(files: &[ImportFileView]) -> ImportTotals {
+        let mut t = ImportTotals::default();
+        for f in files {
+            t.total_bytes = t.total_bytes.saturating_add(f.size);
+            match f.category {
+                ImportFileCategory::Mod => t.mods += 1,
+                ImportFileCategory::Config => t.configs += 1,
+                ImportFileCategory::ResourcePack => t.resource_packs += 1,
+                ImportFileCategory::ShaderPack => t.shader_packs += 1,
+                ImportFileCategory::Other => t.other += 1,
+            }
+        }
+        t
+    }
+
+    /// Every file counted.
+    pub fn file_count(&self) -> usize {
+        self.mods + self.configs + self.resource_packs + self.shader_packs + self.other
+    }
+}
+
+/// An import read and checked but not installed yet: what the import-confirm dialog shows
+/// (Java `MCLauncherImportConfirmDialog`: name, version, Minecraft and loader versions, the
+/// mod list with sizes and the totals). Confirm with [`crate::Engine::commit_import`], cancel
+/// with [`crate::Engine::discard_import`].
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ImportPreview {
+    pub token: ImportToken,
+    pub source: ImportPreviewSource,
+    /// `true` when the fields below were read from the archive itself (Modrinth, `.mrpack`);
+    /// `false` for sources read only on confirm (the dialog then shows the source alone).
+    pub has_details: bool,
+    /// The pack name (`None`: show `dialog.importConfirm.fallbackName`).
+    pub pack_name: Option<String>,
+    /// The pack version as the manifest will carry it.
+    pub pack_version: Option<String>,
+    pub minecraft_version: Option<String>,
+    /// `forge`, `neoforge` or `fabric`.
+    pub loader_type: Option<String>,
+    pub loader_version: Option<String>,
+    /// The index's summary line.
+    pub summary: Option<String>,
+    /// The Modrinth project icon.
+    pub icon_url: Option<String>,
+    /// Every file of the index, in index order (filter by `category` for the mod list).
+    pub files: Vec<ImportFileView>,
+    pub totals: ImportTotals,
+    /// What the dialog names when there is no pack name: the file, folder or URL.
+    pub source_label: String,
+}
+
+impl ImportPreview {
+    /// The mod rows (Java listed only `mods/` entries).
+    pub fn mods(&self) -> impl Iterator<Item = &ImportFileView> {
+        self.files
+            .iter()
+            .filter(|f| f.category == ImportFileCategory::Mod)
+    }
+}
+
+/// [`crate::Engine::export_official_report`]: the outcome plus the loader installer's error.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct OfficialExportReport {
+    pub outcome: OfficialExportOutcome,
+    /// The localized `officialExport.installLoader.failed.body` text when the loader install
+    /// ran and failed (Java's `installLoader.failed` toast body).
+    pub loader_install_error: Option<String>,
+    /// The installer's own error text from that failure (`{0}` of the body).
+    pub loader_installer_message: Option<String>,
+}

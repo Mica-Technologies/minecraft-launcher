@@ -500,15 +500,10 @@ impl LauncherActions for EngineActions {
             remote_url.to_string(),
             local_path.to_string(),
         );
-        let refusal = |p: &mmcl_engine::PackSummary, e: &EngineError| {
-            is_engine_text(
-                e,
-                "engine.error.modPathTaken",
-                &[&p.name, local_path.trim()],
-            )
-            .then(|| {
+        let refusal = |_: &mmcl_engine::PackSummary, e: &EngineError| {
+            path_taken(e).map(|taken| {
                 Outcome::failed(format!(
-                    "\"{friendly_name}\" already installs something to {local_path}."
+                    "\"{friendly_name}\" already installs something to {taken}."
                 ))
             })
         };
@@ -524,14 +519,12 @@ impl LauncherActions for EngineActions {
 
     fn remove_mod(&self, friendly_name: &str, identifier: &str) -> Outcome {
         let i = identifier.to_string();
-        let refusal = |p: &mmcl_engine::PackSummary, e: &EngineError| {
-            is_engine_text(e, "engine.error.modNotFound", &[identifier.trim(), &p.name]).then(
-                || {
-                    Outcome::failed(format!(
-                        "No mod matching \"{identifier}\" is in \"{friendly_name}\"."
-                    ))
-                },
-            )
+        let refusal = |_: &mmcl_engine::PackSummary, e: &EngineError| {
+            mod_not_found(e).map(|missing| {
+                Outcome::failed(format!(
+                    "No mod matching \"{missing}\" is in \"{friendly_name}\"."
+                ))
+            })
         };
         match self.edit(friendly_name, refusal, move |engine, id| {
             Box::pin(async move { engine.remove_mod(&id, &i).await })
@@ -544,16 +537,22 @@ impl LauncherActions for EngineActions {
     }
 }
 
-/// Whether `e` is the engine's [`EngineError::Other`] rendered from `key` with `args`. The
-/// engine reports a taken mod path and a missing mod as localized `Other` text rather than
-/// their own variants, so the text is re-rendered here (same process, same bundle) and
-/// compared whole.
-fn is_engine_text(e: &EngineError, key: &str, args: &[&str]) -> bool {
-    let EngineError::Other(text) = e else {
-        return false;
-    };
-    let fmt: Vec<mmcl_i18n::FmtArg> = args.iter().map(|a| mmcl_i18n::FmtArg::from(*a)).collect();
-    *text == mmcl_i18n::format(key, &fmt)
+/// The local path of an [`EngineError::ModPathTaken`] refusal (`add_mod`: the pack already
+/// installs a file there).
+fn path_taken(e: &EngineError) -> Option<&str> {
+    match e {
+        EngineError::ModPathTaken { local_path, .. } => Some(local_path),
+        _ => None,
+    }
+}
+
+/// The identifier of an [`EngineError::ModNotFound`] refusal (`remove_mod`: nothing in the
+/// pack matches it).
+fn mod_not_found(e: &EngineError) -> Option<&str> {
+    match e {
+        EngineError::ModNotFound { identifier, .. } => Some(identifier),
+        _ => None,
+    }
 }
 
 /// The model-facing text of an account-resolution problem, by the engine's message key.
@@ -695,38 +694,23 @@ mod tests {
     }
 
     #[test]
-    fn engine_refusal_text_is_recognised_whole() {
-        let taken = EngineError::Other(mmcl_i18n::tf!(
-            "engine.error.modPathTaken",
-            "Alto",
-            "mods/jei.jar"
-        ));
-        assert!(is_engine_text(
-            &taken,
-            "engine.error.modPathTaken",
-            &["Alto", "mods/jei.jar"]
-        ));
-        assert!(!is_engine_text(
-            &taken,
-            "engine.error.modPathTaken",
-            &["Alto", "mods/other.jar"]
-        ));
-        assert!(!is_engine_text(
-            &taken,
-            "engine.error.modNotFound",
-            &["Alto", "mods/jei.jar"]
-        ));
-        let missing = EngineError::Other(mmcl_i18n::tf!("engine.error.modNotFound", "jei", "Alto"));
-        assert!(is_engine_text(
-            &missing,
-            "engine.error.modNotFound",
-            &["jei", "Alto"]
-        ));
-        assert!(!is_engine_text(
-            &EngineError::ShutDown,
-            "engine.error.modNotFound",
-            &["jei", "Alto"]
-        ));
+    fn engine_refusals_are_recognised_by_variant() {
+        let taken = EngineError::ModPathTaken {
+            pack_name: "Alto".into(),
+            local_path: "mods/jei.jar".into(),
+        };
+        assert_eq!(path_taken(&taken), Some("mods/jei.jar"));
+        assert_eq!(mod_not_found(&taken), None);
+        let missing = EngineError::ModNotFound {
+            identifier: "jei".into(),
+            pack_name: "Alto".into(),
+        };
+        assert_eq!(mod_not_found(&missing), Some("jei"));
+        assert_eq!(path_taken(&missing), None);
+        // The same text as a generic error is not a refusal: only the variant counts.
+        let text = EngineError::Other(mmcl_i18n::tf!("engine.error.modNotFound", "jei", "Alto"));
+        assert_eq!(mod_not_found(&text), None);
+        assert_eq!(path_taken(&EngineError::ShutDown), None);
     }
 
     struct Offline {

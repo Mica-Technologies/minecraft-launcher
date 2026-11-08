@@ -79,7 +79,11 @@ pub fn server_jar_from_launch_script<R: Read + Seek>(
             continue;
         };
         let mut body = String::new();
-        if (&mut f).take(MAX_SMALL_ENTRY_BYTES).read_to_string(&mut body).is_err() {
+        if (&mut f)
+            .take(MAX_SMALL_ENTRY_BYTES)
+            .read_to_string(&mut body)
+            .is_err()
+        {
             continue;
         }
         if let Some(c) = JAR_ARG.captures(&body) {

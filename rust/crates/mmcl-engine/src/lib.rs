@@ -25,7 +25,8 @@ pub use engine::{
 };
 pub use error::{EngineError, EngineResult, LaunchRefusal};
 pub use event::{
-    EngineEvent, Notification, NotificationKind, OperationId, OperationProgress, SignInEvent,
+    EngineEvent, Notification, NotificationKind, OperationId, OperationProgress,
+    OperationStepsView, SignInEvent, SignInPageState,
 };
 pub use model::*;
 pub use session::{

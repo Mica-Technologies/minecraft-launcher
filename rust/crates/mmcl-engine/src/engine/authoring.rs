@@ -204,11 +204,10 @@ impl Engine {
             if doc.add_mod(entry) {
                 Ok(())
             } else {
-                Err(EngineError::Other(mmcl_i18n::tf!(
-                    "engine.error.modPathTaken",
-                    pack_name.as_str(),
-                    local.as_str()
-                )))
+                Err(EngineError::ModPathTaken {
+                    pack_name,
+                    local_path: local,
+                })
             }
         })
         .await
@@ -222,11 +221,10 @@ impl Engine {
             if doc.remove_mod(&wanted) {
                 Ok(())
             } else {
-                Err(EngineError::Other(mmcl_i18n::tf!(
-                    "engine.error.modNotFound",
-                    wanted.as_str(),
-                    pack_name.as_str()
-                )))
+                Err(EngineError::ModNotFound {
+                    identifier: wanted.clone(),
+                    pack_name,
+                })
             }
         })
         .await

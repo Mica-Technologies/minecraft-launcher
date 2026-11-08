@@ -73,6 +73,64 @@ pub enum SignInEvent {
     Status { section: String, detail: String },
 }
 
+/// What the web view sign-in's page is doing (the helper's page lines), for Java's loading
+/// overlay and its "couldn't reach Microsoft's sign-in page, Try again" state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SignInPageState {
+    /// Microsoft's page is loading: show the spinner with [`SignInPageState::message`].
+    Loading,
+    /// The page is up: hide the overlay.
+    Loaded,
+    /// The page could not be reached: show the message and a "Try again" button
+    /// ([`crate::Engine::retry_sign_in_page`]).
+    LoadFailed,
+}
+
+impl SignInPageState {
+    /// The overlay text (`signIn.loading` / `signIn.loadFailed`); `None` when loaded.
+    pub fn message(self) -> Option<String> {
+        match self {
+            SignInPageState::Loading => Some(mmcl_i18n::t!("signIn.loading").into_owned()),
+            SignInPageState::LoadFailed => Some(mmcl_i18n::t!("signIn.loadFailed").into_owned()),
+            SignInPageState::Loaded => None,
+        }
+    }
+
+    /// Whether the overlay offers "Try again" (label `signIn.retry`).
+    pub fn offers_retry(self) -> bool {
+        self == SignInPageState::LoadFailed
+    }
+}
+
+impl From<mmcl_auth::SignInPageEvent> for SignInPageState {
+    fn from(e: mmcl_auth::SignInPageEvent) -> Self {
+        match e {
+            mmcl_auth::SignInPageEvent::Loading => SignInPageState::Loading,
+            mmcl_auth::SignInPageEvent::Loaded => SignInPageState::Loaded,
+            mmcl_auth::SignInPageEvent::LoadFailed => SignInPageState::LoadFailed,
+        }
+    }
+}
+
+/// The step rows of a running verify / update / launch operation (Java's Launch Progress
+/// window), from [`crate::Engine::operation_steps`] or [`EngineEvent::OperationSteps`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct OperationStepsView {
+    pub operation: OperationId,
+    /// The pack the rows are about (verify-all moves from pack to pack).
+    pub pack: Option<PackId>,
+    /// The session, when the operation is a launch.
+    pub session: Option<SessionId>,
+    /// Upper heading, localized (`engine.progress.verify` / `engine.progress.launch`).
+    pub label: String,
+    /// The rows in pipeline order.
+    pub steps: Vec<crate::session::LaunchStepView>,
+    /// 0..1 over every row.
+    pub fraction: f64,
+    /// Cancel was asked for.
+    pub cancel_requested: bool,
+}
+
 /// Everything that changes behind a front end's back.
 #[derive(Clone, Debug)]
 pub enum EngineEvent {
@@ -96,8 +154,13 @@ pub enum EngineEvent {
         session: SessionId,
         lines: Arc<[String]>,
     },
+    /// The web view sign-in's page changed state (loading / loaded / load failed).
+    SignInPage(SignInPageState),
     /// An operation progressed.
     Progress(OperationProgress),
+    /// The step rows of a verify / update / launch operation changed (throttled like
+    /// `Progress`; terminal step states always arrive).
+    OperationSteps(Arc<OperationStepsView>),
     /// An operation finished (successfully or not; the operation's own future has the result).
     OperationFinished(OperationId),
     /// The launcher went offline or came back.

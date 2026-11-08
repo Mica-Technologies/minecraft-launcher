@@ -463,21 +463,108 @@ pub fn build_manifest(
     Value::Object(m)
 }
 
-/// Imports a local `.mrpack` file (no install). `slug` names the manifest file; `icon_url`
-/// (https) is staged as the logo.
-pub async fn import_mrpack_file(
+/// A `.mrpack` read and checked but not written out yet: the import-confirm step between
+/// [`prepare_mrpack`] / [`prepare_mrpack_file`] and [`finish_mrpack`] (Java's
+/// `MCLauncherImportConfirmDialog` sat between `importMrpack` and the install). Nothing is in the
+/// pack folder or the imported-manifests folder yet. Dropping it (or [`PreparedMrpack::discard`])
+/// deletes a downloaded archive.
+#[derive(Debug)]
+pub struct PreparedMrpack {
+    /// The parsed `modrinth.index.json` (the file list with sizes).
+    pub index: ModrinthIndex,
+    /// The Minecraft version (`dependencies.minecraft`).
+    pub mc_version: String,
+    /// The loader dependency key (`forge`, `neoforge`, `fabric-loader`).
+    pub loader_key: String,
+    /// `forge` / `neoforge` / `fabric`.
+    pub loader_type: &'static str,
+    /// The loader version.
+    pub loader_version: String,
+    installer_hash: String,
+    logo_sha: Option<String>,
+    icon_url: Option<String>,
+    slug: Option<String>,
+    mrpack: PathBuf,
+    /// The archive is a download of ours and is deleted with this value.
+    owned: bool,
+}
+
+impl PreparedMrpack {
+    /// The pack name the manifest will carry (`Imported Modrinth Pack` when the index has none).
+    pub fn pack_name(&self) -> String {
+        self.index
+            .name
+            .clone()
+            .filter(|n| !n.trim().is_empty())
+            .unwrap_or_else(|| "Imported Modrinth Pack".into())
+    }
+
+    /// The pack version the manifest will carry ([`normalize_imported_version`]).
+    pub fn pack_version(&self) -> String {
+        normalize_imported_version(self.index.version_id.as_deref())
+    }
+
+    /// The `.mrpack` on disk.
+    pub fn archive(&self) -> &Path {
+        &self.mrpack
+    }
+
+    /// Throws the prepared import away (a downloaded archive is deleted).
+    pub fn discard(self) {
+        mmcl_log::std(&tf!("log.mrpackImporter.discarded", self.pack_name()));
+    }
+}
+
+impl Drop for PreparedMrpack {
+    fn drop(&mut self) {
+        if self.owned {
+            let _ = fs::remove_file(&self.mrpack);
+        }
+    }
+}
+
+/// Reads and checks a local `.mrpack` without writing anything into the launcher's folders:
+/// the index, the supported loader, the versions, the loader installer's SHA-1 (downloaded for
+/// Forge / NeoForge) and the staged project icon. `slug` names the manifest file later;
+/// `icon_url` (https) becomes the logo.
+pub async fn prepare_mrpack_file(
     paths: &DataPaths,
     http: &dyn PackHttp,
     mrpack: &Path,
     slug: Option<&str>,
     icon_url: Option<&str>,
-) -> Result<MrpackResult> {
+) -> Result<PreparedMrpack> {
+    prepare_inner(paths, http, mrpack.to_path_buf(), false, slug, icon_url).await
+}
+
+async fn prepare_inner(
+    paths: &DataPaths,
+    http: &dyn PackHttp,
+    mrpack: PathBuf,
+    owned: bool,
+    slug: Option<&str>,
+    icon_url: Option<&str>,
+) -> Result<PreparedMrpack> {
+    // Built first, so an owned download is deleted on every early return.
+    let mut prepared = PreparedMrpack {
+        index: ModrinthIndex::default(),
+        mc_version: String::new(),
+        loader_key: String::new(),
+        loader_type: "forge",
+        loader_version: String::new(),
+        installer_hash: String::new(),
+        logo_sha: None,
+        icon_url: icon_url.map(str::to_string),
+        slug: slug.map(str::to_string),
+        mrpack,
+        owned,
+    };
     let fail = |e: &dyn std::fmt::Display| {
         ModpackError::Import(tf!("mrpackImporter.error.readIndexFailed", e.to_string()))
     };
-    let mut zip =
-        ::zip::ZipArchive::new(File::open(mrpack).map_err(|e| fail(&e))?).map_err(|e| fail(&e))?;
     let text = {
+        let mut zip = ::zip::ZipArchive::new(File::open(&prepared.mrpack).map_err(|e| fail(&e))?)
+            .map_err(|e| fail(&e))?;
         let mut f = zip
             .by_name("modrinth.index.json")
             .map_err(|_| ModpackError::Import(t!("mrpackImporter.error.notMrpack").into_owned()))?;
@@ -518,16 +605,17 @@ pub async fn import_mrpack_file(
         ));
     }
     let loader_type = loader_key_to_type(&loader_key);
+    let loader_version = index.dep(&loader_key).unwrap_or("").to_string();
     mmcl_log::std(&tf!(
         "log.mrpackImporter.target",
         &mc,
         loader_type,
-        index.dep(&loader_key).unwrap_or("")
+        &loader_version
     ));
     let installer_hash = if loader_type == "fabric" {
         String::new()
     } else {
-        let url = loader_installer_url(loader_type, &mc, index.dep(&loader_key).unwrap_or(""));
+        let url = loader_installer_url(loader_type, &mc, &loader_version);
         installer_sha1(http, &url).await.ok_or_else(|| {
             ModpackError::Import(tf!(
                 "mrpackImporter.error.installerFetchFailed",
@@ -536,36 +624,87 @@ pub async fn import_mrpack_file(
             ))
         })?
     };
-    let logo_sha = stage_logo(paths, http, icon_url).await;
-    let pack_name = index
-        .name
-        .clone()
-        .filter(|n| !n.trim().is_empty())
-        .unwrap_or_else(|| "Imported Modrinth Pack".into());
+    prepared.logo_sha = stage_logo(paths, http, icon_url).await;
+    prepared.index = index;
+    prepared.mc_version = mc;
+    prepared.loader_key = loader_key;
+    prepared.loader_type = loader_type;
+    prepared.loader_version = loader_version;
+    prepared.installer_hash = installer_hash;
+    Ok(prepared)
+}
+
+/// Downloads a `.mrpack` (HTTPS, capped) into a temporary file and prepares it
+/// ([`prepare_mrpack_file`]). The download is deleted with the result.
+pub async fn prepare_mrpack(
+    paths: &DataPaths,
+    http: &dyn PackHttp,
+    download_url: &str,
+    slug: Option<&str>,
+    icon_url: Option<&str>,
+) -> Result<PreparedMrpack> {
+    if download_url.trim().is_empty() {
+        return Err(ModpackError::Import(
+            t!("mrpackImporter.error.noUrl").into_owned(),
+        ));
+    }
+    mmcl_log::std(&tf!(
+        "log.mrpackImporter.starting",
+        slug.unwrap_or(""),
+        download_url
+    ));
+    let tmp = std::env::temp_dir().join(format!("mica-mrpack-{}.mrpack", uuid::Uuid::new_v4()));
+    if let Err(e) = http
+        .download_bounded(download_url, &tmp, MAX_MRPACK_BYTES)
+        .await
+    {
+        let _ = fs::remove_file(&tmp);
+        return Err(ModpackError::Import(tf!(
+            "mrpackImporter.error.downloadFailed",
+            e.to_string()
+        )));
+    }
+    prepare_inner(paths, http, tmp, true, slug, icon_url).await
+}
+
+/// Writes a prepared import out (no install): extracts `overrides/` and `client-overrides/`
+/// into the pack folder and writes the translated manifest under `imported-manifests`.
+pub async fn finish_mrpack(paths: &DataPaths, prepared: PreparedMrpack) -> Result<MrpackResult> {
+    let pack_name = prepared.pack_name();
     let folder = alnum(&pack_name);
     // Extraction can be gigabytes of disk I/O: keep it off the async worker threads.
     let override_mods = if folder.is_empty() {
         Vec::new()
     } else {
         let root = paths.pack_install_dir(&folder);
-        crate::managed::blocking(move || extract_overrides(&mut zip, &root)).await??
+        let archive = prepared.mrpack.clone();
+        crate::managed::blocking(move || {
+            let file = File::open(&archive).map_err(|e| {
+                ModpackError::Import(tf!("mrpackImporter.error.readIndexFailed", e.to_string()))
+            })?;
+            let mut zip = ::zip::ZipArchive::new(file).map_err(|e| {
+                ModpackError::Import(tf!("mrpackImporter.error.readIndexFailed", e.to_string()))
+            })?;
+            extract_overrides(&mut zip, &root)
+        })
+        .await??
     };
-    let logo = match (&logo_sha, icon_url) {
+    let logo = match (&prepared.logo_sha, prepared.icon_url.as_deref()) {
         (Some(sha), Some(url)) => Some((url, sha.as_str())),
         _ => None,
     };
     let manifest = build_manifest(
-        &index,
-        &mc,
-        &loader_key,
+        &prepared.index,
+        &prepared.mc_version,
+        &prepared.loader_key,
         logo,
-        &installer_hash,
+        &prepared.installer_hash,
         override_mods,
     );
     let file = format!(
         "modrinth-{}-{}.json",
-        sanitize_file_part(slug, "imported"),
-        sanitize_file_part(index.version_id.as_deref(), "unknown")
+        sanitize_file_part(prepared.slug.as_deref(), "imported"),
+        sanitize_file_part(prepared.index.version_id.as_deref(), "unknown")
     );
     let path: PathBuf = write_imported_manifest(
         paths,
@@ -583,7 +722,7 @@ pub async fn import_mrpack_file(
         path.display().to_string()
     ));
     let url = crate::fetch::path_to_file_url(&path);
-    let mod_count = index.mod_count();
+    let mod_count = prepared.index.mod_count();
     mmcl_log::std(&tf!(
         "log.mrpackImporter.success",
         mod_count.to_string(),
@@ -591,9 +730,32 @@ pub async fn import_mrpack_file(
     ));
     Ok(MrpackResult {
         local_manifest_url: url,
-        index,
+        index: prepared.index.clone(),
         mod_count,
     })
+}
+
+/// [`finish_mrpack`], then installs the result (the "Import" button of the confirm step).
+pub async fn install_prepared_mrpack(
+    manager: &Arc<ModPackManager>,
+    prepared: PreparedMrpack,
+) -> Result<MrpackResult> {
+    let r = finish_mrpack(manager.paths(), prepared).await?;
+    register(manager, &r.local_manifest_url).await?;
+    Ok(r)
+}
+
+/// Imports a local `.mrpack` file (no install). `slug` names the manifest file; `icon_url`
+/// (https) is staged as the logo.
+pub async fn import_mrpack_file(
+    paths: &DataPaths,
+    http: &dyn PackHttp,
+    mrpack: &Path,
+    slug: Option<&str>,
+    icon_url: Option<&str>,
+) -> Result<MrpackResult> {
+    let prepared = prepare_mrpack_file(paths, http, mrpack, slug, icon_url).await?;
+    finish_mrpack(paths, prepared).await
 }
 
 /// Downloads a `.mrpack` (HTTPS, capped) and imports it (no install).
@@ -604,28 +766,8 @@ pub async fn import_mrpack(
     slug: Option<&str>,
     icon_url: Option<&str>,
 ) -> Result<MrpackResult> {
-    if download_url.trim().is_empty() {
-        return Err(ModpackError::Import(
-            t!("mrpackImporter.error.noUrl").into_owned(),
-        ));
-    }
-    mmcl_log::std(&tf!(
-        "log.mrpackImporter.starting",
-        slug.unwrap_or(""),
-        download_url
-    ));
-    let tmp = std::env::temp_dir().join(format!("mica-mrpack-{}.mrpack", uuid::Uuid::new_v4()));
-    let res = async {
-        http.download_bounded(download_url, &tmp, MAX_MRPACK_BYTES)
-            .await
-            .map_err(|e| {
-                ModpackError::Import(tf!("mrpackImporter.error.downloadFailed", e.to_string()))
-            })?;
-        import_mrpack_file(paths, http, &tmp, slug, icon_url).await
-    }
-    .await;
-    let _ = fs::remove_file(&tmp);
-    res
+    let prepared = prepare_mrpack(paths, http, download_url, slug, icon_url).await?;
+    finish_mrpack(paths, prepared).await
 }
 
 /// [`import_mrpack`], then installs the result.
@@ -665,10 +807,27 @@ mod tests {
 
     #[test]
     fn only_plain_versions_reach_loader_urls() {
-        for ok in ["1.21.5", "0.16.10", "47.3.0", "1.20.1-47.3.0", "21.1.0-beta", "1.0+build.3"] {
+        for ok in [
+            "1.21.5",
+            "0.16.10",
+            "47.3.0",
+            "1.20.1-47.3.0",
+            "21.1.0-beta",
+            "1.0+build.3",
+        ] {
             assert!(is_safe_version(ok), "{ok}");
         }
-        for bad in ["", ".", "..", "../x", "1.0/../../a", "1.0?x=1", "1.0#f", "a b", "1.0%2f"] {
+        for bad in [
+            "",
+            ".",
+            "..",
+            "../x",
+            "1.0/../../a",
+            "1.0?x=1",
+            "1.0#f",
+            "a b",
+            "1.0%2f",
+        ] {
             assert!(!is_safe_version(bad), "{bad}");
         }
     }
@@ -777,6 +936,57 @@ mod tests {
             .find(|m| m.local.as_deref() == Some("bundled.jar"))
             .unwrap();
         assert!(bundled.is_local_only() && bundled.client_req && bundled.server_req);
+    }
+
+    #[tokio::test]
+    async fn a_prepared_import_writes_nothing_until_it_is_finished() {
+        let d = tempfile::tempdir().unwrap();
+        let paths = DataPaths::at_root(d.path().join("root"), mmcl_core::GameMode::Client);
+        let bytes = crate::import::test_support::zip_bytes(&[
+            ("modrinth.index.json", INDEX.as_bytes()),
+            ("overrides/config/extra.cfg", b"cfg"),
+        ]);
+        let http = FakeHttp::new();
+        let url = "https://cdn.modrinth.com/data/x/fab.mrpack";
+        http.body(url, bytes);
+        let p = prepare_mrpack(&paths, http.as_ref(), url, Some("fab"), None)
+            .await
+            .unwrap();
+        assert_eq!(p.pack_name(), "Fab Pack");
+        assert_eq!(p.pack_version(), "2.1");
+        assert_eq!(p.mc_version, "1.21.5");
+        assert_eq!(p.loader_type, "fabric");
+        assert_eq!(p.loader_version, "0.16.10");
+        assert_eq!(p.index.files.len(), 7);
+        let archive = p.archive().to_path_buf();
+        assert!(archive.is_file());
+        let root = paths.pack_install_dir("FabPack");
+        assert!(!root.exists(), "nothing extracted before the confirm");
+        assert!(!paths.imported_manifests_dir().exists());
+        p.discard();
+        assert!(!archive.exists(), "a discarded download is deleted");
+
+        let p = prepare_mrpack(&paths, http.as_ref(), url, Some("fab"), None)
+            .await
+            .unwrap();
+        let archive = p.archive().to_path_buf();
+        let r = finish_mrpack(&paths, p).await.unwrap();
+        assert_eq!(fs::read(root.join("config/extra.cfg")).unwrap(), b"cfg");
+        assert!(r.local_manifest_url.ends_with("modrinth-fab-v2.1.json"));
+        assert!(
+            !archive.exists(),
+            "the download goes once it is written out"
+        );
+
+        // A local file is the caller's: preparing and dropping it keeps it.
+        let f = d.path().join("local.mrpack");
+        write_zip(&f, &[("modrinth.index.json", INDEX.as_bytes())]);
+        drop(
+            prepare_mrpack_file(&paths, http.as_ref(), &f, None, None)
+                .await
+                .unwrap(),
+        );
+        assert!(f.is_file());
     }
 
     #[tokio::test]

@@ -252,7 +252,12 @@ mod tests {
         extract_bounded(&mut z, d.path(), |_| false, |n| seen.push(n.to_string())).unwrap();
         assert_eq!(seen, ["mods/a.jar"]);
         assert!(!d.path().join(".verify_state.json").exists());
-        assert!(!d.path().join("overrides").join(".VERIFY_STATE.json").exists());
+        assert!(
+            !d.path()
+                .join("overrides")
+                .join(".VERIFY_STATE.json")
+                .exists()
+        );
         assert!(!d.path().join(".audit_log").exists());
     }
 

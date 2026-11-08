@@ -17,7 +17,7 @@ use mmcl_modpack::GameModPack;
 use super::Engine;
 use crate::error::{EngineError, EngineResult};
 use crate::event::{Notification, NotificationKind, OperationId};
-use crate::model::{OfficialExportOutcome, OfficialExportStatus, PackId};
+use crate::model::{OfficialExportOutcome, OfficialExportReport, OfficialExportStatus, PackId};
 
 /// The namespace of the profile keys (same as Java, so both launchers manage one profile).
 const MICA_NAMESPACE: &str = "7b21f6a4-3b4a-4c0d-9c2e-1de9b1c8a420";
@@ -102,6 +102,18 @@ pub fn stable_profile_key(vanilla_version: Option<&str>, url: Option<&str>, name
         None => format!("mica-modpack:{}", url.unwrap_or(name)),
     };
     name_uuid_from_bytes(format!("{MICA_NAMESPACE}:{identity}").as_bytes())
+}
+
+/// The last few non-blank lines of an installer's error output (what a toast can show when
+/// the installer gave no message of its own).
+pub fn last_lines(text: &str) -> String {
+    const KEEP: usize = 3;
+    let lines: Vec<&str> = text
+        .lines()
+        .map(str::trim_end)
+        .filter(|l| !l.trim().is_empty())
+        .collect();
+    lines[lines.len().saturating_sub(KEEP)..].join("\n")
 }
 
 /// The Mojang runtime component a Minecraft version runs on (Java's heuristic).
@@ -412,16 +424,17 @@ impl Engine {
         let _busy = super::launch::BusyGuard::take(self, id, &pack.name())?;
         match self.run_official_loader_install(&pack, &dot_mc).await {
             None => Ok(version_id),
-            Some(message) => Err(EngineError::Other(message)),
+            Some(failure) => Err(failure),
         }
     }
 
-    /// Runs the loader installer; `None` on success, else the localized failure text.
+    /// Runs the loader installer; `None` on success, else [`EngineError::LoaderInstallFailed`]
+    /// with the installer's error text.
     async fn run_official_loader_install(
         &self,
         pack: &Arc<GameModPack>,
         dot_mc: &Path,
-    ) -> Option<String> {
+    ) -> Option<EngineError> {
         let r = mmcl_launch::export_install::install_loader_for_official_launcher(
             &self.inner.launch_env,
             pack,
@@ -436,11 +449,34 @@ impl Engine {
             mmcl_log::warn_silent(stderr);
         }
         let loader = pack.loader_name().await.ok().flatten().unwrap_or_default();
-        Some(mmcl_i18n::tf!(
-            "officialExport.installLoader.failed.body",
-            r.message.as_str(),
-            loader
-        ))
+        let message = if r.message.trim().is_empty() {
+            r.installer_stderr
+                .as_deref()
+                .map(last_lines)
+                .unwrap_or_default()
+        } else {
+            r.message.clone()
+        };
+        Some(EngineError::LoaderInstallFailed { message, loader })
+    }
+
+    /// [`Engine::export_official`], also returning the loader installer's error when the
+    /// install ran and failed (the text Java's `installLoader.failed` toast showed).
+    pub async fn export_official_report(
+        &self,
+        id: &PackId,
+        install_loader: bool,
+        op: OperationId,
+    ) -> EngineResult<OfficialExportReport> {
+        let res = self.export_official_inner(id, install_loader, op).await;
+        self.emit(crate::event::EngineEvent::OperationFinished(op));
+        res.map(|(outcome, failure)| OfficialExportReport {
+            outcome,
+            loader_install_error: failure.as_ref().map(EngineError::message),
+            loader_installer_message: failure
+                .as_ref()
+                .and_then(|f| f.installer_message().map(str::to_string)),
+        })
     }
 
     /// Writes the pack's official-launcher profile: verifies the files (modded packs, progress
@@ -464,7 +500,7 @@ impl Engine {
         id: &PackId,
         install_loader: bool,
         op: OperationId,
-    ) -> EngineResult<(OfficialExportOutcome, Option<String>)> {
+    ) -> EngineResult<(OfficialExportOutcome, Option<EngineError>)> {
         let pack = self.require_installed(id)?;
         let dot_mc = resolve_dot_minecraft();
         let profiles_file = dot_mc.join(PROFILES_FILE);
@@ -561,11 +597,11 @@ impl Engine {
         op: OperationId,
     ) -> EngineResult<()> {
         let (outcome, install_failure) = self.export_official_inner(id, true, op).await?;
-        if let Some(body) = install_failure {
+        if let Some(failure) = install_failure {
             self.notify(Notification::new(
                 NotificationKind::Warning,
                 mmcl_i18n::t!("officialExport.installLoader.failed.title"),
-                body,
+                failure.message(),
             ));
         }
         if outcome.loader_installed {
@@ -656,6 +692,13 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn installer_output_is_cut_to_its_last_lines() {
+        assert_eq!(last_lines(""), "");
+        assert_eq!(last_lines("a\n\nb\nc\n  \nd\n"), "b\nc\nd");
+        assert_eq!(last_lines("only"), "only");
+    }
 
     #[test]
     fn name_uuids_match_java() {

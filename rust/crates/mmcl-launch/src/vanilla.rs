@@ -159,6 +159,7 @@ pub async fn library_manifest(run: &PackRun, mc_version: &str) -> Result<Arc<Lib
         .root()?
         .join("bin")
         .join(mmcl_core::paths::MINECRAFT_LIBRARY_MANIFEST_FILE_NAME);
+    seed_from_client_json_cache(&run.env, mc_version, &path).await;
     let file = run.managed_at(spec(&entry.url, "", entry.sha1()), &path);
     file.update(&run.ctx, run.env.http.as_ref()).await?;
     let p = path.clone();
@@ -171,6 +172,31 @@ pub async fn library_manifest(run: &PackRun, mc_version: &str) -> Result<Arc<Lib
     });
     *slot.lock() = Some(m.clone());
     Ok(m)
+}
+
+/// Copies the shared `metadata/client-<version>.json` (warmed by [`cached_client_json`], e.g.
+/// the engine's idle prefetch) to a pack's missing library manifest, so its first launch
+/// verifies a local copy instead of downloading it. The managed-file check that follows still
+/// verifies the hash and downloads over a wrong copy. Best effort.
+pub async fn seed_from_client_json_cache(env: &LaunchEnv, mc_version: &str, target: &Path) {
+    if target.exists() {
+        return;
+    }
+    let cached = env
+        .paths
+        .metadata_dir()
+        .join(client_json_cache_file_name(mc_version));
+    if !cached.is_file() {
+        return;
+    }
+    let dest = target.to_path_buf();
+    let _ = blocking(move || -> std::io::Result<()> {
+        if let Some(p) = dest.parent() {
+            fs::create_dir_all(p)?;
+        }
+        fs::copy(&cached, &dest).map(|_| ())
+    })
+    .await;
 }
 
 /// What the Minecraft branch produced.
@@ -496,6 +522,24 @@ mod tests {
             fs::read(pack.pack_root().join("bin/minecraft.jar")).unwrap(),
             b"server-jar"
         );
+    }
+
+    #[tokio::test]
+    async fn a_cached_client_json_seeds_a_missing_library_manifest() {
+        let fx = Fixture::new(mmcl_core::GameMode::Client);
+        let target = fx.dir.path().join("pack/bin/libraries.manifest");
+        // Nothing cached: nothing written.
+        seed_from_client_json_cache(&fx.env, "1.21.5", &target).await;
+        assert!(!target.exists());
+        let meta = fx.paths.metadata_dir();
+        fs::create_dir_all(&meta).unwrap();
+        fs::write(meta.join(client_json_cache_file_name("1.21.5")), b"{}").unwrap();
+        seed_from_client_json_cache(&fx.env, "1.21.5", &target).await;
+        assert_eq!(fs::read(&target).unwrap(), b"{}");
+        // An existing manifest is never replaced.
+        fs::write(&target, b"mine").unwrap();
+        seed_from_client_json_cache(&fx.env, "1.21.5", &target).await;
+        assert_eq!(fs::read(&target).unwrap(), b"mine");
     }
 
     #[tokio::test]

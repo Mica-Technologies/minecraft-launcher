@@ -576,11 +576,7 @@ async fn download_and_hash(
 }
 
 /// Transcodes the downloaded `tmp` when needed, then moves it to `metadata/<sha1>.png`.
-async fn hash_and_store(
-    url: &str,
-    tmp: &Path,
-    meta: &Path,
-) -> std::result::Result<String, String> {
+async fn hash_and_store(url: &str, tmp: &Path, meta: &Path) -> std::result::Result<String, String> {
     let t = tmp.to_path_buf();
     let sha = blocking(move || {
         mmcl_archive::image::ensure_decodable(&t);
@@ -680,12 +676,14 @@ mod tests {
         ];
         assert_eq!(
             resolve_slot_paths(&urls, Some(&dd), BUNDLED_LOGO_URL, &side, meta),
-            vec![meta.join(format!("{dd}.png")), meta.join(format!("{bb}.png"))]
+            vec![
+                meta.join(format!("{dd}.png")),
+                meta.join(format!("{bb}.png"))
+            ]
         );
         // A declared "hash" that is a path is never joined.
         assert!(
-            resolve_slot_paths(&urls[..1], Some("../../x"), BUNDLED_LOGO_URL, &[], meta)
-                .is_empty()
+            resolve_slot_paths(&urls[..1], Some("../../x"), BUNDLED_LOGO_URL, &[], meta).is_empty()
         );
         assert!(resolve_slot_paths(&[], None, BUNDLED_LOGO_URL, &[], meta).is_empty());
     }
@@ -764,7 +762,12 @@ mod tests {
         let sha = mmcl_util::hash::sha1_hex(PNG);
         let p2 = pack(d2.path(), &["https://img/a.png"], &[], Some(&sha));
         assert!(p2.environment().cache_images(&p2, http.as_ref()).await);
-        assert!(d2.path().join("metadata").join(format!("{sha}.png")).is_file());
+        assert!(
+            d2.path()
+                .join("metadata")
+                .join(format!("{sha}.png"))
+                .is_file()
+        );
     }
 
     #[tokio::test]

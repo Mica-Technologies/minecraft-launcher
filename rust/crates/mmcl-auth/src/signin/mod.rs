@@ -24,7 +24,10 @@ pub use wam::{
     WAM_AUTHORITY, WAM_PROVIDER_ID, WamFlow, WamPrompt, WamRequestSpec, WamToken,
     renew_silently as wam_renew_silently,
 };
-pub use webview::{WebViewHelperFlow, helper_outcome};
+pub use webview::{
+    PAGE_LINE_PREFIX, PageEventCallback, PageReloader, RELOAD_COMMAND, SignInPageEvent,
+    WebViewHelperFlow, helper_outcome,
+};
 
 pub use crate::msa::{MsaTokens, REDIRECT_URL, SignInKind};
 

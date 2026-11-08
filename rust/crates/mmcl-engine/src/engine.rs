@@ -12,10 +12,12 @@ pub mod authoring;
 mod catalog;
 pub mod diag;
 mod hosts;
+mod import_confirm;
 mod launch;
 mod maintenance;
 pub mod net_hooks;
 pub mod official_export;
+mod operations;
 
 pub use net_hooks::OfflineHttp;
 
@@ -245,6 +247,15 @@ struct Inner {
     vanilla: Mutex<HashMap<String, Arc<GameModPack>>>,
     /// RGB and Discord hosts installed and RGB bootstrapped ([`Engine::start_presence`]).
     presence_started: AtomicBool,
+    /// Running verify / update / launch operations (cancel token, step rows).
+    ops: Mutex<HashMap<OperationId, operations::OpControl>>,
+    /// The operation id of each launch.
+    session_ops: Mutex<HashMap<SessionId, OperationId>>,
+    /// Imports waiting for confirmation, by token.
+    prepared_imports: Mutex<std::collections::BTreeMap<u64, import_confirm::PendingImport>>,
+    next_import: AtomicU64,
+    /// Reloads the running web view sign-in's page ("Try again").
+    sign_in_reloader: Mutex<Option<mmcl_auth::PageReloader>>,
 }
 
 impl Drop for Inner {
@@ -349,6 +360,11 @@ impl Engine {
                 http,
                 vanilla: Mutex::new(HashMap::new()),
                 presence_started: AtomicBool::new(false),
+                ops: Mutex::new(HashMap::new()),
+                session_ops: Mutex::new(HashMap::new()),
+                prepared_imports: Mutex::new(std::collections::BTreeMap::new()),
+                next_import: AtomicU64::new(1),
+                sign_in_reloader: Mutex::new(None),
             }),
         };
         engine.wire();
@@ -1342,7 +1358,29 @@ impl Engine {
         if let Some(e) = self.why_launch_blocked(id, options.account_uuid.as_deref()) {
             return Err(e);
         }
-        self.launch_impl(id, options).await
+        self.launch_impl(id, options, None).await
+    }
+
+    /// [`Engine::launch`] reporting under a caller-chosen operation id (from
+    /// [`Engine::next_operation_id`]): while the launch prepares, its rows arrive as
+    /// [`EngineEvent::Progress`] and [`EngineEvent::OperationSteps`] of `op`, and
+    /// [`EngineEvent::OperationFinished`]`(op)` follows when the game started or the launch
+    /// failed. [`Engine::cancel_operation`]`(op)` cancels it. Every launch has such an id
+    /// ([`Engine::operation_for_session`]); a refused launch sends `OperationFinished(op)` too.
+    pub async fn launch_with(
+        &self,
+        id: &PackId,
+        options: LaunchOptions,
+        op: OperationId,
+    ) -> EngineResult<SessionId> {
+        let res = match self.why_launch_blocked(id, options.account_uuid.as_deref()) {
+            Some(e) => Err(e),
+            None => self.launch_impl(id, options, Some(op)).await,
+        };
+        if res.is_err() {
+            self.emit(EngineEvent::OperationFinished(op));
+        }
+        res
     }
 
     /// Runs a pack as a dedicated server in this process's terminal (server mode); returns the
@@ -1426,6 +1464,7 @@ impl Engine {
     pub fn dismiss_session(&self, id: SessionId) -> bool {
         let removed = self.inner.sessions.dismiss(id);
         if removed {
+            self.forget_session_op(id);
             self.emit(EngineEvent::SessionRemoved(id));
         }
         removed
@@ -1548,7 +1587,19 @@ impl Engine {
         }
         let auth = &self.inner.auth;
         let flow: Box<dyn SignInFlow> = match request.kind {
-            SignInKind::WebView => Box::new(auth.web_view_flow()),
+            SignInKind::WebView => {
+                let tx = self.inner.events.clone();
+                let flow = auth.web_view_flow().with_page_events(Arc::new(
+                    move |e: mmcl_auth::SignInPageEvent| {
+                        if e == mmcl_auth::SignInPageEvent::LoadFailed {
+                            mmcl_log::warn_silent(&mmcl_i18n::t!("log.login.pageLoadFailed"));
+                        }
+                        let _ = tx.send(EngineEvent::SignInPage(e.into()));
+                    },
+                ));
+                *self.inner.sign_in_reloader.lock() = Some(flow.reloader());
+                Box::new(flow)
+            }
             SignInKind::DeviceCode => {
                 let tx = self.inner.events.clone();
                 Box::new(auth.device_code_flow(Arc::new(move |p| {
@@ -1572,6 +1623,7 @@ impl Engine {
             )
             .await;
         self.inner.sign_in_cancel.lock().take();
+        self.inner.sign_in_reloader.lock().take();
         match outcome {
             mmcl_auth::AuthOutcome::Ok(user) => {
                 let view = auth
@@ -1590,6 +1642,14 @@ impl Engine {
             }
             other => Err(other.into()),
         }
+    }
+
+    /// Loads Microsoft's page again in the running web view sign-in (the "Try again" button of
+    /// the [`crate::SignInPageState::LoadFailed`] state). `false` when no web view sign-in is
+    /// running.
+    pub fn retry_sign_in_page(&self) -> bool {
+        let reloader = self.inner.sign_in_reloader.lock().clone();
+        reloader.is_some_and(|r| r.reload())
     }
 
     /// Cancels the running sign-in, if any.

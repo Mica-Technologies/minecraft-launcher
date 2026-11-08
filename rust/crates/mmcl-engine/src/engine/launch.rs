@@ -226,6 +226,7 @@ impl Engine {
         &self,
         pack: &Arc<GameModPack>,
         options: &LaunchOptions,
+        op: Option<OperationId>,
     ) -> EngineResult<(SessionId, Option<String>, CancelToken)> {
         if self.is_shut_down() {
             return Err(EngineError::ShutDown);
@@ -250,7 +251,7 @@ impl Engine {
             }
             self.inner
                 .sessions
-                .try_begin(id, display, uuid.clone(), name)
+                .try_begin(id.clone(), display.clone(), uuid.clone(), name)
                 .map_err(EngineError::LaunchRefused)?
         };
         self.report_pruned();
@@ -263,20 +264,30 @@ impl Engine {
                 stop_requested: false,
             },
         );
+        let op = op.unwrap_or_else(|| self.next_operation_id());
+        self.register_launch_op(
+            op,
+            sid,
+            id,
+            mmcl_i18n::tf!("engine.progress.launch", display.as_str()),
+            cancel.clone(),
+        );
         if let Some(info) = self.inner.sessions.get(sid) {
             self.emit(EngineEvent::SessionStarted(Arc::new(info)));
         }
         Ok((sid, uuid, cancel))
     }
 
-    /// [`Engine::launch`]: admit, then run the pipeline on the engine runtime.
+    /// [`Engine::launch`]: admit, then run the pipeline on the engine runtime. The launch
+    /// reports under `op` (else a fresh id; [`Engine::operation_for_session`]).
     pub(super) async fn launch_impl(
         &self,
         id: &PackId,
         options: LaunchOptions,
+        op: Option<OperationId>,
     ) -> EngineResult<SessionId> {
         let pack = self.require_installed(id)?;
-        let (sid, uuid, cancel) = self.admit(&pack, &options)?;
+        let (sid, uuid, cancel) = self.admit(&pack, &options, op)?;
         let me = self.clone();
         self.inner.handle.spawn(async move {
             let _ = me.drive(sid, pack, options, uuid, cancel).await;
@@ -301,6 +312,7 @@ impl Engine {
         let res = self
             .prepare_and_start(sid, &pack, &options, account_uuid, &cancel)
             .await;
+        self.finish_launch_op(sid);
         match res {
             Ok(p) => Ok(p),
             Err(e) => {
@@ -350,6 +362,7 @@ impl Engine {
     /// Sends [`EngineEvent::SessionRemoved`] for the ended sessions the 20-entry limit dropped.
     pub(super) fn report_pruned(&self) {
         for id in self.inner.sessions.take_pruned() {
+            self.forget_session_op(id);
             self.emit(EngineEvent::SessionRemoved(id));
         }
     }
@@ -424,6 +437,23 @@ impl Engine {
             drop(st);
             if due && let Some(info) = info {
                 engine.emit(EngineEvent::SessionChanged(Arc::new(info)));
+                // The same rows under the launch's operation id (Progress + OperationSteps).
+                if let Some(op) = engine.operation_for_session(sid)
+                    && let Some(v) = engine.operation_steps(op)
+                {
+                    let text = if snap.sub_text.is_empty() {
+                        view.label.clone()
+                    } else {
+                        format!("{}: {}", view.label, snap.sub_text)
+                    };
+                    engine.emit(EngineEvent::Progress(OperationProgress {
+                        operation: op,
+                        label: v.label.clone(),
+                        text,
+                        fraction: v.fraction,
+                    }));
+                    engine.emit(EngineEvent::OperationSteps(Arc::new(v)));
+                }
             }
             if fire_ready && !any_failed && started.elapsed() > READY_TOAST_AFTER {
                 let body = if friendly.is_empty() {
@@ -742,7 +772,7 @@ impl Engine {
                 pack.version()
             ));
             let options = LaunchOptions::default();
-            let (sid, uuid, cancel) = match self.admit(&pack, &options) {
+            let (sid, uuid, cancel) = match self.admit(&pack, &options, None) {
                 Ok(x) => x,
                 Err(e) => break Err(e),
             };
@@ -798,8 +828,15 @@ impl Engine {
     // Verify and update
     // -----------------------------------------------------------------------------------------
 
-    /// A tracker whose rows report as [`EngineEvent::Progress`] of `op`.
-    fn progress_tracker(&self, pack: &GameModPack, op: OperationId) -> Arc<TrackerBridge> {
+    /// A tracker whose rows report as [`EngineEvent::Progress`] and
+    /// [`EngineEvent::OperationSteps`] of `op`, registered as the operation's rows
+    /// ([`Engine::operation_steps`]).
+    fn progress_tracker(
+        &self,
+        pack: &GameModPack,
+        op: OperationId,
+        cancel: &CancelToken,
+    ) -> Arc<TrackerBridge> {
         let ids = StepId::launch_steps(pack.is_vanilla(), pack.uses_post_install_steps());
         let tracker = LaunchProgressTracker::for_steps(&ids);
         let tx = self.inner.events.clone();
@@ -807,10 +844,13 @@ impl Engine {
             "engine.progress.verify",
             pack.friendly_name().unwrap_or_else(|| pack.name())
         );
+        let pack_id = PackId::of(pack);
+        self.set_op_tracker(op, pack_id.clone(), label.clone(), tracker.clone());
         let weak = Arc::downgrade(&tracker);
         let last = Mutex::new(None::<Instant>);
+        let cancel = cancel.clone();
         tracker.add_listener(Arc::new(move |snap: &StepSnapshot| {
-            let fraction = weak.upgrade().map_or(-1.0, |t| t.overall_fraction());
+            let Some(t) = weak.upgrade() else { return };
             let mut l = last.lock();
             let terminal = is_terminal(snap.state) || snap.state == StepState::Running;
             if !terminal && l.is_some_and(|t| t.elapsed() < STEP_EMIT_INTERVAL) {
@@ -818,6 +858,7 @@ impl Engine {
             }
             *l = Some(Instant::now());
             drop(l);
+            let fraction = t.overall_fraction();
             let step = step_label(snap.id);
             let text = if snap.sub_text.is_empty() {
                 step
@@ -830,6 +871,17 @@ impl Engine {
                 text,
                 fraction,
             }));
+            let _ = tx.send(EngineEvent::OperationSteps(Arc::new(
+                crate::event::OperationStepsView {
+                    operation: op,
+                    pack: Some(pack_id.clone()),
+                    session: None,
+                    label: label.clone(),
+                    steps: t.steps().iter().map(step_view).collect(),
+                    fraction,
+                    cancel_requested: cancel.is_cancelled(),
+                },
+            )));
         }));
         Arc::new(TrackerBridge::new(tracker))
     }
@@ -845,19 +897,24 @@ impl Engine {
     }
 
     /// [`Engine::verify_one`] for a caller that already holds the pack's [`BusyGuard`].
+    /// Cancellable through [`Engine::cancel_operation`]`(op)`.
     async fn verify_held(&self, pack: &Arc<GameModPack>, op: OperationId) -> EngineResult<()> {
+        let (_op, cancel) = self.begin_op(op);
+        if cancel.is_cancelled() {
+            return Err(EngineError::Cancelled);
+        }
         let id = PackId::of(pack);
-        let bridge = self.progress_tracker(pack, op);
+        let bridge = self.progress_tracker(pack, op, &cancel);
         let env = self.inner.launch_env.clone();
-        mmcl_launch::verify_all_files_now(
-            &env,
-            pack,
-            bridge.clone(),
-            Some(bridge),
-            &CancelToken::new(),
-        )
-        .await
-        .map_err(launch_error)?;
+        mmcl_launch::verify_all_files_now(&env, pack, bridge.clone(), Some(bridge), &cancel)
+            .await
+            .map_err(|e| {
+                if cancel.is_cancelled() {
+                    EngineError::Cancelled
+                } else {
+                    launch_error(e)
+                }
+            })?;
         self.emit(EngineEvent::PackChanged(id));
         Ok(())
     }
@@ -875,14 +932,17 @@ impl Engine {
                 return Err(e);
             }
         };
+        let guard = self.begin_op(op);
         let res = self.verify_one(&pack, op).await;
+        drop(guard);
         self.emit(EngineEvent::OperationFinished(op));
         res.map(|_| op)
     }
 
     /// [`Engine::verify_all_packs`]: every loaded, idle pack in turn; the first error is
-    /// reported after the rest have run.
+    /// reported after the rest have run. A cancel stops before the next pack.
     pub(super) async fn verify_all_impl(&self, op: OperationId) -> EngineResult<OperationId> {
+        let (guard, cancel) = self.begin_op(op);
         let packs = self.inner.packs.installed_snapshot();
         if packs.is_empty() {
             self.notify(Notification::new(
@@ -893,6 +953,10 @@ impl Engine {
         }
         let mut first_err = None;
         for p in packs.iter() {
+            if cancel.is_cancelled() {
+                first_err = Some(EngineError::Cancelled);
+                break;
+            }
             if p.is_failed_load() || p.is_stub() {
                 continue;
             }
@@ -916,12 +980,16 @@ impl Engine {
                 self.notify(n);
                 continue;
             }
-            if let Err(e) = self.verify_one(p, op).await
-                && first_err.is_none()
-            {
-                first_err = Some(e);
+            match self.verify_one(p, op).await {
+                Err(EngineError::Cancelled) => {
+                    first_err = Some(EngineError::Cancelled);
+                    break;
+                }
+                Err(e) if first_err.is_none() => first_err = Some(e),
+                _ => {}
             }
         }
+        drop(guard);
         self.emit(EngineEvent::OperationFinished(op));
         match first_err {
             Some(e) => Err(e),
@@ -940,9 +1008,13 @@ impl Engine {
             self.emit(EngineEvent::OperationFinished(op));
             e
         };
+        let (_op, cancel) = self.begin_op(op);
         let pack = self.require_installed(id).map_err(finished)?;
         // Busy for the whole update, so no launch can start between the re-install and the sync.
         let _busy = BusyGuard::take(self, id, &pack.name()).map_err(finished)?;
+        if cancel.is_cancelled() {
+            return Err(finished(EngineError::Cancelled));
+        }
         let fresh = match pack.manifest_url() {
             Some(url) if !pack.is_vanilla() => {
                 let url = url.to_string();

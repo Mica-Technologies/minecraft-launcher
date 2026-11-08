@@ -50,8 +50,8 @@ pub use msa::{MsaClient, MsaError};
 pub use resolve::{Blocked, Problem, Resolution, resolve};
 pub use service::{AuthService, AuthTimeouts, ConfigDefaultAccount};
 pub use signin::{
-    DeviceCodeFlow, DeviceCodePrompt, MsaTokens, SignInError, SignInFlow, SignInKind, WamFlow,
-    WebViewHelperFlow,
+    DeviceCodeFlow, DeviceCodePrompt, MsaTokens, PageEventCallback, PageReloader, SignInError,
+    SignInFlow, SignInKind, SignInPageEvent, WamFlow, WebViewHelperFlow,
 };
 pub use spawn::{InlineSpawner, SerialSpawner, Spawn};
 pub use status::StatusHub;

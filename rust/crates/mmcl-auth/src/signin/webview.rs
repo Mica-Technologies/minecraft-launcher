@@ -4,9 +4,12 @@
 //! (`mmcl-signin-webview`), reads the redirect URL from the helper's stdout and exchanges the
 //! code in it.
 //!
-//! The helper's contract (stdout carries exactly one line, the redirect URL; exit codes 0 =
+//! The helper's contract (stdout carries the redirect URL as its last line; exit codes 0 =
 //! redirect, 1 = failed, 2 = closed by the user, 3 = bad arguments, 4 = parent gone) is mirrored
-//! here because this crate sits below the helper crate.
+//! here because this crate sits below the helper crate. Before the redirect the helper may print
+//! `mmcl-signin:loading` / `mmcl-signin:loaded` / `mmcl-signin:load-failed` page lines
+//! ([`SignInPageEvent`]); a `reload` line on its stdin loads the page again
+//! ([`PageReloader`]).
 
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -41,6 +44,76 @@ const EXIT_PARENT_GONE: i32 = 4;
 const ARG_WATCH_STDIN: &str = "--watch-stdin";
 /// How long a cancelled helper gets to close on its own before it is killed.
 const CANCEL_GRACE: Duration = Duration::from_secs(3);
+/// Prefix of the helper's page lines (`mmcl_signin_webview::PAGE_LINE_PREFIX`).
+pub const PAGE_LINE_PREFIX: &str = "mmcl-signin:";
+/// The stdin line that makes the helper load the page again (`mmcl_signin_webview::RELOAD_COMMAND`).
+pub const RELOAD_COMMAND: &str = "reload";
+
+/// What the helper's web view reports about Microsoft's page before the redirect.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SignInPageEvent {
+    /// The page is loading (show a spinner).
+    Loading,
+    /// The page is up.
+    Loaded,
+    /// The page could not be reached (show "Try again").
+    LoadFailed,
+}
+
+impl SignInPageEvent {
+    /// Parses a helper page line; `None` for anything else.
+    pub fn parse_line(line: &str) -> Option<SignInPageEvent> {
+        match line.trim().strip_prefix(PAGE_LINE_PREFIX)? {
+            "loading" => Some(SignInPageEvent::Loading),
+            "loaded" => Some(SignInPageEvent::Loaded),
+            "load-failed" => Some(SignInPageEvent::LoadFailed),
+            _ => None,
+        }
+    }
+}
+
+/// Receives the helper's page events (called on the flow's task).
+pub type PageEventCallback = Arc<dyn Fn(SignInPageEvent) + Send + Sync>;
+
+/// Asks a running helper to load Microsoft's page again (the "Try again" button). Cheap to
+/// clone; a reload asked for while no helper runs does nothing.
+#[derive(Clone, Default)]
+pub struct PageReloader {
+    tx: Arc<parking_lot::Mutex<Option<futures::channel::mpsc::UnboundedSender<()>>>>,
+}
+
+impl std::fmt::Debug for PageReloader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PageReloader")
+            .field("attached", &self.tx.lock().is_some())
+            .finish()
+    }
+}
+
+impl PageReloader {
+    /// Asks the running helper to reload. `false` when no helper is running.
+    pub fn reload(&self) -> bool {
+        self.tx
+            .lock()
+            .as_ref()
+            .is_some_and(|tx| tx.unbounded_send(()).is_ok())
+    }
+
+    /// Whether a helper is attached.
+    pub fn is_attached(&self) -> bool {
+        self.tx.lock().is_some()
+    }
+
+    fn attach(&self) -> futures::channel::mpsc::UnboundedReceiver<()> {
+        let (tx, rx) = futures::channel::mpsc::unbounded();
+        *self.tx.lock() = Some(tx);
+        rx
+    }
+
+    fn detach(&self) {
+        self.tx.lock().take();
+    }
+}
 
 /// The web view helper flow.
 #[derive(Clone)]
@@ -50,6 +123,8 @@ pub struct WebViewHelperFlow {
     client_id: String,
     title: Option<String>,
     locale: Option<String>,
+    on_page: Option<PageEventCallback>,
+    reloader: PageReloader,
 }
 
 impl std::fmt::Debug for WebViewHelperFlow {
@@ -70,7 +145,20 @@ impl WebViewHelperFlow {
             client_id: OFFICIAL_CLIENT_ID.to_string(),
             title: None,
             locale: None,
+            on_page: None,
+            reloader: PageReloader::default(),
         }
+    }
+
+    /// Reports the helper's page events ([`SignInPageEvent`]) to `callback`.
+    pub fn with_page_events(mut self, callback: PageEventCallback) -> Self {
+        self.on_page = Some(callback);
+        self
+    }
+
+    /// The handle that asks the running helper to reload its page. Clones share the helper.
+    pub fn reloader(&self) -> PageReloader {
+        self.reloader.clone()
     }
 
     /// Uses another helper executable (default: `std::env::current_exe()`).
@@ -131,20 +219,40 @@ impl WebViewHelperFlow {
                 SignInError::HelperUnavailable
             })?;
         // Kept open while waiting: closing it tells the helper to exit.
-        let stdin = child.stdin.take();
+        let mut stdin = child.stdin.take();
         let stdout = child.stdout.take().ok_or(SignInError::HelperUnavailable)?;
         let mut lines = BufReader::new(stdout).lines();
-
-        let line = tokio::select! {
-            l = first_redirect_line(&mut lines) => l,
-            _ = cancel.cancelled() => {
-                drop(stdin);
-                if tokio::time::timeout(CANCEL_GRACE, child.wait()).await.is_err() {
-                    let _ = child.kill().await;
-                }
-                return Err(SignInError::Cancelled);
+        let mut reloads = self.reloader.attach();
+        let on_page = self.on_page.clone();
+        let mut on_line = move |l: &str| {
+            if let (Some(cb), Some(e)) = (&on_page, SignInPageEvent::parse_line(l)) {
+                cb(e);
             }
         };
+
+        let line = loop {
+            tokio::select! {
+                l = first_redirect_line_with(&mut lines, &mut on_line) => break l,
+                Some(()) = futures::StreamExt::next(&mut reloads) => {
+                    if let Some(s) = stdin.as_mut() {
+                        use tokio::io::AsyncWriteExt;
+                        let line = format!("{RELOAD_COMMAND}\n");
+                        if s.write_all(line.as_bytes()).await.is_err() || s.flush().await.is_err() {
+                            mmcl_log::debug(&mmcl_i18n::t!("log.authManager.helperReloadFailed"));
+                        }
+                    }
+                }
+                _ = cancel.cancelled() => {
+                    self.reloader.detach();
+                    drop(stdin);
+                    if tokio::time::timeout(CANCEL_GRACE, child.wait()).await.is_err() {
+                        let _ = child.kill().await;
+                    }
+                    return Err(SignInError::Cancelled);
+                }
+            }
+        };
+        self.reloader.detach();
         drop(stdin);
         let code = match tokio::time::timeout(CANCEL_GRACE, child.wait()).await {
             Ok(Ok(status)) => status.code(),
@@ -165,13 +273,24 @@ impl WebViewHelperFlow {
 
 /// The first stdout line that is the redirect. Anything else a web engine or toolkit prints on
 /// stdout is skipped rather than taken for the result; `None` at end of output.
+#[cfg(test)]
 async fn first_redirect_line<R: tokio::io::AsyncBufRead + Unpin>(
     lines: &mut tokio::io::Lines<R>,
+) -> Option<String> {
+    first_redirect_line_with(lines, &mut |_| {}).await
+}
+
+/// [`first_redirect_line`], handing every other line to `other` (page lines, noise) first.
+/// Cancel safe: dropped between lines, nothing is lost.
+async fn first_redirect_line_with<R: tokio::io::AsyncBufRead + Unpin>(
+    lines: &mut tokio::io::Lines<R>,
+    other: &mut (dyn FnMut(&str) + Send),
 ) -> Option<String> {
     while let Ok(Some(line)) = lines.next_line().await {
         if is_redirect(line.trim()) {
             return Some(line);
         }
+        other(&line);
     }
     None
 }
@@ -332,6 +451,61 @@ mod tests {
             first_redirect_line(&mut BufReader::new(none).lines()).await,
             None
         );
+    }
+
+    #[tokio::test]
+    async fn page_lines_reach_the_callback_before_the_redirect() {
+        let out: &[u8] = b"mmcl-signin:loading\nnoise\nmmcl-signin:load-failed\nmmcl-signin:loading\nmmcl-signin:loaded\nhttps://login.live.com/oauth20_desktop.srf?code=M.C2\nmmcl-signin:loaded\n";
+        let mut lines = BufReader::new(out).lines();
+        let mut seen = Vec::new();
+        let line = first_redirect_line_with(&mut lines, &mut |l| {
+            if let Some(e) = SignInPageEvent::parse_line(l) {
+                seen.push(e);
+            }
+        })
+        .await;
+        assert_eq!(
+            line.as_deref(),
+            Some("https://login.live.com/oauth20_desktop.srf?code=M.C2")
+        );
+        assert_eq!(
+            seen,
+            [
+                SignInPageEvent::Loading,
+                SignInPageEvent::LoadFailed,
+                SignInPageEvent::Loading,
+                SignInPageEvent::Loaded
+            ]
+        );
+        // An old parent that only wants the redirect still finds it.
+        let mut lines = BufReader::new(out).lines();
+        assert!(first_redirect_line(&mut lines).await.is_some());
+        assert_eq!(
+            helper_outcome(Some(0), Some("mmcl-signin:loaded")),
+            Err(SignInError::HelperFailed(Some(0)))
+        );
+    }
+
+    #[test]
+    fn page_lines_parse_strictly() {
+        assert_eq!(
+            SignInPageEvent::parse_line(" mmcl-signin:loaded\r"),
+            Some(SignInPageEvent::Loaded)
+        );
+        assert_eq!(SignInPageEvent::parse_line("mmcl-signin:future"), None);
+        assert_eq!(SignInPageEvent::parse_line("loaded"), None);
+    }
+
+    #[test]
+    fn a_reload_without_a_helper_does_nothing() {
+        let r = PageReloader::default();
+        assert!(!r.reload());
+        assert!(!r.is_attached());
+        let mut rx = r.attach();
+        assert!(r.reload());
+        assert_eq!(rx.try_recv().ok(), Some(()));
+        r.detach();
+        assert!(!r.reload());
     }
 
     #[tokio::test]

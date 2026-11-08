@@ -16,6 +16,11 @@
 //!    [`EXIT_REDIRECT`] (0),
 //! 5. exits [`EXIT_CANCELLED`] (2) when the user closes the window.
 //!
+//! Before the redirect line it reports the page's state as `mmcl-signin:loading`,
+//! `mmcl-signin:loaded` and `mmcl-signin:load-failed` lines ([`page`]), and with
+//! `--watch-stdin` it reloads the page when the parent writes `reload` on stdin. A parent that
+//! only looks for the redirect line skips those lines, so the contract stays compatible.
+//!
 //! The other exit codes are in [`output`] and decode with [`HelperExit::from_code`]. The parent
 //! (`mmcl-auth`'s web-view sign-in flow) parses the printed URL with `parse_callback`; this
 //! crate never interprets the code and never logs the URL.
@@ -31,6 +36,7 @@ pub mod capture;
 pub mod config;
 pub mod layout;
 pub mod output;
+pub mod page;
 
 #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 mod window;
@@ -43,6 +49,7 @@ pub use output::{
     EXIT_BAD_ARGS, EXIT_CANCELLED, EXIT_FAILED, EXIT_PARENT_GONE, EXIT_REDIRECT, HelperExit,
     emit_redirect,
 };
+pub use page::{PAGE_LINE_PREFIX, PageEvent, PageLoadTracker, RELOAD_COMMAND, emit_page_event};
 
 use mmcl_core::MsaSigninArgs;
 

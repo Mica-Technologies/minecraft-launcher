@@ -2,8 +2,9 @@
 
 //! The helper's stdout protocol and exit codes.
 //!
-//! stdout carries exactly one line, the captured redirect URL, and nothing else: the parent
-//! reads the first line and parses it (`mmcl_auth::signin::parse_callback`). Logs go through
+//! stdout carries the captured redirect URL as its last line: the parent takes the first line
+//! that is the redirect and parses it (`mmcl_auth::signin::parse_callback`). The only other
+//! lines are the `mmcl-signin:` page lines of [`crate::page`], which never carry a URL. Logs go through
 //! `tracing` (stderr at most), never stdout. The URL holds a single-use authorization code, so
 //! it is never logged.
 

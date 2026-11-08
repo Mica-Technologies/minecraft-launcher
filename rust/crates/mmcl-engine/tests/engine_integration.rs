@@ -89,7 +89,10 @@ fn an_authored_pack_can_be_created_edited_and_forked() {
             .await
         })
     });
-    assert!(matches!(dup, Err(EngineError::Other(_))));
+    assert!(
+        matches!(&dup, Err(EngineError::ModPathTaken { local_path, .. }) if local_path == "MODS/JEI.JAR"),
+        "{dup:?}"
+    );
     let id2 = id.clone();
     let unsafe_path = h.run(move |e| {
         Box::pin(async move {
@@ -109,10 +112,10 @@ fn an_authored_pack_can_be_created_edited_and_forked() {
             .contains("jei.jar")
     );
     let id2 = id.clone();
-    assert!(
-        h.run(move |e| Box::pin(async move { e.remove_mod(&id2, "jei").await }))
-            .is_err()
-    );
+    assert!(matches!(
+        h.run(move |e| Box::pin(async move { e.remove_mod(&id2, "jei").await })),
+        Err(EngineError::ModNotFound { identifier, .. }) if identifier == "jei"
+    ));
 
     // Fork: a second authored pack with the minor version bumped.
     let id2 = id.clone();
@@ -548,4 +551,137 @@ fn operations_report_under_a_caller_supplied_id() {
         }
     }
     assert!(progress && done);
+}
+
+fn write_mrpack(path: &Path, index: &str, extra: &[(&str, &[u8])]) {
+    use std::io::Write;
+    let mut z = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
+    let opts = zip::write::SimpleFileOptions::default();
+    z.start_file("modrinth.index.json", opts).unwrap();
+    z.write_all(index.as_bytes()).unwrap();
+    for (name, body) in extra {
+        z.start_file(*name, opts).unwrap();
+        z.write_all(body).unwrap();
+    }
+    z.finish().unwrap();
+}
+
+const FABRIC_INDEX: &str = r#"{"formatVersion":1,"game":"minecraft","versionId":"v3.0","name":"Confirm Pack",
+  "summary":"A pack to confirm",
+  "files":[
+    {"path":"mods/sodium.jar","hashes":{"sha1":"aa"},"downloads":["https://cdn.modrinth.com/sodium.jar"],"fileSize":2048},
+    {"path":"mods/server.jar","hashes":{"sha1":"bb"},"env":{"client":"unsupported"},"downloads":["https://cdn.modrinth.com/s.jar"],"fileSize":10},
+    {"path":"config/a.toml","hashes":{"sha1":"cc"},"downloads":["https://cdn.modrinth.com/a.toml"],"fileSize":5}
+  ],
+  "dependencies":{"minecraft":"1.21.5","fabric-loader":"0.16.10"}}"#;
+
+#[test]
+fn an_import_waits_for_its_confirmation() {
+    use mmcl_engine::{ImportFileCategory, ImportPreviewSource, ImportRequest};
+    let h = harness(GameMode::Client);
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("confirm.mrpack");
+    write_mrpack(&file, FABRIC_INDEX, &[("overrides/config/extra.cfg", b"x")]);
+
+    let f = file.clone();
+    let preview = h
+        .run(move |e| Box::pin(async move { e.prepare_import(ImportRequest::MrpackFile(f)).await }))
+        .unwrap();
+    assert_eq!(preview.source, ImportPreviewSource::MrpackFile);
+    assert!(preview.has_details);
+    assert_eq!(preview.pack_name.as_deref(), Some("Confirm Pack"));
+    assert_eq!(preview.pack_version.as_deref(), Some("3.0"));
+    assert_eq!(preview.minecraft_version.as_deref(), Some("1.21.5"));
+    assert_eq!(preview.loader_type.as_deref(), Some("fabric"));
+    assert_eq!(preview.loader_version.as_deref(), Some("0.16.10"));
+    assert_eq!(preview.summary.as_deref(), Some("A pack to confirm"));
+    assert_eq!(preview.totals.mods, 2);
+    assert_eq!(preview.totals.configs, 1);
+    assert_eq!(preview.totals.total_bytes, 2063);
+    assert_eq!(preview.mods().count(), 2);
+    assert_eq!(preview.files[2].category, ImportFileCategory::Config);
+    // Nothing is in the library yet.
+    assert!(h.engine.installed_modpacks().is_empty());
+    assert_eq!(h.engine.prepared_imports(), [preview.token]);
+
+    // Cancel: nothing installed, the token is gone, the local file stays.
+    assert!(h.engine.discard_import(preview.token));
+    assert!(!h.engine.discard_import(preview.token));
+    assert!(file.is_file());
+    let t = preview.token;
+    assert!(matches!(
+        h.run(move |e| Box::pin(async move { e.commit_import(t).await })),
+        Err(EngineError::ImportNotPrepared(_))
+    ));
+
+    // Prepare again and confirm: the pack installs with its overrides.
+    let f = file.clone();
+    let preview = h
+        .run(move |e| Box::pin(async move { e.prepare_import(ImportRequest::MrpackFile(f)).await }))
+        .unwrap();
+    let t = preview.token;
+    let outcome = h
+        .run(move |e| Box::pin(async move { e.commit_import(t).await }))
+        .unwrap();
+    assert_eq!(outcome.mod_count, Some(2));
+    let installed = h.engine.installed_modpacks();
+    assert_eq!(installed.len(), 1);
+    assert_eq!(installed[0].id, outcome.pack);
+    assert!(h.engine.prepared_imports().is_empty());
+
+    // Sources read only on confirm have no details; CurseForge is still refused.
+    let zip = dir.path().join("x.zip");
+    let preview = h
+        .run(move |e| Box::pin(async move { e.prepare_import(ImportRequest::ZipFile(zip)).await }))
+        .unwrap();
+    assert!(!preview.has_details);
+    assert_eq!(preview.source_label, "x.zip");
+    assert!(h.engine.discard_import(preview.token));
+    assert!(
+        h.run(move |e| Box::pin(async move {
+            e.prepare_import(ImportRequest::Url(
+                "https://www.curseforge.com/minecraft/modpacks/x".into(),
+            ))
+            .await
+        }))
+        .is_err()
+    );
+}
+
+#[test]
+fn operations_can_be_looked_up_and_cancelled() {
+    let h = harness(GameMode::Client);
+    let op = h.engine.next_operation_id();
+    assert!(!h.engine.cancel_operation(op), "nothing runs under it");
+    assert!(!h.engine.is_operation_running(op));
+    assert!(h.engine.operation_steps(op).is_none());
+    assert!(h.engine.session_for_operation(op).is_none());
+
+    // A refused launch under a chosen id still ends that id.
+    let mut rx = h.engine.subscribe();
+    let bad = PackId::new("https://example.invalid/none.json");
+    let res = h.run(move |e| {
+        Box::pin(async move { e.launch_with(&bad, LaunchOptions::default(), op).await })
+    });
+    assert!(res.is_err());
+    let mut finished = false;
+    while let Ok(ev) = rx.try_recv() {
+        if matches!(ev, EngineEvent::OperationFinished(o) if o == op) {
+            finished = true;
+        }
+    }
+    assert!(finished);
+}
+
+#[test]
+fn idle_prefetch_and_page_retry_are_quiet_without_work() {
+    let h = harness(GameMode::Client);
+    assert!(h.engine.last_played_pack().is_none());
+    assert!(
+        h.run(|e| Box::pin(async move { e.prefetch_last_played().await }))
+            .is_none()
+    );
+    let id = PackId::new("https://example.invalid/none.json");
+    assert!(!h.run(move |e| Box::pin(async move { e.prefetch_client_json(&id).await })));
+    assert!(!h.engine.retry_sign_in_page(), "no web view sign-in runs");
 }
