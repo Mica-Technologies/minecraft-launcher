@@ -1,0 +1,457 @@
+// Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
+
+//! View models: plain, cloneable snapshots the front ends render. None of them holds a token;
+//! account UUIDs and paths appear only where a screen needs them (MCP narrows further).
+
+use std::fmt;
+use std::path::PathBuf;
+
+use serde::Serialize;
+
+use mmcl_modpack::GameModPack;
+
+/// A pack's stable id: its settings key (the manifest URL, or `vanilla:<version>`), else
+/// `name:<pack name>` for packs that have neither.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
+pub struct PackId(pub String);
+
+impl PackId {
+    /// Wraps a raw id.
+    pub fn new(id: impl Into<String>) -> PackId {
+        PackId(id.into())
+    }
+
+    /// The id of `pack` (`GameSession.keyFor`).
+    pub fn of(pack: &GameModPack) -> PackId {
+        PackId(
+            pack.settings_key()
+                .unwrap_or_else(|| format!("name:{}", pack.name())),
+        )
+    }
+
+    /// The vanilla pseudo-pack of a Minecraft version.
+    pub fn vanilla(mc_version: &str) -> PackId {
+        PackId(format!("vanilla:{mc_version}"))
+    }
+
+    /// The raw id.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// The Minecraft version when this is a vanilla id.
+    pub fn vanilla_version(&self) -> Option<&str> {
+        self.0.strip_prefix("vanilla:")
+    }
+}
+
+impl fmt::Display for PackId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// How a pack object was loaded.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum PackLoadState {
+    /// Fully loaded manifest.
+    Loaded,
+    /// Card fields only (from the install index); a full load is pending.
+    Stub,
+    /// The manifest could not be loaded; see [`PackSummary::load_error`].
+    Failed,
+}
+
+/// One pack card (library grid, browse grid, TUI list, MCP listing).
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct PackSummary {
+    pub id: PackId,
+    /// `packName`.
+    pub name: String,
+    /// The display name (`name: version` style); falls back to `name`.
+    pub friendly_name: String,
+    /// The published version (`packVersion`).
+    pub version: String,
+    /// The version installed on disk, when known.
+    pub installed_version: Option<String>,
+    pub installed: bool,
+    pub update_available: bool,
+    pub is_vanilla: bool,
+    /// `forge` / `neoforge` / `fabric`; `None` for vanilla.
+    pub mod_loader: Option<String>,
+    /// The Minecraft version from the manifest, when it states one.
+    pub minecraft_version: Option<String>,
+    pub unstable: bool,
+    pub load_state: PackLoadState,
+    pub load_error: Option<String>,
+    pub manifest_url: Option<String>,
+    pub logo_url: Option<String>,
+    pub logo_count: usize,
+    pub background_url: Option<String>,
+    pub background_count: usize,
+    pub min_ram_gb: f64,
+    pub last_played_ms: i64,
+    pub total_play_time_ms: i64,
+    pub launch_count: i32,
+    pub never_played: bool,
+    pub unread_news: usize,
+    /// A game of this pack is preparing or running.
+    pub active: bool,
+}
+
+/// A news item of a pack.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct PackNewsView {
+    pub id: Option<String>,
+    pub title: Option<String>,
+    pub body: Option<String>,
+    pub date: Option<String>,
+    pub url: Option<String>,
+}
+
+/// One entry of the pack's update log (newest first).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct UpdateLogView {
+    pub version: String,
+    pub when: String,
+}
+
+/// A saved server of a pack.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ServerView {
+    pub name: String,
+    pub host: String,
+    pub port: Option<i32>,
+}
+
+/// The detail modal / editor header of one pack.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct PackDetails {
+    pub summary: PackSummary,
+    /// The install folder.
+    pub root: PathBuf,
+    pub loader_name: Option<String>,
+    pub loader_version: Option<String>,
+    pub news: Vec<PackNewsView>,
+    pub update_log: Vec<UpdateLogView>,
+    pub servers: Vec<ServerView>,
+    pub default_server: Option<ServerView>,
+    /// The account UUID this pack launches as (its override), if set.
+    pub account_override: Option<String>,
+    pub always_verify_on_launch: bool,
+    /// `EveryTime`, `Daily`, ... as the config stores it; `None` = the default.
+    pub scan_frequency: Option<String>,
+    /// Whether the newest crash report exists.
+    pub has_crash_report: bool,
+    /// How this pack can be shared (URL, manifest JSON, or a zip export).
+    pub export_mode: ExportModeView,
+}
+
+/// How a pack can be shared ([`mmcl_modpack::export::ExportMode`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum ExportModeView {
+    ShareUrl,
+    ShareManifestJson,
+    ExportZip,
+}
+
+/// Disk use of a pack (bounded walk).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct PackFootprint {
+    pub size_bytes: u64,
+    pub world_count: u32,
+    /// The walk stopped early (time or entry budget, unreadable folder).
+    pub approximate: bool,
+}
+
+/// One signed-in account.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct AccountView {
+    pub uuid: String,
+    /// `""` when unknown.
+    pub name: String,
+    pub status: AccountStatus,
+    pub is_default: bool,
+    pub remembered: bool,
+    pub last_used_ms: i64,
+}
+
+/// An account's state ([`mmcl_auth::Status`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum AccountStatus {
+    Ready,
+    Refreshing,
+    NeedsSignIn,
+}
+
+impl AccountStatus {
+    /// The localization key of the status line.
+    pub fn l10n_key(self) -> &'static str {
+        match self {
+            AccountStatus::Ready => "account.status.signedIn",
+            AccountStatus::Refreshing => "account.status.refreshing",
+            AccountStatus::NeedsSignIn => "account.status.needsSignIn",
+        }
+    }
+}
+
+impl From<&mmcl_auth::AccountInfo> for AccountView {
+    fn from(a: &mmcl_auth::AccountInfo) -> Self {
+        AccountView {
+            uuid: a.uuid.clone(),
+            name: a.display_name.clone(),
+            status: match a.status {
+                mmcl_auth::Status::Ready => AccountStatus::Ready,
+                mmcl_auth::Status::Refreshing => AccountStatus::Refreshing,
+                mmcl_auth::Status::NeedsSignIn => AccountStatus::NeedsSignIn,
+            },
+            is_default: a.is_default,
+            remembered: a.remembered,
+            last_used_ms: a.last_used_ms,
+        }
+    }
+}
+
+/// One installed Java runtime.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct RuntimeView {
+    /// The component (`java-runtime-gamma`, `jre-legacy`, ...).
+    pub component: String,
+    /// The `.version` marker; `None` when unknown.
+    pub version: Option<String>,
+    pub path: PathBuf,
+    pub size_mb: u64,
+    /// A running game uses it (deleting fails).
+    pub in_use: bool,
+}
+
+/// One backup archive of a pack.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct BackupView {
+    pub path: PathBuf,
+    pub file_name: String,
+    pub size_bytes: u64,
+    pub modified_ms: i64,
+}
+
+/// What [`crate::Engine::export_pack`] writes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ExportRequest {
+    /// A zip of the pack folder (minus caches), optionally with `saves`.
+    Zip { dest: PathBuf, include_saves: bool },
+    /// The manifest JSON only.
+    ManifestJson { dest: PathBuf },
+    /// A profile in the official Minecraft launcher.
+    OfficialLauncher,
+}
+
+/// What [`crate::Engine::import`] reads.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ImportRequest {
+    /// A pasted URL (Modrinth / CurseForge / Technic project page, or a Mica manifest URL).
+    Url(String),
+    /// A `.mrpack` file.
+    MrpackFile(PathBuf),
+    /// A zip (Mica export, Technic server zip, CurseForge zip).
+    ZipFile(PathBuf),
+    /// A `.mmcjson` / `.json` manifest file.
+    ManifestFile(PathBuf),
+    /// A Prism / MultiMC instance folder.
+    PrismInstance(PathBuf),
+}
+
+/// Where a pasted URL points ([`mmcl_modpack::import::classifier::ImportSource`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum ImportSourceView {
+    Modrinth,
+    CurseForge,
+    Technic,
+    Mica,
+    Unknown,
+}
+
+/// A finished import.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ImportOutcome {
+    /// The registered pack.
+    pub pack: PackId,
+    /// Mods brought in, when the importer counts them.
+    pub mod_count: Option<usize>,
+}
+
+/// One Modrinth search hit (editor "add a mod", browse import).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ModSearchHit {
+    pub project_id: Option<String>,
+    pub slug: Option<String>,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub icon_url: Option<String>,
+    pub author: Option<String>,
+    pub downloads: i64,
+}
+
+impl From<mmcl_modpack::import::modrinth::SearchHit> for ModSearchHit {
+    fn from(h: mmcl_modpack::import::modrinth::SearchHit) -> Self {
+        ModSearchHit {
+            project_id: h.project_id,
+            slug: h.slug,
+            title: h.title,
+            description: h.description,
+            icon_url: h.icon_url,
+            author: h.author,
+            downloads: h.downloads,
+        }
+    }
+}
+
+/// A resolved downloadable mod file.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ModFileView {
+    pub filename: Option<String>,
+    pub url: String,
+    pub sha1: Option<String>,
+    pub sha512: Option<String>,
+    pub size: i64,
+    pub version_number: Option<String>,
+}
+
+/// One loader version (editor picker, quick-start wizard).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct LoaderVersionView {
+    /// `forge`, `neoforge`, `fabric`.
+    pub loader_type: String,
+    pub minecraft_version: String,
+    pub loader_version: String,
+    pub display_name: String,
+    pub installed: bool,
+}
+
+/// One vanilla Minecraft version.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct VanillaVersionView {
+    pub id: String,
+    /// `release`, `snapshot`, `old_beta`, `old_alpha`.
+    pub kind: String,
+    pub release_time: String,
+    pub installed: bool,
+}
+
+/// A crash diagnosis, already localized.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct CrashView {
+    /// `OutOfMemory`, `JavaVersion`, ... (the enum name).
+    pub category: String,
+    pub severity: CrashSeverity,
+    pub title: String,
+    pub summary: String,
+    pub suggestions: Vec<CrashSuggestionView>,
+    /// The raw (redacted) report text the diagnosis read.
+    pub report: Option<String>,
+}
+
+/// How serious a crash is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum CrashSeverity {
+    Critical,
+    Warning,
+    Info,
+}
+
+/// One suggested fix. `action` is `None` for a hint with no button.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct CrashSuggestionView {
+    pub label: String,
+    pub primary: bool,
+    #[serde(skip)]
+    pub action: Option<mmcl_crash::CrashAction>,
+}
+
+/// The RGB status chip on Settings → RGB.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct RgbStatusView {
+    pub enabled: bool,
+    pub running: bool,
+    pub text: String,
+    pub tone: ChipTone,
+}
+
+/// Status chip colour.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum ChipTone {
+    Muted,
+    Success,
+    Warn,
+    Danger,
+}
+
+/// The launcher-wide status line (MCP `get_launcher_status`, TUI header).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct LauncherStatus {
+    pub launcher_version: String,
+    pub display_name: String,
+    pub is_dev: bool,
+    pub signed_in: bool,
+    /// The default account's name only.
+    pub username: Option<String>,
+    pub installed_pack_count: usize,
+    pub offline: bool,
+    pub server_mode: bool,
+}
+
+/// The announcement banners.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct AnnouncementsView {
+    pub home: String,
+    pub login: String,
+    pub settings: String,
+    pub modpacks_edit: String,
+    pub disable_gameplay: bool,
+    pub disable_modpacks_edit: bool,
+}
+
+/// A newer launcher release.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct UpdateInfo {
+    pub version: String,
+    pub url: String,
+    pub notes: Option<String>,
+}
+
+/// Progress of the malware scan (Settings → Security).
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct ScanProgress {
+    /// 0..1, negative while the total is unknown.
+    pub fraction: f64,
+    /// The latest output line (ANSI codes stripped).
+    pub line: String,
+}
+
+/// The result of a malware scan.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ScanSummary {
+    pub stage1: usize,
+    pub stage2: usize,
+    pub high: usize,
+    pub medium: usize,
+    pub cancelled: bool,
+}
+
+/// System memory (Settings → Game).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub struct SystemMemory {
+    pub total_gb: f64,
+    pub used_gb: f64,
+}
+
+/// A known mod conflict in a pack's mods folder (Java `ModConflictDetector`), localized. The
+/// front end asks before launching: disable one jar ([`crate::Engine::disable_mod_jar`]),
+/// launch anyway, or cancel (dialog keys `launch.modConflict.*`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ModConflictView {
+    pub title: String,
+    pub description: String,
+    /// The jar file names (in `mods/`) of the two sides.
+    pub first_jar: String,
+    pub second_jar: String,
+}

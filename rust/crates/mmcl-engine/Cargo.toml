@@ -1,0 +1,49 @@
+[package]
+name = "mmcl-engine"
+description = "The application facade every front end (GUI, TUI, MCP, server mode) uses: the tokio runtime, the services, the event bus and every launcher operation."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-log.workspace = true
+mmcl-util.workspace = true
+mmcl-config.workspace = true
+mmcl-net.workspace = true
+mmcl-secure.workspace = true
+mmcl-progress.workspace = true
+mmcl-manifest.workspace = true
+mmcl-mojang.workspace = true
+mmcl-crash.workspace = true
+mmcl-auth.workspace = true
+mmcl-modpack.workspace = true
+mmcl-runtime.workspace = true
+mmcl-rgb.workspace = true
+mmcl-discord.workspace = true
+mmcl-platform.workspace = true
+mmcl-archive.workspace = true
+mmcl-scan.workspace = true
+mmcl-launch.workspace = true
+mmcl-session.workspace = true
+tokio.workspace = true
+futures.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+url.workspace = true
+base64.workspace = true
+md-5.workspace = true
+zip.workspace = true
+uuid.workspace = true
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "webp"] }
+sysinfo = { version = "0.31", default-features = false, features = ["system"] }
+
+[dev-dependencies]
+tempfile.workspace = true
