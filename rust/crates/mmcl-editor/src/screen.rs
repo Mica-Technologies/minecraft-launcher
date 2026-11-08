@@ -59,9 +59,19 @@ pub const KEY_CONTEXT: &str = "ModpackEditor";
 
 /// Binds Ctrl/Cmd+S and Ctrl/Cmd+N inside the editor (Alt/Shift variants do not match).
 pub fn bind_keys(cx: &mut App) {
+    // KeyBinding::new does not resolve the "secondary" modifier in gpui-pre 0.3.11 (it panics
+    // on parse), so name the platform's modifier directly.
+    #[cfg(target_os = "macos")]
+    const SAVE: &str = "cmd-s";
+    #[cfg(target_os = "macos")]
+    const NEW: &str = "cmd-n";
+    #[cfg(not(target_os = "macos"))]
+    const SAVE: &str = "ctrl-s";
+    #[cfg(not(target_os = "macos"))]
+    const NEW: &str = "ctrl-n";
     cx.bind_keys([
-        KeyBinding::new("secondary-s", SaveDocument, Some(KEY_CONTEXT)),
-        KeyBinding::new("secondary-n", NewDocument, Some(KEY_CONTEXT)),
+        KeyBinding::new(SAVE, SaveDocument, Some(KEY_CONTEXT)),
+        KeyBinding::new(NEW, NewDocument, Some(KEY_CONTEXT)),
     ]);
 }
 
