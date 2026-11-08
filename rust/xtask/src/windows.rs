@@ -16,6 +16,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::ctx::{self, Args, Ctx};
 use crate::version::validate_msi_version;
+use crate::win_manifest;
 
 pub const DEFAULT_TARGET: &str = "x86_64-pc-windows-msvc";
 
@@ -69,6 +70,8 @@ pub fn dist(ctx: &Ctx, args: &Args) -> Result<()> {
     let stage = ctx.fresh_stage("windows")?;
     let exe = stage.join(exe_name(ctx));
     ctx::copy_file(&built, &exe)?;
+    // Replace GPUI's manifest with ours before signing (signing covers the resources).
+    win_manifest::apply(&exe, &ctx.workspace.join(win_manifest::SOURCE))?;
     let signer = Signer::from_env();
     if let Some(s) = &signer {
         s.sign(&exe)?;

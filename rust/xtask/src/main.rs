@@ -12,6 +12,7 @@
 //! cargo xtask dist linux   [--version V] [--target T] [--formats deb,rpm,tar,appimage]
 //!                          [--flavor ..] [--exe PATH | --no-build] [--out DIR]
 //! cargo xtask checksums <dir> [--out FILE]
+//! cargo xtask win-manifest <exe> [--manifest FILE] [--check]
 //! ```
 //! (`cargo xtask` is `cargo run -p xtask --`.)
 
@@ -20,6 +21,7 @@ mod ctx;
 mod linux;
 mod macos;
 mod version;
+mod win_manifest;
 mod windows;
 #[cfg(test)]
 mod wix_check;
@@ -32,7 +34,13 @@ use mmcl_core::{ACTIVE_IDENTITY, AppIdentity, Flavor};
 
 use ctx::Args;
 
-const SWITCHES: &[&str] = &["skip-installers", "no-build", "notarize", "github-output"];
+const SWITCHES: &[&str] = &[
+    "skip-installers",
+    "no-build",
+    "notarize",
+    "github-output",
+    "check",
+];
 
 const USAGE: &str = "usage:
   cargo xtask version [--mode local|pr|release|pre|tag] [--tag TAG] [--sha SHA] [--existing-tags FILE] [--github-output]
@@ -41,7 +49,8 @@ const USAGE: &str = "usage:
                                        windows: [--skip-installers]
                                        macos:   [--sign ID] [--installer-sign ID] [--notarize]
                                        linux:   [--formats deb,rpm,tar,appimage]
-  cargo xtask checksums <dir> [--out FILE]";
+  cargo xtask checksums <dir> [--out FILE]
+  cargo xtask win-manifest <exe> [--manifest FILE] [--check]";
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
@@ -70,6 +79,23 @@ fn run(raw: &[String]) -> Result<()> {
             let ctx = ctx::Ctx::new(&args, linux::DEFAULT_TARGET)?;
             log_versions(&ctx);
             linux::dist(&ctx, &args)
+        }
+        ["win-manifest", exe, ..] => {
+            let exe = PathBuf::from(exe);
+            if args.flag("check") {
+                win_manifest::verify(&exe, None)?;
+                eprintln!(
+                    "xtask: {} carries the launcher manifest (one RT_MANIFEST #1, every required setting)",
+                    exe.display()
+                );
+                Ok(())
+            } else {
+                let manifest = args.get("manifest").map_or_else(
+                    || ctx::workspace_dir().join(win_manifest::SOURCE),
+                    PathBuf::from,
+                );
+                win_manifest::apply(&exe, &manifest)
+            }
         }
         ["checksums", dir, ..] => {
             let sums = checksums::collect(&PathBuf::from(dir))?;

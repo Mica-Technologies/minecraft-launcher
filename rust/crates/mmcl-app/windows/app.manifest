@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!-- Copyright (c) Mica Technologies. Licensed under the GNU GPL v3. -->
-<!-- The launcher's application manifest. The packaging step writes it over the one GPUI embeds:
-     mt.exe -nologo -manifest windows/app.manifest -outputresource:<exe>;#1 -->
+<!-- The launcher's application manifest. `cargo xtask dist windows` writes it over the one GPUI
+     embeds (RT_MANIFEST #1) before signing; `cargo xtask win-manifest <exe>` does it for any
+     build, and the same command with its check switch verifies an exe. (A double hyphen is not
+     allowed inside an XML comment, hence no literal switch here.) -->
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>

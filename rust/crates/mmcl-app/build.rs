@@ -9,10 +9,11 @@
 // (`[target.'cfg(windows)'.dependencies.gpui] features = ["windows-manifest"]`), and
 // gpui-component, gpui-base and gpui-kit-assets depend on gpui-pre with default features. A
 // second RT_MANIFEST id 1 here fails the link (CVT1100 duplicate resource). Our full manifest,
-// which adds longPathAware and the UTF-8 activeCodePage, is `windows/app.manifest`; the
-// packaging step writes it over GPUI's after linking (`mt.exe -manifest windows/app.manifest
-// -outputresource:<exe>;#1`). A dev build without it still works: std uses `\\?\` paths for
-// long paths and the launcher calls only wide Win32 APIs.
+// which adds longPathAware and the UTF-8 activeCodePage, is `windows/app.manifest`;
+// `cargo xtask dist windows` writes it over GPUI's after linking and before signing (xtask's
+// `win_manifest` module: Win32 UpdateResourceW, then reads the exe back to check it), and
+// `cargo xtask win-manifest <exe>` does the same for any build. A dev build without it still
+// works: std uses `\\?\` paths for long paths and the launcher calls only wide Win32 APIs.
 //
 // Version: env MMCL_WIN_VERSION (set by `cargo xtask dist windows`), else derived from
 // MMCL_VERSION (year shortened to two digits so the major part fits in 255), else 0.0.0.0.
