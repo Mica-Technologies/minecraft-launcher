@@ -12,7 +12,7 @@ use mmcl_net::CancelToken;
 
 use super::Engine;
 use crate::error::{EngineError, EngineResult};
-use crate::event::{EngineEvent, OperationProgress};
+use crate::event::{EngineEvent, OperationId, OperationProgress};
 use crate::model::{PackId, ScanSummary, SystemMemory, UpdateInfo};
 
 const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
@@ -208,20 +208,24 @@ impl Engine {
     }
 
     /// [`Engine::scan_folder`]: Nekodetector stage 1 + 2, then the supplemental scanner.
-    pub(super) async fn scan_folder_impl(&self, folder: &Path) -> EngineResult<ScanSummary> {
+    pub(super) async fn scan_folder_impl(
+        &self,
+        folder: &Path,
+        op: OperationId,
+    ) -> EngineResult<ScanSummary> {
         let cancel = CancelToken::new();
         {
             let mut slot = self.inner.scan_cancel.lock();
             if let Some(c) = slot.as_ref()
                 && !c.is_cancelled()
             {
+                self.emit(EngineEvent::OperationFinished(op));
                 return Err(EngineError::Other(
                     mmcl_i18n::t!("engine.error.scanBusy").into_owned(),
                 ));
             }
             *slot = Some(cancel.clone());
         }
-        let op = self.next_operation_id();
         let tx = self.inner.events.clone();
         let folder = folder.to_path_buf();
         let label = mmcl_i18n::t!("engine.progress.scan").into_owned();

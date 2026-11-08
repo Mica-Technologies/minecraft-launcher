@@ -676,6 +676,9 @@ impl Engine {
             ));
         }
         let mut pack = self.require_installed(id)?;
+        // A headless server starts the engine without the GUI's background work; RGB and
+        // Discord are bootstrapped here instead (Java bootstraps RGB in every mode).
+        self.start_presence();
         let name = pack.name();
         let stopping = Arc::new(AtomicBool::new(false));
         let current: Arc<Mutex<Option<SessionId>>> = Arc::new(Mutex::new(None));
@@ -860,9 +863,18 @@ impl Engine {
     }
 
     /// [`Engine::verify_pack`].
-    pub(super) async fn verify_pack_impl(&self, id: &PackId) -> EngineResult<OperationId> {
-        let pack = self.require_installed(id)?;
-        let op = self.next_operation_id();
+    pub(super) async fn verify_pack_impl(
+        &self,
+        id: &PackId,
+        op: OperationId,
+    ) -> EngineResult<OperationId> {
+        let pack = match self.require_installed(id) {
+            Ok(p) => p,
+            Err(e) => {
+                self.emit(EngineEvent::OperationFinished(op));
+                return Err(e);
+            }
+        };
         let res = self.verify_one(&pack, op).await;
         self.emit(EngineEvent::OperationFinished(op));
         res.map(|_| op)
@@ -870,8 +882,7 @@ impl Engine {
 
     /// [`Engine::verify_all_packs`]: every loaded, idle pack in turn; the first error is
     /// reported after the rest have run.
-    pub(super) async fn verify_all_impl(&self) -> EngineResult<OperationId> {
-        let op = self.next_operation_id();
+    pub(super) async fn verify_all_impl(&self, op: OperationId) -> EngineResult<OperationId> {
         let packs = self.inner.packs.installed_snapshot();
         if packs.is_empty() {
             self.notify(Notification::new(
@@ -920,11 +931,18 @@ impl Engine {
 
     /// [`Engine::update_pack`]: re-install from the manifest URL (which backs up first when
     /// enabled and replaces the entry in place), then a FULL sync, then record the version.
-    pub(super) async fn update_pack_impl(&self, id: &PackId) -> EngineResult<OperationId> {
-        let pack = self.require_installed(id)?;
+    pub(super) async fn update_pack_impl(
+        &self,
+        id: &PackId,
+        op: OperationId,
+    ) -> EngineResult<OperationId> {
+        let finished = |e: EngineError| {
+            self.emit(EngineEvent::OperationFinished(op));
+            e
+        };
+        let pack = self.require_installed(id).map_err(finished)?;
         // Busy for the whole update, so no launch can start between the re-install and the sync.
-        let _busy = BusyGuard::take(self, id, &pack.name())?;
-        let op = self.next_operation_id();
+        let _busy = BusyGuard::take(self, id, &pack.name()).map_err(finished)?;
         let fresh = match pack.manifest_url() {
             Some(url) if !pack.is_vanilla() => {
                 let url = url.to_string();

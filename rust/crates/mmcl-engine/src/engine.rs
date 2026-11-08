@@ -9,10 +9,15 @@
 //! server mode can use [`Engine::block_on`].
 
 pub mod authoring;
+mod catalog;
+pub mod diag;
 mod hosts;
 mod launch;
 mod maintenance;
+pub mod net_hooks;
 pub mod official_export;
+
+pub use net_hooks::OfflineHttp;
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -53,7 +58,6 @@ pub enum RuntimeChoice {
 }
 
 /// How to build an [`Engine`].
-#[derive(Debug)]
 pub struct EngineOptions {
     /// The data folder (and with it the game mode).
     pub paths: DataPaths,
@@ -70,6 +74,30 @@ pub struct EngineOptions {
     /// Keep RGB and Discord on the newest running game (Java `RunningGameFollower`). A front
     /// end with a follower of its own turns this off.
     pub follow_running_games: bool,
+    /// The network the pack manager, catalogues, importers and launch pipeline use. `None` =
+    /// the real network ([`NetHttp`]); tests pass [`OfflineHttp`] (or their own fake) so no
+    /// request ever leaves the machine.
+    pub http: Option<Arc<dyn PackHttp>>,
+    /// Install the process-wide network hooks in [`Engine::new`]: the `mmcl-net` proxy
+    /// settings provider (read from this engine's config) and the battery download throttle.
+    /// On by default; tests that build many engines may turn it off.
+    pub net_hooks: bool,
+}
+
+impl std::fmt::Debug for EngineOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EngineOptions")
+            .field("paths", &self.paths)
+            .field("runtime", &self.runtime)
+            .field("event_capacity", &self.event_capacity)
+            .field("web_view_supported", &self.web_view_supported)
+            .field("start_background_work", &self.start_background_work)
+            .field("tui", &self.tui)
+            .field("follow_running_games", &self.follow_running_games)
+            .field("http", &self.http.as_ref().map(|_| "custom"))
+            .field("net_hooks", &self.net_hooks)
+            .finish()
+    }
 }
 
 impl EngineOptions {
@@ -85,12 +113,26 @@ impl EngineOptions {
             start_background_work: true,
             tui: false,
             follow_running_games: true,
+            http: None,
+            net_hooks: true,
         }
     }
 
     /// Defaults for the standard data folder of `mode`.
     pub fn for_mode(mode: GameMode) -> EngineOptions {
         EngineOptions::new(DataPaths::for_mode(mode))
+    }
+
+    /// A quiet, network-free engine for tests: the caller's runtime, no background work, no
+    /// running-game follower, no process-wide network hooks, and [`OfflineHttp`].
+    pub fn offline_for_tests(paths: DataPaths, handle: tokio::runtime::Handle) -> EngineOptions {
+        let mut o = EngineOptions::new(paths);
+        o.runtime = RuntimeChoice::Handle(handle);
+        o.start_background_work = false;
+        o.follow_running_games = false;
+        o.net_hooks = false;
+        o.http = Some(Arc::new(OfflineHttp));
+        o
     }
 }
 
@@ -197,6 +239,12 @@ struct Inner {
     follower: mmcl_session::LatestUpdateRunner,
     /// Packs whose files a verify / update / reinstall is rewriting right now.
     busy: Mutex<std::collections::HashSet<PackId>>,
+    /// The network every engine operation uses.
+    http: Arc<dyn PackHttp>,
+    /// The vanilla pseudo-packs, one object per installed version (they hold per-run state).
+    vanilla: Mutex<HashMap<String, Arc<GameModPack>>>,
+    /// RGB and Discord hosts installed and RGB bootstrapped ([`Engine::start_presence`]).
+    presence_started: AtomicBool,
 }
 
 impl Drop for Inner {
@@ -256,11 +304,16 @@ impl Engine {
         let auth = AuthService::new(&paths, config.clone(), &handle)
             .map_err(|e| anyhow::anyhow!(e.to_string()))
             .context("building the sign-in service")?;
-        let packs = ModPackManager::new(paths.clone(), NetHttp::shared(), config.clone());
+        let http = options.http.clone().unwrap_or_else(NetHttp::shared);
+        if options.net_hooks {
+            net_hooks::install(&config);
+        }
+        let packs = ModPackManager::new(paths.clone(), http.clone(), config.clone());
         let runtimes = RuntimeManager::new(paths.clone());
         let mut launch_env =
             mmcl_launch::LaunchEnv::new(paths.clone(), runtimes.clone(), Arc::new(config.clone()));
         launch_env.tui = options.tui;
+        launch_env.http = http.clone();
         // First engine of the process wins (the factory is process-wide).
         mmcl_launch::register_loader_factory(launch_env.clone());
         let sessions = Arc::new(SessionStore::default());
@@ -293,6 +346,9 @@ impl Engine {
                 follower: mmcl_session::LatestUpdateRunner::on_daemon_thread(
                     "mmcl-running-game-follower",
                 ),
+                http,
+                vanilla: Mutex::new(HashMap::new()),
+                presence_started: AtomicBool::new(false),
             }),
         };
         engine.wire();
@@ -381,15 +437,31 @@ impl Engine {
             packs.fetch_mod_pack_info().await;
         });
         // RGB and Discord read the launcher through the engine; RGB starts in the background.
-        self.install_hosts();
-        mmcl_rgb::integration::bootstrap();
+        self.start_presence();
         // Fire-and-forget startup checks (Java steps 14-15).
         let me = self.clone();
         i.handle.spawn(async move {
-            let _ = mmcl_net::check_network_availability().await;
+            let _ = me.inner.http.refresh_network_availability().await;
             me.inner.auth.try_preemptive_background_renewal();
             let _ = me.refresh_announcements().await;
         });
+    }
+
+    /// Installs the RGB and Discord hosts over this engine and bootstraps RGB (Java bootstraps
+    /// RGB in every mode). Idempotent: only the first call does anything. Called by
+    /// [`Engine::start_background_work`] and by [`Engine::run_server`], so a headless server
+    /// gets RGB and Discord too without starting the GUI's background work.
+    pub fn start_presence(&self) {
+        if self.inner.presence_started.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        self.install_hosts();
+        mmcl_rgb::integration::bootstrap();
+    }
+
+    /// The network this engine uses (the real one unless [`EngineOptions::http`] replaced it).
+    pub fn http(&self) -> Arc<dyn PackHttp> {
+        self.inner.http.clone()
     }
 
     /// Runs `fut` on the engine's runtime; the returned task can be awaited from any executor.
@@ -540,11 +612,27 @@ impl Engine {
             } else {
                 0
             },
+            website: m
+                .pack_url
+                .as_deref()
+                .map(str::trim)
+                .filter(|u| !u.is_empty())
+                .map(str::to_string),
+            logo_path: if installed {
+                Some(pack.environment().logo_path_raw(pack)).filter(|p| p.is_file())
+            } else {
+                None
+            },
+            custom_discord_rpc: m.pack_custom_discord_rpc,
         }
     }
 
-    /// The installed pack object of `id`.
+    /// The installed pack object of `id`: a modpack of the library, else an installed vanilla
+    /// version (`vanilla:<version>`).
     fn installed_pack(&self, id: &PackId) -> Option<Arc<GameModPack>> {
+        if let Some(v) = id.vanilla_version() {
+            return self.vanilla_pack(v);
+        }
         self.inner
             .packs
             .installed_snapshot()
@@ -553,13 +641,64 @@ impl Engine {
             .cloned()
     }
 
+    /// The pack object of an installed vanilla version (one per version, kept while it stays
+    /// installed).
+    fn vanilla_pack(&self, version: &str) -> Option<Arc<GameModPack>> {
+        if !mmcl_modpack::catalog::vanilla::is_installed(&self.inner.config, version) {
+            self.inner.vanilla.lock().remove(version);
+            return None;
+        }
+        let mut map = self.inner.vanilla.lock();
+        Some(
+            map.entry(version.to_string())
+                .or_insert_with(|| GameModPack::vanilla(self.inner.paths.clone(), version))
+                .clone(),
+        )
+    }
+
+    /// Every installed vanilla version's pack, in the config's order.
+    fn vanilla_packs(&self) -> Vec<Arc<GameModPack>> {
+        let ids = mmcl_modpack::catalog::vanilla::installed_version_ids(&self.inner.config);
+        let mut map = self.inner.vanilla.lock();
+        map.retain(|k, _| ids.contains(k));
+        ids.iter()
+            .map(|v| {
+                map.entry(v.clone())
+                    .or_insert_with(|| GameModPack::vanilla(self.inner.paths.clone(), v))
+                    .clone()
+            })
+            .collect()
+    }
+
+    /// The pack object behind `id` wherever it is: installed (modpack or vanilla), else in the
+    /// available list (if loaded).
+    fn any_pack(&self, id: &PackId) -> Option<Arc<GameModPack>> {
+        self.installed_pack(id).or_else(|| {
+            self.inner
+                .packs
+                .available_if_ready()
+                .iter()
+                .find(|p| &PackId::of(p) == id)
+                .cloned()
+        })
+    }
+
     fn require_installed(&self, id: &PackId) -> EngineResult<Arc<GameModPack>> {
         self.installed_pack(id)
             .ok_or_else(|| EngineError::PackNotInstalled(id.clone()))
     }
 
-    /// The installed packs, in library order (a snapshot; triggers the first load if needed).
+    /// The installed packs, in library order (a snapshot; triggers the first load if needed),
+    /// followed by the installed vanilla versions (`is_vanilla`, id `vanilla:<version>`), as
+    /// the Java library lists them. Use [`Engine::installed_modpacks`] for modpacks only.
     pub fn installed_packs(&self) -> Vec<PackSummary> {
+        let mut out = self.installed_modpacks();
+        out.extend(self.vanilla_packs().iter().map(|p| self.summarize(p, true)));
+        out
+    }
+
+    /// The installed modpacks only (no vanilla versions), in library order.
+    pub fn installed_modpacks(&self) -> Vec<PackSummary> {
         self.inner
             .packs
             .installed()
@@ -709,6 +848,9 @@ impl Engine {
     pub async fn uninstall_pack(&self, id: &PackId, delete_files: bool) -> EngineResult<()> {
         let pack = self.require_installed(id)?;
         let _busy = launch::BusyGuard::take(self, id, &pack.name())?;
+        if let Some(version) = pack.vanilla_mc_version() {
+            return self.uninstall_vanilla(&pack, version, delete_files).await;
+        }
         if !self.inner.packs.uninstall(&pack, delete_files).await {
             return Err(EngineError::PackInUse(pack.name()));
         }
@@ -720,26 +862,81 @@ impl Engine {
     /// launch pipeline forced FULL, without starting the game. Progress arrives as
     /// [`EngineEvent::Progress`]; returns when done. Refused while the pack is in use.
     pub async fn verify_pack(&self, id: &PackId) -> EngineResult<OperationId> {
-        self.verify_pack_impl(id).await
+        self.verify_pack_with(id, self.next_operation_id()).await
+    }
+
+    /// [`Engine::verify_pack`] reporting under a caller-chosen id (from
+    /// [`Engine::next_operation_id`]), so the caller can match `Progress` /
+    /// `OperationFinished` events while it runs. Returns `op`.
+    pub async fn verify_pack_with(
+        &self,
+        id: &PackId,
+        op: OperationId,
+    ) -> EngineResult<OperationId> {
+        self.verify_pack_impl(id, op).await
     }
 
     /// Verifies every installed pack in turn (Settings → Advanced). Packs that failed to load
     /// are skipped; the first error is returned after every other pack ran.
     pub async fn verify_all_packs(&self) -> EngineResult<OperationId> {
-        self.verify_all_impl().await
+        self.verify_all_packs_with(self.next_operation_id()).await
+    }
+
+    /// [`Engine::verify_all_packs`] under a caller-chosen operation id.
+    pub async fn verify_all_packs_with(&self, op: OperationId) -> EngineResult<OperationId> {
+        self.verify_all_impl(op).await
     }
 
     /// Updates the pack to its published version: re-fetch and replace (backup first when
     /// enabled), then a FULL sync, then record the installed version.
     pub async fn update_pack(&self, id: &PackId) -> EngineResult<OperationId> {
-        self.update_pack_impl(id).await
+        self.update_pack_with(id, self.next_operation_id()).await
     }
 
-    /// The manifest text of an installed pack, verbatim (MCP, editor, export).
+    /// [`Engine::update_pack`] under a caller-chosen operation id.
+    pub async fn update_pack_with(
+        &self,
+        id: &PackId,
+        op: OperationId,
+    ) -> EngineResult<OperationId> {
+        self.update_pack_impl(id, op).await
+    }
+
+    /// The manifest text of a pack, verbatim (MCP, editor, export), from disk only: an
+    /// installed pack, else an available pack of the loaded list, else (when `id` is itself a
+    /// manifest URL) that URL's cached copy. `None` for vanilla versions and for manifests
+    /// never fetched. [`Engine::manifest_text`] also waits for the available list.
     pub fn pack_manifest_text(&self, id: &PackId) -> Option<String> {
-        let pack = self.installed_pack(id)?;
-        let url = pack.manifest_url()?;
-        self.inner.packs.fetcher().load_manifest_text(url)
+        let url = match self.any_pack(id) {
+            Some(pack) => pack.manifest_url()?.to_string(),
+            // Only a remote URL's cache copy: a raw `file:` id (MCP passes ids through) must
+            // never read an arbitrary local file.
+            None if id.as_str().to_ascii_lowercase().starts_with("https://") => {
+                id.as_str().to_string()
+            }
+            None => return None,
+        };
+        self.inner.packs.fetcher().load_manifest_text(&url)
+    }
+
+    /// [`Engine::pack_manifest_text`] for any pack, installed or available: loads the available
+    /// list first when the pack is not installed and the list is not loaded yet (MCP
+    /// `get_modpack_manifest`, the `mica://modpack/{n}/manifest` resource).
+    pub async fn manifest_text(&self, id: &PackId) -> Option<String> {
+        if self.installed_pack(id).is_none() && self.any_pack(id).is_none() {
+            let _ = self.inner.packs.available().await;
+        }
+        self.pack_manifest_text(id)
+    }
+
+    /// An available (not installed) pack by friendly name, then by pack name.
+    pub fn find_available_by_name(&self, name: &str) -> Option<PackSummary> {
+        let list = self.inner.packs.available_if_ready();
+        let p = list
+            .iter()
+            .find(|p| p.friendly_name().as_deref() == Some(name))
+            .or_else(|| list.iter().find(|p| p.name() == name))?;
+        Some(self.summarize(p, false))
     }
 
     /// Marks all of a pack's visible news as seen.
@@ -915,7 +1112,7 @@ impl Engine {
 
     /// Vanilla Minecraft versions of a kind (`release`, `snapshot`, ...; `""` = all).
     pub async fn vanilla_versions(&self, kind: &str) -> Vec<VanillaVersionView> {
-        let http = NetHttp::shared();
+        let http = self.inner.http.clone();
         let all =
             mmcl_modpack::catalog::vanilla::all_versions(&self.inner.paths, http.as_ref()).await;
         let list = if kind.is_empty() {
@@ -944,7 +1141,7 @@ impl Engine {
     /// Loader versions of `loader_type` (`forge`, `neoforge`, `fabric`).
     pub async fn loader_versions(&self, loader_type: &str) -> Vec<LoaderVersionView> {
         use mmcl_modpack::catalog::loaders;
-        let http = NetHttp::shared();
+        let http = self.inner.http.clone();
         let list = match loader_type.to_ascii_lowercase().as_str() {
             "forge" => loaders::forge_versions(http.as_ref()).await,
             "neoforge" => loaders::neoforge_versions(http.as_ref()).await,
@@ -1014,7 +1211,7 @@ impl Engine {
         loader: Option<&str>,
         limit: usize,
     ) -> Vec<ModSearchHit> {
-        let http = NetHttp::shared();
+        let http = self.inner.http.clone();
         mmcl_modpack::import::modrinth::search(http.as_ref(), query, mc_version, loader, limit)
             .await
             .into_iter()
@@ -1029,7 +1226,7 @@ impl Engine {
         mc_version: Option<&str>,
         loader: Option<&str>,
     ) -> Option<ModFileView> {
-        let http = NetHttp::shared();
+        let http = self.inner.http.clone();
         mmcl_modpack::import::modrinth::resolve_latest_compatible_file(
             http.as_ref(),
             project_id,
@@ -1590,7 +1787,16 @@ impl Engine {
 
     /// Installs or repairs a runtime component, reporting [`EngineEvent::Progress`].
     pub async fn install_runtime(&self, component: &str) -> EngineResult<OperationId> {
-        let op = self.next_operation_id();
+        self.install_runtime_with(component, self.next_operation_id())
+            .await
+    }
+
+    /// [`Engine::install_runtime`] under a caller-chosen operation id.
+    pub async fn install_runtime_with(
+        &self,
+        component: &str,
+        op: OperationId,
+    ) -> EngineResult<OperationId> {
         let tx = self.inner.events.clone();
         let progress = move |label: &str, text: &str, percent: f64| {
             let _ = tx.send(EngineEvent::Progress(OperationProgress {
@@ -1662,14 +1868,32 @@ impl Engine {
         self.restore_backup_impl(id, backup).await
     }
 
-    /// Exports a pack.
+    /// Exports a pack: a zip, the manifest JSON, or a profile in the official launcher (which
+    /// verifies, installs the loader when missing and reports the outcome as a notification;
+    /// see [`Engine::export_official`] for the step-by-step form).
     pub async fn export_pack(
         &self,
         id: &PackId,
         request: ExportRequest,
     ) -> EngineResult<OperationId> {
-        let pack = self.require_installed(id)?;
-        let op = self.next_operation_id();
+        self.export_pack_with(id, request, self.next_operation_id())
+            .await
+    }
+
+    /// [`Engine::export_pack`] under a caller-chosen operation id.
+    pub async fn export_pack_with(
+        &self,
+        id: &PackId,
+        request: ExportRequest,
+        op: OperationId,
+    ) -> EngineResult<OperationId> {
+        let pack = match self.require_installed(id) {
+            Ok(p) => p,
+            Err(e) => {
+                self.emit(EngineEvent::OperationFinished(op));
+                return Err(e);
+            }
+        };
         match request {
             ExportRequest::Zip {
                 dest,
@@ -1696,19 +1920,22 @@ impl Engine {
                         },
                     )
                 })
-                .await
-                .map_err(|e| EngineError::Other(e.to_string()))?;
+                .await;
+                self.emit(EngineEvent::OperationFinished(op));
+                res.map_err(|e| EngineError::Other(e.to_string()))??;
+            }
+            ExportRequest::ManifestJson { dest } => {
+                let res = match self.pack_manifest_text(id) {
+                    Some(text) => tokio::fs::write(&dest, text)
+                        .await
+                        .map_err(EngineError::from),
+                    None => Err(EngineError::PackNotFound(id.clone())),
+                };
                 self.emit(EngineEvent::OperationFinished(op));
                 res?;
             }
-            ExportRequest::ManifestJson { dest } => {
-                let text = self
-                    .pack_manifest_text(id)
-                    .ok_or_else(|| EngineError::PackNotFound(id.clone()))?;
-                tokio::fs::write(&dest, text).await?;
-            }
             ExportRequest::OfficialLauncher => {
-                let res = self.export_official_impl(id, op).await;
+                let res = self.export_official_notifying(id, op).await;
                 self.emit(EngineEvent::OperationFinished(op));
                 res?;
             }
@@ -1744,39 +1971,15 @@ impl Engine {
                         });
                     }
                     import::ImportSource::Modrinth => {
-                        let slug = c.slug.unwrap_or_default();
-                        let http = NetHttp::shared();
-                        let project = import::modrinth::fetch_project(
-                            http.as_ref(),
-                            &slug,
-                            c.version_id.as_deref(),
-                        )
-                        .await
-                        .ok_or_else(|| {
+                        // Preview, then install: the same two steps a front end with an
+                        // import-confirm dialog runs itself.
+                        let project = self.preview_modrinth(&u).await?.ok_or_else(|| {
                             EngineError::Other(mmcl_i18n::tf!(
                                 "engine.error.modrinthProjectNotFound",
-                                slug.as_str()
+                                c.slug.as_deref().unwrap_or_default()
                             ))
                         })?;
-                        let dl = project
-                            .latest_version
-                            .as_ref()
-                            .and_then(import::modrinth::mrpack_url)
-                            .map(str::to_string)
-                            .ok_or_else(|| {
-                                EngineError::Other(mmcl_i18n::tf!(
-                                    "engine.error.modrinthProjectNotFound",
-                                    slug.as_str()
-                                ))
-                            })?;
-                        let r = import::mrpack::import_and_install_mrpack(
-                            m,
-                            &dl,
-                            Some(&slug),
-                            project.icon_url.as_deref(),
-                        )
-                        .await?;
-                        (r.local_manifest_url, Some(r.mod_count))
+                        return self.install_modrinth(&project).await;
                     }
                     // No direct import (the Java launcher offers to open the page instead):
                     // CurseForge needs a paid API key; Technic packs come as server zips.
@@ -1835,7 +2038,7 @@ impl Engine {
 
     /// Probes the network now; returns `true` when online.
     pub async fn check_network(&self) -> bool {
-        let online = mmcl_net::check_network_availability().await;
+        let online = self.inner.http.refresh_network_availability().await;
         self.emit(EngineEvent::OfflineChanged(!online));
         online
     }
@@ -1921,7 +2124,19 @@ impl Engine {
     /// Scans a folder for malware (Settings → Security), reporting [`EngineEvent::Progress`]
     /// (`text` = the latest output line).
     pub async fn scan_folder(&self, folder: &Path) -> EngineResult<ScanSummary> {
-        self.scan_folder_impl(folder).await
+        self.scan_folder_with(folder, self.next_operation_id())
+            .await
+    }
+
+    /// [`Engine::scan_folder`] reporting `Progress` under a caller-chosen id (so the screen
+    /// can tell the scan's progress from other operations'); `OperationFinished(op)` ends it.
+    /// [`Engine::cancel_scan`] stops it: the summary then has `cancelled = true`.
+    pub async fn scan_folder_with(
+        &self,
+        folder: &Path,
+        op: OperationId,
+    ) -> EngineResult<ScanSummary> {
+        self.scan_folder_impl(folder, op).await
     }
 
     /// Cancels a running malware scan.
@@ -2026,9 +2241,10 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
-        let mut o = EngineOptions::new(DataPaths::at_root(root, GameMode::Client));
-        o.runtime = RuntimeChoice::Handle(rt.handle().clone());
-        o.start_background_work = false;
+        let o = EngineOptions::offline_for_tests(
+            DataPaths::at_root(root, GameMode::Client),
+            rt.handle().clone(),
+        );
         let e = Engine::new(o).unwrap();
         (rt, e)
     }

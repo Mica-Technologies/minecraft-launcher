@@ -17,7 +17,7 @@ use mmcl_modpack::GameModPack;
 use super::Engine;
 use crate::error::{EngineError, EngineResult};
 use crate::event::{Notification, NotificationKind, OperationId};
-use crate::model::PackId;
+use crate::model::{OfficialExportOutcome, OfficialExportStatus, PackId};
 
 /// The namespace of the profile keys (same as Java, so both launchers manage one profile).
 const MICA_NAMESPACE: &str = "7b21f6a4-3b4a-4c0d-9c2e-1de9b1c8a420";
@@ -375,13 +375,96 @@ impl Engine {
         ))
     }
 
-    /// `ExportRequest::OfficialLauncher`: verify (modded), install the loader when missing,
-    /// copy the content and write the profile. Reports the outcome as a notification too.
-    pub(super) async fn export_official_impl(
+    /// The pre-export facts of the official-launcher export (the UI's confirm step): whether
+    /// the official launcher is there, the version id the profile will use, whether that
+    /// version is installed there, and whether the pack already has a profile. Resolving the
+    /// version id of a modded pack builds its loader (may download the loader installer).
+    pub async fn official_export_status(&self, id: &PackId) -> EngineResult<OfficialExportStatus> {
+        let pack = self.require_installed(id)?;
+        let dot_mc = resolve_dot_minecraft();
+        let available = dot_mc.join(PROFILES_FILE).is_file();
+        let vanilla = pack.is_vanilla();
+        let version_id = self.version_id_of(&pack).await?;
+        let loader_installed =
+            vanilla || mmcl_launch::export_install::is_version_installed(&dot_mc, &version_id);
+        Ok(OfficialExportStatus {
+            available,
+            has_export: self.has_official_export(id),
+            profile_name: profile_display_name(&pack.name(), vanilla),
+            dot_minecraft: dot_mc,
+            version_id,
+            loader_installed,
+            vanilla,
+        })
+    }
+
+    /// Installs the pack's loader into the official launcher (Forge / NeoForge run their
+    /// installer, Fabric writes its profile JSON). Returns the installed version id; a failure
+    /// is a localized `officialExport.installLoader.failed.body` error. A vanilla pack needs
+    /// nothing and succeeds at once.
+    pub async fn install_official_loader(&self, id: &PackId) -> EngineResult<String> {
+        let pack = self.require_installed(id)?;
+        let dot_mc = resolve_dot_minecraft();
+        let version_id = self.version_id_of(&pack).await?;
+        if pack.is_vanilla() {
+            return Ok(version_id);
+        }
+        let _busy = super::launch::BusyGuard::take(self, id, &pack.name())?;
+        match self.run_official_loader_install(&pack, &dot_mc).await {
+            None => Ok(version_id),
+            Some(message) => Err(EngineError::Other(message)),
+        }
+    }
+
+    /// Runs the loader installer; `None` on success, else the localized failure text.
+    async fn run_official_loader_install(
+        &self,
+        pack: &Arc<GameModPack>,
+        dot_mc: &Path,
+    ) -> Option<String> {
+        let r = mmcl_launch::export_install::install_loader_for_official_launcher(
+            &self.inner.launch_env,
+            pack,
+            dot_mc,
+            &mmcl_net::CancelToken::new(),
+        )
+        .await;
+        if r.success {
+            return None;
+        }
+        if let Some(stderr) = &r.installer_stderr {
+            mmcl_log::warn_silent(stderr);
+        }
+        let loader = pack.loader_name().await.ok().flatten().unwrap_or_default();
+        Some(mmcl_i18n::tf!(
+            "officialExport.installLoader.failed.body",
+            r.message.as_str(),
+            loader
+        ))
+    }
+
+    /// Writes the pack's official-launcher profile: verifies the files (modded packs, progress
+    /// under `op`), installs the loader when it is missing and `install_loader` is set, copies
+    /// the pack content into the export folder and upserts the profile. Sends no
+    /// notification; the outcome says whether the loader is still missing.
+    pub async fn export_official(
         &self,
         id: &PackId,
+        install_loader: bool,
         op: OperationId,
-    ) -> EngineResult<()> {
+    ) -> EngineResult<OfficialExportOutcome> {
+        let res = self.export_official_inner(id, install_loader, op).await;
+        self.emit(crate::event::EngineEvent::OperationFinished(op));
+        res.map(|(outcome, _)| outcome)
+    }
+
+    /// The export; also returns the loader-install failure text, if the install ran and failed.
+    async fn export_official_inner(
+        &self,
+        id: &PackId,
+        install_loader: bool,
+        op: OperationId,
+    ) -> EngineResult<(OfficialExportOutcome, Option<String>)> {
         let pack = self.require_installed(id)?;
         let dot_mc = resolve_dot_minecraft();
         let profiles_file = dot_mc.join(PROFILES_FILE);
@@ -397,30 +480,10 @@ impl Engine {
         }
         let version_id = self.version_id_of(&pack).await?;
         let mut loader_installed =
-            mmcl_launch::export_install::is_version_installed(&dot_mc, &version_id);
-        if !vanilla && !loader_installed {
-            let r = mmcl_launch::export_install::install_loader_for_official_launcher(
-                &self.inner.launch_env,
-                &pack,
-                &dot_mc,
-                &mmcl_net::CancelToken::new(),
-            )
-            .await;
-            if !r.success {
-                if let Some(stderr) = &r.installer_stderr {
-                    mmcl_log::warn_silent(stderr);
-                }
-                let loader = pack.loader_name().await.ok().flatten().unwrap_or_default();
-                self.notify(Notification::new(
-                    NotificationKind::Warning,
-                    mmcl_i18n::t!("officialExport.installLoader.failed.title"),
-                    mmcl_i18n::tf!(
-                        "officialExport.installLoader.failed.body",
-                        r.message.as_str(),
-                        loader
-                    ),
-                ));
-            }
+            vanilla || mmcl_launch::export_install::is_version_installed(&dot_mc, &version_id);
+        let mut install_failure = None;
+        if install_loader && !loader_installed {
+            install_failure = self.run_official_loader_install(&pack, &dot_mc).await;
             loader_installed =
                 mmcl_launch::export_install::is_version_installed(&dot_mc, &version_id);
         }
@@ -480,17 +543,45 @@ impl Engine {
             name.as_str(),
             shown
         ));
-        if !vanilla && !loader_installed {
+        Ok((
+            OfficialExportOutcome {
+                profile_name: name,
+                version_id,
+                loader_installed,
+            },
+            install_failure,
+        ))
+    }
+
+    /// `ExportRequest::OfficialLauncher`: [`Engine::export_official`] with the loader install,
+    /// reporting the outcome (and a failed loader install) as notifications.
+    pub(super) async fn export_official_notifying(
+        &self,
+        id: &PackId,
+        op: OperationId,
+    ) -> EngineResult<()> {
+        let (outcome, install_failure) = self.export_official_inner(id, true, op).await?;
+        if let Some(body) = install_failure {
             self.notify(Notification::new(
                 NotificationKind::Warning,
-                mmcl_i18n::t!("officialExport.successButLoaderMissing.title"),
-                mmcl_i18n::tf!("officialExport.successButLoaderMissing.body", version_id),
+                mmcl_i18n::t!("officialExport.installLoader.failed.title"),
+                body,
             ));
-        } else {
+        }
+        if outcome.loader_installed {
             self.notify(Notification::new(
                 NotificationKind::Success,
                 mmcl_i18n::t!("officialExport.success.title"),
-                mmcl_i18n::tf!("officialExport.success.body", name),
+                mmcl_i18n::tf!("officialExport.success.body", outcome.profile_name),
+            ));
+        } else {
+            self.notify(Notification::new(
+                NotificationKind::Warning,
+                mmcl_i18n::t!("officialExport.successButLoaderMissing.title"),
+                mmcl_i18n::tf!(
+                    "officialExport.successButLoaderMissing.body",
+                    outcome.version_id
+                ),
             ));
         }
         Ok(())

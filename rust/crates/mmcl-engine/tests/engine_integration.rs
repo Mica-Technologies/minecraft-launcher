@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use mmcl_core::{DataPaths, GameMode};
 use mmcl_engine::{
-    Engine, EngineError, EngineEvent, EngineOptions, LaunchOptions, PackId, RuntimeChoice, Setting,
+    Engine, EngineError, EngineEvent, EngineOptions, LaunchOptions, PackId, Setting,
 };
 
 struct Harness {
@@ -24,10 +24,11 @@ fn harness(mode: GameMode) -> Harness {
         .enable_all()
         .build()
         .unwrap();
-    let mut o = EngineOptions::new(DataPaths::at_root(dir.path().join("data"), mode));
-    o.runtime = RuntimeChoice::Handle(rt.handle().clone());
-    o.start_background_work = false;
-    o.follow_running_games = false;
+    // Network-free: OfflineHttp answers every request (and the connectivity probe) at once.
+    let o = EngineOptions::offline_for_tests(
+        DataPaths::at_root(dir.path().join("data"), mode),
+        rt.handle().clone(),
+    );
     let engine = Engine::new(o).unwrap();
     Harness {
         _rt: rt,
@@ -337,4 +338,214 @@ fn reset_deletes_the_data_folder_and_asks_for_a_restart() {
         .collect();
     assert!(leftovers.is_empty());
     let _ = Path::new("");
+}
+
+/// Seeds the manifest cache with `body` for `url`, so an offline engine can load it.
+fn seed_cache(h: &Harness, url: &str, body: &str) {
+    let dir = h.engine.paths().manifest_cache_dir();
+    std::fs::create_dir_all(&dir).unwrap();
+    let name = format!("{}.json", mmcl_util::hash::sha256_hex(url.as_bytes()));
+    std::fs::write(dir.join(name), body).unwrap();
+}
+
+const SITE_URL: &str = "https://packs.example/site/manifest.json";
+const SITE_MANIFEST: &str = r#"{"packName":"Site Pack","packVersion":"1.0","packURL":"https://site.example/pack","packCustomDiscordRpc":true,"packModLoader":"fabric","packMods":[]}"#;
+
+#[test]
+fn summaries_carry_the_website_and_the_discord_flag() {
+    let h = harness(GameMode::Client);
+    seed_cache(&h, SITE_URL, SITE_MANIFEST);
+    let id = h
+        .run(|e| Box::pin(async move { e.install_pack_by_url(SITE_URL).await }))
+        .unwrap();
+    let s = h.engine.pack(&id).expect("installed");
+    assert_eq!(s.website.as_deref(), Some("https://site.example/pack"));
+    assert!(s.custom_discord_rpc);
+    // No image was cached offline, so there is no logo file and no image to cycle.
+    assert_eq!(s.logo_path, None);
+    let images = h.engine.pack_images(&id);
+    assert!(images.logos.is_empty() && !images.cached);
+    let id2 = id.clone();
+    let cached = h
+        .run(move |e| Box::pin(async move { e.cache_pack_images(&id2).await }))
+        .unwrap();
+    assert!(!cached.cached);
+    assert!(
+        h.engine
+            .pack_images(&PackId::new("https://nope.example/x.json"))
+            .logos
+            .is_empty()
+    );
+}
+
+#[test]
+fn manifest_text_reads_installed_and_cached_remote_manifests_only() {
+    let h = harness(GameMode::Client);
+    // A remote manifest that is only in the cache (an available pack's fetch leaves this).
+    seed_cache(&h, SITE_URL, SITE_MANIFEST);
+    assert_eq!(
+        h.engine
+            .pack_manifest_text(&PackId::new(SITE_URL))
+            .as_deref(),
+        Some(SITE_MANIFEST)
+    );
+    let async_text =
+        h.run(|e| Box::pin(async move { e.manifest_text(&PackId::new(SITE_URL)).await }));
+    assert_eq!(async_text.as_deref(), Some(SITE_MANIFEST));
+    // A raw local file id is never read (MCP passes ids through).
+    let secret = h.engine.paths().root().join("secret.json");
+    std::fs::create_dir_all(secret.parent().unwrap()).unwrap();
+    std::fs::write(&secret, "{}").unwrap();
+    let file_id = PackId::new(mmcl_modpack::fetch::path_to_file_url(&secret));
+    assert_eq!(h.engine.pack_manifest_text(&file_id), None);
+    assert_eq!(
+        h.engine.pack_manifest_text(&PackId::vanilla("1.20.1")),
+        None
+    );
+    // An installed authored pack reads its own file.
+    let id = create(&h, "Texty");
+    assert!(h.engine.pack_manifest_text(&id).unwrap().contains("Texty"));
+}
+
+#[test]
+fn vanilla_versions_are_packs() {
+    let h = harness(GameMode::Client);
+    let id = h
+        .run(|e| Box::pin(async move { e.install_vanilla("1.20.1").await }))
+        .unwrap();
+    assert_eq!(id, PackId::vanilla("1.20.1"));
+    let all = h.engine.installed_packs();
+    let v = all.iter().find(|p| p.id == id).expect("vanilla listed");
+    assert!(v.is_vanilla && v.installed);
+    assert_eq!(v.minecraft_version.as_deref(), Some("1.20.1"));
+    assert!(h.engine.installed_modpacks().iter().all(|p| !p.is_vanilla));
+    assert!(h.engine.pack(&id).is_some());
+    let id2 = id.clone();
+    let details = h
+        .run(move |e| Box::pin(async move { e.pack_details(&id2).await }))
+        .unwrap();
+    assert!(details.summary.is_vanilla);
+    // Launching now reaches the account check instead of "not installed".
+    let id2 = id.clone();
+    let err = h
+        .run(move |e| Box::pin(async move { e.launch(&id2, LaunchOptions::default()).await }))
+        .unwrap_err();
+    assert!(
+        matches!(err, EngineError::Account(mmcl_auth::Problem::NoAccount)),
+        "{err:?}"
+    );
+    // The official export status of a vanilla pack needs no loader.
+    let id2 = id.clone();
+    let status = h
+        .run(move |e| Box::pin(async move { e.official_export_status(&id2).await }))
+        .unwrap();
+    assert!(status.vanilla && status.loader_installed);
+    assert_eq!(status.version_id, "1.20.1");
+    // Uninstall removes it from the library and the config, and deletes its folder.
+    let root = h
+        .engine
+        .pack_folder(&id, mmcl_engine::PackFolder::Root)
+        .unwrap();
+    std::fs::create_dir_all(root.join("saves")).unwrap();
+    let id2 = id.clone();
+    h.run(move |e| Box::pin(async move { e.uninstall_pack(&id2, true).await }))
+        .unwrap();
+    assert!(h.engine.pack(&id).is_none());
+    assert!(!root.exists());
+    assert!(h.engine.config().installed_vanilla_versions().is_empty());
+}
+
+#[test]
+fn a_loader_version_installs_as_an_empty_pack() {
+    let h = harness(GameMode::Client);
+    let v = mmcl_engine::LoaderVersionView {
+        loader_type: "fabric".into(),
+        minecraft_version: "1.21.5".into(),
+        loader_version: "0.16.10".into(),
+        display_name: "Fabric 1.21.5 (0.16.10)".into(),
+        installed: false,
+    };
+    let v2 = v.clone();
+    let id = h
+        .run(move |e| Box::pin(async move { e.install_loader_version(&v2).await }))
+        .unwrap();
+    let s = h.engine.pack(&id).expect("installed");
+    assert_eq!(s.name, "Fabric 1.21.5 (0.16.10)");
+    assert_eq!(s.mod_loader.as_deref(), Some("fabric"));
+    assert!(
+        h.engine
+            .paths()
+            .imported_manifests_dir()
+            .join("loader-fabric-1.21.5-0.16.10.json")
+            .is_file()
+    );
+    let mut bad = v;
+    bad.loader_type = "quilt".into();
+    assert!(
+        h.run(move |e| Box::pin(async move { e.install_loader_version(&bad).await }))
+            .is_err()
+    );
+}
+
+#[test]
+fn a_modrinth_preview_needs_a_modrinth_url_and_finds_nothing_offline() {
+    let h = harness(GameMode::Client);
+    assert!(
+        h.run(|e| Box::pin(async move { e.preview_modrinth("https://example.com/x").await }))
+            .is_err()
+    );
+    let found = h
+        .run(|e| {
+            Box::pin(async move {
+                e.preview_modrinth("https://modrinth.com/modpack/fabulously-optimized")
+                    .await
+            })
+        })
+        .unwrap();
+    assert_eq!(found, None);
+    let no_file = mmcl_engine::ModrinthProjectView {
+        slug: "x".into(),
+        ..Default::default()
+    };
+    assert!(
+        h.run(move |e| Box::pin(async move { e.install_modrinth(&no_file).await }))
+            .is_err()
+    );
+}
+
+#[test]
+fn operations_report_under_a_caller_supplied_id() {
+    let h = harness(GameMode::Client);
+    let op = h.engine.next_operation_id();
+    let mut rx = h.engine.subscribe();
+    let bad = PackId::new("https://example.invalid/none.json");
+    let res = h.run(move |e| Box::pin(async move { e.verify_pack_with(&bad, op).await }));
+    assert!(matches!(res, Err(EngineError::PackNotInstalled(_))));
+    let mut finished = false;
+    while let Ok(ev) = rx.try_recv() {
+        if matches!(ev, EngineEvent::OperationFinished(o) if o == op) {
+            finished = true;
+        }
+    }
+    assert!(finished, "a refused operation still ends its id");
+
+    // The malware scan reports progress under the id it was given.
+    let folder = tempfile::tempdir().unwrap();
+    std::fs::write(folder.path().join("a.txt"), "x").unwrap();
+    let p = folder.path().to_path_buf();
+    let op = h.engine.next_operation_id();
+    let mut rx = h.engine.subscribe();
+    let summary = h
+        .run(move |e| Box::pin(async move { e.scan_folder_with(&p, op).await }))
+        .unwrap();
+    assert!(!summary.cancelled);
+    let (mut progress, mut done) = (false, false);
+    while let Ok(ev) = rx.try_recv() {
+        match ev {
+            EngineEvent::Progress(p) if p.operation == op => progress = true,
+            EngineEvent::OperationFinished(o) if o == op => done = true,
+            _ => {}
+        }
+    }
+    assert!(progress && done);
 }

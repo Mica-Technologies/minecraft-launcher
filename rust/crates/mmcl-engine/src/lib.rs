@@ -18,8 +18,10 @@ pub mod session;
 pub mod settings;
 pub mod task;
 
+pub use engine::diag;
 pub use engine::{
-    CrashActionResult, Engine, EngineOptions, LaunchOptions, RuntimeChoice, SignInRequest,
+    CrashActionResult, Engine, EngineOptions, LaunchOptions, OfflineHttp, RuntimeChoice,
+    SignInRequest,
 };
 pub use error::{EngineError, EngineResult, LaunchRefusal};
 pub use event::{
@@ -38,3 +40,4 @@ pub use mmcl_auth::{DeviceCodePrompt, SignInKind};
 pub use mmcl_config::{ScanFrequency, WindowBounds};
 pub use mmcl_core::GameMode;
 pub use mmcl_crash::{CrashAction, PackFolder};
+pub use mmcl_modpack::PackHttp;

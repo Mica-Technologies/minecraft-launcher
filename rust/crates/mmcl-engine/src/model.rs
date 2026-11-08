@@ -12,7 +12,7 @@ use mmcl_modpack::GameModPack;
 
 /// A pack's stable id: its settings key (the manifest URL, or `vanilla:<version>`), else
 /// `name:<pack name>` for packs that have neither.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 pub struct PackId(pub String);
 
 impl PackId {
@@ -52,9 +52,10 @@ impl fmt::Display for PackId {
 }
 
 /// How a pack object was loaded.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 pub enum PackLoadState {
     /// Fully loaded manifest.
+    #[default]
     Loaded,
     /// Card fields only (from the install index); a full load is pending.
     Stub,
@@ -63,7 +64,7 @@ pub enum PackLoadState {
 }
 
 /// One pack card (library grid, browse grid, TUI list, MCP listing).
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
 pub struct PackSummary {
     pub id: PackId,
     /// `packName`.
@@ -97,6 +98,87 @@ pub struct PackSummary {
     pub unread_news: usize,
     /// A game of this pack is preparing or running.
     pub active: bool,
+    /// The pack's website (`packURL`), when it declares one.
+    pub website: Option<String>,
+    /// The primary logo image in the image cache, when it is cached on disk (no network).
+    /// See [`crate::Engine::pack_images`] for every image.
+    pub logo_path: Option<PathBuf>,
+    /// `packCustomDiscordRpc`: the pack drives its own Discord presence, so the launcher's
+    /// game presence stands back.
+    pub custom_discord_rpc: bool,
+}
+
+/// A pack's cached images ([`crate::Engine::pack_images`] / [`crate::Engine::cache_pack_images`]):
+/// every logo and background file that exists on disk, primary first, for cycling.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct PackImagesView {
+    pub logos: Vec<PathBuf>,
+    pub backgrounds: Vec<PathBuf>,
+    /// The last [`crate::Engine::cache_pack_images`] of this pack object succeeded (every
+    /// declared image was resolved). `false` before the first cache run.
+    pub cached: bool,
+}
+
+/// A Modrinth modpack project, fetched without installing it ([`crate::Engine::preview_modrinth`]),
+/// for the import-confirm dialog. Pass it back to [`crate::Engine::install_modrinth`].
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct ModrinthProjectView {
+    pub project_id: Option<String>,
+    /// The slug the URL named (or the project's own).
+    pub slug: String,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub icon_url: Option<String>,
+    /// The version that would be installed (the URL's version, else the newest).
+    pub version_id: Option<String>,
+    pub version_name: Option<String>,
+    pub version_number: Option<String>,
+    /// Minecraft versions of that version (else the project's).
+    pub game_versions: Vec<String>,
+    /// Loaders of that version (else the project's).
+    pub loaders: Vec<String>,
+    /// The `.mrpack` download; `None` when the version has none (install then fails).
+    pub mrpack_url: Option<String>,
+}
+
+/// The official-launcher export pre-checks of a pack ([`crate::Engine::official_export_status`]).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct OfficialExportStatus {
+    /// The official launcher's data folder with its `launcher_profiles.json` exists.
+    pub available: bool,
+    /// Its `.minecraft` folder (shown when it is missing).
+    pub dot_minecraft: PathBuf,
+    /// The version id the profile uses (`1.20.1`, `1.20.1-forge-47.3.0`, `fabric-loader-...`).
+    pub version_id: String,
+    /// That version is installed in the official launcher (always `true` for vanilla).
+    pub loader_installed: bool,
+    /// The pack already has a profile there.
+    pub has_export: bool,
+    /// The profile's display name.
+    pub profile_name: String,
+    /// The pack is a vanilla version (no loader to install, no files to copy).
+    pub vanilla: bool,
+}
+
+/// How an official-launcher export ended ([`crate::Engine::export_official`]).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct OfficialExportOutcome {
+    /// The profile's display name.
+    pub profile_name: String,
+    /// The version id the profile uses.
+    pub version_id: String,
+    /// `false` when the profile was written but the loader version is still missing there.
+    pub loader_installed: bool,
+}
+
+/// The result of the manifest diagnostic ([`crate::Engine::manifest_diagnostic`]).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ManifestDiagnostic {
+    /// The `[manifest-diag] ...` lines, in order (English, like Java's developer output).
+    pub lines: Vec<String>,
+    /// 0 = the library manifest was resolved once and memoized, 1 = the second resolve
+    /// rebuilt it, 2 = the manifest could not be fetched or resolved.
+    pub exit_code: i32,
 }
 
 /// A news item of a pack.
@@ -280,7 +362,7 @@ pub struct ImportOutcome {
 }
 
 /// One Modrinth search hit (editor "add a mod", browse import).
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct ModSearchHit {
     pub project_id: Option<String>,
     pub slug: Option<String>,
