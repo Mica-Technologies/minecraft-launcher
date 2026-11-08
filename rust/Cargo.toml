@@ -86,9 +86,15 @@ mmcl-editor = { path = "crates/mmcl-editor" }
 mmcl-running-games = { path = "crates/mmcl-running-games" }
 
 [profile.dev]
-# Dependencies optimised a little so GPUI windows are usable in debug builds.
+# Line tables keep backtraces readable at a fraction of the disk use of full debug info;
+# the GPUI test binaries otherwise run to hundreds of megabytes each.
+debug = "line-tables-only"
+incremental = false
+
+# Dependencies optimised a little so GPUI windows are usable in debug builds, without debug info.
 [profile.dev.package."*"]
 opt-level = 1
+debug = false
 
 [profile.release]
 lto = "thin"
