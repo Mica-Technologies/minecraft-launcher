@@ -59,6 +59,18 @@ static SHOWN_ONCE: AtomicBool = AtomicBool::new(false);
 /// The "update available" toast shows once per session.
 static UPDATE_TOAST_SHOWN: AtomicBool = AtomicBool::new(false);
 
+/// The last-played pack's `client.json` is warmed once per session.
+static CLIENT_JSON_PREFETCHED: AtomicBool = AtomicBool::new(false);
+
+/// How long Home must stay up before the `client.json` prefetch starts (Java fetched it while
+/// the main menu sat idle, so the first Play click does not wait for piston-meta).
+pub const PREFETCH_IDLE_DELAY: Duration = Duration::from_secs(3);
+
+/// Claims the session's one idle prefetch; `false` once it was claimed.
+fn claim_prefetch(flag: &AtomicBool) -> bool {
+    !flag.swap(true, Ordering::SeqCst)
+}
+
 /// The Home screen.
 pub struct HomeScreen {
     backend: Rc<dyn LibraryBackend>,
@@ -599,6 +611,17 @@ impl Screen for HomeScreen {
             })
             .collect();
         visuals::prefetch(cx, &sources, &self.backend);
+        // Once Home has sat idle a moment, warm the last-played pack's `client.json`. Leaving
+        // Home first drops the timer (cleanup clears the tasks); the next visit tries again.
+        if !CLIENT_JSON_PREFETCHED.load(Ordering::SeqCst) {
+            let backend = self.backend.clone();
+            self.tasks.push(cx.spawn(async move |_, cx| {
+                cx.background_executor().timer(PREFETCH_IDLE_DELAY).await;
+                if claim_prefetch(&CLIENT_JSON_PREFETCHED) {
+                    backend.prefetch_last_played().await;
+                }
+            }));
+        }
     }
 
     fn cleanup(&mut self, _cx: &mut Context<Self>) {
@@ -1154,5 +1177,18 @@ impl Render for HomeScreen {
         } else {
             root.child(content).into_any_element()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_idle_prefetch_runs_once_per_session() {
+        let flag = AtomicBool::new(false);
+        assert!(claim_prefetch(&flag));
+        assert!(!claim_prefetch(&flag));
+        assert!(PREFETCH_IDLE_DELAY >= Duration::from_secs(1));
     }
 }

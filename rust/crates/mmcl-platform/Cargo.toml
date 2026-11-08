@@ -37,6 +37,7 @@ windows = { version = "0.62", features = [
     "Win32_System_Variant",
     "Win32_UI_Controls",
     "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Shell",
     "Win32_UI_Shell_Common",
     "Win32_UI_Shell_PropertiesSystem",
@@ -54,10 +55,12 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
 ] }
 objc2-app-kit = { version = "0.3", default-features = false, features = [
     "std",
+    "block2",
     "NSAppearance",
     "NSApplication",
     "NSControl",
     "NSDockTile",
+    "NSGraphics",
     "NSImage",
     "NSImageView",
     "NSProgressIndicator",
@@ -71,6 +74,8 @@ dispatch2 = "0.3"
 tokio.workspace = true
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 ksni = { version = "0.3", features = ["blocking"] }
+# WM_TRANSIENT_FOR, _NET_WM_STATE_MODAL and WM_NORMAL_HINTS on GPUI's X11 windows.
+x11rb = "0.13"
 
 [dev-dependencies]
 tempfile.workspace = true

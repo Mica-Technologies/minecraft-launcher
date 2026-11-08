@@ -14,9 +14,9 @@ use mmcl_engine::PackId;
 use mmcl_engine::{LoaderVersionView, PackSummary};
 use mmcl_i18n::{t, tf};
 use mmcl_ui_kit::notify;
-use mmcl_ui_kit::{ScreenId, ScreenRequest};
+use mmcl_ui_kit::{FileFilter, SaveDialog, ScreenId, ScreenRequest};
 
-use super::backend::{OfficialOutcome, PackExtras, VerifyOutcome, backend};
+use super::backend::{OfficialOutcome, OfficialReport, PackExtras, VerifyOutcome, backend};
 use super::home_logic::{display_name, total_play_time};
 use super::hooks;
 use crate::dialogs::{self, Answer, Question};
@@ -461,12 +461,16 @@ pub fn export_file_name(pack_name: &str, now_ms: i64) -> String {
 }
 
 /// Export as ZIP: pick a file, verify modded packs first, then zip.
-pub fn export_zip(_window: &mut Window, cx: &mut App, pack: &PackSummary) {
+pub fn export_zip(window: &mut Window, cx: &mut App, pack: &PackSummary) {
     let name = export_file_name(&pack.name, chrono::Utc::now().timestamp_millis());
-    let rx = cx.prompt_for_new_path(&home_dir(), Some(&name));
+    let pick = SaveDialog::new(t!("dialog.fileChooser.exportModpack.title"))
+        .directory(home_dir())
+        .file_name(name)
+        .filter(FileFilter::zip_archive())
+        .save(Some(window));
     let pack = pack.clone();
     cx.spawn(async move |cx| {
-        let Ok(Ok(Some(dest))) = rx.await else {
+        let Some(dest) = pick.await else {
             return;
         };
         let dest = with_extension(dest, "zip");
@@ -605,25 +609,7 @@ pub fn official_export(cx: &mut App, pack: &PackSummary) {
             .update(|cx| backend(cx).official_export(&pack.id, install_loader))
             .await
         {
-            Ok(OfficialOutcome::Exported(profile)) => notify::success(
-                &t!("officialExport.success.title"),
-                &tf!("officialExport.success.body", profile),
-            ),
-            Ok(OfficialOutcome::LoaderMissing(version)) => {
-                // A failed loader install lands here too (the engine logs its message).
-                let shown = if version.trim().is_empty() {
-                    vid.clone()
-                } else {
-                    version
-                };
-                notify::warn(
-                    &t!("officialExport.successButLoaderMissing.title"),
-                    &tf!(
-                        "officialExport.successButLoaderMissing.body",
-                        shown.as_str()
-                    ),
-                );
-            }
+            Ok(report) => show_official_report(report, &vid),
             Err(e) => notify::error(
                 &t!("officialExport.failed.title"),
                 &tf!("officialExport.failed.body", e),
@@ -631,6 +617,34 @@ pub fn official_export(cx: &mut App, pack: &PackSummary) {
         }
     })
     .detach();
+}
+
+/// The toasts after an official export, in Java's order: the loader installer's failure
+/// (`installLoader.failed`, with the installer's own text) first, then the export's outcome.
+fn show_official_report(report: OfficialReport, vid: &str) {
+    if let Some(body) = report.loader_failure {
+        notify::warn(&t!("officialExport.installLoader.failed.title"), &body);
+    }
+    match report.outcome {
+        OfficialOutcome::Exported(profile) => notify::success(
+            &t!("officialExport.success.title"),
+            &tf!("officialExport.success.body", profile),
+        ),
+        OfficialOutcome::LoaderMissing(version) => {
+            let shown = if version.trim().is_empty() {
+                vid.to_string()
+            } else {
+                version
+            };
+            notify::warn(
+                &t!("officialExport.successButLoaderMissing.title"),
+                &tf!(
+                    "officialExport.successButLoaderMissing.body",
+                    shown.as_str()
+                ),
+            );
+        }
+    }
 }
 
 /// Remove from the official Minecraft Launcher.

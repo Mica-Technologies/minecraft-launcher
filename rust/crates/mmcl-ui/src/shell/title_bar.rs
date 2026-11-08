@@ -61,6 +61,9 @@ pub fn help_button(id: impl Into<ElementId>, topic: HelpTopic, cx: &App) -> impl
     let pressed = hsla(t.md_state_pressed_on_surface);
     div()
         .id(id.into())
+        // The title bar behind is a caption (drag) area: without this a press on Windows
+        // reaches the OS as a caption drag and the click never arrives.
+        .occlude()
         .flex()
         .items_center()
         .justify_center()

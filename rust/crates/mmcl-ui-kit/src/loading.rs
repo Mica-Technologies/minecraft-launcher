@@ -11,8 +11,8 @@ use gpui::{
     RenderOnce, Styled, Window, canvas, div, point, px,
 };
 
-use crate::scale::u;
 use crate::motion;
+use crate::scale::u;
 use crate::theme::{ThemeExt, hsla};
 
 /// `(lobes, depth)` of the seven shapes, in morph order.

@@ -45,6 +45,7 @@ use mmcl_ui::screens::home_browse::{self as hb, backend::backend, controls, cycl
 use mmcl_ui_kit::dialogs::{ButtonRole, DialogButton, DialogLevel, DialogSpec};
 use mmcl_ui_kit::focus::nav_scope;
 use mmcl_ui_kit::scale::{scaled_px, u};
+use mmcl_ui_kit::{FileFilter, SaveDialog};
 use mmcl_ui_kit::{
     Icon, IconButton, ScreenId, ScreenRequest, Switch, ThemeExt as _, TooltipExt as _, hsla, notify,
 };
@@ -2125,6 +2126,14 @@ fn verify_now(summary: &PackSummary, cx: &mut App) {
             &t!("notification.verify.complete.title"),
             &tf!("notification.verify.complete.bodyOne", 1i64),
         ),
+        // Cancel on the Launch Progress screen: not a failure.
+        Some(Err(e)) if e.is_cancelled() => {
+            tracing::info!("{}", tf!("log.verifyAction.cancelled", 0i64));
+            notify::info(
+                &t!("notification.verify.cancelled.title"),
+                &tf!("notification.verify.cancelled.body", 0i64),
+            );
+        }
         Some(Err(e)) => notify::error(
             &t!("notification.verify.completedWithErrors.title"),
             &tf!("detailModal.verify.failed", name, e.message()),
@@ -2172,11 +2181,14 @@ async fn save_manifest(engine: &Engine, summary: &PackSummary, cx: &mut gpui::As
         return;
     };
     let name = model::manifest_file_name(&summary.name);
-    let rx = cx.update(|cx| cx.prompt_for_new_path(&hb::pack_actions::home_dir(), Some(&name)));
-    let Ok(Ok(Some(dest))) = rx.await else {
+    let dialog = SaveDialog::new(t!("dialog.fileChooser.saveManifest.title"))
+        .directory(hb::pack_actions::home_dir())
+        .file_name(name)
+        .filter(FileFilter::json());
+    // The dialog adds `.json` when the name has none.
+    let Some(dest) = cx.update(|cx| super::save_dialog(dialog, cx)).await else {
         return;
     };
-    let dest = hb::pack_actions::with_extension(dest, "json");
     let path = dest.clone();
     let result = cx
         .background_spawn(async move { std::fs::write(&path, text.as_bytes()) })
@@ -2213,11 +2225,14 @@ async fn export_zip(
     };
     let name =
         hb::pack_actions::export_file_name(&summary.name, chrono::Utc::now().timestamp_millis());
-    let rx = cx.update(|cx| cx.prompt_for_new_path(&hb::pack_actions::home_dir(), Some(&name)));
-    let Ok(Ok(Some(dest))) = rx.await else {
+    let dialog = SaveDialog::new(t!("detailModal.exportPack.dialogTitle"))
+        .directory(hb::pack_actions::home_dir())
+        .file_name(name)
+        .filter(FileFilter::zip_archive());
+    // The dialog adds `.zip` when the name has none.
+    let Some(dest) = cx.update(|cx| super::save_dialog(dialog, cx)).await else {
         return;
     };
-    let dest = hb::pack_actions::with_extension(dest, "zip");
     let display = model::display_name(summary);
     notify::info(
         &t!("detailModal.exportPack.label"),

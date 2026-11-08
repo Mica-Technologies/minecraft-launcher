@@ -15,9 +15,9 @@ use gpui::{
 use gpui_component::input::{Input, InputState};
 use mmcl_i18n::t;
 
-use crate::scale::u;
 use crate::focus::{Activatable, ActivateHandler, child_id, focus_handle_for, nav_marker};
 use crate::icons::Icon;
+use crate::scale::u;
 use crate::theme::{ThemeExt, hsla};
 use crate::tooltip::TooltipExt;
 

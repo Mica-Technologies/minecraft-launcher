@@ -17,9 +17,11 @@
 //! | the per-screen `navBar` row | [`NavBar`] |
 
 use gpui::{
-    AnyElement, App, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Window, div, img,
+    AnyElement, App, InteractiveElement as _, IntoElement, ParentElement, RenderOnce, SharedString,
+    Styled, Window, div, img,
 };
 use mmcl_theme::typography::TypeRole;
+use mmcl_ui_kit::WindowDragExt as _;
 use mmcl_ui_kit::theme::{ThemeExt as _, TypeStyleExt as _, hsla};
 
 pub use mmcl_ui_kit::{
@@ -35,6 +37,11 @@ pub const NAV_BAR_HEIGHT: f32 = 52.0;
 
 /// A screen's top bar (`.navBar`): brand mark, the screen name, then right-aligned actions
 /// (refresh, Browse, Settings, the account switcher, ...).
+///
+/// The bar's empty space drags the window (it sits right under the transparent title bar, so
+/// the two read as one caption): a native caption area on Windows (snap, double-click
+/// maximise), `start_window_move` / zoom / the window menu elsewhere. Each leading element and
+/// action is wrapped in a mouse-occluding box so presses on controls never start a drag.
 #[derive(IntoElement)]
 pub struct NavBar {
     title: SharedString,
@@ -65,10 +72,17 @@ impl NavBar {
     }
 }
 
+/// Wraps a nav bar control so the drag region behind it never sees its presses.
+fn control(el: AnyElement) -> impl IntoElement {
+    div().flex_none().flex().items_center().occlude().child(el)
+}
+
 impl RenderOnce for NavBar {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = cx.tokens();
         div()
+            .id("mmcl-navbar")
+            .window_drag_region()
             .flex_none()
             .h(u(NAV_BAR_HEIGHT))
             .w_full()
@@ -92,8 +106,8 @@ impl RenderOnce for NavBar {
                     .truncate()
                     .child(self.title),
             )
-            .children(self.leading)
+            .children(self.leading.into_iter().map(control))
             .child(div().flex_1())
-            .children(self.actions)
+            .children(self.actions.into_iter().map(control))
     }
 }

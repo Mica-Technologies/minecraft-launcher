@@ -11,12 +11,14 @@
 //! the engine the moment they change and are never dirty.
 
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use gpui::{
     AnimationExt as _, AnyElement, App, AppContext as _, ClickEvent, ClipboardItem, Context,
-    Entity, InteractiveElement as _, IntoElement, ParentElement, PathPromptOptions, Pixels, Render,
-    SharedString, Size, StatefulInteractiveElement as _, Styled, Subscription, Task, Window, div,
+    Entity, InteractiveElement as _, IntoElement, ParentElement, Pixels, Render, SharedString,
+    Size, StatefulInteractiveElement as _, Styled, Subscription, Task, Window, div,
     prelude::FluentBuilder as _, px, size,
 };
 use gpui_component::Disableable as _;
@@ -37,8 +39,8 @@ use mmcl_theme::shape;
 use mmcl_theme::typography::TypeRole;
 use mmcl_ui_kit::theme::{ThemeExt as _, TypeStyleExt as _, hsla};
 use mmcl_ui_kit::{
-    Avatar, CloseDecision, HelpTopic, Screen, ScreenId, ScreenRequest, Switch, TooltipExt as _,
-    WavyProgressBar,
+    Avatar, CloseDecision, FileFilter, HelpTopic, OpenDialog, SaveDialog, Screen, ScreenId,
+    ScreenRequest, Switch, TooltipExt as _, WavyProgressBar,
 };
 
 use super::logic::{self, SaveForm, TilePosition};
@@ -185,40 +187,6 @@ fn apply_writes(engine: &mmcl_engine::Engine, writes: Vec<Setting>) {
         let key = w.key();
         if let Err(e) = engine.set(w) {
             tracing::warn!("{}", tf!("log.settings.saveFailed", key, e.message()));
-        }
-    }
-}
-
-/// Verifies one pack under `op` (on the engine's runtime), mirroring its `Progress` events onto
-/// the Progress screen: the step label as the section line, the step text as the detail line,
-/// and the bar. Subscribes before the verify starts, so no early event is missed.
-async fn verify_one_reporting(
-    engine: mmcl_engine::Engine,
-    id: mmcl_engine::PackId,
-    op: OperationId,
-    handle: crate::screens::misc::progress::ProgressHandle,
-) -> mmcl_engine::EngineResult<OperationId> {
-    use tokio::sync::broadcast::error::RecvError;
-    let mut rx = engine.subscribe();
-    let verify = engine.verify_pack_with(&id, op);
-    tokio::pin!(verify);
-    loop {
-        tokio::select! {
-            res = &mut verify => return res,
-            ev = rx.recv() => match ev {
-                Ok(EngineEvent::Progress(p)) if p.operation == op => {
-                    if !p.label.trim().is_empty() {
-                        handle.set_section(p.label.clone());
-                    }
-                    handle.set_detail(logic::strip_ansi(&p.text));
-                    handle.set_progress(
-                        crate::screens::misc::progress::Progress::from_fraction(p.fraction),
-                    );
-                }
-                Ok(_) | Err(RecvError::Lagged(_)) => {}
-                // No more events: just wait for the verify itself.
-                Err(RecvError::Closed) => return verify.await,
-            },
         }
     }
 }
@@ -1021,7 +989,9 @@ impl SettingsScreen {
                 });
                 return;
             }
-            let Some(handle) = cx.update(crate::screens::misc::progress::show_progress) else {
+            let Some(handle) =
+                cx.update(crate::screens::misc::launch_progress::show_launch_progress)
+            else {
                 tracing::error!("{}", t!("log.verifyAction.noProgressGui"));
                 let _ = this.update(cx, |s, cx| {
                     s.verifying = false;
@@ -1029,22 +999,38 @@ impl SettingsScreen {
                 });
                 return;
             };
-            // From here Settings is gone; the task runs on its own.
+            // From here Settings is gone; the task runs on its own. Each pack is one engine
+            // operation: the Launch Progress screen shows its step rows, and Cancel stops it
+            // and skips the packs after it.
+            let stop = Arc::new(AtomicBool::new(false));
             let total = plan.verify.len();
-            let (mut ok, mut failed) = (0usize, 0usize);
+            let (mut ok, mut failed, mut cancelled) = (0usize, 0usize, false);
             for (i, item) in plan.verify.into_iter().enumerate() {
-                handle.set_labels(logic::verify_title(&item.name, i, total), "");
-                handle.set_detail("");
-                handle.set_progress(crate::screens::misc::progress::Progress::Percent(0.0));
+                if stop.load(Ordering::SeqCst) {
+                    cancelled = true;
+                    break;
+                }
                 let op = engine.next_operation_id();
-                let task = engine.spawn(verify_one_reporting(
-                    engine.clone(),
-                    item.id.clone(),
+                crate::screens::misc::flows::follow_with_steps(
+                    &handle,
+                    &engine,
                     op,
-                    handle.clone(),
-                ));
+                    logic::verify_title(&item.name, i, total),
+                    None,
+                );
+                let (e, flag) = (engine.clone(), stop.clone());
+                handle.set_cancel_handler(Some(Arc::new(move || {
+                    flag.store(true, Ordering::SeqCst);
+                    let _ = e.cancel_operation(op);
+                })));
+                let (e, id) = (engine.clone(), item.id.clone());
+                let task = engine.spawn(async move { e.verify_pack_with(&id, op).await });
                 match task.await {
                     Ok(Ok(_)) => ok += 1,
+                    Ok(Err(e)) if e.is_cancelled() || stop.load(Ordering::SeqCst) => {
+                        cancelled = true;
+                        break;
+                    }
                     Ok(Err(e)) => {
                         failed += 1;
                         tracing::error!(
@@ -1069,11 +1055,19 @@ impl SettingsScreen {
                     }
                 }
             }
-            let (is_error, title, body) = logic::verify_outcome(ok, failed);
-            let kind = if is_error {
-                NotificationKind::Error
+            handle.set_cancel_handler(None);
+            let (kind, title, body) = if cancelled {
+                tracing::info!("{}", tf!("log.verifyAction.cancelled", ok as i64));
+                let (title, body) = logic::verify_cancelled(ok);
+                (NotificationKind::Info, title, body)
             } else {
-                NotificationKind::Success
+                let (is_error, title, body) = logic::verify_outcome(ok, failed);
+                let kind = if is_error {
+                    NotificationKind::Error
+                } else {
+                    NotificationKind::Success
+                };
+                (kind, title, body)
             };
             engine.notify(Notification::new(kind, title, body));
             cx.update(|cx| crate::shell::go_to(cx, ScreenRequest::new(ScreenId::HOME)));
@@ -1116,16 +1110,12 @@ impl SettingsScreen {
 
     // ---- security ------------------------------------------------------------------------
 
-    fn change_scan_folder(&mut self, cx: &mut Context<Self>) {
-        let rx = cx.prompt_for_paths(PathPromptOptions {
-            files: false,
-            directories: true,
-            multiple: false,
-            prompt: Some(t!("settings.scanFolderDialog.title").into_owned().into()),
-        });
-        cx.spawn(async move |this, cx| match rx.await {
-            Ok(Ok(Some(paths))) if !paths.is_empty() => {
-                let folder = paths[0].clone();
+    fn change_scan_folder(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let pick = OpenDialog::new(t!("settings.scanFolderDialog.title"))
+            .directory(self.scan.folder.clone())
+            .pick_folder(Some(window));
+        cx.spawn(async move |this, cx| match pick.await {
+            Some(folder) => {
                 let _ = this.update(cx, |s, cx| {
                     s.scan.folder = folder;
                     cx.notify();
@@ -1354,15 +1344,17 @@ impl SettingsScreen {
         }));
     }
 
-    fn export_settings(&mut self, cx: &mut Context<Self>) {
-        let dir = self.root.clone();
-        let name = t!("dialog.settings.exportSettings.defaultFilename").into_owned();
-        let rx = cx.prompt_for_new_path(&dir, Some(&name));
+    fn export_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let pick = SaveDialog::new(t!("dialog.fileChooser.exportSettings.title"))
+            .directory(self.root.clone())
+            .file_name(t!("dialog.settings.exportSettings.defaultFilename"))
+            .filter(FileFilter::json())
+            .save(Some(window));
         cx.spawn(async move |this, cx| {
-            let Ok(Ok(Some(path))) = rx.await else {
+            let Some(path) = pick.await else {
                 return;
             };
-            // The platform save dialog has no `*.json` filter: a bare name gets the extension.
+            // The dialog adds `.json` to a bare name; keep the rule for any other platform path.
             let path = logic::export_path(&path);
             let task = cx.update(|cx| {
                 services::run(cx, move |e| async move { e.export_settings(&path).await })
@@ -1382,22 +1374,17 @@ impl SettingsScreen {
         .detach();
     }
 
-    fn import_settings(&mut self, cx: &mut Context<Self>) {
-        let rx = cx.prompt_for_paths(PathPromptOptions {
-            files: true,
-            directories: false,
-            multiple: false,
-            prompt: Some(t!("settings.fileChooser.importTitle").into_owned().into()),
-        });
+    fn import_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let pick = OpenDialog::new(t!("settings.fileChooser.importTitle"))
+            .directory(self.root.clone())
+            .filter(FileFilter::json())
+            .pick_file(Some(window));
         let category = self.category;
         cx.spawn(async move |this, cx| {
-            let Ok(Ok(Some(paths))) = rx.await else {
+            let Some(path) = pick.await else {
                 return;
             };
-            let Some(path) = paths.into_iter().next() else {
-                return;
-            };
-            // The platform open dialog has no `*.json` filter: refuse anything else here.
+            // The dialog filters on `*.json`, but a typed name can bypass it: refuse the rest.
             let ok = if logic::is_json_file(&path) {
                 let task = cx.update(|cx| {
                     services::run(cx, move |e| async move { e.import_settings(&path).await })
@@ -2195,34 +2182,37 @@ impl SettingsScreen {
     fn render_security(&mut self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let t = cx.tokens();
         let running = self.scan.running;
-        let mut scan_rows = vec![
-            hint(
-                tf!(
-                    "settings.scanFolderLabel",
-                    self.scan.folder.display().to_string()
-                ),
-                cx,
-            )
-            .into_any_element(),
-            button_row(vec![
-                Button::new("scan-start")
-                    .label(label(if running {
-                        "settings.scanBtn.cancel"
-                    } else {
-                        "settings.scanBtn.label"
-                    }))
-                    .primary()
-                    .on_click(cx.listener(|s, _: &ClickEvent, _, cx| s.toggle_scan(cx)))
-                    .into_any_element(),
-                Button::new("scan-folder")
-                    .label(label("settings.fxml.changeFolder"))
-                    .outline()
-                    .disabled(running)
-                    .when(running, |b| b.invisible())
-                    .on_click(cx.listener(|s, _: &ClickEvent, _, cx| s.change_scan_folder(cx)))
-                    .into_any_element(),
-            ]),
-        ];
+        let mut scan_rows =
+            vec![
+                hint(
+                    tf!(
+                        "settings.scanFolderLabel",
+                        self.scan.folder.display().to_string()
+                    ),
+                    cx,
+                )
+                .into_any_element(),
+                button_row(vec![
+                    Button::new("scan-start")
+                        .label(label(if running {
+                            "settings.scanBtn.cancel"
+                        } else {
+                            "settings.scanBtn.label"
+                        }))
+                        .primary()
+                        .on_click(cx.listener(|s, _: &ClickEvent, _, cx| s.toggle_scan(cx)))
+                        .into_any_element(),
+                    Button::new("scan-folder")
+                        .label(label("settings.fxml.changeFolder"))
+                        .outline()
+                        .disabled(running)
+                        .when(running, |b| b.invisible())
+                        .on_click(cx.listener(|s, _: &ClickEvent, window, cx| {
+                            s.change_scan_folder(window, cx)
+                        }))
+                        .into_any_element(),
+                ]),
+            ];
         if running || self.scan.output.is_some() {
             if running {
                 scan_rows.push(
@@ -2572,13 +2562,17 @@ impl SettingsScreen {
                 .label(export_label)
                 .outline()
                 .tooltip(label("tooltip.settings.exportSettings"))
-                .on_click(cx.listener(|s, _: &ClickEvent, _, cx| s.export_settings(cx)))
+                .on_click(
+                    cx.listener(|s, _: &ClickEvent, window, cx| s.export_settings(window, cx)),
+                )
                 .into_any_element(),
             Button::new("sys-import")
                 .label(import_label)
                 .outline()
                 .tooltip(label("tooltip.settings.importSettings"))
-                .on_click(cx.listener(|s, _: &ClickEvent, _, cx| s.import_settings(cx)))
+                .on_click(
+                    cx.listener(|s, _: &ClickEvent, window, cx| s.import_settings(window, cx)),
+                )
                 .into_any_element(),
             Button::new("sys-open-folder")
                 .label(label("settings.fxml.openLauncherFolder"))

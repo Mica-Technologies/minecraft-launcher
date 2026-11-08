@@ -45,8 +45,8 @@ pub use browse::BrowseScreen;
 pub use home::HomeScreen;
 pub use hooks::{
     ImportConfirm, set_account_switcher_handler, set_confirm_import_handler,
-    set_open_detail_handler, set_play_handler, set_quick_start_handler,
-    set_show_running_games_handler, set_show_session_handler,
+    set_confirm_import_preview_handler, set_open_detail_handler, set_play_handler,
+    set_quick_start_handler, set_show_running_games_handler, set_show_session_handler,
 };
 pub use pack_actions::{build_pack_context_menu, confirm_and_uninstall_modpack, start_play};
 

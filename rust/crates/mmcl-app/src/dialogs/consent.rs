@@ -249,8 +249,12 @@ fn open_consent_window(ticket: ConsentTicket, deadline: Instant, cx: &mut App) {
             size: SIZE,
             min_size: None,
             resizable: false,
+            modal: false,
+            bounds_key: None,
         },
-        None,
+        // Unowned: the question must show even while the main window is minimised or in the
+        // tray (an owned window would minimise with it).
+        super::Owner::Unowned,
         cx,
         |window, cx| {
             let v = cx.new(|cx| ConsentView::new(ticket, deadline, window, cx));

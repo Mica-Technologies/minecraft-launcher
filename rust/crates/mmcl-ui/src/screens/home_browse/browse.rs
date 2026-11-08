@@ -6,12 +6,13 @@
 //! the hosting manifest.
 
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::rc::Rc;
 use std::time::Duration;
 
 use gpui::{
-    App, AppContext as _, ClickEvent, Context, Entity, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement, PathPromptOptions, Pixels, Render, ScrollHandle, SharedString,
+    App, AppContext as _, AsyncWindowContext, ClickEvent, Context, Entity, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Pixels, Render, ScrollHandle, SharedString,
     Size, StatefulInteractiveElement, Styled, Subscription, Task, WeakEntity, Window, div,
     prelude::FluentBuilder as _, px, size,
 };
@@ -19,17 +20,21 @@ use gpui_component::Disableable as _;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::input::{Input, InputEvent, InputState};
 use mmcl_engine::{
-    EngineEvent, ImportRequest, ImportSourceView, LoaderVersionView, PackId, VanillaVersionView,
+    EngineEvent, ImportPreview, ImportRequest, ImportSourceView, LoaderVersionView, PackId,
+    VanillaVersionView,
 };
 use mmcl_i18n::{t, tf};
 use mmcl_theme::typography::TypeRole;
 use mmcl_ui_kit::theme::{ThemeExt as _, TypeStyleExt as _, hsla};
 use mmcl_ui_kit::{
-    AnnouncementBanner, HelpTopic, Icon, IconButton, LoadingIndicator, OfflineChip, Screen,
-    ScreenId, ScreenRequest, SearchField, empty_state_badge, notify,
+    AnnouncementBanner, FileFilter, HelpTopic, Icon, IconButton, LoadingIndicator, OfflineChip,
+    OpenDialog, SaveDialog, Screen, ScreenId, ScreenRequest, SearchField, empty_state_badge,
+    notify,
 };
 
-use super::backend::{Classified, LibraryBackend, PackExtras, PreviewResult, backend};
+use super::backend::{
+    Classified, ImportFailure, LibraryBackend, PackExtras, PreviewResult, backend,
+};
 use super::browse_logic::{
     self, BrowseSources, EntryAction, EntryKind, LibraryEntry, collect_entries, filter_search,
     hosting_manifest, loader_for, pack_mods_match, sort_entries, vanilla_kinds_for,
@@ -38,7 +43,7 @@ use super::card::{ButtonStyle, CardButton, CardGeometry, ImportPlaceholder, Pack
 use super::controls::{Pick, combo, field_label, sources_for};
 use super::cycle::{self, CycleSubscription};
 use super::home_logic::pagination_labels;
-use super::hooks::{self, ImportConfirm};
+use super::hooks;
 use super::model::{
     BROWSE_DEFAULT_PAGE_SIZE, BROWSE_PAGE_SIZES, BROWSE_SORTS, BROWSE_STATUSES, BROWSE_TYPES,
     Change, FILTER_STATUS, FILTER_TYPE, FilterValue, LibraryViewModel, PageBounds, SORT_PREFIX,
@@ -54,6 +59,85 @@ use crate::widgets::NavBar;
 
 /// The delay before a rebuild shows its loading indicator (warm rebuilds never flash).
 pub const LOADING_DELAY: Duration = Duration::from_millis(150);
+
+/// The `.mrpack` type of the ZIP import dialog.
+fn mrpack_filter() -> FileFilter {
+    FileFilter::new(t!("dialog.fileChooser.mrpack.filter"), &["mrpack"])
+}
+
+/// Whether `path` is a Modrinth `.mrpack` (extension, case-insensitive).
+pub fn is_mrpack(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("mrpack"))
+}
+
+/// How a prepared import ended.
+enum PreparedOutcome {
+    /// Confirmed and installed.
+    Installed,
+    /// Cancelled in the confirmation (the download was deleted).
+    Discarded,
+    /// Preparing or installing failed.
+    Failed(ImportFailure),
+}
+
+/// Shows the import confirmation for a prepared import: the installed dialog hook, else a
+/// question listing the same facts. `true` to install.
+async fn confirm_prepared_import(preview: ImportPreview, cx: &mut AsyncWindowContext) -> bool {
+    let (header, body) = browse_logic::import_confirm_text(&preview);
+    match cx.update(|_, cx| hooks::confirm_prepared(preview, cx)) {
+        Ok(Some(task)) => task.await,
+        Ok(None) => {
+            let q = Question::new(
+                t!("dialog.importConfirm.title"),
+                header,
+                body,
+                t!("common.button.import"),
+                t!("dialog.button.cancel"),
+            );
+            dialogs::ask_multiline(cx, &q, None).await == Answer::Primary
+        }
+        Err(_) => false,
+    }
+}
+
+/// prepare -> confirm -> commit (or discard) for `request`, with the placeholder card's status
+/// line following each step.
+async fn prepare_confirm_commit(
+    this: WeakEntity<BrowseScreen>,
+    request: ImportRequest,
+    cx: &mut AsyncWindowContext,
+) -> PreparedOutcome {
+    let status =
+        |this: &WeakEntity<BrowseScreen>, key: &'static str, cx: &mut AsyncWindowContext| {
+            let _ = this.update(cx, |this, cx| {
+                this.update_import_status(t!(key).into_owned(), cx)
+            });
+        };
+    status(&this, "library.import.preparing", cx);
+    let Ok(fut) = cx.update(|_, cx| backend(cx).prepare_import(request)) else {
+        return PreparedOutcome::Discarded;
+    };
+    let preview = match fut.await {
+        Ok(p) => p,
+        Err(f) => return PreparedOutcome::Failed(f),
+    };
+    let token = preview.token;
+    status(&this, "library.import.waitingConfirmation", cx);
+    if !confirm_prepared_import(preview, cx).await {
+        let _ = cx.update(|_, cx| backend(cx).discard_import(token));
+        return PreparedOutcome::Discarded;
+    }
+    status(&this, "library.import.addingToLibrary", cx);
+    let Ok(fut) = cx.update(|_, cx| backend(cx).commit_import(token)) else {
+        return PreparedOutcome::Discarded;
+    };
+    match fut.await {
+        Ok(_) => PreparedOutcome::Installed,
+        Err(f) => PreparedOutcome::Failed(f),
+    }
+}
 
 /// The Browse screen.
 pub struct BrowseScreen {
@@ -507,7 +591,7 @@ impl BrowseScreen {
             let result = preview.await;
             let _ = this.update_in(cx, |this, window, cx| this.reset_url(window, cx));
             let slug = classified.slug.clone().unwrap_or_default();
-            let (title, version, body) = match &result {
+            let (title, body) = match &result {
                 PreviewResult::NotFound => {
                     notify::error(
                         &t!("notification.import.modrinth.failed.title"),
@@ -519,17 +603,14 @@ impl BrowseScreen {
                     notify::error(&t!("notification.import.modrinth.failed.title"), message);
                     return;
                 }
-                PreviewResult::Found(p) => {
-                    let (title, body) = browse_logic::modrinth_preview_text(p, &url);
-                    (title, p.version_number.clone(), body)
-                }
+                PreviewResult::Found(p) => browse_logic::modrinth_preview_text(p, &url),
                 PreviewResult::Unsupported => {
                     let body = [
                         format!("{} ({slug})", t!("preview.modrinth.sourceLabel")),
                         tf!("preview.urlLabel", url.as_str()),
                     ]
                     .join("\n");
-                    (slug.clone(), None, body)
+                    (slug.clone(), body)
                 }
             };
             let q = Question::new(
@@ -542,39 +623,13 @@ impl BrowseScreen {
             if dialogs::ask_multiline(cx, &q, None).await != Answer::Primary {
                 return;
             }
-            // The placeholder card shows each step: waiting for the import-confirm dialog,
-            // then the download + install.
+            // The placeholder card shows each step (Java's order): the download and read of
+            // the archive (`prepare`, nothing installed yet), the import-confirm dialog with the
+            // file list, then adding the pack to the library (`commit`).
             let _ = this.update(cx, |this, cx| this.begin_import(Some(title.clone()), cx));
-            if let Some(confirm) = cx
-                .update(|_, cx| hooks::read(cx).confirm_import)
-                .ok()
-                .flatten()
-            {
-                let _ = this.update(cx, |this, cx| {
-                    this.update_import_status(
-                        t!("library.import.waitingConfirmation").into_owned(),
-                        cx,
-                    )
-                });
-                let Ok(task) = cx.update(|_, cx| {
-                    confirm(
-                        ImportConfirm {
-                            name: title.clone(),
-                            version: version.clone(),
-                        },
-                        cx,
-                    )
-                }) else {
-                    return;
-                };
-                if !task.await {
-                    let _ = this.update(cx, |this, cx| this.end_import(cx));
-                    return;
-                }
-            }
             notify::info(
-                &t!("notification.browse.importStarting.title"),
-                &t!("notification.browse.importStarting.body"),
+                &t!("notification.import.preparing.title"),
+                &t!("notification.import.preparing.body"),
             );
             let _ = this.update(cx, |this, cx| {
                 this.update_import_status(
@@ -583,47 +638,101 @@ impl BrowseScreen {
                 );
             });
             let Ok(fut) = cx.update(|_, cx| match &result {
-                PreviewResult::Found(p) => backend(cx).install_modrinth(p),
-                _ => backend(cx).import(ImportRequest::Url(url.clone())),
+                PreviewResult::Found(p) => backend(cx).prepare_modrinth(p),
+                _ => backend(cx).prepare_import(ImportRequest::Url(url.clone())),
             }) else {
                 return;
             };
-            let r = fut.await;
-            match r {
+            let prepared = match fut.await {
+                Ok(p) => p,
+                Err(f) => {
+                    notify::error(&t!("notification.import.failed.title"), &f.message);
+                    let _ = this.update(cx, |this, cx| this.end_import(cx));
+                    return;
+                }
+            };
+            let token = prepared.token;
+            let _ = this.update(cx, |this, cx| {
+                this.update_import_status(t!("library.import.waitingConfirmation").into_owned(), cx)
+            });
+            let confirmed = confirm_prepared_import(prepared, cx).await;
+            if !confirmed {
+                // Cancelled: the download is deleted and nothing was installed.
+                let _ = cx.update(|_, cx| backend(cx).discard_import(token));
+                let _ = this.update(cx, |this, cx| this.end_import(cx));
+                return;
+            }
+            notify::info(
+                &t!("notification.browse.importStarting.title"),
+                &t!("notification.browse.importStarting.body"),
+            );
+            let _ = this.update(cx, |this, cx| {
+                this.update_import_status(t!("library.import.addingToLibrary").into_owned(), cx)
+            });
+            let Ok(fut) = cx.update(|_, cx| backend(cx).commit_import(token)) else {
+                return;
+            };
+            match fut.await {
                 Ok(_) => notify::success(
                     &t!("notification.browse.importComplete.title"),
                     &t!("notification.browse.importComplete.body"),
                 ),
-                Err(f) => notify::error(&t!("notification.browse.installFailed.title"), &f.message),
+                Err(f) => {
+                    tracing::error!(
+                        "{}",
+                        tf!("log.gameLibrary.modrinthInstallFailed", f.message.as_str())
+                    );
+                    notify::error(&t!("notification.browse.installFailed.title"), &f.message)
+                }
             }
             let _ = this.update(cx, |this, cx| this.end_import(cx));
         })
         .detach();
     }
 
-    /// Import ZIP.
+    /// Import ZIP (a Mica export or Technic server zip; a `.mrpack` picked here goes through the
+    /// import confirmation with its file list).
     pub fn import_zip(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.importing_zip || self.backend.announcements().disable_modpacks_edit {
             return;
         }
-        let rx = cx.prompt_for_paths(PathPromptOptions {
-            files: true,
-            directories: false,
-            multiple: false,
-            prompt: Some(
-                t!("dialog.fileChooser.importModpackZip.title")
-                    .into_owned()
-                    .into(),
-            ),
-        });
+        let pick = OpenDialog::new(t!("dialog.fileChooser.importModpackZip.title"))
+            .directory(home_dir())
+            .filter(FileFilter::mica_modpack_zip())
+            .filter(mrpack_filter())
+            .pick_file(Some(window));
         cx.spawn_in(window, async move |this, cx| {
-            let Ok(Ok(Some(paths))) = rx.await else {
-                return;
-            };
-            let Some(file) = paths.into_iter().next() else {
+            let Some(file) = pick.await else {
                 return;
             };
             let name = file.file_stem().map(|s| s.to_string_lossy().into_owned());
+            if is_mrpack(&file) {
+                let _ = this.update(cx, |this, cx| {
+                    this.importing_zip = true;
+                    this.begin_import(name, cx);
+                });
+                let outcome =
+                    prepare_confirm_commit(this.clone(), ImportRequest::MrpackFile(file), cx).await;
+                match outcome {
+                    PreparedOutcome::Installed => notify::success(
+                        &t!("notification.import.complete.title"),
+                        &t!("notification.import.complete.body"),
+                    ),
+                    PreparedOutcome::Failed(f) if f.expected => {
+                        notify::error(&t!("notification.import.failed.title"), &f.message)
+                    }
+                    PreparedOutcome::Failed(_) => notify::error(
+                        &t!("notification.import.unexpected.title"),
+                        &t!("notification.import.unexpected.body"),
+                    ),
+                    PreparedOutcome::Discarded => {}
+                }
+                let _ = this.update(cx, |this, cx| {
+                    this.importing_zip = false;
+                    this.end_import(cx);
+                });
+                return;
+            }
             let fut = this.update(cx, |this, cx| {
                 this.importing_zip = true;
                 this.begin_import(name, cx);
@@ -660,21 +769,11 @@ impl BrowseScreen {
         if self.importing_prism || self.backend.announcements().disable_modpacks_edit {
             return;
         }
-        let rx = cx.prompt_for_paths(PathPromptOptions {
-            files: false,
-            directories: true,
-            multiple: false,
-            prompt: Some(
-                t!("dialog.dirChooser.importPrism.title")
-                    .into_owned()
-                    .into(),
-            ),
-        });
+        let pick = OpenDialog::new(t!("dialog.dirChooser.importPrism.title"))
+            .directory(home_dir())
+            .pick_folder(Some(window));
         cx.spawn_in(window, async move |this, cx| {
-            let Ok(Ok(Some(paths))) = rx.await else {
-                return;
-            };
-            let Some(dir) = paths.into_iter().next() else {
+            let Some(dir) = pick.await else {
                 return;
             };
             let name = dir.file_name().map(|s| s.to_string_lossy().into_owned());
@@ -715,9 +814,13 @@ impl BrowseScreen {
             .filter(|p| !p.is_vanilla)
             .filter_map(|p| p.manifest_url)
             .collect();
-        let rx = cx.prompt_for_new_path(&home_dir(), Some("installable.json"));
+        let pick = SaveDialog::new(t!("dialog.fileChooser.saveHostingManifest.title"))
+            .directory(home_dir())
+            .file_name("installable.json")
+            .filter(FileFilter::json())
+            .save(Some(window));
         cx.spawn_in(window, async move |this, cx| {
-            let Ok(Ok(Some(dest))) = rx.await else { return };
+            let Some(dest) = pick.await else { return };
             let dest = with_extension(dest, "json");
             let text = hosting_manifest(&urls);
             let written = cx

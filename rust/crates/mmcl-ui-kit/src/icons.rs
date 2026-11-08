@@ -31,7 +31,10 @@ impl Icon {
 
     /// An `svg()` element for this icon at `size` px, ready for `.text_color(..)`.
     pub fn svg(self, size: f32) -> Svg {
-        svg().path(self.asset_path()).flex_shrink_0().size(crate::scale::u(size))
+        svg()
+            .path(self.asset_path())
+            .flex_shrink_0()
+            .size(crate::scale::u(size))
     }
 }
 

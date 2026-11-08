@@ -10,9 +10,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use gpui::{
-    AnyWindowHandle, App, AppContext as _, Context, Entity, InteractiveElement as _, IntoElement,
-    ParentElement, Render, SharedString, StatefulInteractiveElement as _, Styled, Subscription,
-    Window, div, px,
+    App, AppContext as _, Context, Entity, InteractiveElement as _, IntoElement, ParentElement,
+    Render, SharedString, StatefulInteractiveElement as _, Styled, Subscription, Window, div, px,
 };
 use gpui_component::input::{Input, InputEvent, InputState};
 use mmcl_engine::{Engine, ModSearchHit, PackId};
@@ -416,7 +415,7 @@ pub fn show_add_mod(
     engine: Engine,
     id: PackId,
     mods_dir: PathBuf,
-    owner: Option<AnyWindowHandle>,
+    owner: impl Into<super::Owner>,
     cx: &mut App,
 ) {
     let Some(summary) = engine.pack(&id) else {
@@ -437,6 +436,9 @@ pub fn show_add_mod(
             size: SIZE,
             min_size: Some(MIN_SIZE),
             resizable: true,
+            // Java: owned, not modal (Modality.NONE), so the detail modal stays usable.
+            modal: false,
+            bounds_key: Some("addMod"),
         },
         owner,
         cx,

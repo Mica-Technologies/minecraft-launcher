@@ -5,7 +5,7 @@
 
 use std::time::{Duration, SystemTime};
 
-use mmcl_engine::{AccountStatus, AccountView, DeviceCodePrompt, SignInKind};
+use mmcl_engine::{AccountStatus, AccountView, DeviceCodePrompt, SignInKind, SignInPageState};
 
 // ---------------------------------------------------------------------------------------------
 // AccountListModel
@@ -227,6 +227,20 @@ pub struct PanelState {
     pub last_kind: Option<SignInKind>,
     /// Bumped on every start, so a result of an older run is ignored.
     pub generation: u64,
+    /// What the web view helper's Microsoft page is doing (Java's loading overlay and its
+    /// "couldn't reach the sign-in page" state); `None` until the helper reports.
+    pub page: Option<SignInPageState>,
+}
+
+/// What the frame shows while the web view sign-in waits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WebViewView {
+    /// The helper window is starting or the page is loading (`signIn.loading`).
+    Loading,
+    /// The page is up in the Microsoft window: finish there (`signIn.webView.waiting`).
+    Waiting,
+    /// The page could not be reached (`signIn.loadFailed`, Try again, Cancel).
+    LoadFailed,
 }
 
 impl PanelState {
@@ -239,6 +253,49 @@ impl PanelState {
             status: None,
             last_kind: None,
             generation: 0,
+            page: None,
+        }
+    }
+
+    /// The web view helper reported its page state. Ignored unless a web view flow waits.
+    pub fn on_page(&mut self, state: SignInPageState) -> bool {
+        match self.phase {
+            Phase::Waiting {
+                kind: SignInKind::WebView,
+                ..
+            } if self.page != Some(state) => {
+                self.page = Some(state);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// "Try again" on the load-failed view: back to loading while the helper reloads. `true`
+    /// when the engine should be asked to reload.
+    pub fn retry_page(&mut self) -> bool {
+        if self.web_view_view() != Some(WebViewView::LoadFailed) {
+            return false;
+        }
+        self.page = Some(SignInPageState::Loading);
+        true
+    }
+
+    /// What the frame shows for a waiting web view flow; `None` for any other phase.
+    pub fn web_view_view(&self) -> Option<WebViewView> {
+        match self.phase {
+            Phase::Waiting {
+                kind: SignInKind::WebView,
+                ..
+            } => Some(match self.page {
+                Some(SignInPageState::Loaded) => WebViewView::Waiting,
+                Some(SignInPageState::LoadFailed) => WebViewView::LoadFailed,
+                // An older helper reports nothing: show the waiting note rather than a
+                // spinner that never ends.
+                None => WebViewView::Waiting,
+                Some(SignInPageState::Loading) => WebViewView::Loading,
+            }),
+            _ => None,
         }
     }
 
@@ -271,6 +328,7 @@ impl PanelState {
         }
         self.generation += 1;
         self.status = None;
+        self.page = None;
         self.last_kind = Some(kind);
         self.phase = Phase::Waiting { kind, prompt: None };
         Some(self.generation)
@@ -547,6 +605,43 @@ mod tests {
         assert!(s.remember);
         assert!(s.remember_enabled());
         assert_eq!(s.default_flow(), Some(SignInKind::WebView));
+    }
+
+    #[test]
+    fn web_view_page_states_drive_the_frame() {
+        let mut s = PanelState::new(vec![SignInKind::WebView, SignInKind::DeviceCode]);
+        assert!(!s.on_page(SignInPageState::Loading), "no flow runs");
+        assert_eq!(s.web_view_view(), None);
+        s.start(SignInKind::WebView).unwrap();
+        assert_eq!(
+            s.web_view_view(),
+            Some(WebViewView::Waiting),
+            "old helpers say nothing"
+        );
+        assert!(s.on_page(SignInPageState::Loading));
+        assert!(
+            !s.on_page(SignInPageState::Loading),
+            "a repeat changes nothing"
+        );
+        assert_eq!(s.web_view_view(), Some(WebViewView::Loading));
+        assert!(!s.retry_page(), "retry only after a failure");
+        assert!(s.on_page(SignInPageState::LoadFailed));
+        assert_eq!(s.web_view_view(), Some(WebViewView::LoadFailed));
+        assert!(s.retry_page());
+        assert_eq!(s.web_view_view(), Some(WebViewView::Loading));
+        assert!(s.on_page(SignInPageState::Loaded));
+        assert_eq!(s.web_view_view(), Some(WebViewView::Waiting));
+        // A new run starts without the old page state.
+        assert!(s.cancel());
+        s.finish(s.generation, FlowEnd::Cancelled);
+        s.start(SignInKind::WebView).unwrap();
+        assert_eq!(s.page, None);
+        // Device code flows ignore page lines.
+        assert!(s.cancel());
+        s.finish(s.generation, FlowEnd::Cancelled);
+        s.start(SignInKind::DeviceCode).unwrap();
+        assert!(!s.on_page(SignInPageState::LoadFailed));
+        assert_eq!(s.web_view_view(), None);
     }
 
     #[test]

@@ -449,6 +449,110 @@ pub fn modrinth_preview_text(p: &mmcl_engine::ModrinthProjectView, url: &str) ->
     (title, lines.join("\n"))
 }
 
+/// How many mod rows the fallback import confirmation lists before "…".
+pub const CONFIRM_MOD_ROWS: usize = 40;
+
+/// The import-confirm subtitle (`Version · Minecraft · loader`, each when known).
+pub fn import_confirm_subtitle(p: &mmcl_engine::ImportPreview) -> String {
+    let known = |v: &Option<String>| v.clone().filter(|v| !v.trim().is_empty());
+    let mut parts = Vec::new();
+    if let Some(v) = known(&p.pack_version) {
+        parts.push(tf!("importConfirm.meta.version", v));
+    }
+    if let Some(mc) = known(&p.minecraft_version) {
+        parts.push(tf!("importConfirm.meta.minecraft", mc));
+    }
+    if let (Some(loader), Some(v)) = (known(&p.loader_type), known(&p.loader_version)) {
+        parts.push(if loader.eq_ignore_ascii_case("forge") {
+            tf!("importConfirm.meta.forge", v)
+        } else {
+            tf!("importConfirm.meta.loader", pretty_loader(&loader), v)
+        });
+    }
+    parts.join(" \u{00B7} ")
+}
+
+/// The import-confirm totals line (`buildTotalsText`): mods always, each non-zero other count,
+/// then the total size.
+pub fn import_confirm_totals(t: &mmcl_engine::ImportTotals) -> String {
+    let mut text = tf!("importConfirm.totals.mods", t.mods as i64);
+    for (key, n) in [
+        ("importConfirm.totals.configs", t.configs),
+        ("importConfirm.totals.resourcePacks", t.resource_packs),
+        ("importConfirm.totals.shaderPacks", t.shader_packs),
+        ("importConfirm.totals.otherFiles", t.other),
+    ] {
+        if n > 0 {
+            text = tf!("importConfirm.totals.join", text, tf!(key, n as i64));
+        }
+    }
+    if t.total_bytes > 0 {
+        let size = mmcl_util::units::bytes(i64::try_from(t.total_bytes).unwrap_or(i64::MAX));
+        text = tf!(
+            "importConfirm.totals.withSize",
+            text,
+            tf!("importConfirm.totals.size", size)
+        );
+    }
+    text
+}
+
+/// The fallback import confirmation (no dialog hook installed): the header (pack name or
+/// `dialog.importConfirm.fallbackName`) and the body: subtitle, summary, totals, the mod rows
+/// (`[size]  name`, at most [`CONFIRM_MOD_ROWS`]) and the note. A source read only on confirm
+/// shows its label and `importConfirm.unavailable` instead of the list.
+pub fn import_confirm_text(p: &mmcl_engine::ImportPreview) -> (String, String) {
+    let header = p
+        .pack_name
+        .clone()
+        .filter(|n| !n.trim().is_empty())
+        .unwrap_or_else(|| {
+            if p.has_details || p.source_label.trim().is_empty() {
+                t!("dialog.importConfirm.fallbackName").into_owned()
+            } else {
+                p.source_label.clone()
+            }
+        });
+    let mut lines = Vec::new();
+    let subtitle = import_confirm_subtitle(p);
+    if !subtitle.is_empty() {
+        lines.push(subtitle);
+    }
+    if let Some(s) = p.summary.as_ref().filter(|s| !s.trim().is_empty()) {
+        lines.push(s.clone());
+    }
+    if !p.has_details {
+        lines.push(t!("importConfirm.unavailable").into_owned());
+        return (header, lines.join("\n"));
+    }
+    lines.push(String::new());
+    lines.push(import_confirm_totals(&p.totals));
+    lines.push(String::new());
+    let mods: Vec<String> = p
+        .mods()
+        .map(|f| {
+            if f.size > 0 {
+                let size = mmcl_util::units::bytes(i64::try_from(f.size).unwrap_or(i64::MAX));
+                format!("[{size}]  {}", f.file_name)
+            } else {
+                f.file_name.clone()
+            }
+        })
+        .collect();
+    if mods.is_empty() {
+        lines.push(t!("importConfirm.empty").into_owned());
+    } else {
+        let more = mods.len().saturating_sub(CONFIRM_MOD_ROWS);
+        lines.extend(mods.into_iter().take(CONFIRM_MOD_ROWS));
+        if more > 0 {
+            lines.push(tf!("importConfirm.more", more as i64));
+        }
+    }
+    lines.push(String::new());
+    lines.push(t!("importConfirm.note").into_owned());
+    (header, lines.join("\n"))
+}
+
 /// The hosting manifest (`{ "available": [ urls ] }`), pretty-printed.
 pub fn hosting_manifest(urls: &[String]) -> String {
     let mut map = serde_json::Map::new();
@@ -519,6 +623,95 @@ pub fn prewarm_mod_names(roots: &[PathBuf]) {
 mod tests {
     use super::*;
     use crate::screens::home_browse::home_logic::tests::pack;
+    use mmcl_engine::{
+        ImportFileCategory, ImportFileView, ImportPreview, ImportPreviewSource, ImportToken,
+        ImportTotals,
+    };
+
+    fn file(path: &str, size: u64) -> ImportFileView {
+        ImportFileView {
+            path: path.into(),
+            file_name: path.rsplit('/').next().unwrap().into(),
+            size,
+            category: ImportFileCategory::of_path(path),
+            client_supported: true,
+        }
+    }
+
+    fn prepared(files: Vec<ImportFileView>) -> ImportPreview {
+        ImportPreview {
+            token: ImportToken(4),
+            source: ImportPreviewSource::ModrinthProject,
+            has_details: true,
+            pack_name: Some("Pack".into()),
+            pack_version: Some("1.2".into()),
+            minecraft_version: Some("1.20.1".into()),
+            loader_type: Some("forge".into()),
+            loader_version: Some("47.2.0".into()),
+            summary: None,
+            icon_url: None,
+            totals: ImportTotals::of(&files),
+            files,
+            source_label: "pack".into(),
+        }
+    }
+
+    #[test]
+    fn import_confirmation_lists_the_mods_and_totals() {
+        let p = prepared(vec![
+            file("mods/a.jar", 2048),
+            file("mods/b.jar", 0),
+            file("config/x.toml", 10),
+        ]);
+        assert_eq!(
+            import_confirm_subtitle(&p),
+            format!(
+                "{} \u{00B7} {} \u{00B7} {}",
+                tf!("importConfirm.meta.version", "1.2"),
+                tf!("importConfirm.meta.minecraft", "1.20.1"),
+                tf!("importConfirm.meta.forge", "47.2.0")
+            )
+        );
+        let (header, body) = import_confirm_text(&p);
+        assert_eq!(header, "Pack");
+        assert!(body.contains("]  a.jar"), "{body}");
+        assert!(body.lines().any(|l| l == "b.jar"), "{body}");
+        assert!(!body.contains("x.toml"), "only mods are listed");
+        assert!(body.contains(&import_confirm_totals(&p.totals)));
+        assert!(
+            import_confirm_totals(&p.totals).contains(&tf!("importConfirm.totals.configs", 1i64))
+        );
+        let empty = prepared(vec![file("config/x.toml", 1)]);
+        assert!(
+            import_confirm_text(&empty)
+                .1
+                .contains(t!("importConfirm.empty").as_ref())
+        );
+    }
+
+    #[test]
+    fn import_confirmation_caps_long_lists_and_handles_deferred_sources() {
+        let files = (0..CONFIRM_MOD_ROWS + 3)
+            .map(|i| file(&format!("mods/m{i}.jar"), 1))
+            .collect();
+        let (_, body) = import_confirm_text(&prepared(files));
+        assert!(body.contains(&tf!("importConfirm.more", 3i64)));
+        let mut deferred = prepared(Vec::new());
+        deferred.has_details = false;
+        deferred.pack_name = None;
+        deferred.pack_version = None;
+        deferred.minecraft_version = None;
+        deferred.loader_type = None;
+        deferred.source_label = "pack.zip".into();
+        let (header, body) = import_confirm_text(&deferred);
+        assert_eq!(header, "pack.zip");
+        assert_eq!(body, t!("importConfirm.unavailable"));
+        deferred.has_details = true;
+        assert_eq!(
+            import_confirm_text(&deferred).0,
+            t!("dialog.importConfirm.fallbackName")
+        );
+    }
 
     #[test]
     fn modrinth_preview_lists_the_project_facts() {

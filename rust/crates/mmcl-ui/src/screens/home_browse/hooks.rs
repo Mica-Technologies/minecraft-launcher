@@ -8,9 +8,11 @@
 use std::rc::Rc;
 
 use gpui::{App, Global, Task, Window};
-use mmcl_engine::{PackId, SessionId};
+use mmcl_engine::{ImportPreview, PackId, SessionId};
 
-/// The import-confirm dialog's input (`MCLauncherImportConfirmDialog`).
+/// The import-confirm dialog's short input (`MCLauncherImportConfirmDialog`): name and version.
+/// The full input (every file, the totals, Minecraft and loader versions) is the prepared
+/// import's [`ImportPreview`], handed to [`set_confirm_import_preview_handler`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportConfirm {
     /// The pack name.
@@ -19,11 +21,31 @@ pub struct ImportConfirm {
     pub version: Option<String>,
 }
 
+impl ImportConfirm {
+    /// The short input of a prepared import: its pack name (else what it was read from) and
+    /// version.
+    pub fn from_preview(preview: &ImportPreview) -> Self {
+        let name = preview
+            .pack_name
+            .clone()
+            .filter(|n| !n.trim().is_empty())
+            .unwrap_or_else(|| preview.source_label.clone());
+        ImportConfirm {
+            name,
+            version: preview
+                .pack_version
+                .clone()
+                .filter(|v| !v.trim().is_empty()),
+        }
+    }
+}
+
 type WindowFn = Rc<dyn Fn(&mut Window, &mut App)>;
 type PackWindowFn = Rc<dyn Fn(PackId, &mut Window, &mut App)>;
 type SessionFn = Rc<dyn Fn(SessionId, &mut App)>;
 type AppFn = Rc<dyn Fn(&mut App)>;
 type ConfirmFn = Rc<dyn Fn(ImportConfirm, &mut App) -> Task<bool>>;
+type PreviewConfirmFn = Rc<dyn Fn(ImportPreview, &mut App) -> Task<bool>>;
 type PackFn = Rc<dyn Fn(PackId, &mut App)>;
 
 /// The hook table.
@@ -35,6 +57,7 @@ pub struct LibraryHooks {
     pub(crate) account_switcher: Option<WindowFn>,
     pub(crate) quick_start: Option<WindowFn>,
     pub(crate) confirm_import: Option<ConfirmFn>,
+    pub(crate) confirm_import_preview: Option<PreviewConfirmFn>,
     pub(crate) play: Option<PackFn>,
 }
 
@@ -81,8 +104,65 @@ pub fn set_confirm_import_handler(
     hooks(cx).confirm_import = Some(Rc::new(f));
 }
 
+/// Shows the import-confirm dialog for a prepared import, with its file list and totals;
+/// resolves `true` to install it (`commit_import`), `false` to discard it. Preferred over
+/// [`set_confirm_import_handler`] when both are installed. Fallback: a question listing the
+/// same facts.
+pub fn set_confirm_import_preview_handler(
+    cx: &mut App,
+    f: impl Fn(ImportPreview, &mut App) -> Task<bool> + 'static,
+) {
+    hooks(cx).confirm_import_preview = Some(Rc::new(f));
+}
+
+/// The installed import-confirm dialog for `preview`: the preview hook, else the short hook.
+/// `None` when neither is installed (the caller asks a plain question instead).
+pub(crate) fn confirm_prepared(preview: ImportPreview, cx: &mut App) -> Option<Task<bool>> {
+    let hooks = read(cx);
+    if let Some(f) = hooks.confirm_import_preview {
+        return Some(f(preview, cx));
+    }
+    hooks
+        .confirm_import
+        .map(|f| f(ImportConfirm::from_preview(&preview), cx))
+}
+
 /// Replaces the launch (`LauncherCore.play`). Fallback: the backend's launch with an error
 /// dialog on refusal.
 pub fn set_play_handler(cx: &mut App, f: impl Fn(PackId, &mut App) + 'static) {
     hooks(cx).play = Some(Rc::new(f));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mmcl_engine::{ImportPreviewSource, ImportToken, ImportTotals};
+
+    fn preview(name: Option<&str>, version: Option<&str>) -> ImportPreview {
+        ImportPreview {
+            token: ImportToken(1),
+            source: ImportPreviewSource::ModrinthProject,
+            has_details: true,
+            pack_name: name.map(str::to_string),
+            pack_version: version.map(str::to_string),
+            minecraft_version: None,
+            loader_type: None,
+            loader_version: None,
+            summary: None,
+            icon_url: None,
+            files: Vec::new(),
+            totals: ImportTotals::default(),
+            source_label: "fabulously-optimized".into(),
+        }
+    }
+
+    #[test]
+    fn the_short_input_falls_back_to_the_source() {
+        let c = ImportConfirm::from_preview(&preview(Some("FO"), Some("5.0")));
+        assert_eq!(c.name, "FO");
+        assert_eq!(c.version.as_deref(), Some("5.0"));
+        let c = ImportConfirm::from_preview(&preview(Some("  "), Some(" ")));
+        assert_eq!(c.name, "fabulously-optimized");
+        assert_eq!(c.version, None);
+    }
 }

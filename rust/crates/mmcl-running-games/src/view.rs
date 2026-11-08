@@ -13,11 +13,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, AnyWindowHandle, App, AppContext as _, Bounds, Context, CursorStyle, DragMoveEvent,
+    AnyElement, AnyWindowHandle, App, AppContext as _, Context, CursorStyle, DragMoveEvent,
     EmptyView, Entity, FocusHandle, Focusable, Global, InteractiveElement as _, IntoElement,
     KeyBinding, MouseButton, ParentElement, Pixels, Render, ScrollHandle, SharedString,
-    StatefulInteractiveElement as _, Styled, Task, TitlebarOptions, Window, WindowBounds,
-    WindowOptions, actions, div, prelude::FluentBuilder as _, px, size,
+    StatefulInteractiveElement as _, Styled, Task, TitlebarOptions, Window, WindowOptions, actions,
+    div, prelude::FluentBuilder as _, px, size,
 };
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::menu::{DropdownMenu as _, PopupMenuItem};
@@ -25,6 +25,7 @@ use gpui_component::{IconName, Sizable as _};
 use mmcl_engine::{EngineEvent, SessionId, SessionInfo, SessionPhase};
 use mmcl_i18n::t;
 use mmcl_ui_kit::scale::{self, u};
+use mmcl_ui_kit::windowing;
 use mmcl_ui_kit::{Avatar, Icon, IconButton, MotionExt as _, ThemeExt as _, TooltipExt as _, hsla};
 use tokio::sync::broadcast::error::RecvError;
 
@@ -134,6 +135,9 @@ pub const TAB_STRIP_HEIGHT: f32 = 40.0;
 pub const WINDOW_SIZE: (f32, f32) = (1000.0, 720.0);
 /// The separate window's minimum size at 100 % (layout px).
 pub const WINDOW_MIN: (f32, f32) = (640.0, 420.0);
+/// The key the separate window's bounds are remembered under (this session), so it reopens
+/// where and as large as it was when it closed (JavaFX hid the stage and kept them).
+pub const BOUNDS_KEY: &str = "runningGames";
 /// The resize grip's height (layout px).
 pub const GRIP_HEIGHT: f32 = 8.0;
 
@@ -256,6 +260,8 @@ pub struct RunningGamesView {
     tabs_overflow: bool,
     /// The tab count the overflow was last measured for.
     overflow_measured: Option<usize>,
+    /// Keeps [`BOUNDS_KEY`]'s bounds current while the separate window is open.
+    bounds_tracking: Option<gpui::Subscription>,
     _events: Option<Task<()>>,
 }
 
@@ -301,6 +307,7 @@ impl RunningGamesView {
             tab_scroll: ScrollHandle::new(),
             tabs_overflow: false,
             overflow_measured: None,
+            bounds_tracking: None,
             _events: events,
         };
         view.sync(cx);
@@ -628,8 +635,12 @@ impl RunningGamesView {
     }
 
     fn close_window(&mut self, cx: &mut Context<Self>) {
+        self.bounds_tracking = None;
         if let Some(handle) = self.window.take() {
-            let _ = handle.update(cx, |_, window, _| window.remove_window());
+            let _ = handle.update(cx, |_, window, cx| {
+                windowing::remember_bounds(BOUNDS_KEY, window, cx);
+                window.remove_window();
+            });
         }
     }
 
@@ -1015,6 +1026,11 @@ impl RunningGamesView {
 impl Render for RunningGamesView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = cx.tokens();
+        if self.window == Some(window.window_handle()) {
+            // The separate window's minimum follows the interface scale (cached per window,
+            // so this is cheap on every frame).
+            windowing::apply_scaled_min_size(window, window_min_base(), cx);
+        }
         // Whether the tabs overflow is known only after a layout: measure again on the next
         // frame whenever the tab count changed (window resizes re-render on their own).
         self.tabs_overflow = self.tabs.len() > 1 && self.tab_scroll.max_offset().x > px(0.0);
@@ -1065,6 +1081,11 @@ pub fn window_icon() -> Option<std::sync::Arc<image::RgbaImage>> {
     .clone()
 }
 
+/// The separate window's minimum at 100 % ([`WINDOW_MIN`]).
+fn window_min_base() -> gpui::Size<Pixels> {
+    size(px(WINDOW_MIN.0), px(WINDOW_MIN.1))
+}
+
 /// The interface scale factor (1.0 at 100 %).
 fn scale_factor(cx: &App) -> f32 {
     (scale::percent(cx) as f32 / 100.0).max(0.01)
@@ -1080,16 +1101,22 @@ fn open_window(view: Entity<RunningGamesView>, cx: &mut App) {
     let title: SharedString = t!("session.window.title").into_owned().into();
     let identity = mmcl_core::AppIdentity::current();
     let options = WindowOptions {
-        window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
-            None,
-            size(px(WINDOW_SIZE.0 * f), px(WINDOW_SIZE.1 * f)),
+        // Where and as large as it was when it last closed, else centred at the default size.
+        window_bounds: Some(windowing::recall_or_centered(
             cx,
-        ))),
+            BOUNDS_KEY,
+            size(px(WINDOW_SIZE.0 * f), px(WINDOW_SIZE.1 * f)),
+        )),
         titlebar: Some(TitlebarOptions {
             title: Some(title),
             ..Default::default()
         }),
-        window_min_size: Some(size(px(WINDOW_MIN.0 * f), px(WINDOW_MIN.1 * f))),
+        // The opening minimum; the runtime one (`apply_scaled_min_size`) replaces it and
+        // follows later scale changes. Kept for Wayland, where the runtime one is a no-op.
+        window_min_size: Some(windowing::scaled_min_size(
+            window_min_base(),
+            scale::percent(cx),
+        )),
         icon: window_icon(),
         window_background: theme.window_background(true),
         app_id: Some(
@@ -1103,15 +1130,21 @@ fn open_window(view: Entity<RunningGamesView>, cx: &mut App) {
     let closer = view.clone();
     let root_view = view.clone();
     let opened = cx.open_window(options, move |window, cx| {
-        window.on_window_should_close(cx, move |_, cx| {
-            // Closing only hides the view: forget the window, keep the panes.
+        window.on_window_should_close(cx, move |window, cx| {
+            // Closing only hides the view: forget the window (remembering where it was), keep
+            // the panes.
+            windowing::remember_bounds(BOUNDS_KEY, window, cx);
             closer.update(cx, |v, cx| {
                 v.window = None;
+                v.bounds_tracking = None;
                 cx.notify();
             });
             true
         });
         mmcl_ui_kit::scale::apply_to_window(window, cx);
+        root_view.update(cx, |v, cx| {
+            v.bounds_tracking = Some(windowing::track_bounds(BOUNDS_KEY, window, cx));
+        });
         cx.new(|cx| gpui_component::Root::new(root_view, window, cx))
     });
     match opened {
@@ -1121,6 +1154,7 @@ fn open_window(view: Entity<RunningGamesView>, cx: &mut App) {
             let focus = view.read(cx).focus.clone();
             let _ = any.update(cx, |_, window, cx| {
                 mmcl_platform::chrome::apply_title_bar_dark_mode(window, dark);
+                windowing::apply_scaled_min_size(window, window_min_base(), cx);
                 window.activate_window();
                 // Ctrl+Tab works at once, before anything inside was clicked.
                 focus.focus(window, cx);
@@ -1346,6 +1380,34 @@ pub fn dock_visible(cx: &App) -> bool {
 mod tests {
     //! Port of `RunningGamesDockResizeTest`, plus the header and dock-size rules.
     use super::*;
+
+    #[test]
+    fn the_window_minimum_follows_the_interface_scale() {
+        assert_eq!(window_min_base(), size(px(640.0), px(420.0)));
+        assert_eq!(
+            windowing::scaled_min_size(window_min_base(), 150),
+            size(px(960.0), px(630.0))
+        );
+    }
+
+    #[gpui::test]
+    fn the_window_reopens_with_its_last_bounds(cx: &mut gpui::TestAppContext) {
+        cx.update(|cx| {
+            let default = size(px(WINDOW_SIZE.0), px(WINDOW_SIZE.1));
+            assert_eq!(
+                windowing::recall_or_centered(cx, BOUNDS_KEY, default)
+                    .get_bounds()
+                    .size,
+                default
+            );
+            let closed_at =
+                gpui::Bounds::new(gpui::point(px(30.0), px(40.0)), size(px(800.0), px(600.0)));
+            cx.default_global::<windowing::BoundsMemory>()
+                .set(BOUNDS_KEY, gpui::WindowBounds::Windowed(closed_at));
+            let reopened = windowing::recall_or_centered(cx, BOUNDS_KEY, default);
+            assert_eq!(reopened.get_bounds().size, closed_at.size);
+        });
+    }
 
     const WINDOW: f32 = 1000.0;
     const ROOM: f32 = 600.0;

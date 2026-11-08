@@ -20,6 +20,7 @@
 //! - [`power`]: battery probe and the download throttle gate.
 //! - [`open`]: open a folder or an http(s) link.
 //! - [`host`]: the callbacks the app crate provides (focus, deep links, menu actions, recents).
+//! - [`window`]: owned and modal secondary windows, runtime minimum window size.
 //! - [`early_init`]: Windows startup hardening (DLL search path, DPI awareness, AUMID).
 //!
 //! Every native step is best effort: it is gated on the platform, logs failures silently and
@@ -41,6 +42,7 @@ pub mod shortcut;
 pub mod single_instance;
 pub mod theme;
 pub mod tray;
+pub mod window;
 
 #[cfg(target_os = "linux")]
 pub mod linux;
@@ -55,6 +57,7 @@ pub use host::{PlatformHost, RecentPack};
 pub use menus::{MenuAction, MenuEntry};
 pub use mmcl_util::Progress;
 pub use single_instance::ForwardResult;
+pub use window::{LogicalSize, WindowLink};
 
 use std::fmt::Display;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -176,6 +179,9 @@ mod tests {
         "log.taskbar.initFailed",
         "log.taskbar.stopFailed",
         "log.taskbar.updateFailed",
+        "log.window.minSizeFailed",
+        "log.window.ownerFailed",
+        "log.window.x11Unavailable",
         "log.windowChrome.backdropFailed",
         "log.windowChrome.colorFailed",
         "log.windowChrome.darkModeFailed",

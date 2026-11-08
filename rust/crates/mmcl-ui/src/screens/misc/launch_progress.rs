@@ -1,13 +1,18 @@
 // Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
 
-//! `MCLauncherLaunchProgressGui`: one row per step of a [`LaunchProgressTracker`] (used by
-//! "Verify now"; game launches show their steps in the Running Games window), and
-//! [`LaunchProgressHandle`].
+//! `MCLauncherLaunchProgressGui`: one row per step, and [`LaunchProgressHandle`]. The rows come
+//! from either
+//!
+//! - a [`LaunchProgressTracker`] in this process ([`LaunchProgressHandle::attach_tracker`]), or
+//! - an engine operation's step rows ([`LaunchProgressHandle::follow_operation`]): the
+//!   [`EngineEvent::OperationSteps`] events of a verify, update or export ("Verify now",
+//!   Settings > Verify all). Game launches show their steps in the Running Games window.
 //!
 //! The tracker's listener runs on worker threads and fires thousands of times on a warm launch
 //! (one event per file). It only flips an `AtomicBool` and posts **one** foreground flush, which
-//! re-reads every row from the tracker (guarded bug 23). Rows keep their sub-text and bar
-//! managed (only visibility changes), so a row never changes height.
+//! re-reads every row from the tracker (guarded bug 23); the engine throttles its step events
+//! the same way. Rows keep their sub-text and bar managed (only visibility changes), so a row
+//! never changes height.
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -16,13 +21,14 @@ use std::time::Duration;
 
 use gpui::{
     AppContext as _, ClickEvent, Context, Entity, IntoElement, ParentElement, Pixels, Render,
-    SharedString, Size, Styled, Task, Window, div, prelude::FluentBuilder, px, size,
+    SharedString, Size, Styled, Subscription, Task, Window, div, prelude::FluentBuilder, px, size,
 };
 use gpui_component::Disableable as _;
 use gpui_component::button::Button;
+use mmcl_engine::{EngineEvent, LaunchStepView, OperationId, OperationStepsView, StepStateView};
 use mmcl_i18n::t;
 use mmcl_platform::progress::LaunchId;
-use mmcl_progress::{LaunchProgressTracker, ListenerId, StepId, StepSnapshot, StepState};
+use mmcl_progress::{LaunchProgressTracker, ListenerId, StepSnapshot, StepState};
 use mmcl_theme::typography::TypeRole;
 use mmcl_ui_kit::theme::{ThemeExt as _, TypeStyleExt as _, hsla};
 use mmcl_ui_kit::{HelpTopic, Screen, ScreenId, ScreenRequest, StepBadge, WavyProgressBar};
@@ -31,6 +37,7 @@ use parking_lot::Mutex;
 use super::progress::CancelHandler;
 use super::visuals::{progress_backdrop, progress_card};
 use crate::scale::u;
+use crate::services::{self, UiEvent};
 use crate::shell::{self, GuiHandle};
 
 /// How long a finished step's full bar stays before it hides.
@@ -47,8 +54,67 @@ pub fn badge_state(s: StepState) -> mmcl_ui_kit::StepState {
     }
 }
 
+/// The tracker state of an engine row state.
+pub fn state_of_view(s: StepStateView) -> StepState {
+    match s {
+        StepStateView::Pending => StepState::Pending,
+        StepStateView::Running => StepState::Running,
+        StepStateView::Done => StepState::Done,
+        StepStateView::Failed => StepState::Failed,
+        StepStateView::Skipped => StepState::Skipped,
+    }
+}
+
+/// One step row as the screen shows it, from a tracker step or an engine operation row.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RowData {
+    /// What identifies the row across updates (the step's label key or the engine step id).
+    pub key: String,
+    /// The localized label.
+    pub label: String,
+    pub state: StepState,
+    /// 0..1.
+    pub progress: f64,
+    pub sub_text: String,
+    pub error: Option<String>,
+}
+
+impl RowData {
+    /// A tracker step.
+    pub fn from_snapshot(s: &StepSnapshot) -> Self {
+        RowData {
+            key: s.id.label_key().to_string(),
+            label: t!(s.id.label_key()).into_owned(),
+            state: s.state,
+            progress: s.progress,
+            sub_text: s.sub_text.clone(),
+            error: s.error.clone(),
+        }
+    }
+
+    /// An engine operation row (a blank label falls back to `launchStep.<id>`).
+    pub fn from_view(v: &LaunchStepView) -> Self {
+        let label = if v.label.trim().is_empty() {
+            let key = format!("launchStep.{}", v.id);
+            mmcl_i18n::english(&key)
+                .map(|_| t!(key.as_str()).into_owned())
+                .unwrap_or_else(|| v.id.clone())
+        } else {
+            v.label.clone()
+        };
+        RowData {
+            key: v.id.clone(),
+            label,
+            state: state_of_view(v.state),
+            progress: v.progress,
+            sub_text: v.sub_text.clone(),
+            error: v.error.clone(),
+        }
+    }
+}
+
 /// `renderRow`'s sub-text: the error when FAILED and non-empty, else the sub-text.
-pub fn row_sub_text(step: &StepSnapshot) -> &str {
+pub fn row_sub_text(step: &RowData) -> &str {
     match (&step.state, step.error.as_deref()) {
         (StepState::Failed, Some(e)) if !e.is_empty() => e,
         _ => &step.sub_text,
@@ -80,7 +146,7 @@ pub fn bar_action(state: StepState, progress: f64, bar_visible: bool) -> BarActi
 
 /// The taskbar roll-up: finished steps (done, failed, skipped) count 1, running its progress,
 /// pending 0, over the step count. 0 for no steps.
-pub fn rollup(steps: &[StepSnapshot]) -> f64 {
+pub fn rollup(steps: &[RowData]) -> f64 {
     if steps.is_empty() {
         return 0.0;
     }
@@ -95,9 +161,21 @@ pub fn rollup(steps: &[StepSnapshot]) -> f64 {
     sum / steps.len() as f64
 }
 
+/// Whether the row list changed shape (rows added, removed or reordered), so the screen
+/// rebuilds its rows instead of updating them in place.
+pub fn rows_reshaped(shown: &[String], next: &[RowData]) -> bool {
+    shown.len() != next.len() || shown.iter().zip(next).any(|(a, b)| *a != b.key)
+}
+
 /// The taskbar owner id of a tracker (its address; unique while it lives).
 fn launch_id(tracker: &Arc<LaunchProgressTracker>) -> LaunchId {
     LaunchId(Arc::as_ptr(tracker) as usize as u64)
+}
+
+/// The taskbar owner id of a followed operation (the top bit set, so it never meets an
+/// address).
+pub fn operation_launch_id(op: OperationId) -> LaunchId {
+    LaunchId(op.0 | (1 << 63))
 }
 
 struct LaunchModel {
@@ -106,7 +184,11 @@ struct LaunchModel {
     cancel: Option<CancelHandler>,
     cancelling: bool,
     tracker: Option<(Arc<LaunchProgressTracker>, ListenerId)>,
-    /// Bumped on every attach, so the screen rebuilds its rows.
+    /// The engine operation whose step rows show.
+    follow: Option<OperationId>,
+    /// Its latest rows.
+    op_steps: Option<Arc<OperationStepsView>>,
+    /// Bumped on every attach / follow, so the screen rebuilds its rows.
     generation: u64,
 }
 
@@ -118,7 +200,43 @@ impl Default for LaunchModel {
             cancel: None,
             cancelling: false,
             tracker: None,
+            follow: None,
+            op_steps: None,
             generation: 0,
+        }
+    }
+}
+
+impl LaunchModel {
+    /// Takes an engine row update for the followed operation. Returns whether it applied.
+    fn apply_steps(&mut self, view: &Arc<OperationStepsView>) -> bool {
+        if self.follow != Some(view.operation) {
+            return false;
+        }
+        if view.cancel_requested {
+            self.cancelling = true;
+        }
+        self.op_steps = Some(view.clone());
+        true
+    }
+
+    /// The rows to show now.
+    fn rows(&self) -> Vec<RowData> {
+        if let Some((tracker, _)) = &self.tracker {
+            return tracker.steps().iter().map(RowData::from_snapshot).collect();
+        }
+        self.op_steps
+            .as_ref()
+            .map(|v| v.steps.iter().map(RowData::from_view).collect())
+            .unwrap_or_default()
+    }
+
+    /// The taskbar id of what the screen follows.
+    fn launch_id(&self) -> Option<LaunchId> {
+        match (&self.tracker, self.follow) {
+            (Some((t, _)), _) => Some(launch_id(t)),
+            (None, Some(op)) => Some(operation_launch_id(op)),
+            (None, None) => None,
         }
     }
 }
@@ -144,6 +262,13 @@ impl LaunchShared {
             tracker
         })
     }
+
+    /// Stops following an operation; its taskbar id, if one was followed.
+    fn unfollow(&self) -> Option<LaunchId> {
+        let mut m = self.model.lock();
+        m.op_steps = None;
+        m.follow.take().map(operation_launch_id)
+    }
 }
 
 /// The payload a `ScreenId::LAUNCH_PROGRESS` request carries to bind the screen to a handle.
@@ -164,6 +289,7 @@ impl std::fmt::Debug for LaunchProgressHandle {
             .field("title", &m.title)
             .field("subtitle", &m.subtitle)
             .field("attached", &m.tracker.is_some())
+            .field("follow", &m.follow)
             .finish()
     }
 }
@@ -212,13 +338,16 @@ impl LaunchProgressHandle {
         });
     }
 
-    /// `attachToTracker`: detaches any previous tracker, then shows one row per step and
-    /// follows it with a coalescing listener.
+    /// `attachToTracker`: detaches any previous tracker (and stops following an operation),
+    /// then shows one row per step and follows it with a coalescing listener.
     pub fn attach_tracker(&self, tracker: Arc<LaunchProgressTracker>) {
         if let Some(old) = self.shared.detach()
             && !Arc::ptr_eq(&old, &tracker)
         {
             mmcl_platform::progress::end_launch_progress(launch_id(&old));
+        }
+        if let Some(id) = self.shared.unfollow() {
+            mmcl_platform::progress::end_launch_progress(id);
         }
         let weak: Weak<LaunchShared> = Arc::downgrade(&self.shared);
         let gui = self.gui.clone();
@@ -231,6 +360,36 @@ impl LaunchProgressHandle {
             m.tracker = Some((tracker, listener));
             m.generation += 1;
         });
+    }
+
+    /// Shows the step rows of engine operation `op` (its [`EngineEvent::OperationSteps`]),
+    /// starting from `initial` when the caller has them (`Engine::operation_steps`). Detaches a
+    /// tracker; `None` stops following.
+    pub fn follow_operation(&self, op: Option<OperationId>, initial: Option<OperationStepsView>) {
+        if let Some(old) = self.shared.detach() {
+            mmcl_platform::progress::end_launch_progress(launch_id(&old));
+        }
+        if let Some(id) = self.shared.unfollow()
+            && op.map(operation_launch_id) != Some(id)
+        {
+            mmcl_platform::progress::end_launch_progress(id);
+        }
+        self.update(|m| {
+            m.follow = op;
+            m.op_steps = initial.filter(|v| Some(v.operation) == op).map(Arc::new);
+            m.cancelling = false;
+            m.generation += 1;
+        });
+    }
+
+    /// Applies a step update for the followed operation from any thread (the screen applies
+    /// the engine's events itself; this is for callers that read rows on their own).
+    pub fn apply_operation_steps(&self, view: OperationStepsView) {
+        let view = Arc::new(view);
+        let applied = self.shared.model.lock().apply_steps(&view);
+        if applied {
+            schedule_flush(&self.gui, &self.shared);
+        }
     }
 }
 
@@ -268,8 +427,7 @@ pub async fn go_to_launch_progress(gui: &GuiHandle) -> Option<LaunchProgressHand
 }
 
 struct Row {
-    id: StepId,
-    step: StepSnapshot,
+    step: RowData,
     bar: Entity<WavyProgressBar>,
     bar_visible: bool,
     hide: Option<Task<()>>,
@@ -285,11 +443,18 @@ pub struct LaunchProgressScreen {
     generation: u64,
     rows: Vec<Row>,
     taskbar_attached: bool,
+    _events: Option<Subscription>,
 }
 
 impl LaunchProgressScreen {
-    /// A screen bound to `binding` (a fresh model when `None`).
-    pub fn new(binding: Option<LaunchProgressBinding>) -> Self {
+    /// A screen bound to `binding` (a fresh model when `None`), following the engine's step
+    /// events for a followed operation.
+    pub fn new(binding: Option<LaunchProgressBinding>, cx: &mut Context<Self>) -> Self {
+        let events = services::events(cx).map(|events| {
+            cx.subscribe(&events, |this: &mut Self, _, ev: &UiEvent, cx| {
+                this.on_event(ev, cx)
+            })
+        });
         LaunchProgressScreen {
             shared: binding.map_or_else(LaunchShared::new, |b| b.0),
             title: String::new(),
@@ -299,26 +464,57 @@ impl LaunchProgressScreen {
             generation: u64::MAX,
             rows: Vec::new(),
             taskbar_attached: false,
+            _events: events,
+        }
+    }
+
+    /// A handle for this screen (`None` without a shell).
+    pub fn handle(&self, cx: &gpui::App) -> Option<LaunchProgressHandle> {
+        Some(LaunchProgressHandle {
+            gui: shell::handle(cx)?,
+            shared: self.shared.clone(),
+        })
+    }
+
+    fn on_event(&mut self, ev: &UiEvent, cx: &mut Context<Self>) {
+        let applied = match ev {
+            UiEvent::Engine(EngineEvent::OperationSteps(view)) => {
+                self.shared.model.lock().apply_steps(view)
+            }
+            // Fell behind: re-read the followed operation's rows.
+            UiEvent::Lagged => {
+                let follow = self.shared.model.lock().follow;
+                match (follow, services::try_engine(cx)) {
+                    (Some(op), Some(engine)) => match engine.operation_steps(op) {
+                        Some(v) => self.shared.model.lock().apply_steps(&Arc::new(v)),
+                        None => false,
+                    },
+                    _ => false,
+                }
+            }
+            _ => false,
+        };
+        if applied {
+            self.sync(cx);
         }
     }
 
     fn sync(&mut self, cx: &mut Context<Self>) {
-        let (tracker, generation) = {
+        let (steps, generation, taskbar) = {
             let m = self.shared.model.lock();
             self.title = m.title.clone();
             self.subtitle = m.subtitle.clone();
             self.cancel = m.cancel.is_some();
             self.cancelling = m.cancelling;
-            (m.tracker.as_ref().map(|(t, _)| t.clone()), m.generation)
+            (m.rows(), m.generation, m.launch_id())
         };
-        let steps = tracker.as_ref().map(|t| t.steps()).unwrap_or_default();
-        if generation != self.generation {
+        let shown: Vec<String> = self.rows.iter().map(|r| r.step.key.clone()).collect();
+        if generation != self.generation || rows_reshaped(&shown, &steps) {
             self.generation = generation;
             // Skipped steps are simply not part of a tracker's step list.
             self.rows = steps
                 .iter()
                 .map(|s| Row {
-                    id: s.id,
                     step: s.clone(),
                     bar: cx.new(|_| WavyProgressBar::new(0.0)),
                     bar_visible: false,
@@ -326,25 +522,24 @@ impl LaunchProgressScreen {
                 })
                 .collect();
         }
-        for i in 0..self.rows.len() {
-            let Some(step) = steps.iter().find(|s| s.id == self.rows[i].id).cloned() else {
-                continue;
-            };
-            self.render_row(i, step, cx);
+        for (i, step) in steps.iter().enumerate() {
+            self.render_row(i, step.clone(), cx);
         }
         if self.taskbar_attached
-            && let Some(t) = &tracker
+            && let Some(id) = taskbar
         {
             mmcl_platform::progress::set_launch_progress(
-                launch_id(t),
+                id,
                 mmcl_platform::progress::Progress::Fraction(rollup(&steps)),
             );
         }
         cx.notify();
     }
 
-    fn render_row(&mut self, i: usize, step: StepSnapshot, cx: &mut Context<Self>) {
-        let row = &mut self.rows[i];
+    fn render_row(&mut self, i: usize, step: RowData, cx: &mut Context<Self>) {
+        let Some(row) = self.rows.get_mut(i) else {
+            return;
+        };
         match bar_action(step.state, step.progress, row.bar_visible) {
             BarAction::Show(v) => {
                 row.hide = None;
@@ -354,12 +549,12 @@ impl LaunchProgressScreen {
             BarAction::SnapThenHide => {
                 row.bar.update(cx, |b, cx| b.set_progress(1.0, cx));
                 let timer = cx.background_executor().timer(DONE_HIDE_DELAY);
-                let id = row.id;
+                let key = row.step.key.clone();
                 // Restartable: a newer DONE replaces the pending hide.
                 row.hide = Some(cx.spawn(async move |this, cx| {
                     timer.await;
                     let _ = this.update(cx, |s, cx| {
-                        if let Some(r) = s.rows.iter_mut().find(|r| r.id == id) {
+                        if let Some(r) = s.rows.iter_mut().find(|r| r.step.key == key) {
                             r.bar_visible = false;
                             r.hide = None;
                             cx.notify();
@@ -437,6 +632,9 @@ impl Screen for LaunchProgressScreen {
         if let Some(tracker) = self.shared.detach() {
             mmcl_platform::progress::end_launch_progress(launch_id(&tracker));
         }
+        if let Some(id) = self.shared.unfollow() {
+            mmcl_platform::progress::end_launch_progress(id);
+        }
         self.taskbar_attached = false;
         for row in &mut self.rows {
             row.hide = None;
@@ -468,7 +666,7 @@ impl Render for LaunchProgressScreen {
                                 .type_role(TypeRole::TitleSmall)
                                 .text_color(hsla(t.md_on_surface))
                                 .truncate()
-                                .child(t!(row.id.label_key()).into_owned()),
+                                .child(row.step.label.clone()),
                         )
                         // Always laid out (one line high) so the row never changes height.
                         .child(
@@ -550,8 +748,8 @@ pub fn register(cx: &mut gpui::App) {
     mmcl_ui_kit::ScreenRegistry::register_view(
         cx,
         ScreenId::LAUNCH_PROGRESS,
-        |mut req, _window, _cx| {
-            LaunchProgressScreen::new(req.take_payload::<LaunchProgressBinding>())
+        |mut req, _window, cx| {
+            LaunchProgressScreen::new(req.take_payload::<LaunchProgressBinding>(), cx)
         },
     );
 }
@@ -559,15 +757,39 @@ pub fn register(cx: &mut gpui::App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mmcl_progress::StepId;
 
-    fn snap(id: StepId, state: StepState, progress: f64) -> StepSnapshot {
-        StepSnapshot {
+    fn snap(id: StepId, state: StepState, progress: f64) -> RowData {
+        RowData::from_snapshot(&StepSnapshot {
             id,
             state,
             progress,
             sub_text: "sub".into(),
             error: None,
+        })
+    }
+
+    fn view(id: &str, state: StepStateView) -> LaunchStepView {
+        LaunchStepView {
+            id: id.into(),
+            label: format!("Label {id}"),
+            state,
+            progress: 0.5,
+            sub_text: "files".into(),
+            error: None,
         }
+    }
+
+    fn steps(op: u64, rows: Vec<LaunchStepView>, cancel: bool) -> Arc<OperationStepsView> {
+        Arc::new(OperationStepsView {
+            operation: OperationId(op),
+            pack: None,
+            session: None,
+            label: "Verify".into(),
+            steps: rows,
+            fraction: 0.0,
+            cancel_requested: cancel,
+        })
     }
 
     #[test]
@@ -637,6 +859,59 @@ mod tests {
         for id in StepId::ALL {
             assert!(mmcl_i18n::english(id.label_key()).is_some(), "{id:?}");
         }
+    }
+
+    #[test]
+    fn engine_rows_convert() {
+        let r = RowData::from_view(&view("files", StepStateView::Running));
+        assert_eq!(r.key, "files");
+        assert_eq!(r.label, "Label files");
+        assert_eq!(r.state, StepState::Running);
+        for (v, s) in [
+            (StepStateView::Pending, StepState::Pending),
+            (StepStateView::Done, StepState::Done),
+            (StepStateView::Failed, StepState::Failed),
+            (StepStateView::Skipped, StepState::Skipped),
+        ] {
+            assert_eq!(state_of_view(v), s);
+        }
+        let mut blank = view("no-such-step-id", StepStateView::Done);
+        blank.label = " ".into();
+        assert_eq!(RowData::from_view(&blank).label, "no-such-step-id");
+    }
+
+    #[test]
+    fn only_the_followed_operation_applies() {
+        let mut m = LaunchModel::default();
+        let v = steps(7, vec![view("a", StepStateView::Running)], false);
+        assert!(!m.apply_steps(&v), "nothing followed");
+        m.follow = Some(OperationId(8));
+        assert!(!m.apply_steps(&v), "another operation");
+        m.follow = Some(OperationId(7));
+        assert!(m.apply_steps(&v));
+        assert_eq!(m.rows().len(), 1);
+        assert!(!m.cancelling);
+        assert!(m.apply_steps(&steps(7, Vec::new(), true)));
+        assert!(m.cancelling, "an engine-side cancel disables the button");
+        assert_eq!(m.launch_id(), Some(operation_launch_id(OperationId(7))));
+    }
+
+    #[test]
+    fn row_lists_rebuild_only_when_reshaped() {
+        let rows: Vec<RowData> = ["a", "b"]
+            .iter()
+            .map(|k| RowData::from_view(&view(k, StepStateView::Pending)))
+            .collect();
+        let keys = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert!(!rows_reshaped(&keys(&["a", "b"]), &rows));
+        assert!(rows_reshaped(&keys(&["b", "a"]), &rows));
+        assert!(rows_reshaped(&keys(&["a"]), &rows));
+        assert!(rows_reshaped(&[], &rows));
+        assert_ne!(
+            operation_launch_id(OperationId(1)).0,
+            1,
+            "operation ids never meet tracker addresses"
+        );
     }
 
     /// Guarded bug 23: a burst of tracker events schedules one flush.

@@ -18,8 +18,8 @@ use gpui::{
     Window, canvas, div, fill, point, px, size,
 };
 
-use crate::scale::u;
 use crate::motion;
+use crate::scale::u;
 use crate::theme::{ThemeExt, hsla};
 
 /// Stroke width (px).
@@ -205,7 +205,10 @@ struct Mapping {
 
 impl Mapping {
     fn point(self, (x, y): (f64, f64)) -> gpui::Point<Pixels> {
-        point(px((self.x0 + x * self.f) as f32), px((self.cy + y * self.f) as f32))
+        point(
+            px((self.x0 + x * self.f) as f32),
+            px((self.cy + y * self.f) as f32),
+        )
     }
 }
 
@@ -244,7 +247,12 @@ fn paint_frame(map: Mapping, frame: WavyFrame, wavy: bool, window: &mut Window, 
         stroke_polyline(window, map, &[(*from, 0.0), (*to, 0.0)], track_color);
     }
     if let Some((from, to)) = frame.wave {
-        stroke_polyline(window, map, &wave_points(from, to, 0.0, phase, amp), wave_color);
+        stroke_polyline(
+            window,
+            map,
+            &wave_points(from, to, 0.0, phase, amp),
+            wave_color,
+        );
     }
     if let Some(x) = frame.stop_dot {
         dot(window, map, (x, 0.0), STROKE / 2.0, wave_color);
@@ -264,7 +272,8 @@ impl Render for WavyProgressBar {
             canvas(
                 move |_, _, _| {},
                 move |bounds, _, window, cx| {
-                    let f = f64::from(f32::from(window.rem_size())) / f64::from(crate::scale::REM_BASE);
+                    let f =
+                        f64::from(f32::from(window.rem_size())) / f64::from(crate::scale::REM_BASE);
                     let f = if f > 0.0 { f } else { 1.0 };
                     let map = Mapping {
                         x0: f64::from(f32::from(bounds.origin.x)),

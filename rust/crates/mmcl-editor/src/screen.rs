@@ -15,9 +15,9 @@ use std::sync::Arc;
 use gpui::{
     App, AppContext as _, Bounds, ClickEvent, Context, CursorStyle, DragMoveEvent, EmptyView,
     Entity, FocusHandle, Focusable, Image, InteractiveElement as _, IntoElement, KeyBinding,
-    MouseButton, MouseDownEvent, ObjectFit, ParentElement as _, PathPromptOptions, Pixels, Render,
-    ScrollStrategy, SharedString, StatefulInteractiveElement as _, Styled as _, StyledImage as _,
-    Subscription, Task, UniformListScrollHandle, WeakEntity, Window, actions, div, img,
+    MouseButton, MouseDownEvent, ObjectFit, ParentElement as _, Pixels, Render, ScrollStrategy,
+    SharedString, StatefulInteractiveElement as _, Styled as _, StyledImage as _, Subscription,
+    Task, UniformListScrollHandle, WeakEntity, Window, actions, div, img,
     prelude::FluentBuilder as _, px, uniform_list,
 };
 use gpui_component::WindowExt as _;
@@ -33,8 +33,9 @@ use mmcl_theme::typography::TypeRole;
 use mmcl_ui_kit::dialogs::{self, Answer, ButtonRole, DialogButton, DialogLevel, DialogSpec};
 use mmcl_ui_kit::scale::u;
 use mmcl_ui_kit::{
-    AnnouncementBanner, CloseDecision, HelpTopic, Icon, IconButton, Navigator, OfflineChip, Screen,
-    ScreenId, ScreenRequest, Switch, ThemeExt as _, TooltipExt as _, TypeStyleExt as _, hsla,
+    AnnouncementBanner, CloseDecision, FileFilter, HelpTopic, Icon, IconButton, Navigator,
+    OfflineChip, OpenDialog, SaveDialog, Screen, ScreenId, ScreenRequest, Switch, ThemeExt as _,
+    TooltipExt as _, TypeStyleExt as _, hsla,
 };
 
 use crate::EditorServices;
@@ -519,21 +520,10 @@ impl ModpackEditor {
     /// Open File (asks first when there are unsaved edits).
     pub fn open_from_file(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.when_discard_ok(window, cx, |_this, window, cx| {
-            let rx = cx.prompt_for_paths(PathPromptOptions {
-                files: true,
-                directories: false,
-                multiple: false,
-                prompt: Some(
-                    t!("dialog.fileChooser.openModpack.title")
-                        .into_owned()
-                        .into(),
-                ),
-            });
+            // `.mmcjson` first (the default selection), legacy `.json` second, as Java did.
+            let picked = open_modpack_dialog().pick_file(Some(window));
             cx.spawn_in(window, async move |this, cx| {
-                let Ok(Ok(Some(paths))) = rx.await else {
-                    return;
-                };
-                let Some(path) = paths.into_iter().next() else {
+                let Some(path) = picked.await else {
                     return;
                 };
                 let p = path.clone();
@@ -665,11 +655,11 @@ impl ModpackEditor {
             .suggested_dir()
             .or_else(dirs_fallback)
             .unwrap_or_else(|| PathBuf::from("."));
-        let rx = cx.prompt_for_new_path(&dir, name.as_deref());
+        let chosen = save_modpack_dialog(dir, name).save(Some(window));
         let text = self.model.document.to_pretty_json();
         cx.spawn_in(window, async move |this, cx| {
-            let Ok(Ok(Some(path))) = rx.await else { return };
-            let path = model::with_default_extension(path);
+            // The dialog already added `.mmcjson` when the name had neither type's extension.
+            let Some(path) = chosen.await else { return };
             let p = path.clone();
             let t2 = text.clone();
             let written = cx
@@ -2149,6 +2139,33 @@ fn dirs_fallback() -> Option<PathBuf> {
     std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from)
 }
 
+/// The editor's two file types (Java `openFromFile` / `saveToFile`): `.mmcjson` first, so it is
+/// the default selection, then "Legacy JSON Modpack" (`*.json`) for older manifests.
+fn modpack_filters() -> [FileFilter; 2] {
+    [FileFilter::modpack(), FileFilter::legacy_json_modpack()]
+}
+
+/// "Open Modpack" with the editor's file types.
+fn open_modpack_dialog() -> OpenDialog {
+    modpack_filters().into_iter().fold(
+        OpenDialog::new(t!("dialog.fileChooser.openModpack.title")),
+        OpenDialog::filter,
+    )
+}
+
+/// "Save Modpack" in `dir`, suggesting `name`, with the editor's file types (a name with
+/// neither extension gets `.mmcjson`).
+fn save_modpack_dialog(dir: PathBuf, name: Option<String>) -> SaveDialog {
+    let dialog = modpack_filters().into_iter().fold(
+        SaveDialog::new(t!("dialog.fileChooser.saveModpack.title")).directory(dir),
+        SaveDialog::filter,
+    );
+    match name {
+        Some(n) => dialog.file_name(n),
+        None => dialog,
+    }
+}
+
 fn ok_button() -> DialogButton {
     DialogButton::new(t!("dialog.button.ok").into_owned(), ButtonRole::Primary)
 }
@@ -2311,4 +2328,45 @@ impl Screen for ModpackEditor {
 /// A weak handle helper for callers holding the view.
 pub fn downgrade(view: &Entity<ModpackEditor>) -> WeakEntity<ModpackEditor> {
     view.downgrade()
+}
+
+#[cfg(test)]
+mod file_dialog_tests {
+    use super::*;
+
+    #[test]
+    fn open_lists_mmcjson_first_then_legacy_json() {
+        let d = open_modpack_dialog();
+        assert_eq!(
+            d.title.as_deref(),
+            Some(t!("dialog.fileChooser.openModpack.title").as_ref())
+        );
+        assert_eq!(d.filters.len(), 2);
+        assert_eq!(d.filters[0].extensions, vec!["mmcjson".to_string()]);
+        assert_eq!(d.filters[1].extensions, vec!["json".to_string()]);
+        assert_eq!(
+            d.filters[1].name,
+            t!("dialog.fileChooser.legacyJsonModpack.filter")
+        );
+    }
+
+    #[test]
+    fn save_suggests_the_name_and_defaults_to_mmcjson() {
+        let d = save_modpack_dialog(PathBuf::from("/packs"), Some("My Pack 1.12.2".into()));
+        assert_eq!(
+            d.title.as_deref(),
+            Some(t!("dialog.fileChooser.saveModpack.title").as_ref())
+        );
+        assert_eq!(d.directory.as_deref(), Some(std::path::Path::new("/packs")));
+        assert_eq!(
+            d.suggested_name().as_deref(),
+            Some("My Pack 1.12.2.mmcjson")
+        );
+        let legacy = save_modpack_dialog(PathBuf::from("."), Some("old.json".into()));
+        assert_eq!(legacy.suggested_name().as_deref(), Some("old.json"));
+        assert_eq!(
+            save_modpack_dialog(PathBuf::from("."), None).suggested_name(),
+            None
+        );
+    }
 }

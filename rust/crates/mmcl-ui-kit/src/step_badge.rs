@@ -4,8 +4,8 @@
 
 use gpui::{App, IntoElement, ParentElement, RenderOnce, Styled, Window, div};
 
-use crate::scale::u;
 use crate::icons::Icon;
+use crate::scale::u;
 use crate::theme::{ThemeExt, hsla};
 
 /// Badge diameter (px).

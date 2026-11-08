@@ -9,6 +9,7 @@
 pub mod launcher_entry;
 pub mod notify;
 pub mod tray;
+pub mod x11;
 
 use std::future::Future;
 use std::sync::LazyLock;

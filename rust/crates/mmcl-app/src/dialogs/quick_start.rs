@@ -11,9 +11,9 @@
 //! wrote it while building the step, overwriting the saved RAM just by opening the wizard).
 
 use gpui::{
-    AnyWindowHandle, App, AppContext as _, Context, Entity, FontWeight, Global,
-    InteractiveElement as _, IntoElement, ParentElement, Render, StatefulInteractiveElement as _,
-    Styled, Subscription, Window, WindowHandle, div, px, relative,
+    App, AppContext as _, Context, Entity, FontWeight, Global, InteractiveElement as _,
+    IntoElement, ParentElement, Render, StatefulInteractiveElement as _, Styled, Subscription,
+    Window, WindowHandle, div, px, relative,
 };
 use gpui_component::Root;
 use gpui_component::slider::{Slider, SliderEvent, SliderState, SliderValue};
@@ -317,9 +317,9 @@ impl QuickStartWizard {
         }
     }
 
-    fn finish(&mut self, window: &mut Window) {
+    fn finish(&mut self, window: &mut Window, cx: &mut App) {
         self.mark_completed();
-        window.remove_window();
+        super::close_window(window, cx);
     }
 
     fn render_step(&self, window: &mut Window, cx: &mut Context<Self>) -> gpui::AnyElement {
@@ -557,7 +557,7 @@ impl Render for QuickStartWizard {
                     .child(
                         Pill::new("qs-skip", t!("quickStart.skipBtn").into_owned(), Tone::Text)
                             .on_click(move |window, cx| {
-                                let _ = skip.update(cx, |this, _| this.finish(window));
+                                let _ = skip.update(cx, |this, cx| this.finish(window, cx));
                             }),
                     )
                     .child(
@@ -580,7 +580,7 @@ impl Render for QuickStartWizard {
                             move |window, cx| {
                                 let _ = next.update(cx, |this, cx| match this.state.next() {
                                     Advance::Moved => cx.notify(),
-                                    Advance::Finish => this.finish(window),
+                                    Advance::Finish => this.finish(window, cx),
                                 });
                             },
                         ),
@@ -589,9 +589,9 @@ impl Render for QuickStartWizard {
     }
 }
 
-/// Opens the wizard over `owner` (the main window when `None`), or focuses the open one. It
+/// Opens the wizard, modal over `owner` (as Java's `WINDOW_MODAL` stage), or focuses the open one. It
 /// reads the saved settings and the system RAM first (off the UI thread).
-pub fn show_quick_start(engine: Engine, owner: Option<AnyWindowHandle>, cx: &mut App) {
+pub fn show_quick_start(engine: Engine, owner: impl Into<super::Owner>, cx: &mut App) {
     if let Some(open) = cx.try_global::<OpenWizard>().and_then(|o| o.0)
         && open
             .update(cx, |_, window, _| window.activate_window())
@@ -601,6 +601,7 @@ pub fn show_quick_start(engine: Engine, owner: Option<AnyWindowHandle>, cx: &mut
     }
     let e = engine.clone();
     let memory = engine.spawn(async move { e.system_memory().await });
+    let owner: super::Owner = owner.into();
     cx.spawn(async move |cx| {
         let total_gb = match memory.await {
             Ok(Ok(m)) => Some(m.total_gb),
@@ -616,18 +617,13 @@ pub fn show_quick_start(engine: Engine, owner: Option<AnyWindowHandle>, cx: &mut
 }
 
 /// Opens the wizard only while `quickStartCompleted` is false.
-pub fn show_quick_start_if_needed(engine: Engine, owner: Option<AnyWindowHandle>, cx: &mut App) {
+pub fn show_quick_start_if_needed(engine: Engine, owner: impl Into<super::Owner>, cx: &mut App) {
     if !engine.settings().quick_start_completed {
         show_quick_start(engine, owner, cx);
     }
 }
 
-fn open_window(
-    engine: Engine,
-    total_gb: Option<f64>,
-    owner: Option<AnyWindowHandle>,
-    cx: &mut App,
-) {
+fn open_window(engine: Engine, total_gb: Option<f64>, owner: super::Owner, cx: &mut App) {
     let s = engine.settings();
     let state = WizardState::new(
         &s.theme,
@@ -643,6 +639,8 @@ fn open_window(
             size: SIZE,
             min_size: None,
             resizable: false,
+            modal: true,
+            bounds_key: None,
         },
         owner,
         cx,
@@ -658,8 +656,9 @@ fn open_window(
     if let Some(view) = view {
         let _ = handle.update(cx, |_, window, cx| {
             // Closing the window counts as Skip: the user is not asked again.
-            window.on_window_should_close(cx, move |_, cx| {
+            window.on_window_should_close(cx, move |window, cx| {
                 view.update(cx, |this, _| this.mark_completed());
+                super::release_owner(window, cx);
                 true
             });
         });

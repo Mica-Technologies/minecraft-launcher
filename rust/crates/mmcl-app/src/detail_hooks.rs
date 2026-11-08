@@ -120,7 +120,7 @@ pub fn install(cx: &mut App, engine: &Engine) {
             e.clone(),
             id,
             mods_dir,
-            Some(window.window_handle()),
+            crate::dialogs::Owner::of(window, cx),
             cx,
         );
     });

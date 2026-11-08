@@ -30,7 +30,7 @@ use mmcl_theme::typography::TypeRole;
 use mmcl_ui_kit::theme::{ThemeExt as _, TypeStyleExt as _, hsla};
 use mmcl_ui_kit::{Icon, LoadingIndicator, Switch};
 
-use super::model::{self, Finished, FlowEnd, PanelState, Phase};
+use super::model::{self, Finished, FlowEnd, PanelState, Phase, WebViewView};
 use super::qr::QrCodeView;
 use crate::scale::u;
 use crate::services::{self, UiEvent};
@@ -237,7 +237,28 @@ impl SignInPanel {
         cx.notify();
     }
 
+    /// "Try again" after Microsoft's page could not be reached: the helper reloads it.
+    pub fn retry_page(&mut self, cx: &mut Context<Self>) {
+        if !self.state.retry_page() {
+            return;
+        }
+        let reloaded = services::try_engine(cx).is_some_and(|e| e.retry_sign_in_page());
+        if !reloaded {
+            // The helper cannot reload (it is gone, or predates reloads): end this run so the
+            // chooser offers a fresh start.
+            tracing::debug!("{}", t!("log.login.pageRetryRestart"));
+            self.cancel(cx);
+        }
+        cx.notify();
+    }
+
     fn on_engine_event(&mut self, ev: &UiEvent, cx: &mut Context<Self>) {
+        if let UiEvent::Engine(EngineEvent::SignInPage(page)) = ev {
+            if self.state.on_page(*page) {
+                cx.notify();
+            }
+            return;
+        }
         let UiEvent::Engine(EngineEvent::SignIn(ev)) = ev else {
             return;
         };
@@ -460,7 +481,11 @@ impl SignInPanel {
             Phase::Waiting {
                 kind: SignInKind::WebView,
                 ..
-            } => busy_view("signIn.webView.waiting", None, true, cx),
+            } => match self.state.web_view_view() {
+                Some(WebViewView::Loading) => busy_view("signIn.loading", None, true, cx),
+                Some(WebViewView::LoadFailed) => load_failed_view(cx),
+                _ => busy_view("signIn.webView.waiting", None, true, cx),
+            },
             Phase::Waiting {
                 kind: SignInKind::Wam,
                 ..
@@ -681,6 +706,36 @@ fn cancel_button(cx: &mut Context<SignInPanel>) -> Button {
         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.cancel(cx)))
 }
 
+/// Microsoft's page could not be reached (Java's load-failed overlay): the warning glyph, the
+/// message (`signIn.loadFailed`), Try again (reloads the page in the helper window) and Cancel.
+fn load_failed_view(cx: &mut Context<SignInPanel>) -> AnyElement {
+    let t = cx.tokens();
+    centered_column()
+        .child(Icon::Warning.svg(36.0).text_color(hsla(t.color_danger)))
+        .child(
+            div()
+                .id("signin-load-failed")
+                .max_w(u(320.0))
+                .text_center()
+                .text_color(hsla(t.color_text))
+                .child(t!("signIn.loadFailed").into_owned()),
+        )
+        .child(
+            div()
+                .flex()
+                .gap(u(8.0))
+                .child(
+                    Button::new("signin-page-retry")
+                        .primary()
+                        .h(u(32.0))
+                        .label(t!("signIn.retry").into_owned())
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.retry_page(cx))),
+                )
+                .child(cancel_button(cx)),
+        )
+        .into_any_element()
+}
+
 /// The overlay of a running step: indicator, text (wraps at 320), optional detail, Cancel.
 fn busy_view(
     key: &str,
@@ -765,6 +820,9 @@ mod tests {
             "signIn.method.title",
             "signIn.method.none",
             "signIn.webView.waiting",
+            "signIn.loading",
+            "signIn.loadFailed",
+            "log.login.pageRetryRestart",
             "signIn.wam.waiting",
             "signIn.cancelling",
             "signIn.deviceCode.requesting",

@@ -32,6 +32,7 @@ use mmcl_i18n::{t, tf};
 use mmcl_theme::typography::TypeRole;
 use mmcl_ui_kit::HelpTopic;
 use mmcl_ui_kit::theme::{ActiveTheme, ThemeExt as _, TypeStyleExt as _, hsla};
+use mmcl_ui_kit::windowing::{self, OwnerLink, SharedOwnerLink};
 
 use crate::scale::u;
 
@@ -325,6 +326,8 @@ struct HelpState {
     view: Option<gpui::Entity<HelpView>>,
     /// The theme the window was last themed for (`theme + ":" + osDark`).
     theme_key: Option<ActiveTheme>,
+    /// The tie to the launcher window (owned, not modal: `initOwner`).
+    link: Option<SharedOwnerLink>,
 }
 
 impl Global for HelpState {}
@@ -361,13 +364,16 @@ pub fn initial_bounds(launcher: Option<Bounds<Pixels>>, percent: i32, cx: &App) 
     }
 }
 
-/// Grows the help window when the interface scale raised its minimum above its size (GPUI
-/// fixes the OS minimum when the window opens).
-fn follow_scale(window: &mut Window, cx: &App) {
-    let min = min_size_at(mmcl_ui_kit::scale::percent(cx));
-    let now = window.viewport_size();
-    if now.width < min.width || now.height < min.height {
-        window.resize(size(now.width.max(min.width), now.height.max(min.height)));
+/// Re-applies the OS minimum for the current interface scale (the window grows when it is
+/// smaller); GPUI alone fixes the minimum when the window opens.
+fn follow_scale(window: &mut Window, cx: &mut App) {
+    if !windowing::apply_scaled_min_size(window, min_size_at(100), cx) {
+        // No native minimum here (Wayland): at least grow to it.
+        let min = min_size_at(mmcl_ui_kit::scale::percent(cx));
+        let now = window.viewport_size();
+        if now.width < min.width || now.height < min.height {
+            window.resize(size(now.width.max(min.width), now.height.max(min.height)));
+        }
     }
 }
 
@@ -407,15 +413,22 @@ pub fn show(topic: HelpTopic, cx: &mut App) {
         // The window went away behind our back: rebuild.
         cx.set_global(HelpState::default());
     }
-    // The launcher window: where to centre, and the owner (Windows).
+    // The launcher window: where to centre, and the owner.
     let launcher = crate::shell::main_window_handle(cx).and_then(|h| {
-        h.update(cx, |_, w, _| {
-            (w.bounds(), mmcl_platform::handle::native_handle(&*w))
-        })
-        .ok()
+        h.update(cx, |_, w, _| (w.bounds(), windowing::native(w)))
+            .ok()
     });
     let mut built = None;
+    let mut owner_link = None;
     let opened = cx.open_window(options(cx, launcher.map(|l| l.0)), |window, cx| {
+        // Owned by the launcher (stays above it, minimises with it), not modal: Java's
+        // `initOwner` without a modality.
+        let link = match launcher {
+            Some((_, owner)) => OwnerLink::attach(window, owner, false),
+            None => OwnerLink::none(),
+        }
+        .shared();
+        owner_link = Some(link.clone());
         let view = cx.new(|cx| {
             let mut view = HelpView::new(topic, cx);
             view._scale = Some(
@@ -426,8 +439,10 @@ pub fn show(topic: HelpTopic, cx: &mut App) {
             view
         });
         built = Some(view.clone());
-        window.on_window_should_close(cx, |_, cx| {
+        follow_scale(window, cx);
+        window.on_window_should_close(cx, move |_, cx| {
             // Closing the window ends it; the next show builds a fresh one.
+            link.release();
             cx.set_global(HelpState::default());
             true
         });
@@ -437,14 +452,12 @@ pub fn show(topic: HelpTopic, cx: &mut App) {
         Ok(handle) => {
             let _ = handle.update(cx, |_, window, _| {
                 window.set_window_title(&t!("window.help.title"));
-                if let Some((_, owner)) = launcher {
-                    mmcl_platform::chrome::set_owner(&*window, owner);
-                }
             });
             let state = cx.global_mut::<HelpState>();
             state.window = Some(handle);
             state.view = built;
             state.theme_key = None;
+            state.link = owner_link;
             refresh_theme(cx);
         }
         Err(e) => tracing::warn!("{}", tf!("log.help.windowOpenFailed", e.to_string())),
@@ -494,6 +507,10 @@ pub fn cleanup(cx: &mut App) {
         return;
     };
     let window: Option<AnyWindowHandle> = state.window.map(Into::into);
+    // Hand the activation back to the launcher before the window goes.
+    if let Some(link) = &state.link {
+        link.release();
+    }
     cx.set_global(HelpState::default());
     if let Some(window) = window {
         let _ = window.update(cx, |_, window, _| window.remove_window());

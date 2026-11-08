@@ -213,13 +213,17 @@ impl MainWindow {
         )
     }
 
-    /// Re-applies the minimum (and preferred) size: GPUI fixes the OS minimum at window
-    /// creation, so a larger minimum is enforced by growing the window.
+    /// Re-applies the minimum (and preferred) size: the OS minimum follows the current screen
+    /// and interface scale (GPUI alone fixes it at window creation), and a window smaller than
+    /// the minimum or the preferred size grows.
     pub fn apply_min_size(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let min = self.min_size_for(window, cx);
+        // Where the platform cannot change it (Wayland), growing below still holds the line.
+        let _ = mmcl_ui_kit::windowing::set_min_size(window, min);
         if window.is_maximized() || window.is_fullscreen() {
             return;
         }
-        let mut wanted = self.min_size_for(window, cx);
+        let mut wanted = min;
         if let Some(pref) = self.current.as_ref().and_then(|s| s.pref_size(cx)) {
             let scale = mmcl_ui_kit::scale::percent(cx) as f64 / 100.0;
             let (all, primary) = screens(cx);

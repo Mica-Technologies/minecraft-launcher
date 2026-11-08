@@ -10,6 +10,7 @@ pub mod registry;
 pub mod shell_link;
 pub mod taskbar;
 pub mod tray;
+pub mod window;
 
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Gdi::{

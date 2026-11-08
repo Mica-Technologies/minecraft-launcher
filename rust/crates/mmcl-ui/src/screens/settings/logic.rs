@@ -674,6 +674,15 @@ pub fn verify_title(name: &str, index: usize, total: usize) -> String {
     }
 }
 
+/// The closing notification `(title, body)` after the user cancelled a verify with `ok` packs
+/// already verified.
+pub fn verify_cancelled(ok: usize) -> (String, String) {
+    (
+        t!("notification.verify.cancelled.title").into_owned(),
+        tf!("notification.verify.cancelled.body", ok as i64),
+    )
+}
+
 /// The closing notification `(is_error, title, body)` after `ok` packs verified and `failed`
 /// failed.
 pub fn verify_outcome(ok: usize, failed: usize) -> (bool, String, String) {
@@ -1219,6 +1228,14 @@ mod tests {
             verify_title("P", 1, 3),
             tf!("verify.progress.titleCounted", "P", 2i64, 3i64)
         );
+    }
+
+    #[test]
+    fn a_cancelled_verify_counts_what_finished() {
+        let (title, body) = verify_cancelled(2);
+        assert_eq!(title, t!("notification.verify.cancelled.title"));
+        assert_eq!(body, tf!("notification.verify.cancelled.body", 2i64));
+        assert!(body.contains('2'), "{body}");
     }
 
     #[test]

@@ -15,9 +15,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use gpui::{App, Global};
 use mmcl_engine::{
-    AccountView, AnnouncementsView, Engine, EngineError, EngineEvent, ImportOutcome, ImportRequest,
-    ImportSourceView, LaunchOptions, LoaderVersionView, ModrinthProjectView, OperationId, PackId,
-    PackSummary, Setting, VanillaVersionView,
+    AccountView, AnnouncementsView, Engine, EngineError, EngineEvent, ImportOutcome, ImportPreview,
+    ImportRequest, ImportSourceView, ImportToken, LaunchOptions, LoaderVersionView,
+    ModrinthProjectView, OperationId, PackId, PackSummary, Setting, VanillaVersionView,
 };
 use mmcl_i18n::t;
 
@@ -138,6 +138,16 @@ pub enum OfficialOutcome {
     LoaderMissing(String),
 }
 
+/// An official launcher export's outcome plus the loader installer's failure, when the install
+/// ran and failed (Java's `installLoader.failed` toast).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OfficialReport {
+    /// How the export ended.
+    pub outcome: OfficialOutcome,
+    /// The localized `officialExport.installLoader.failed.body` (with the installer's text).
+    pub loader_failure: Option<String>,
+}
+
 /// How a pack verify ended.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VerifyOutcome {
@@ -232,6 +242,23 @@ pub trait LibraryBackend: 'static {
         &self,
         project: &ModrinthPreview,
     ) -> BoxFut<Result<ImportOutcome, ImportFailure>>;
+    /// Step one of an import with confirmation: reads the source (a Modrinth `.mrpack` is
+    /// downloaded and its index read) without installing anything.
+    fn prepare_import(
+        &self,
+        request: ImportRequest,
+    ) -> BoxFut<Result<ImportPreview, ImportFailure>>;
+    /// Step one for a previewed Modrinth project.
+    fn prepare_modrinth(
+        &self,
+        project: &ModrinthPreview,
+    ) -> BoxFut<Result<ImportPreview, ImportFailure>>;
+    /// Step two: installs a prepared import.
+    fn commit_import(&self, token: ImportToken) -> BoxFut<Result<ImportOutcome, ImportFailure>>;
+    /// Drops a prepared import (its download is deleted); `false` when it names nothing.
+    fn discard_import(&self, token: ImportToken) -> bool;
+    /// Warms the `client.json` cache of the last-played pack (idle main screen).
+    fn prefetch_last_played(&self) -> BoxFut<()>;
     /// Verifies a pack's files and waits for the result.
     fn verify(&self, id: &PackId) -> BoxFut<VerifyOutcome>;
     /// Writes a zip export.
@@ -254,7 +281,7 @@ pub trait LibraryBackend: 'static {
         &self,
         id: &PackId,
         install_loader: bool,
-    ) -> BoxFut<Result<OfficialOutcome, String>>;
+    ) -> BoxFut<Result<OfficialReport, String>>;
     /// Whether a profile was exported for the pack.
     fn official_has_export(&self, id: &PackId) -> bool;
     /// Removes the official launcher profile; the profile name.
@@ -384,6 +411,15 @@ pub fn official_outcome(o: mmcl_engine::OfficialExportOutcome, vanilla: bool) ->
     }
 }
 
+/// How an official export report reads in the UI: the outcome plus the loader-install failure
+/// text (a blank text counts as none).
+pub fn official_report(r: mmcl_engine::OfficialExportReport, vanilla: bool) -> OfficialReport {
+    OfficialReport {
+        outcome: official_outcome(r.outcome, vanilla),
+        loader_failure: r.loader_install_error.filter(|s| !s.trim().is_empty()),
+    }
+}
+
 impl EngineLibrary {
     fn spawn<T: Send + 'static>(
         &self,
@@ -405,10 +441,10 @@ impl EngineLibrary {
         })
     }
 
-    fn spawn_import(
+    fn spawn_import<T: Send + 'static>(
         &self,
-        fut: impl Future<Output = Result<ImportOutcome, ImportFailure>> + Send + 'static,
-    ) -> BoxFut<Result<ImportOutcome, ImportFailure>> {
+        fut: impl Future<Output = Result<T, ImportFailure>> + Send + 'static,
+    ) -> BoxFut<Result<T, ImportFailure>> {
         let task = self.0.spawn(fut);
         Box::pin(async move {
             task.await.unwrap_or_else(|_| {
@@ -681,6 +717,42 @@ impl LibraryBackend for EngineLibrary {
         self.spawn_import(async move { e.install_modrinth(&p).await.map_err(import_failure) })
     }
 
+    fn prepare_import(
+        &self,
+        request: ImportRequest,
+    ) -> BoxFut<Result<ImportPreview, ImportFailure>> {
+        let e = self.0.clone();
+        self.spawn_import(async move { e.prepare_import(request).await.map_err(import_failure) })
+    }
+
+    fn prepare_modrinth(
+        &self,
+        project: &ModrinthPreview,
+    ) -> BoxFut<Result<ImportPreview, ImportFailure>> {
+        let e = self.0.clone();
+        let p = project.clone();
+        self.spawn_import(async move { e.prepare_modrinth(&p).await.map_err(import_failure) })
+    }
+
+    fn commit_import(&self, token: ImportToken) -> BoxFut<Result<ImportOutcome, ImportFailure>> {
+        let e = self.0.clone();
+        self.spawn_import(async move { e.commit_import(token).await.map_err(import_failure) })
+    }
+
+    fn discard_import(&self, token: ImportToken) -> bool {
+        self.0.discard_import(token)
+    }
+
+    fn prefetch_last_played(&self) -> BoxFut<()> {
+        let e = self.0.clone();
+        self.spawn(
+            async move {
+                let _ = e.prefetch_last_played().await;
+            },
+            (),
+        )
+    }
+
     fn verify(&self, id: &PackId) -> BoxFut<VerifyOutcome> {
         let e = self.0.clone();
         let id = id.clone();
@@ -812,15 +884,15 @@ impl LibraryBackend for EngineLibrary {
         &self,
         id: &PackId,
         install_loader: bool,
-    ) -> BoxFut<Result<OfficialOutcome, String>> {
+    ) -> BoxFut<Result<OfficialReport, String>> {
         let e = self.0.clone();
         let id = id.clone();
         self.spawn_res(async move {
             let vanilla = id.vanilla_version().is_some();
             let op = e.next_operation_id();
-            e.export_official(&id, install_loader, op)
+            e.export_official_report(&id, install_loader, op)
                 .await
-                .map(|o| official_outcome(o, vanilla))
+                .map(|r| official_report(r, vanilla))
                 .map_err(msg)
         })
     }
@@ -957,6 +1029,33 @@ impl LibraryBackend for EmptyLibrary {
             message: unavailable(),
         }))
     }
+    fn prepare_import(&self, _r: ImportRequest) -> BoxFut<Result<ImportPreview, ImportFailure>> {
+        ready(Err(ImportFailure {
+            expected: false,
+            message: unavailable(),
+        }))
+    }
+    fn prepare_modrinth(
+        &self,
+        _p: &ModrinthPreview,
+    ) -> BoxFut<Result<ImportPreview, ImportFailure>> {
+        ready(Err(ImportFailure {
+            expected: false,
+            message: unavailable(),
+        }))
+    }
+    fn commit_import(&self, _t: ImportToken) -> BoxFut<Result<ImportOutcome, ImportFailure>> {
+        ready(Err(ImportFailure {
+            expected: false,
+            message: unavailable(),
+        }))
+    }
+    fn discard_import(&self, _t: ImportToken) -> bool {
+        false
+    }
+    fn prefetch_last_played(&self) -> BoxFut<()> {
+        ready(())
+    }
     fn verify(&self, _id: &PackId) -> BoxFut<VerifyOutcome> {
         ready(VerifyOutcome::Unsupported)
     }
@@ -981,7 +1080,7 @@ impl LibraryBackend for EmptyLibrary {
     fn official_install_loader(&self, _id: &PackId) -> BoxFut<Result<String, String>> {
         ready(Err(unavailable()))
     }
-    fn official_export(&self, _id: &PackId, _l: bool) -> BoxFut<Result<OfficialOutcome, String>> {
+    fn official_export(&self, _id: &PackId, _l: bool) -> BoxFut<Result<OfficialReport, String>> {
         ready(Err(unavailable()))
     }
     fn official_has_export(&self, _id: &PackId) -> bool {
@@ -1056,6 +1155,36 @@ mod tests {
             official_outcome(o(false), true),
             OfficialOutcome::Exported("P (Mica)".into())
         );
+    }
+
+    #[test]
+    fn official_reports_carry_the_loader_failure() {
+        let outcome = mmcl_engine::OfficialExportOutcome {
+            profile_name: "P (Mica)".into(),
+            version_id: "1.20.1-forge-47".into(),
+            loader_installed: false,
+        };
+        let report = |err: Option<&str>| mmcl_engine::OfficialExportReport {
+            outcome: outcome.clone(),
+            loader_install_error: err.map(str::to_string),
+            loader_installer_message: err.map(str::to_string),
+        };
+        let r = official_report(report(Some("installer said no")), false);
+        assert_eq!(
+            r.outcome,
+            OfficialOutcome::LoaderMissing("1.20.1-forge-47".into())
+        );
+        assert_eq!(r.loader_failure.as_deref(), Some("installer said no"));
+        assert_eq!(
+            official_report(report(Some("  ")), false).loader_failure,
+            None
+        );
+        assert_eq!(official_report(report(None), false).loader_failure, None);
+    }
+
+    #[test]
+    fn the_empty_backend_prepares_nothing() {
+        assert!(!EmptyLibrary.discard_import(ImportToken(3)));
     }
 
     #[test]

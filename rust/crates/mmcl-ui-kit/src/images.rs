@@ -12,10 +12,10 @@ use gpui::{
     ImgResourceLoader, IntoElement, ParentElement, RenderOnce, Styled, Window, div, img,
 };
 
-use crate::scale::u;
 use crate::assets::NO_USER;
 use crate::focus::child_id;
 use crate::motion;
+use crate::scale::u;
 
 /// How long a freshly loaded image takes to fade in.
 pub const FADE_IN: std::time::Duration = motion::SHORT;

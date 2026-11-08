@@ -1,145 +1,146 @@
 // Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
 
 //! The import confirmation (Java `MCLauncherImportConfirmDialog`, gui-editor-games §11.2):
-//! shown between translating a Modrinth pack (`.mrpack` index) and installing it. A 600 x 520
-//! window: the pack name, a `Version · Minecraft · loader` line, the totals (mods, configs,
-//! resource packs, shader packs, other files, total size), the scrolling mod list, a note, and
-//! Cancel / Import. It resolves `true` only on Import; closing the window cancels.
+//! shown between preparing an import ([`Engine::prepare_import`] / [`Engine::prepare_modrinth`]:
+//! the archive is downloaded and read, nothing installed) and installing it. A 600 x 520
+//! window, modal over its owner: the pack name, a `Version · Minecraft · loader` line, the totals
+//! (mods, configs, resource packs, shader packs, other files, total size), the scrolling mod list
+//! (`[size]  file name`), a note, and Cancel / Import.
 //!
-//! When the caller has no file index yet (the engine imports a URL in one step today), the list
-//! is replaced by a line saying the files are read when the import starts.
+//! [`confirm_preview`] serves the Browse screen's prepared-import hook. The screen commits the
+//! import ([`Engine::commit_import`]) when it resolves `true`, and discards it
+//! ([`Engine::discard_import`], which deletes the download) on Cancel or close.
+//!
+//! A source the engine reads only on confirm (a Mica URL, zip, manifest file, instance folder)
+//! has no file list yet: the list is replaced by a line saying so, and the title names the
+//! source. [`confirm_import`] serves the Browse screen's older hook, which passes only a name
+//! and version.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use futures::channel::oneshot;
 use gpui::{
-    AnyWindowHandle, App, AppContext as _, Context, InteractiveElement as _, IntoElement,
-    ParentElement, Render, StatefulInteractiveElement as _, Styled, Task, Window, div,
-    prelude::FluentBuilder as _, px,
+    App, AppContext as _, Context, InteractiveElement as _, IntoElement, ParentElement, Render,
+    StatefulInteractiveElement as _, Styled, Task, Window, div, prelude::FluentBuilder as _, px,
 };
+#[cfg(doc)]
+use mmcl_engine::Engine;
+use mmcl_engine::{ImportFileView, ImportPreview, ImportTotals};
 use mmcl_i18n::{t, tf};
 use mmcl_ui::screens::home_browse::ImportConfirm;
 use mmcl_ui_kit::focus::nav_scope;
 use mmcl_ui_kit::scale::u;
 use mmcl_ui_kit::{ThemeExt as _, hsla};
 
+use super::Owner;
 use super::widgets::{Pill, Tone, heading, hint, mono, muted, subtitle};
 
 /// The window size (px at 100 %).
 pub const SIZE: (f32, f32) = (600.0, 520.0);
 
-/// One file of the pack index (`ModrinthIndex.File`).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportFile {
-    /// The destination path inside the pack (`mods/x.jar`).
-    pub path: String,
-    /// Its size in bytes (0 when unknown).
-    pub size: i64,
-}
-
-/// What the dialog shows.
+/// What the dialog shows, already rendered to text.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ImportPreview {
-    /// The pack name (blank shows `dialog.importConfirm.fallbackName`).
-    pub name: String,
-    /// The pack version.
-    pub version: Option<String>,
-    /// `dependencies.minecraft`.
-    pub minecraft: Option<String>,
-    /// The loader dependencies, `(id, version)`: `forge`, `neoforge`, `fabric-loader`,
-    /// `quilt-loader`.
-    pub loaders: Vec<(String, String)>,
-    /// The index files; `None` when the caller has not read the index yet.
-    pub files: Option<Vec<ImportFile>>,
+pub struct Shown {
+    /// The heading: the pack name, else the source, else `dialog.importConfirm.fallbackName`.
+    pub title: String,
+    /// `Version · Minecraft · loader` (blank parts left out).
+    pub subtitle: String,
+    /// The totals line; `None` when the file list is not known yet.
+    pub totals: Option<String>,
+    /// One row per mod; `None` when the file list is not known yet.
+    pub rows: Option<Vec<String>>,
 }
 
-impl ImportPreview {
-    /// From the Browse screen's hook input (name and version only).
-    pub fn from_hook(c: &ImportConfirm) -> Self {
-        ImportPreview {
-            name: c.name.clone(),
-            version: c.version.clone(),
-            ..Default::default()
+impl Shown {
+    /// From a prepared import.
+    pub fn of_preview(p: &ImportPreview) -> Shown {
+        let details = p.has_details;
+        Shown {
+            title: title_text(p.pack_name.as_deref(), &p.source_label),
+            subtitle: subtitle_text(
+                p.pack_version.as_deref(),
+                p.minecraft_version.as_deref(),
+                p.loader_type.as_deref(),
+                p.loader_version.as_deref(),
+            ),
+            totals: details.then(|| totals_text(&p.totals)),
+            rows: details.then(|| mod_rows(p.mods())),
+        }
+    }
+
+    /// From the Browse screen's hook input (name and version only, no file list).
+    pub fn of_hook(c: &ImportConfirm) -> Shown {
+        Shown {
+            title: title_text(Some(&c.name), ""),
+            subtitle: subtitle_text(c.version.as_deref(), None, None, None),
+            totals: None,
+            rows: None,
         }
     }
 }
 
-/// Where an index file goes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Category {
-    Mod,
-    Config,
-    ResourcePack,
-    ShaderPack,
-    Other,
+fn present(s: Option<&str>) -> Option<&str> {
+    s.filter(|v| !v.trim().is_empty())
 }
 
-/// The path, lower-cased with `\` turned into `/`.
-fn normalized(path: &str) -> String {
-    path.to_lowercase().replace('\\', "/")
+/// The heading: the name, else the source label, else the localized fallback.
+pub fn title_text(name: Option<&str>, source_label: &str) -> String {
+    present(name)
+        .or(present(Some(source_label)))
+        .map(str::to_string)
+        .unwrap_or_else(|| t!("dialog.importConfirm.fallbackName").into_owned())
 }
 
-/// The category of an index path.
-pub fn categorize(path: &str) -> Category {
-    let p = normalized(path);
-    if p.starts_with("mods/") {
-        Category::Mod
-    } else if p.starts_with("config/") {
-        Category::Config
-    } else if p.starts_with("resourcepacks/") {
-        Category::ResourcePack
-    } else if p.starts_with("shaderpacks/") {
-        Category::ShaderPack
-    } else {
-        Category::Other
+/// The display name of a loader (`forge` keeps Java's own `Forge {0}` key).
+fn loader_label(loader: &str, version: &str) -> String {
+    match loader.to_ascii_lowercase().as_str() {
+        "forge" => tf!("importConfirm.meta.forge", version),
+        "neoforge" => tf!("importConfirm.meta.loader", "NeoForge", version),
+        "fabric" | "fabric-loader" => tf!("importConfirm.meta.loader", "Fabric", version),
+        "quilt" | "quilt-loader" => tf!("importConfirm.meta.loader", "Quilt", version),
+        _ => tf!("importConfirm.meta.loader", loader, version),
     }
 }
 
-/// The counts and total size of an index.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Counts {
-    pub mods: usize,
-    pub configs: usize,
-    pub resource_packs: usize,
-    pub shader_packs: usize,
-    pub other: usize,
-    pub total_bytes: i64,
-}
-
-/// Counts the files (entries with a blank path are skipped, as Java skipped null paths).
-pub fn counts(files: &[ImportFile]) -> Counts {
-    let mut c = Counts::default();
-    for f in files.iter().filter(|f| !f.path.trim().is_empty()) {
-        c.total_bytes += f.size.max(0);
-        match categorize(&f.path) {
-            Category::Mod => c.mods += 1,
-            Category::Config => c.configs += 1,
-            Category::ResourcePack => c.resource_packs += 1,
-            Category::ShaderPack => c.shader_packs += 1,
-            Category::Other => c.other += 1,
-        }
+/// The subtitle: version, Minecraft and loader (each when present) joined by ` · `.
+pub fn subtitle_text(
+    version: Option<&str>,
+    minecraft: Option<&str>,
+    loader: Option<&str>,
+    loader_version: Option<&str>,
+) -> String {
+    let mut parts = Vec::new();
+    if let Some(v) = present(version) {
+        parts.push(tf!("importConfirm.meta.version", v));
     }
-    c
+    if let Some(mc) = present(minecraft) {
+        parts.push(tf!("importConfirm.meta.minecraft", mc));
+    }
+    if let (Some(l), Some(v)) = (present(loader), present(loader_version)) {
+        parts.push(loader_label(l, v));
+    }
+    parts.join(" \u{00B7} ")
 }
 
-/// The human size, or `None` for 0 and below.
-pub fn format_bytes(bytes: i64) -> Option<String> {
-    (bytes > 0).then(|| mmcl_util::units::bytes(bytes))
+/// The human size, or `None` for 0 (Java skipped the `[size]` prefix then).
+pub fn format_bytes(bytes: u64) -> Option<String> {
+    (bytes > 0).then(|| mmcl_util::units::bytes(i64::try_from(bytes).unwrap_or(i64::MAX)))
 }
 
 /// The totals line (`buildTotalsText`): mods always, then each non-zero count joined with
 /// `importConfirm.totals.join`, then the size with `importConfirm.totals.withSize`.
-pub fn totals_text(c: &Counts) -> String {
-    let mut text = tf!("importConfirm.totals.mods", c.mods as i64);
-    for (key, n) in [
+pub fn totals_text(c: &ImportTotals) -> String {
+    let n = |v: usize| i64::try_from(v).unwrap_or(i64::MAX);
+    let mut text = tf!("importConfirm.totals.mods", n(c.mods));
+    for (key, count) in [
         ("importConfirm.totals.configs", c.configs),
         ("importConfirm.totals.resourcePacks", c.resource_packs),
         ("importConfirm.totals.shaderPacks", c.shader_packs),
         ("importConfirm.totals.otherFiles", c.other),
     ] {
-        if n > 0 {
-            text = tf!("importConfirm.totals.join", text, tf!(key, n as i64));
+        if count > 0 {
+            text = tf!("importConfirm.totals.join", text, tf!(key, n(count)));
         }
     }
     if let Some(size) = format_bytes(c.total_bytes) {
@@ -152,62 +153,21 @@ pub fn totals_text(c: &Counts) -> String {
     text
 }
 
-/// The text after the last `/` (after `\` -> `/`).
-pub fn basename(path: &str) -> String {
-    let p = path.replace('\\', "/");
-    match p.rfind('/') {
-        Some(i) => p[i + 1..].to_string(),
-        None => p,
-    }
-}
-
-/// One row per `mods/` entry: `[size]  name` (size omitted when unknown).
-pub fn mod_rows(files: &[ImportFile]) -> Vec<String> {
-    files
-        .iter()
-        .filter(|f| !f.path.trim().is_empty() && categorize(&f.path) == Category::Mod)
-        .map(|f| match format_bytes(f.size) {
-            Some(size) => format!("[{size}]  {}", basename(&f.path)),
-            None => basename(&f.path),
-        })
-        .collect()
-}
-
-/// The display name of a loader dependency id.
-fn loader_label(id: &str, version: &str) -> String {
-    match id {
-        "forge" => tf!("importConfirm.meta.forge", version),
-        "neoforge" => tf!("importConfirm.meta.loader", "NeoForge", version),
-        "fabric-loader" => tf!("importConfirm.meta.loader", "Fabric", version),
-        "quilt-loader" => tf!("importConfirm.meta.loader", "Quilt", version),
-        other => tf!("importConfirm.meta.loader", other, version),
-    }
-}
-
-/// The subtitle: version, Minecraft and loaders (each when present) joined by ` · `.
-pub fn subtitle_text(p: &ImportPreview) -> String {
-    let mut parts = Vec::new();
-    if let Some(v) = p.version.as_deref().filter(|v| !v.trim().is_empty()) {
-        parts.push(tf!("importConfirm.meta.version", v));
-    }
-    if let Some(mc) = p.minecraft.as_deref().filter(|v| !v.trim().is_empty()) {
-        parts.push(tf!("importConfirm.meta.minecraft", mc));
-    }
-    for (id, v) in &p.loaders {
-        if !v.trim().is_empty() {
-            parts.push(loader_label(id, v));
+/// One row per mod: `[size]  name` (size left out when unknown); a server-only file (one the
+/// launcher skips) says so.
+pub fn mod_rows<'a>(mods: impl Iterator<Item = &'a ImportFileView>) -> Vec<String> {
+    mods.map(|f| {
+        let row = match format_bytes(f.size) {
+            Some(size) => format!("[{size}]  {}", f.file_name),
+            None => f.file_name.clone(),
+        };
+        if f.client_supported {
+            row
+        } else {
+            tf!("importConfirm.row.serverOnly", row)
         }
-    }
-    parts.join(" \u{00B7} ")
-}
-
-/// The title: the name, or the fallback when blank.
-pub fn title_text(p: &ImportPreview) -> String {
-    if p.name.trim().is_empty() {
-        t!("dialog.importConfirm.fallbackName").into_owned()
-    } else {
-        p.name.clone()
-    }
+    })
+    .collect()
 }
 
 type Reply = Rc<RefCell<Option<oneshot::Sender<bool>>>>;
@@ -220,47 +180,35 @@ fn reply(slot: &Reply, value: bool) {
 
 /// The dialog's root view.
 pub struct ImportConfirmView {
-    preview: ImportPreview,
-    rows: Vec<String>,
-    totals: Option<String>,
+    shown: Shown,
     slot: Reply,
 }
 
 impl ImportConfirmView {
-    fn new(preview: ImportPreview, slot: Reply) -> Self {
-        let (rows, totals) = match &preview.files {
-            Some(files) => (mod_rows(files), Some(totals_text(&counts(files)))),
-            None => (Vec::new(), None),
-        };
-        ImportConfirmView {
-            preview,
-            rows,
-            totals,
-            slot,
-        }
+    fn new(shown: Shown, slot: Reply) -> Self {
+        ImportConfirmView { shown, slot }
     }
 
-    fn answer(&self, value: bool, window: &mut Window) {
+    fn answer(&self, value: bool, window: &mut Window, cx: &mut App) {
         reply(&self.slot, value);
-        window.remove_window();
+        super::close_window(window, cx);
     }
 }
 
 impl Render for ImportConfirmView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = cx.tokens();
-        let sub = subtitle_text(&self.preview);
+        let shown = &self.shown;
         let cancel = cx.entity().downgrade();
         let import = cx.entity().downgrade();
-        let list: Vec<gpui::AnyElement> = match (&self.preview.files, self.rows.is_empty()) {
-            (None, _) => {
+        let list: Vec<gpui::AnyElement> = match &shown.rows {
+            None => {
                 vec![muted(t!("importConfirm.unavailable").into_owned(), cx).into_any_element()]
             }
-            (Some(_), true) => {
+            Some(rows) if rows.is_empty() => {
                 vec![hint(t!("importConfirm.empty").into_owned(), cx).into_any_element()]
             }
-            (Some(_), false) => self
-                .rows
+            Some(rows) => rows
                 .iter()
                 .map(|r| mono(r.clone(), cx).into_any_element())
                 .collect(),
@@ -291,9 +239,11 @@ impl Render for ImportConfirmView {
                     .flex_col()
                     .gap(u(8.0))
                     .p(u(16.0))
-                    .child(heading(title_text(&self.preview), cx))
-                    .when(!sub.is_empty(), |el| el.child(subtitle(sub, cx)))
-                    .when_some(self.totals.clone(), |el, totals| {
+                    .child(heading(shown.title.clone(), cx))
+                    .when(!shown.subtitle.is_empty(), |el| {
+                        el.child(subtitle(shown.subtitle.clone(), cx))
+                    })
+                    .when_some(shown.totals.clone(), |el, totals| {
                         el.child(
                             div()
                                 .text_size(u(12.0))
@@ -333,7 +283,8 @@ impl Render for ImportConfirmView {
                                     Tone::Tonal,
                                 )
                                 .on_click(move |window, cx| {
-                                    let _ = cancel.update(cx, |this, _| this.answer(false, window));
+                                    let _ = cancel
+                                        .update(cx, |this, cx| this.answer(false, window, cx));
                                 }),
                             )
                             .child(
@@ -343,7 +294,8 @@ impl Render for ImportConfirmView {
                                     Tone::Primary,
                                 )
                                 .on_click(move |window, cx| {
-                                    let _ = import.update(cx, |this, _| this.answer(true, window));
+                                    let _ =
+                                        import.update(cx, |this, cx| this.answer(true, window, cx));
                                 }),
                             ),
                     ),
@@ -351,13 +303,9 @@ impl Render for ImportConfirmView {
     }
 }
 
-/// Shows the confirmation over `owner` (the main window when `None`); resolves `true` only on
-/// Import. Without a window (it could not open) it resolves `false`.
-pub fn confirm_import(
-    preview: ImportPreview,
-    owner: Option<AnyWindowHandle>,
-    cx: &mut App,
-) -> Task<bool> {
+/// Shows the confirmation, modal over `owner`; resolves `true` only on Import. Closing the
+/// window cancels, and so does a window that could not open.
+pub fn show_confirm(shown: Shown, owner: impl Into<Owner>, cx: &mut App) -> Task<bool> {
     let (tx, rx) = oneshot::channel::<bool>();
     let slot: Reply = Rc::new(RefCell::new(Some(tx)));
     let close_slot = slot.clone();
@@ -367,16 +315,19 @@ pub fn confirm_import(
             size: SIZE,
             min_size: None,
             resizable: false,
+            modal: true,
+            bounds_key: None,
         },
         owner,
         cx,
-        move |_, cx| cx.new(|_| ImportConfirmView::new(preview, slot)).into(),
+        move |_, cx| cx.new(|_| ImportConfirmView::new(shown, slot)).into(),
     );
     match opened {
         Some(handle) => {
             let _ = handle.update(cx, |_, window, cx| {
-                window.on_window_should_close(cx, move |_, _| {
+                window.on_window_should_close(cx, move |window, cx| {
                     reply(&close_slot, false);
+                    super::release_owner(window, cx);
                     true
                 });
             });
@@ -386,61 +337,70 @@ pub fn confirm_import(
     cx.spawn(async move |_| rx.await.unwrap_or(false))
 }
 
+/// The Browse screen's hook (name and version only): resolves `true` to import.
+pub fn confirm_import(request: ImportConfirm, owner: impl Into<Owner>, cx: &mut App) -> Task<bool> {
+    show_confirm(Shown::of_hook(&request), owner, cx)
+}
+
+/// The Browse screen's prepared-import hook: shows the file list and totals of `preview`;
+/// resolves `true` to install it. The screen commits or discards the prepared import itself.
+pub fn confirm_preview(
+    preview: ImportPreview,
+    owner: impl Into<Owner>,
+    cx: &mut App,
+) -> Task<bool> {
+    show_confirm(Shown::of_preview(&preview), owner, cx)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mmcl_engine::{ImportFileCategory, ImportPreviewSource, ImportToken};
 
-    fn f(path: &str, size: i64) -> ImportFile {
-        ImportFile {
+    fn f(path: &str, size: u64, client: bool) -> ImportFileView {
+        ImportFileView {
             path: path.into(),
+            file_name: path.rsplit(['/', '\\']).next().unwrap_or(path).into(),
             size,
+            category: ImportFileCategory::of_path(path),
+            client_supported: client,
+        }
+    }
+
+    fn preview(files: Vec<ImportFileView>, details: bool) -> ImportPreview {
+        ImportPreview {
+            token: ImportToken(7),
+            source: ImportPreviewSource::ModrinthProject,
+            has_details: details,
+            pack_name: Some("Fabulously Optimized".into()),
+            pack_version: Some("5.4.1".into()),
+            minecraft_version: Some("1.20.1".into()),
+            loader_type: Some("fabric".into()),
+            loader_version: Some("0.15.0".into()),
+            summary: None,
+            icon_url: None,
+            totals: ImportTotals::of(&files),
+            files,
+            source_label: "fabulously-optimized".into(),
         }
     }
 
     #[test]
-    fn paths_are_categorized_case_and_slash_insensitively() {
-        assert_eq!(categorize("mods/a.jar"), Category::Mod);
-        assert_eq!(categorize("MODS\\b.jar"), Category::Mod);
-        assert_eq!(categorize("config/x.toml"), Category::Config);
-        assert_eq!(categorize("resourcepacks/r.zip"), Category::ResourcePack);
-        assert_eq!(categorize("shaderpacks/s.zip"), Category::ShaderPack);
-        assert_eq!(categorize("options.txt"), Category::Other);
-        assert_eq!(categorize("modsextra/a.jar"), Category::Other);
-    }
-
-    #[test]
-    fn counting_skips_blank_paths_and_sums_sizes() {
-        let files = [
-            f("mods/a.jar", 100),
-            f("mods/b.jar", 0),
-            f("config/c.cfg", 5),
-            f("", 999),
-            f("x.txt", -3),
-        ];
-        let c = counts(&files);
-        assert_eq!(c.mods, 2);
-        assert_eq!(c.configs, 1);
-        assert_eq!(c.other, 1);
-        assert_eq!(c.total_bytes, 105);
-    }
-
-    #[test]
     fn totals_list_only_non_zero_counts() {
-        let only_mods = Counts {
+        let only_mods = ImportTotals {
             mods: 1,
             ..Default::default()
         };
         assert_eq!(totals_text(&only_mods), "1 mod");
-        let none = Counts::default();
-        assert_eq!(totals_text(&none), "0 mods");
-        let mixed = Counts {
+        assert_eq!(totals_text(&ImportTotals::default()), "0 mods");
+        let mixed = ImportTotals {
             mods: 3,
             configs: 1,
             shader_packs: 2,
             ..Default::default()
         };
         assert_eq!(totals_text(&mixed), "3 mods, 1 config, 2 shader packs");
-        let sized = Counts {
+        let sized = ImportTotals {
             mods: 2,
             total_bytes: 2048,
             ..Default::default()
@@ -451,53 +411,88 @@ mod tests {
     }
 
     #[test]
-    fn mod_rows_show_size_and_basename() {
-        let rows = mod_rows(&[
-            f("mods\\sub\\a.jar", 0),
-            f("config/x", 10),
-            f("mods/b.jar", 1536),
-        ]);
-        assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0], "a.jar");
-        assert!(rows[1].starts_with('[') && rows[1].ends_with("]  b.jar"));
-    }
-
-    #[test]
-    fn basenames() {
-        assert_eq!(basename("a/b/c.jar"), "c.jar");
-        assert_eq!(basename("a\\b.jar"), "b.jar");
-        assert_eq!(basename("plain"), "plain");
-        assert_eq!(basename("dir/"), "");
-    }
-
-    #[test]
-    fn subtitle_joins_present_parts() {
-        let mut p = ImportPreview {
-            name: "".into(),
-            version: Some("1.2".into()),
-            minecraft: Some("1.20.1".into()),
-            loaders: vec![("forge".into(), "47.2.0".into())],
-            files: None,
-        };
-        assert_eq!(
-            subtitle_text(&p),
-            "Version 1.2 \u{00B7} Minecraft 1.20.1 \u{00B7} Forge 47.2.0"
+    fn rows_list_mods_with_size_and_mark_server_only_files() {
+        let p = preview(
+            vec![
+                f("mods/a.jar", 0, true),
+                f("config/x.toml", 10, true),
+                f("mods/b.jar", 1536, true),
+                f("mods/server.jar", 0, false),
+            ],
+            true,
         );
-        p.version = Some(" ".into());
-        p.loaders = vec![("fabric-loader".into(), "0.15".into())];
-        assert_eq!(subtitle_text(&p), "Minecraft 1.20.1 \u{00B7} Fabric 0.15");
-        assert_eq!(title_text(&p), t!("dialog.importConfirm.fallbackName"));
-        p.name = "Pack".into();
-        assert_eq!(title_text(&p), "Pack");
+        let shown = Shown::of_preview(&p);
+        let rows = shown.rows.expect("a prepared .mrpack has its file list");
+        assert_eq!(rows.len(), 3, "only mods/ entries are listed");
+        assert_eq!(rows[0], "a.jar");
+        assert!(
+            rows[1].starts_with('[') && rows[1].ends_with("]  b.jar"),
+            "{}",
+            rows[1]
+        );
+        assert_eq!(rows[2], tf!("importConfirm.row.serverOnly", "server.jar"));
+        assert_eq!(
+            shown.totals.as_deref(),
+            Some(totals_text(&p.totals).as_str())
+        );
+        assert!(shown.totals.unwrap().starts_with("3 mods, 1 config"));
+    }
+
+    #[test]
+    fn heading_and_subtitle_follow_the_preview() {
+        let p = preview(Vec::new(), true);
+        let shown = Shown::of_preview(&p);
+        assert_eq!(shown.title, "Fabulously Optimized");
+        assert_eq!(
+            shown.subtitle,
+            "Version 5.4.1 \u{00B7} Minecraft 1.20.1 \u{00B7} Fabric 0.15.0"
+        );
+        assert_eq!(
+            shown.rows,
+            Some(Vec::new()),
+            "an empty list shows the empty line"
+        );
+        assert_eq!(
+            subtitle_text(Some(" "), Some("1.12.2"), Some("forge"), Some("14.23.5")),
+            "Minecraft 1.12.2 \u{00B7} Forge 14.23.5"
+        );
+        assert_eq!(
+            subtitle_text(None, None, Some("neoforge"), None),
+            "",
+            "a loader without a version is left out"
+        );
+    }
+
+    #[test]
+    fn a_source_read_on_confirm_has_no_list_and_is_named_by_source() {
+        let mut p = preview(Vec::new(), false);
+        p.pack_name = None;
+        p.source_label = "My Pack.zip".into();
+        let shown = Shown::of_preview(&p);
+        assert_eq!(shown.title, "My Pack.zip");
+        assert_eq!(shown.rows, None);
+        assert_eq!(shown.totals, None);
+        assert_eq!(
+            title_text(None, " "),
+            t!("dialog.importConfirm.fallbackName")
+        );
     }
 
     #[test]
     fn hook_input_has_no_file_index() {
-        let p = ImportPreview::from_hook(&ImportConfirm {
+        let shown = Shown::of_hook(&ImportConfirm {
             name: "X".into(),
             version: Some("2".into()),
         });
-        assert_eq!(p.name, "X");
-        assert!(p.files.is_none());
+        assert_eq!(shown.title, "X");
+        assert_eq!(shown.subtitle, "Version 2");
+        assert!(shown.rows.is_none() && shown.totals.is_none());
+    }
+
+    #[test]
+    fn sizes_skip_zero() {
+        assert_eq!(format_bytes(0), None);
+        assert!(format_bytes(1).is_some());
+        assert!(format_bytes(u64::MAX).is_some());
     }
 }

@@ -20,6 +20,8 @@
 //! | [`images`] | `ImageFadeIn`, `AvatarImages` | fade-in image, avatar cache |
 //! | [`scale`] | `UiScale`, `SmoothScroll` | rem scaling, eased wheel scrolling |
 //! | [`dialogs`] | `GUIUtilities` dialogs | async, queued, themed dialogs |
+//! | [`file_dialog`] | `FileChooser` | native open / save dialogs with titles and type filters |
+//! | [`windowing`] | `Stage` owner / modality / min size | owned and modal windows, runtime minimum size, bounds memory, drag regions |
 //! | [`notify`] | `NotificationManager` | OS notifications |
 //! | [`sys`] | `GUIUtilities` helpers | open URL / folder, redaction, light chrome |
 //! | [`screen`] | `MCLauncherAbstractGui`, `HelpTopic` | `Screen` trait, `ScreenRegistry`, `Navigator` |
@@ -31,6 +33,7 @@
 pub mod assets;
 pub mod controls;
 pub mod dialogs;
+pub mod file_dialog;
 pub mod focus;
 pub mod fonts;
 pub mod icons;
@@ -46,12 +49,14 @@ pub mod sys;
 pub mod theme;
 pub mod tooltip;
 pub mod wavy;
+pub mod windowing;
 
 pub use assets::Assets;
 pub use controls::{
     AnnouncementBanner, FilterChip, IconButton, OfflineChip, SearchField, empty_state_badge,
 };
 pub use dialogs::{Answer, ButtonRole, DialogButton, DialogLevel, DialogSpec};
+pub use file_dialog::{FileFilter, OpenDialog, SaveDialog};
 pub use fonts::register_fonts;
 pub use icons::Icon;
 pub use images::{Avatar, Avatars, FadeImage};
@@ -67,6 +72,7 @@ pub use sys::{is_light_chrome, open_external_url, open_folder};
 pub use theme::{ActiveTheme, ThemeExt, TypeStyleExt, hsla, set_theme};
 pub use tooltip::{LauncherTooltip, TooltipExt, tooltip};
 pub use wavy::WavyProgressBar;
+pub use windowing::{BoundsMemory, OwnerLink, SharedOwnerLink, WindowDragExt};
 
 /// One-time GUI initialisation: gpui-component, the bundled fonts, navigation key bindings, the
 /// dialogs service, and the launcher theme (pushed into gpui-component).
