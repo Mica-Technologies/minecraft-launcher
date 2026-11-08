@@ -1,0 +1,21 @@
+[package]
+name = "mmcl-config"
+description = "Launcher configuration: Java-compatible configuration.json, typed settings, debounced atomic writes, corrupt-file quarantine and schema migrations"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-log.workspace = true
+mmcl-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+parking_lot.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

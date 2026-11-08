@@ -1,0 +1,11 @@
+[package]
+name = "mmcl-progress"
+description = "Launch progress tracker, legacy progress sinks and the tracker bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+parking_lot.workspace = true
+thiserror.workspace = true

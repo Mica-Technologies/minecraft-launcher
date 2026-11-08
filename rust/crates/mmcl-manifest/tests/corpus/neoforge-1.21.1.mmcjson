@@ -1,0 +1,16 @@
+{
+    "packName": "NeoForge 1.21.1",
+    "packVersion": "21.1.95",
+    "packURL": "https://neoforged.net",
+    "packLogoURL": "https://avatars.githubusercontent.com/u/132252938",
+    "packMinRAMGB": "2",
+    "packModLoader": "neoforge",
+    "packModLoaderURL": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.95/neoforge-21.1.95-installer.jar",
+    "packModLoaderHash": "d1d0329dd1aa8c7b0789f6e9b79df90d631e79b7",
+    "packForgeURL": "",
+    "packForgeHash": "",
+    "packMods": [],
+    "packConfigs": [],
+    "packResourcePacks": [],
+    "packInitialFiles": []
+}

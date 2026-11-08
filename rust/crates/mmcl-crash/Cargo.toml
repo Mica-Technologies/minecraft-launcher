@@ -1,0 +1,16 @@
+[package]
+name = "mmcl-crash"
+description = "Crash-report analyzer for the Mica Minecraft Launcher: an ordered regex rule table that turns a crash report into a localizable diagnosis with suggested actions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+regex.workspace = true
+tracing.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+mmcl-i18n.workspace = true
+tempfile.workspace = true

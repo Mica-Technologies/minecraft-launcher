@@ -1,0 +1,25 @@
+[package]
+name = "mmcl-core"
+description = "App identity, build info, game mode, command-line grammar, data paths and launcher constants"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+build = "build.rs"
+
+[dependencies]
+thiserror.workspace = true
+parking_lot.workspace = true
+dashmap.workspace = true
+dirs.workspace = true
+chrono.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+] }
+
+[dev-dependencies]
+tempfile.workspace = true

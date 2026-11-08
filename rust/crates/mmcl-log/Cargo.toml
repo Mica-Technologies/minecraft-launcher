@@ -1,0 +1,19 @@
+[package]
+name = "mmcl-log"
+description = "Launcher logging: tracing subscriber, [App/LEVEL] lines, redaction, owner-only session log with rotation, startup diagnostics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+regex.workspace = true
+parking_lot.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

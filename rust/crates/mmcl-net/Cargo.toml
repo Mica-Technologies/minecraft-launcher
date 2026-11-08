@@ -1,0 +1,32 @@
+[package]
+name = "mmcl-net"
+description = "HTTP for the Mica Minecraft Launcher: downloads with retry, stall watchdog, hash check and atomic publish; bounded and conditional fetches; offline latch; proxies; download pool; content cache; update check; announcements"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-log.workspace = true
+mmcl-util.workspace = true
+tokio.workspace = true
+futures.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+parking_lot.workspace = true
+dashmap.workspace = true
+arc-swap.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+md-5.workspace = true
+hex.workspace = true
+uuid.workspace = true
+url.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

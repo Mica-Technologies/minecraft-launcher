@@ -1,0 +1,20 @@
+[package]
+name = "mmcl-manifest"
+description = "Hosted modpack manifest (.mmcjson) schema with Gson-compatible leniency, and the editor document model."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+json5.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+regex.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+walkdir.workspace = true

@@ -1,0 +1,23 @@
+{
+  "packName": "Forge 1.12.2",
+  "packVersion": "14.23.5.2855_230729ER",
+  "packURL": "https://minecraftforge.net",
+  "packLogoURL": "https://pbs.twimg.com/profile_images/778706890914095109/fhMDH9o6_400x400.jpg",
+  "packMinRAMGB": "1",
+  "packForgeURL": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.12.2-14.23.5.2855/forge-1.12.2-14.23.5.2855-installer.jar",
+  "packForgeHash": "324cb26ac3cda409290b46abdb596322776657d2",
+  "packMods": [
+    {
+      "name": "PipeBlocker",
+      "remote": "https://mediafilez.forgecdn.net/files/4671/444/PipeBlocker-1.1.0.jar",
+      "local": "pipeblocker.jar",
+      "sha1": "1a83209889ceeb20d6476b81755c759438787abe",
+      "clientReq": true,
+      "serverReq": true,
+      "sha256": "6228d7585c4531373bcd9d237a49a3d4a641d1310f619a002b43d934cf723074"
+    }
+  ],
+  "packConfigs": [],
+  "packResourcePacks": [],
+  "packInitialFiles": []
+}

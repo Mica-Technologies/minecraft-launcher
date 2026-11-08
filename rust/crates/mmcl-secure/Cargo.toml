@@ -1,0 +1,41 @@
+[package]
+name = "mmcl-secure"
+description = "Machine-bound AES-256-GCM cipher (byte-compatible with the Java launcher), hardware UUID, Java os.name and owner-only file permissions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+aes-gcm.workspace = true
+pbkdf2.workspace = true
+sha2.workspace = true
+base64.workspace = true
+rand.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Wdk_System_SystemServices",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_System_Com",
+    "Win32_System_Ole",
+    "Win32_System_Rpc",
+    "Win32_System_SystemInformation",
+    "Win32_System_SystemServices",
+    "Win32_System_Variant",
+    "Win32_System_WindowsProgramming",
+    "Win32_System_Wmi",
+] }
+
+[dev-dependencies]
+tempfile.workspace = true

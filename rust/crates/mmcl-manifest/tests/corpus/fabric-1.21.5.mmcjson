@@ -1,0 +1,16 @@
+{
+    "packName": "Fabric 1.21.5",
+    "packVersion": "0.16.10",
+    "packURL": "https://fabricmc.net",
+    "packLogoURL": "https://fabricmc.net/assets/logo.png",
+    "packMinRAMGB": "2",
+    "packModLoader": "fabric",
+    "packModLoaderURL": "https://meta.fabricmc.net/v2/versions/loader/1.21.5/0.16.10/profile/json",
+    "packModLoaderHash": "",
+    "packForgeURL": "",
+    "packForgeHash": "",
+    "packMods": [],
+    "packConfigs": [],
+    "packResourcePacks": [],
+    "packInitialFiles": []
+}

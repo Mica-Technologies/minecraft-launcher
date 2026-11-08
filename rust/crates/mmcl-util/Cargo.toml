@@ -1,0 +1,32 @@
+[package]
+name = "mmcl-util"
+description = "Pure helpers for the Mica Minecraft Launcher: versions, JVM args, URL checks, redaction, hashing, process launch, quoting, deep links, task pool, startup diagnostics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-manifest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+regex.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+md-5.workspace = true
+hex.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+indexmap.workspace = true
+parking_lot.workspace = true
+sysinfo = { version = "0.31", default-features = false, features = ["system"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1,0 +1,19 @@
+[package]
+name = "mmcl-i18n"
+description = "Localization for the Mica Minecraft Launcher: Java .properties bundles, MessageFormat, locale resolution"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+build = "build.rs"
+
+[dependencies]
+arc-swap.workspace = true
+indexmap.workspace = true
+thiserror.workspace = true
+sys-locale = "0.3"
+
+[dev-dependencies]
+serde_json.workspace = true
+regex.workspace = true
+walkdir.workspace = true

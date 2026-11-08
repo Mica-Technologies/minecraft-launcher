@@ -1,0 +1,16 @@
+[package]
+name = "mmcl-mojang"
+description = "Pure Mojang/Forge/Fabric manifest models, rule evaluation, argument flattening and host info"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+indexmap.workspace = true
+regex.workspace = true
+thiserror.workspace = true
+parking_lot.workspace = true
+fancy-regex = "0.16"

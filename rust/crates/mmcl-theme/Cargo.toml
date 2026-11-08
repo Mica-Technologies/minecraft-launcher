@@ -1,0 +1,10 @@
+[package]
+name = "mmcl-theme"
+description = "Theme token tables, theme resolution, shape, type and motion tokens (plain data, no GPUI)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+build = "build.rs"
+
+[dependencies]
