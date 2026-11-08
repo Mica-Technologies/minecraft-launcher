@@ -1,0 +1,27 @@
+[package]
+name = "mmcl-ui-kit"
+description = "Shared GPUI widgets, theme bridge, icons, fonts, motion, dialogs, notifications, the Screen trait and gamepad focus navigation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+build = "build.rs"
+
+[dependencies]
+gpui.workspace = true
+gpui-component.workspace = true
+# The icon catalogue gpui-component renders its own icons from; the same version it depends on.
+gpui-kit-assets = "=0.9.0"
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-theme.workspace = true
+futures.workspace = true
+parking_lot.workspace = true
+regex.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+url.workspace = true
+notify-rust = "4.18"
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }

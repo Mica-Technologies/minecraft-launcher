@@ -1,0 +1,22 @@
+[package]
+name = "mmcl-signin-webview"
+description = "The tao + wry Microsoft sign-in window run by the launcher's --msa-signin helper process"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+url.workspace = true
+tempfile.workspace = true
+
+# The web view exists only on the desktop platforms. WebView2 on Windows, WKWebView on macOS and
+# WebKitGTK 4.1 on Linux (which needs libwebkit2gtk-4.1-dev at build time and the runtime package
+# at install time).
+[target.'cfg(any(windows, target_os = "macos", target_os = "linux"))'.dependencies]
+tao = "0.37"
+wry = "0.57"
