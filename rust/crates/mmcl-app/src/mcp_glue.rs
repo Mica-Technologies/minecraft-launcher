@@ -1,7 +1,7 @@
 // Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
 
-//! The app-side MCP adapters (mcp spec §8): the GPUI consent dialog behind
-//! [`DeadlineConsentPrompt`], and the Settings panel adapter over [`McpBootstrap`].
+//! The Settings -> Security MCP panel adapter over [`McpBootstrap`]. The consent dialog with
+//! its deadline dismiss is `crate::dialogs::consent`.
 
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -9,72 +9,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use mmcl_engine::Engine;
 use mmcl_mcp::McpBootstrap;
 use mmcl_mcp::activity::Decision;
-use mmcl_mcp::approval::{
-    Answer as McpAnswer, ConsentPresenter, ConsentTicket, DeadlineConsentPrompt, Policy,
-};
+use mmcl_mcp::approval::Policy;
 use mmcl_mcp::client_setup::{self, Client};
-use mmcl_ui::GuiHandle;
 use mmcl_ui::screens::settings::mcp::{
     McpActivityRow, McpClient, McpPanel, McpPolicy, McpSessionRow, McpToolRow,
 };
-use mmcl_ui_kit::dialogs::Answer;
 
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
-}
-
-/// Shows the consent question as a launcher dialog. The deadline is enforced by
-/// [`DeadlineConsentPrompt`]; a dialog still open after it expires answers into the void.
-pub struct GuiConsentPresenter {
-    gui: GuiHandle,
-}
-
-impl GuiConsentPresenter {
-    /// The consent prompt the MCP host uses.
-    pub fn prompt(gui: GuiHandle) -> Arc<DeadlineConsentPrompt> {
-        Arc::new(DeadlineConsentPrompt::new(Arc::new(GuiConsentPresenter {
-            gui,
-        })))
-    }
-}
-
-/// The answer a dialog button means.
-pub fn map_answer(answer: Answer, second: McpAnswer) -> McpAnswer {
-    match answer {
-        Answer::Primary => McpAnswer::AllowOnce,
-        Answer::Secondary => second,
-        Answer::Closed => McpAnswer::Deny,
-    }
-}
-
-impl ConsentPresenter for GuiConsentPresenter {
-    fn is_available(&self) -> bool {
-        self.gui.is_started()
-    }
-
-    fn present(&self, ticket: ConsentTicket) {
-        let posted = self.gui.run(move |cx| {
-            cx.spawn(async move |cx| {
-                let r = ticket.request();
-                let q = mmcl_ui::Question::new(
-                    r.title(),
-                    r.header(),
-                    r.body(),
-                    r.allow_once_label(),
-                    r.second_button_label(),
-                );
-                let second = r.second_button_answer();
-                let answer = mmcl_ui::dialogs::ask(cx, &q, None).await;
-                ticket.answer(map_answer(answer, second));
-            })
-            .detach();
-        });
-        // When the UI is gone the ticket was dropped with the job: the waiting side denies.
-        let _ = posted;
-    }
 }
 
 /// Settings -> Security over the live server.
@@ -234,26 +179,6 @@ impl McpPanel for PanelAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn buttons_map_to_answers() {
-        assert_eq!(
-            map_answer(Answer::Primary, McpAnswer::AllowForSession),
-            McpAnswer::AllowOnce
-        );
-        assert_eq!(
-            map_answer(Answer::Secondary, McpAnswer::AllowForSession),
-            McpAnswer::AllowForSession
-        );
-        assert_eq!(
-            map_answer(Answer::Secondary, McpAnswer::Deny),
-            McpAnswer::Deny
-        );
-        assert_eq!(
-            map_answer(Answer::Closed, McpAnswer::AllowForSession),
-            McpAnswer::Deny
-        );
-    }
 
     #[test]
     fn policies_round_trip() {

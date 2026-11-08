@@ -1,9 +1,18 @@
 // Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
 //
 // Windows only: embeds the launcher icon (resource id 1, so "<exe>",0 works as a DefaultIcon),
-// the modpack document icon (id 2, "<exe>",1), and a VERSIONINFO block. The application
-// manifest (PerMonitorV2 DPI awareness, Common Controls v6, asInvoker) is embedded by GPUI's
-// own `windows-manifest` feature; a second manifest here would be a duplicate resource.
+// the modpack document icon (id 2, "<exe>",1), and a VERSIONINFO block.
+//
+// The application manifest is GPUI's (`windows-manifest` feature: PerMonitorV2, Common
+// Controls v6, asInvoker, Win10 supportedOS, SegmentHeap). That feature cannot be turned off
+// from this workspace: gpui-pre-platform 0.3.11 enables it unconditionally on Windows
+// (`[target.'cfg(windows)'.dependencies.gpui] features = ["windows-manifest"]`), and
+// gpui-component, gpui-base and gpui-kit-assets depend on gpui-pre with default features. A
+// second RT_MANIFEST id 1 here fails the link (CVT1100 duplicate resource). Our full manifest,
+// which adds longPathAware and the UTF-8 activeCodePage, is `windows/app.manifest`; the
+// packaging step writes it over GPUI's after linking (`mt.exe -manifest windows/app.manifest
+// -outputresource:<exe>;#1`). A dev build without it still works: std uses `\\?\` paths for
+// long paths and the launcher calls only wide Win32 APIs.
 //
 // Version: env MMCL_WIN_VERSION (set by `cargo xtask dist windows`), else derived from
 // MMCL_VERSION (year shortened to two digits so the major part fits in 255), else 0.0.0.0.

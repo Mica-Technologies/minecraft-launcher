@@ -104,6 +104,7 @@ pub(crate) mod tests_support {
             never_played: true,
             unread_news: 0,
             active: false,
+            ..Default::default()
         }
     }
 }

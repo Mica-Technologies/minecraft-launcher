@@ -2703,6 +2703,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "gilrs"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "902fb00d3f6398e635be22e5c837b303c501835cca7ac11a47bba138f7aafdd8"
+dependencies = [
+ "fnv",
+ "gilrs-core",
+ "log",
+ "uuid",
+ "vec_map",
+]
+
+[[package]]
+name = "gilrs-core"
+version = "0.6.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc7f0ce6237abcc0523f2a5502b1e3fe5802daaae47ac14e166fe49551301ea9"
+dependencies = [
+ "inotify",
+ "js-sys",
+ "libc",
+ "libudev-sys",
+ "log",
+ "nix",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "uuid",
+ "vec_map",
+ "wasm-bindgen",
+ "web-sys",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "gimli"
 version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4522,6 +4556,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "libudev-sys"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c8469b4a23b962c1396b9b451dda50ef5b283e8dd309d69033475fa9b334324"
+dependencies = [
+ "libc",
+ "pkg-config",
+]
+
+[[package]]
 name = "line-clipping"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4878,16 +4922,21 @@ dependencies = [
  "chrono",
  "embed-resource",
  "futures",
+ "gilrs",
  "gpui-component",
  "gpui-pre",
  "gpui-pre-platform",
+ "log",
  "mmcl-auth",
  "mmcl-core",
  "mmcl-editor",
  "mmcl-engine",
  "mmcl-i18n",
  "mmcl-log",
+ "mmcl-manifest",
  "mmcl-mcp",
+ "mmcl-modpack",
+ "mmcl-net",
  "mmcl-platform",
  "mmcl-rgb",
  "mmcl-running-games",
@@ -4898,6 +4947,7 @@ dependencies = [
  "mmcl-util",
  "parking_lot",
  "tempfile",
+ "tokio",
  "tracing",
  "windows-sys 0.61.2",
 ]
@@ -5320,6 +5370,7 @@ dependencies = [
  "futures",
  "gpui-component",
  "gpui-pre",
+ "image",
  "mmcl-core",
  "mmcl-engine",
  "mmcl-i18n",
@@ -9765,6 +9816,12 @@ name = "valuable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
+
+[[package]]
+name = "vec_map"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
 name = "version-compare"

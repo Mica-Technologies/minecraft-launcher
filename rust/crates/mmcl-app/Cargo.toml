@@ -33,6 +33,11 @@ mmcl-ui-kit.workspace = true
 mmcl-ui.workspace = true
 mmcl-editor.workspace = true
 mmcl-running-games.workspace = true
+mmcl-modpack.workspace = true
+mmcl-manifest.workspace = true
+mmcl-net.workspace = true
+gilrs.workspace = true
+tokio.workspace = true
 futures.workspace = true
 parking_lot.workspace = true
 tracing.workspace = true
@@ -43,7 +48,10 @@ windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_System_Console",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Shell",
 ] }
 
 [dev-dependencies]
 tempfile.workspace = true
+log = "0.4"
+gpui ={ workspace = true, features = ["test-support"] }

@@ -52,6 +52,8 @@ pbkdf2 = "0.12"
 hmac = "0.12"
 rand = "0.9"
 raw-window-handle = "0.6"
+# Gamepad polling for the GUI's controller navigation (mmcl-app). Linux builds need libudev-dev.
+gilrs = "0.11"
 
 # Internal crates.
 mmcl-core = { path = "crates/mmcl-core" }

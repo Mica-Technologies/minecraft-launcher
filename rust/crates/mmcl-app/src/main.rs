@@ -16,15 +16,23 @@
 
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod bundled;
 mod deeplink;
+mod detail_hooks;
+mod dialogs;
+mod gamepad;
 mod gui;
-mod launch_flow;
 mod lifecycle;
 mod mcp_glue;
 mod second_launch;
 mod server;
+mod services;
+mod signals;
 mod startup_guard;
 mod ui_sink;
+
+#[cfg(test)]
+mod smoke_test;
 
 use mmcl_core::args::{binary_name, usage_synopsis};
 use mmcl_core::{CommandLine, GameMode, ModeAction, PreSession};
@@ -62,8 +70,9 @@ fn run() -> i32 {
         PreSession::MsaSignin(args) => return mmcl_signin_webview::run_helper(args),
         PreSession::DiagManifest(url) => {
             startup_guard::attach_console();
-            eprintln!("{}", tf!("app.diagManifest.unavailable", url.as_str()));
-            return 2;
+            let stdout = std::io::stdout();
+            let mut out = stdout.lock();
+            return mmcl_engine::diag::run_manifest_diagnostic(url.as_str(), &mut out);
         }
         PreSession::Mcp | PreSession::Normal => {}
     }
@@ -106,17 +115,24 @@ fn session(cl: &CommandLine) -> i32 {
         mmcl_log::error_silent(&msg);
         return 1;
     }
-    let mode = match args.mode_action {
-        ModeAction::Client => GameMode::Client,
-        ModeAction::Server => GameMode::Server,
-        ModeAction::Infer | ModeAction::None => mmcl_core::mode::infer(),
+    let (mode, inferred) = match args.mode_action {
+        ModeAction::Client => (GameMode::Client, false),
+        ModeAction::Server => (GameMode::Server, false),
+        ModeAction::Infer | ModeAction::None => (mmcl_core::mode::infer(), true),
     };
     mmcl_core::mode::set(mode);
+    let mode_name = format!("{mode:?}").to_uppercase();
+    if inferred {
+        mmcl_log::std(&tf!("log.app.gameModeInferred", mode_name));
+    } else {
+        mmcl_log::std(&tf!("log.app.gameModeSet", mode_name));
+    }
 
     let mut options = EngineOptions::for_mode(mode);
     options.tui = cl.tui;
-    // The terminal UI installs its own running-game follower.
-    options.follow_running_games = !cl.tui;
+    // The engine follows the newest running game for RGB and Discord in every mode; the
+    // terminal UI no longer runs a follower of its own.
+    options.follow_running_games = true;
     options.web_view_supported = mmcl_signin_webview::is_supported();
     // A headless server needs none of the GUI's background work, and loads its pack list
     // itself (blocking on the revalidation).
@@ -174,11 +190,32 @@ fn log_session_start(cl: &CommandLine) {
 
 #[cfg(test)]
 mod tests {
+    /// The manifest the packaging step embeds keeps GPUI's settings and adds ours.
+    #[test]
+    fn the_windows_manifest_has_every_setting() {
+        let m = include_str!("../windows/app.manifest");
+        for needle in [
+            "PerMonitorV2",
+            "<longPathAware",
+            ">UTF-8</activeCodePage>",
+            "Microsoft.Windows.Common-Controls",
+            "asInvoker",
+            "{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}",
+        ] {
+            assert!(m.contains(needle), "{needle}");
+        }
+        assert_eq!(m.matches("<assembly ").count(), 1);
+        assert!(m.trim_end().ends_with("</assembly>"));
+    }
+
     #[test]
     fn every_app_key_exists() {
         for k in [
-            "app.diagManifest.unavailable",
             "app.startup.failed",
+            "log.app.gameModeInferred",
+            "log.app.gameModeSet",
+            "log.gamepad.unavailable",
+            "log.gamepad.connected",
             "INVALID_ARGS_SPECIFIED_TEXT",
             "USAGE_TEXT",
             "PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT",

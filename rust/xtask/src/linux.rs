@@ -50,6 +50,8 @@ pub const DEB_DEPENDS: &[&str] = &[
     "libfontconfig1",
     "libfreetype6",
     "libasound2 | libasound2t64",
+    // gilrs reads gamepads through libudev.
+    "libudev1",
 ];
 
 /// Fedora / RHEL runtime dependencies (same set).
@@ -65,6 +67,7 @@ pub const RPM_REQUIRES: &[&str] = &[
     "libxcb",
     "fontconfig",
     "freetype",
+    "systemd-libs",
     "alsa-lib",
 ];
 

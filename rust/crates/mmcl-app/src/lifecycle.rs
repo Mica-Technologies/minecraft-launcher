@@ -163,6 +163,8 @@ pub fn cleanup(engine: Option<&Engine>, mcp: Option<&Arc<McpBootstrap>>) {
         }
     }
     run_step("notifications", mmcl_ui_kit::notify::shutdown);
+    run_step("tray", mmcl_platform::tray::shutdown);
+    run_step("taskbarProgress", mmcl_platform::progress::shutdown);
     run_step("instanceLock", mmcl_platform::single_instance::release);
     mmcl_log::std(&mmcl_i18n::t!("FINISHED_APP_CLEANUP_TEXT"));
     run_step("logging", || {
@@ -176,9 +178,81 @@ pub fn relaunch_executable() -> Option<std::path::PathBuf> {
     mmcl_core::install::relaunch_executable()
 }
 
-/// Starts `exe` as a detached top-level process with its folder as the working directory and
-/// no inherited standard streams.
+/// Starts `exe` as a new top-level process with its folder as the working directory.
+///
+/// Windows (core-config-i18n §6.7): `ShellExecuteW` first, so the shell starts it as if the
+/// user had (no inherited handles, no job object, the normal window state), then
+/// `cmd /c start "" "<exe>"`, then a detached spawn. Elsewhere: a detached spawn with no
+/// inherited standard streams.
 pub fn spawn_relaunch(exe: &Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        if win::shell_execute(exe).is_ok() {
+            return Ok(());
+        }
+        if win::cmd_start(exe).is_ok() {
+            return Ok(());
+        }
+    }
+    spawn_detached(exe)
+}
+
+#[cfg(windows)]
+mod win {
+    use std::os::windows::ffi::OsStrExt as _;
+    use std::os::windows::process::CommandExt as _;
+    use std::path::Path;
+
+    fn wide(s: &std::ffi::OsStr) -> Vec<u16> {
+        s.encode_wide().chain(std::iter::once(0)).collect()
+    }
+
+    /// `ShellExecuteW(NULL, "open", exe, NULL, dir, SW_SHOWNORMAL)`; values above 32 succeed.
+    pub fn shell_execute(exe: &Path) -> std::io::Result<()> {
+        use windows_sys::Win32::UI::Shell::ShellExecuteW;
+        use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+        let file = wide(exe.as_os_str());
+        let verb = wide(std::ffi::OsStr::new("open"));
+        let dir = exe.parent().map(|d| wide(d.as_os_str()));
+        // SAFETY: every pointer is a NUL-terminated UTF-16 buffer that outlives the call.
+        let result = unsafe {
+            ShellExecuteW(
+                std::ptr::null_mut(),
+                verb.as_ptr(),
+                file.as_ptr(),
+                std::ptr::null(),
+                dir.as_ref().map_or(std::ptr::null(), |d| d.as_ptr()),
+                SW_SHOWNORMAL,
+            )
+        };
+        if result as isize > 32 {
+            Ok(())
+        } else {
+            Err(std::io::Error::other(format!(
+                "ShellExecuteW returned {}",
+                result as isize
+            )))
+        }
+    }
+
+    /// `cmd /c start "" "<exe>"` without a console window.
+    pub fn cmd_start(exe: &Path) -> std::io::Result<()> {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let mut cmd = std::process::Command::new("cmd");
+        cmd.args(["/c", "start", ""]).arg(exe);
+        if let Some(dir) = exe.parent() {
+            cmd.current_dir(dir);
+        }
+        cmd.stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .creation_flags(CREATE_NO_WINDOW);
+        cmd.spawn().map(|_| ())
+    }
+}
+
+/// A detached spawn of `exe` with no inherited standard streams.
+fn spawn_detached(exe: &Path) -> std::io::Result<()> {
     use std::process::{Command, Stdio};
     let mut cmd = Command::new(exe);
     if let Some(dir) = exe.parent() {
