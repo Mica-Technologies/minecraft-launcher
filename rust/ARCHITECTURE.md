@@ -75,6 +75,29 @@ GUI, TUI, MCP and server mode never reach into lower crates for application oper
 
 Lower crates expose plain async APIs and know nothing about the engine.
 
+## UI: same launcher, better
+
+The GPUI front end is the Java launcher's UI rebuilt, not a redesign. Someone who knows the Java
+launcher should feel at home on the first screen.
+
+- **Keep the layout and design.** Same screens, the same navigation (nav bar, title-bar controls,
+  account switcher), the same placement of each screen's main regions (hero card, library grid,
+  settings sections, editor panes, Running Games tabs and console), the website-brand look from the
+  theme tokens, the same icons and fonts. The Java FXML in `../src/main/resources/gui/`, the CSS in
+  `../src/main/resources/ui/`, and the layout sections of the
+  gui-shell and gui-editor-games specs are the reference.
+- **Lose nothing.** Every control, menu item, context menu, shortcut, tooltip, dialog, empty state,
+  error state, progress display and setting the Java UI has must exist in the port. Before
+  reporting a screen done, walk its Java controller and FXML and check off each feature; list any
+  you could not port in `gaps`, never drop one silently.
+- **Adapt where GPUI differs.** Use gpui-component's widgets and GPUI's idioms instead of imitating
+  JavaFX quirks. Where GPUI cannot do something the same way, pick the closest equivalent that keeps
+  the function, and note the difference in `deviations`.
+- **Improve where it is cheap and clear.** Smoother motion, faster list rendering (virtualised
+  lists), better keyboard and gamepad focus, clearer empty and error states, fixes for the UI bugs
+  the specs flag. Improvements add to the Java behaviour; they never remove a feature or move a
+  control somewhere a Java user would not look for it.
+
 ## Conventions
 
 - **Edition 2024**, workspace version/edition/license via `*.workspace = true`.
