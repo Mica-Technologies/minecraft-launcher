@@ -1,0 +1,24 @@
+[package]
+name = "mmcl-running-games"
+description = "The Running Games window and its docked view: one tab per game session with its launch steps, live log, search, crash diagnosis and Stop/Kill"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+gpui.workspace = true
+gpui-component.workspace = true
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-theme.workspace = true
+mmcl-platform.workspace = true
+mmcl-ui-kit.workspace = true
+mmcl-engine.workspace = true
+tokio.workspace = true
+futures.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }

@@ -1,0 +1,45 @@
+[package]
+name = "mmcl-ui"
+description = "The launcher's main window: shell, custom title bar, navigation and its gate, shortcuts, menus, theming hookup, and the launcher screens (home, browse, sign-in, settings, runtimes, progress, help)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+gpui.workspace = true
+gpui-component.workspace = true
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-theme.workspace = true
+mmcl-platform.workspace = true
+mmcl-ui-kit.workspace = true
+mmcl-engine.workspace = true
+futures.workspace = true
+parking_lot.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio = { workspace = true }
+# screens::misc (launch progress tracker)
+mmcl-progress.workspace = true
+# screens::accounts: the device code QR code.
+qrcodegen = "1.8"
+# screens::accounts: the launcher window handle for the Windows account broker sign-in.
+raw-window-handle.workspace = true
+# screens::home_browse: play-time labels, invite links, image decoding (palette, logo edges,
+# gradients), remote pack logos, release dates, the hosting manifest.
+mmcl-manifest.workspace = true
+mmcl-discord.workspace = true
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+reqwest.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+url.workspace = true
+# screens::settings: option lists and JVM presets (mmcl-config), the hardware-tuned JVM
+# arguments and their summary (mmcl-util), and the system memory line.
+mmcl-config.workspace = true
+mmcl-util.workspace = true
+sysinfo = { version = "0.31", default-features = false, features = ["system"] }
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }

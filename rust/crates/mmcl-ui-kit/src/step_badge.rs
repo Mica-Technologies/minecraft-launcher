@@ -2,7 +2,7 @@
 
 //! `StepBadge`: a 22x22 circle showing one launch step's state, with a glyph drawn at 14 px.
 
-use gpui::{App, IntoElement, ParentElement, RenderOnce, Styled, Window, div, px};
+use gpui::{App, IntoElement, ParentElement, RenderOnce, Styled, Window, div};
 
 use crate::scale::u;
 use crate::icons::Icon;

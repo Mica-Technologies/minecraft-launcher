@@ -5,7 +5,7 @@
 //! GPUI's `svg()` element loads SVG files through the app's `AssetSource` and tints them with
 //! `text_color`; [`crate::assets::Assets`] serves each icon at [`Icon::asset_path`].
 
-use gpui::{App, IntoElement, RenderOnce, SharedString, Styled, Svg, Window, px, svg};
+use gpui::{App, IntoElement, RenderOnce, SharedString, Styled, Svg, Window, svg};
 
 include!(concat!(env!("OUT_DIR"), "/icons.rs"));
 
@@ -31,7 +31,7 @@ impl Icon {
 
     /// An `svg()` element for this icon at `size` px, ready for `.text_color(..)`.
     pub fn svg(self, size: f32) -> Svg {
-        svg().path(self.asset_path()).flex_shrink_0().size(u(size))
+        svg().path(self.asset_path()).flex_shrink_0().size(crate::scale::u(size))
     }
 }
 

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use gpui::{
     Animation, AnimationExt as _, App, ElementId, Global, Image, ImageFormat, ImageSource,
-    ImgResourceLoader, IntoElement, ParentElement, RenderOnce, Styled, Window, div, img, px,
+    ImgResourceLoader, IntoElement, ParentElement, RenderOnce, Styled, Window, div, img,
 };
 
 use crate::scale::u;

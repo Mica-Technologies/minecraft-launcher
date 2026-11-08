@@ -25,7 +25,7 @@ use std::time::Duration;
 use gpui::{
     App, Bounds, ClickEvent, Div, ElementId, FocusHandle, Global, Hsla, InteractiveElement,
     IntoElement, KeyBinding, KeyDownEvent, ParentElement, Pixels, Stateful,
-    StatefulInteractiveElement, Styled, Window, WindowId, actions, canvas, div, px,
+    StatefulInteractiveElement, Styled, Window, WindowId, actions, canvas, div,
 };
 
 use crate::scale::u;

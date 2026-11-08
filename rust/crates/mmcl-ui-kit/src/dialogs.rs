@@ -22,7 +22,7 @@ use futures::lock::Mutex as AsyncMutex;
 use gpui::{
     AnyWindowHandle, App, AppContext as _, AsyncApp, ClickEvent, Entity, Global,
     InteractiveElement, IntoElement, ParentElement, PromptButton, PromptLevel, SharedString,
-    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder as _, px,
+    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::WindowExt as _;
 use gpui_component::button::{Button, ButtonVariants as _};

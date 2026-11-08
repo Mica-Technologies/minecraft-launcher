@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use gpui::{
     App, ElementId, Entity, Global, InteractiveElement, IntoElement, ParentElement, RenderOnce,
-    SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder as _, px,
+    SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::input::{Input, InputState};
 use mmcl_i18n::t;

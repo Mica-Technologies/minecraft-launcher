@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 
 use gpui::{
     AnyView, App, AppContext, Context, IntoElement, ParentElement, Render, SharedString,
-    StatefulInteractiveElement, Styled, Window, div, px,
+    StatefulInteractiveElement, Styled, Window, div,
 };
 
 use crate::scale::u;

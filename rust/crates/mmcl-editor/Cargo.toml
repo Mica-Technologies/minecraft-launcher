@@ -1,0 +1,36 @@
+[package]
+name = "mmcl-editor"
+description = "The modpack editor screen: metadata form, file-list tables, loader pickers, Modrinth search, URL check, hash calc, validate and diff"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+gpui.workspace = true
+gpui-component.workspace = true
+mmcl-ui-kit.workspace = true
+mmcl-engine.workspace = true
+mmcl-manifest.workspace = true
+mmcl-i18n.workspace = true
+mmcl-net.workspace = true
+mmcl-theme.workspace = true
+futures.workspace = true
+parking_lot.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde_json.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+md-5.workspace = true
+hex.workspace = true
+tempfile.workspace = true
+url.workspace = true
+similar = "2.7"
+percent-encoding = "2.3"
+form_urlencoded = "1.2"
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }

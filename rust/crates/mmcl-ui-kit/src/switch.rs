@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use gpui::{
     Animation, AnimationExt as _, AnyElement, App, ElementId, InteractiveElement, IntoElement,
-    ParentElement, RenderOnce, SharedString, Styled, Window, div, prelude::FluentBuilder as _, px,
+    ParentElement, RenderOnce, SharedString, Styled, Window, div, prelude::FluentBuilder as _,
 };
 use mmcl_theme::{Rgba, TokenSheet};
 

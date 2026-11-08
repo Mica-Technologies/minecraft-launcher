@@ -1,0 +1,1169 @@
+// Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
+
+//! `RunningGamesWindow`: one tab per game session, in its own window (default) or docked along
+//! the bottom of the main window.
+//!
+//! [`RunningGamesView`] is the state and the body (header + tabs + selected pane). Exactly one
+//! host renders it: the separate window (a gpui-component `Root` over it) or the [`DockHost`]
+//! the shell places under its screen. Closing the window or collapsing the dock only hides the
+//! view; games keep running and their panes keep logging. GPUI has no window hide, so the window
+//! closes and is opened again on the next reveal; the view and its panes live on in between.
+
+use std::collections::HashMap;
+
+use gpui::{
+    AnyElement, AnyWindowHandle, App, AppContext as _, Bounds, Context, CursorStyle, DragMoveEvent,
+    EmptyView, Entity, Global, InteractiveElement as _, IntoElement, MouseButton, ParentElement,
+    Pixels, Render, SharedString, StatefulInteractiveElement as _, Styled, Task, TitlebarOptions,
+    Window, WindowBounds, WindowOptions, div, prelude::FluentBuilder as _, px, size,
+};
+use mmcl_engine::{EngineEvent, SessionId, SessionInfo, SessionPhase};
+use mmcl_i18n::t;
+use mmcl_ui_kit::scale::{self, u};
+use mmcl_ui_kit::{Avatar, Icon, IconButton, MotionExt as _, ThemeExt as _, TooltipExt as _, hsla};
+use tokio::sync::broadcast::error::RecvError;
+
+use crate::backend::Backend;
+use crate::pane::{GameSessionPane, status_dot_color};
+use crate::widgets::{ActionButton, ButtonStyle};
+
+/// The dock's smallest share of the main window's height.
+pub const DOCK_SHARE_MIN: f32 = 0.10;
+/// The dock's largest share of the main window's height.
+pub const DOCK_SHARE_MAX: f32 = 0.90;
+/// The default dock share (`runningGamesDockHeight` 420 per-mille).
+pub const DOCK_SHARE_DEFAULT_PER_MILLE: i32 = 420;
+/// Room below the header when the dock is expanded (layout px).
+pub const DOCK_MIN_BODY: f32 = 240.0;
+/// The header strip's height (layout px).
+pub const HEADER_HEIGHT: f32 = 44.0;
+/// The tab strip's height (layout px).
+pub const TAB_STRIP_HEIGHT: f32 = 40.0;
+/// The separate window's size at 100 % (layout px).
+pub const WINDOW_SIZE: (f32, f32) = (1000.0, 720.0);
+/// The separate window's minimum size at 100 % (layout px).
+pub const WINDOW_MIN: (f32, f32) = (640.0, 420.0);
+/// The resize grip's height (layout px).
+pub const GRIP_HEIGHT: f32 = 8.0;
+
+/// Clamps a dock share; NaN (unusable) gives the default.
+pub fn clamp_share(share: f32) -> f32 {
+    if share.is_nan() {
+        return DOCK_SHARE_DEFAULT_PER_MILLE as f32 / 1000.0;
+    }
+    share.clamp(DOCK_SHARE_MIN, DOCK_SHARE_MAX)
+}
+
+/// The dock share after dragging the grip `dragged_up` layout px from a dock of `start_height`,
+/// in a window `window_height` tall whose screen can give the dock at most `room`. The height is
+/// held to the room **first**: a share above what the screen can spare would show no change while
+/// dragging further and then leave the grip dead on the way back down.
+pub fn drag_share(start_height: f32, dragged_up: f32, window_height: f32, room: f32) -> f32 {
+    if window_height <= 0.0 {
+        return clamp_share(f32::NAN);
+    }
+    let height = (start_height + dragged_up).min(room);
+    clamp_share(height / window_height)
+}
+
+/// The dock's minimum and preferred heights (layout px), given the window height, the share and
+/// the selected pane's minimum. Collapsed, only the header.
+pub fn dock_heights(
+    expanded: bool,
+    window_height: f32,
+    share: f32,
+    pane_min: Option<f32>,
+) -> (f32, f32) {
+    if !expanded {
+        return (HEADER_HEIGHT, HEADER_HEIGHT);
+    }
+    let body = match pane_min {
+        Some(min) => DOCK_MIN_BODY.max(TAB_STRIP_HEIGHT + min),
+        None => DOCK_MIN_BODY,
+    };
+    let min = HEADER_HEIGHT + body;
+    (min, min.max(window_height * share))
+}
+
+/// The height the dock takes: always its minimum, its preferred height when the screen above
+/// can spare it.
+pub fn dock_height(min: f32, pref: f32, room: f32) -> f32 {
+    min.max(pref.min(room))
+}
+
+/// Which header controls show (pure, tested).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HeaderState {
+    pub title: bool,
+    pub count: bool,
+    pub dock_in: bool,
+    pub collapse: bool,
+    pub pop_out: bool,
+    pub content: bool,
+    pub grip: bool,
+}
+
+impl HeaderState {
+    /// The rules of `refreshHeader`.
+    pub fn of(docked: bool, expanded: bool, tabs: usize) -> HeaderState {
+        HeaderState {
+            // In its own window the window's title already names the view.
+            title: docked,
+            count: docked && tabs > 0,
+            dock_in: !docked,
+            collapse: docked,
+            pop_out: docked,
+            content: !docked || expanded,
+            grip: docked && expanded,
+        }
+    }
+}
+
+/// The marker dragged by the resize grip.
+#[derive(Debug, Clone, Copy)]
+pub struct DockResize;
+
+#[derive(Debug, Clone, Copy)]
+struct DragStart {
+    y: Pixels,
+    height: f32,
+}
+
+/// The theme key that decides whether title-bar chrome must be re-applied.
+fn theme_key(cx: &App) -> String {
+    let theme = cx.launcher_theme().theme;
+    format!("{:?}:{}", theme.id, theme.os_dark)
+}
+
+/// The Running Games state and body.
+pub struct RunningGamesView {
+    backend: Backend,
+    tabs: Vec<SessionId>,
+    infos: HashMap<SessionId, SessionInfo>,
+    selected: Option<SessionId>,
+    panes: HashMap<SessionId, Entity<GameSessionPane>>,
+    docked: bool,
+    expanded: bool,
+    dock_share: f32,
+    dock_room: f32,
+    /// The dock's last laid-out height (layout px), where a grip drag starts from.
+    dock_height: f32,
+    drag: Option<DragStart>,
+    applied_theme_key: String,
+    main_window: Option<AnyWindowHandle>,
+    window: Option<AnyWindowHandle>,
+    opening: bool,
+    switches: usize,
+    shut_down: bool,
+    _events: Option<Task<()>>,
+}
+
+impl RunningGamesView {
+    /// The view over `backend`; listens to its event bus.
+    pub fn new(backend: Backend, cx: &mut Context<Self>) -> Self {
+        let events = backend.events().map(|mut rx| {
+            cx.spawn(async move |this, cx| {
+                loop {
+                    let alive = match rx.recv().await {
+                        Ok(event) => this.update(cx, |v, cx| v.on_event(event, cx)).is_ok(),
+                        Err(RecvError::Lagged(_)) => this.update(cx, |v, cx| v.sync(cx)).is_ok(),
+                        Err(RecvError::Closed) => false,
+                    };
+                    if !alive {
+                        break;
+                    }
+                }
+            })
+        });
+        let docked = backend.docked();
+        let dock_share = clamp_share(backend.dock_height() as f32 / 1000.0);
+        let mut view = RunningGamesView {
+            backend,
+            tabs: Vec::new(),
+            infos: HashMap::new(),
+            selected: None,
+            panes: HashMap::new(),
+            docked,
+            expanded: true,
+            dock_share,
+            dock_room: f32::INFINITY,
+            dock_height: 0.0,
+            drag: None,
+            applied_theme_key: theme_key(cx),
+            main_window: None,
+            window: None,
+            opening: false,
+            switches: 0,
+            shut_down: false,
+            _events: events,
+        };
+        view.sync(cx);
+        view
+    }
+
+    // ------------------------------------------------------------------ state accessors
+
+    /// The tabs, in registry order.
+    pub fn tabs(&self) -> &[SessionId] {
+        &self.tabs
+    }
+
+    /// The selected tab.
+    pub fn selected(&self) -> Option<SessionId> {
+        self.selected
+    }
+
+    /// A tab's pane.
+    pub fn pane(&self, id: SessionId) -> Option<&Entity<GameSessionPane>> {
+        self.panes.get(&id)
+    }
+
+    /// Whether the view is docked in the main window.
+    pub fn is_docked(&self) -> bool {
+        self.docked
+    }
+
+    /// Whether the dock is expanded.
+    pub fn is_expanded(&self) -> bool {
+        self.expanded
+    }
+
+    /// The dock's share of the main window height.
+    pub fn dock_share(&self) -> f32 {
+        self.dock_share
+    }
+
+    /// Whether the separate window is open.
+    pub fn is_window_open(&self) -> bool {
+        self.window.is_some()
+    }
+
+    /// Whether the dock takes room: docked with at least one game.
+    pub fn dock_visible(&self) -> bool {
+        self.docked && !self.tabs.is_empty() && !self.shut_down
+    }
+
+    // ------------------------------------------------------------------ registry
+
+    fn on_event(&mut self, event: EngineEvent, cx: &mut Context<Self>) {
+        match event {
+            EngineEvent::SessionStarted(_) | EngineEvent::SessionRemoved(_) => self.sync(cx),
+            EngineEvent::SessionChanged(info) => {
+                let info = (*info).clone();
+                match self.panes.get(&info.id).cloned() {
+                    Some(pane) => {
+                        self.infos.insert(info.id, info.clone());
+                        pane.update(cx, |p, cx| p.apply(info, cx));
+                        cx.notify();
+                    }
+                    None => self.sync(cx),
+                }
+            }
+            EngineEvent::SettingChanged(key) => {
+                if key == "runningGamesDocked" {
+                    let docked = self.backend.docked();
+                    self.set_docked(docked, cx);
+                } else if key == "theme" {
+                    self.refresh_theme(cx);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Mirrors the registry: a tab and pane per session, in order; tabs of sessions no longer
+    /// listed go (their panes are disposed).
+    pub fn sync(&mut self, cx: &mut Context<Self>) {
+        if self.shut_down {
+            return;
+        }
+        let sessions = self.backend.sessions();
+        let mut order = Vec::with_capacity(sessions.len());
+        for info in sessions {
+            let id = info.id;
+            order.push(id);
+            match self.panes.get(&id).cloned() {
+                Some(pane) => {
+                    let next = info.clone();
+                    pane.update(cx, |p, cx| p.apply(next, cx));
+                }
+                None => {
+                    let backend = self.backend.clone();
+                    let next = info.clone();
+                    let pane = cx.new(|cx| GameSessionPane::new(backend, next, cx));
+                    self.panes.insert(id, pane);
+                }
+            }
+            self.infos.insert(id, info);
+        }
+        let gone: Vec<SessionId> = self
+            .panes
+            .keys()
+            .copied()
+            .filter(|id| !order.contains(id))
+            .collect();
+        for id in gone {
+            self.forget(id, cx);
+        }
+        let old_ix = self
+            .selected
+            .and_then(|s| self.tabs.iter().position(|t| *t == s));
+        self.tabs = order;
+        if self.selected.is_none_or(|s| !self.tabs.contains(&s)) {
+            self.selected = match old_ix {
+                Some(ix) if !self.tabs.is_empty() => Some(self.tabs[ix.min(self.tabs.len() - 1)]),
+                _ => self.tabs.first().copied(),
+            };
+        }
+        cx.notify();
+    }
+
+    fn forget(&mut self, id: SessionId, cx: &mut Context<Self>) {
+        if let Some(pane) = self.panes.remove(&id) {
+            pane.update(cx, |p, _| p.dispose());
+        }
+        self.infos.remove(&id);
+        self.tabs.retain(|t| *t != id);
+        if self.selected == Some(id) {
+            self.selected = None;
+        }
+    }
+
+    /// Selects a tab (fading its pane in).
+    pub fn select(&mut self, id: SessionId, cx: &mut Context<Self>) {
+        if self.tabs.contains(&id) && self.selected != Some(id) {
+            self.selected = Some(id);
+            self.switches += 1;
+            cx.notify();
+        }
+    }
+
+    /// Closes an ended tab (and dismisses its session); an active game's tab stays. Returns
+    /// whether it closed.
+    pub fn close_tab(&mut self, id: SessionId, cx: &mut Context<Self>) -> bool {
+        let active = self.infos.get(&id).is_some_and(|i| i.phase.is_active());
+        if active || !self.tabs.contains(&id) {
+            return false;
+        }
+        let ix = self.tabs.iter().position(|t| *t == id);
+        self.forget(id, cx);
+        if self.selected.is_none() {
+            self.selected = ix
+                .and_then(|i| self.tabs.get(i.min(self.tabs.len().saturating_sub(1))))
+                .copied();
+        }
+        self.backend.dismiss(id);
+        cx.notify();
+        true
+    }
+
+    // ------------------------------------------------------------------ placement
+
+    /// Shows the session's tab and reveals the view.
+    pub fn show_session(&mut self, id: SessionId, cx: &mut Context<Self>) {
+        self.sync(cx);
+        self.select(id, cx);
+        self.reveal(cx);
+    }
+
+    /// Docked: expands and focuses the main window. Otherwise: opens or raises the window.
+    pub fn reveal(&mut self, cx: &mut Context<Self>) {
+        if self.shut_down {
+            return;
+        }
+        if self.docked {
+            self.expanded = true;
+            self.focus_main_window(cx);
+            cx.notify();
+            return;
+        }
+        match self.window {
+            Some(handle) => {
+                let _ = handle.update(cx, |_, window, _| window.activate_window());
+            }
+            None => self.open_window(cx),
+        }
+    }
+
+    /// Collapses the dock or hides the window, unless a game is still preparing (the launch
+    /// flow calls this when "Show console on launch" is off).
+    pub fn hide_unless_preparing(&mut self, cx: &mut Context<Self>) {
+        let preparing = self
+            .backend
+            .sessions()
+            .iter()
+            .any(|s| s.phase == SessionPhase::Preparing);
+        if preparing {
+            return;
+        }
+        if self.docked {
+            self.set_expanded(false, cx);
+        } else {
+            self.close_window(cx);
+        }
+    }
+
+    /// Docks into the main window or pops out into the separate window.
+    pub fn set_docked(&mut self, dock: bool, cx: &mut Context<Self>) {
+        if self.docked == dock {
+            return;
+        }
+        self.docked = dock;
+        if self.backend.docked() != dock {
+            self.backend.set_docked(dock);
+        }
+        self.expanded = true;
+        if dock {
+            self.close_window(cx);
+            self.focus_main_window(cx);
+        } else {
+            self.reveal(cx);
+        }
+        cx.notify();
+    }
+
+    /// Expands or collapses the dock.
+    pub fn set_expanded(&mut self, expanded: bool, cx: &mut Context<Self>) {
+        self.expanded = expanded;
+        cx.notify();
+    }
+
+    /// Records the main window (the shell calls this on every screen change), so docking and
+    /// revealing can focus it.
+    pub fn follow_screen(&mut self, main_window: Option<AnyWindowHandle>, cx: &mut Context<Self>) {
+        self.main_window = main_window;
+        cx.notify();
+    }
+
+    /// The most height (layout px) the screen above can give the dock; `None` = no limit.
+    pub fn set_dock_room(&mut self, room: Option<f32>, cx: &mut Context<Self>) {
+        let room = room
+            .filter(|r| r.is_finite() && *r > 0.0)
+            .unwrap_or(f32::INFINITY);
+        if room != self.dock_room {
+            self.dock_room = room;
+            cx.notify();
+        }
+    }
+
+    /// Sets the dock share (clamped).
+    pub fn set_dock_share(&mut self, share: f32, cx: &mut Context<Self>) {
+        self.dock_share = clamp_share(share);
+        cx.notify();
+    }
+
+    /// Re-applies title-bar chrome when the theme or the OS dark mode changed.
+    pub fn refresh_theme(&mut self, cx: &mut Context<Self>) {
+        let key = theme_key(cx);
+        if key == self.applied_theme_key {
+            return;
+        }
+        self.applied_theme_key = key;
+        if let Some(handle) = self.window {
+            let dark = !cx.launcher_theme().is_light_chrome();
+            let _ = handle.update(cx, |_, window, _| {
+                mmcl_platform::chrome::apply_title_bar_dark_mode(window, dark);
+            });
+        }
+        cx.notify();
+    }
+
+    /// At exit: dispose every pane, close the window, stop listening.
+    pub fn shutdown(&mut self, cx: &mut Context<Self>) {
+        self.shut_down = true;
+        self._events = None;
+        for pane in self.panes.values() {
+            pane.update(cx, |p, _| p.dispose());
+        }
+        self.panes.clear();
+        self.infos.clear();
+        self.tabs.clear();
+        self.selected = None;
+        self.close_window(cx);
+        cx.notify();
+    }
+
+    fn focus_main_window(&self, cx: &mut Context<Self>) {
+        if let Some(main) = self.main_window {
+            let _ = main.update(cx, |_, window, _| window.activate_window());
+        }
+    }
+
+    fn close_window(&mut self, cx: &mut Context<Self>) {
+        if let Some(handle) = self.window.take() {
+            let _ = handle.update(cx, |_, window, _| window.remove_window());
+        }
+    }
+
+    fn open_window(&mut self, cx: &mut Context<Self>) {
+        if self.opening {
+            return;
+        }
+        self.opening = true;
+        let view = cx.entity();
+        // Opened after this update ends: the window's root wraps this very entity.
+        cx.defer(move |cx| open_window(view, cx));
+    }
+
+    // ------------------------------------------------------------------ grip
+
+    fn start_drag(&mut self, y: Pixels) {
+        self.drag = Some(DragStart {
+            y,
+            height: self.dock_height,
+        });
+    }
+
+    fn drag_to(&mut self, y: Pixels, window_height: f32, cx: &mut Context<Self>) {
+        let Some(start) = self.drag else { return };
+        let factor = scale_factor(cx);
+        let dragged_up = (start.y - y).as_f32() / factor;
+        let share = drag_share(start.height, dragged_up, window_height, self.dock_room);
+        self.set_dock_share(share, cx);
+    }
+
+    fn end_drag(&mut self) {
+        if self.drag.take().is_some() {
+            self.backend
+                .set_dock_height((self.dock_share * 1000.0).round() as i32);
+        }
+    }
+
+    fn reset_share(&mut self, cx: &mut Context<Self>) {
+        self.set_dock_share(DOCK_SHARE_DEFAULT_PER_MILLE as f32 / 1000.0, cx);
+        self.backend.set_dock_height(DOCK_SHARE_DEFAULT_PER_MILLE);
+    }
+
+    // ------------------------------------------------------------------ rendering
+
+    fn render_header(&self, cx: &mut Context<Self>) -> AnyElement {
+        let t = cx.tokens();
+        let state = HeaderState::of(self.docked, self.expanded, self.tabs.len());
+        let entity = cx.entity();
+        let toggle = entity.clone();
+        let dock = entity.clone();
+        let collapse = entity.clone();
+        let pop = entity.clone();
+        let header = div()
+            .flex()
+            .items_center()
+            .gap(u(8.0))
+            .min_h(u(HEADER_HEIGHT))
+            .pl(u(16.0))
+            .pr(u(12.0))
+            .py(u(4.0))
+            .when(self.docked, |el| el.bg(hsla(t.md_surface_container)))
+            .child(
+                // Docked, a click anywhere on the strip (but its buttons) collapses or expands.
+                div()
+                    .id("running-games-strip")
+                    .flex_1()
+                    .flex()
+                    .items_center()
+                    .gap(u(8.0))
+                    .h_full()
+                    .min_h(u(36.0))
+                    .when(self.docked, |el| {
+                        el.cursor_pointer().on_click(move |_, _, cx| {
+                            toggle.update(cx, |v, cx| {
+                                let next = !v.expanded;
+                                v.set_expanded(next, cx);
+                            });
+                        })
+                    })
+                    .when(state.title, |el| {
+                        el.child(
+                            div()
+                                .text_size(u(14.0))
+                                .font_weight(gpui::FontWeight::SEMIBOLD)
+                                .text_color(hsla(t.md_on_surface))
+                                .child(t!("session.window.title").into_owned()),
+                        )
+                    })
+                    .when(state.count, |el| {
+                        el.child(
+                            div()
+                                .px(u(8.0))
+                                .py(u(1.0))
+                                .rounded_full()
+                                .bg(hsla(t.md_secondary_container))
+                                .text_color(hsla(t.md_on_secondary_container))
+                                .text_size(u(12.0))
+                                .font_weight(gpui::FontWeight::SEMIBOLD)
+                                .child(self.tabs.len().to_string()),
+                        )
+                    }),
+            )
+            .when(state.dock_in, |el| {
+                el.child(
+                    ActionButton::new(
+                        "running-games-dock-in",
+                        t!("session.dock.dockIn").into_owned(),
+                        ButtonStyle::Tonal,
+                    )
+                    .on_click(move |_, cx| dock.update(cx, |v, cx| v.set_docked(true, cx))),
+                )
+            })
+            .when(state.collapse, |el| {
+                let (icon, key) = if self.expanded {
+                    (Icon::ArrowDown, "session.dock.collapse")
+                } else {
+                    (Icon::ArrowUp, "session.dock.expand")
+                };
+                el.child(
+                    IconButton::new("running-games-collapse", icon, t!(key).into_owned()).on_click(
+                        move |_, cx| {
+                            collapse.update(cx, |v, cx| {
+                                let next = !v.expanded;
+                                v.set_expanded(next, cx);
+                            })
+                        },
+                    ),
+                )
+            })
+            .when(state.pop_out, |el| {
+                el.child(
+                    IconButton::new(
+                        "running-games-pop-out",
+                        Icon::OpenExternal,
+                        t!("session.dock.popOut").into_owned(),
+                    )
+                    .on_click(move |_, cx| pop.update(cx, |v, cx| v.set_docked(false, cx))),
+                )
+            });
+        let grip = state.grip.then(|| {
+            let press = entity.clone();
+            let reset = entity.clone();
+            let handle_color = hsla(t.md_outline_variant);
+            let handle_active = hsla(t.md_on_surface_variant);
+            div()
+                .id("running-games-grip")
+                .absolute()
+                .top_0()
+                .left_0()
+                .right_0()
+                .h(u(GRIP_HEIGHT))
+                .flex()
+                .items_center()
+                .justify_center()
+                .cursor(CursorStyle::ResizeUpDown)
+                .group("running-games-grip")
+                .launcher_tooltip(t!("session.dock.resize").into_owned())
+                .on_mouse_down(MouseButton::Left, move |event, _, cx| {
+                    cx.stop_propagation();
+                    press.update(cx, |v, _| v.start_drag(event.position.y));
+                })
+                .on_click(move |event, _, cx| {
+                    if event.click_count() == 2 {
+                        reset.update(cx, |v, cx| v.reset_share(cx));
+                    }
+                })
+                .on_drag(DockResize, |_, _, _, cx| cx.new(|_| EmptyView))
+                .child(
+                    div()
+                        .w(u(36.0))
+                        .h(u(4.0))
+                        .rounded_full()
+                        .bg(handle_color)
+                        .group_hover("running-games-grip", move |s| s.bg(handle_active)),
+                )
+        });
+        div()
+            .relative()
+            .flex_none()
+            .child(header)
+            .children(grip)
+            .into_any_element()
+    }
+
+    fn render_tab(&self, id: SessionId, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let info = self.infos.get(&id)?;
+        let t = cx.tokens();
+        let selected = self.selected == Some(id);
+        let closable = !info.phase.is_active();
+        let entity = cx.entity();
+        let select = entity.clone();
+        let close = entity.clone();
+        let fg = if selected {
+            hsla(t.md_on_surface)
+        } else {
+            hsla(t.md_on_surface_variant)
+        };
+        Some(
+            div()
+                .id(SharedString::from(format!("running-games-tab-{id}")))
+                .flex()
+                .flex_none()
+                .items_center()
+                .gap(u(6.0))
+                .h(u(TAB_STRIP_HEIGHT))
+                .pl(u(12.0))
+                .pr(u(if closable { 4.0 } else { 12.0 }))
+                .border_b_2()
+                .border_color(if selected {
+                    hsla(t.md_primary)
+                } else {
+                    gpui::transparent_black()
+                })
+                .cursor_pointer()
+                .hover(|s| s.bg(hsla(t.md_state_hover_on_surface)))
+                .text_size(u(13.0))
+                .font_weight(if selected {
+                    gpui::FontWeight::SEMIBOLD
+                } else {
+                    gpui::FontWeight::NORMAL
+                })
+                .text_color(fg)
+                .on_click(move |_, _, cx| select.update(cx, |v, cx| v.select(id, cx)))
+                .child(
+                    div()
+                        .flex_none()
+                        .size(u(8.0))
+                        .rounded_full()
+                        .bg(status_dot_color(info.phase, t)),
+                )
+                .when_some(info.account_uuid.clone(), |el, uuid| {
+                    el.child(Avatar::new(
+                        SharedString::from(format!("running-games-tab-avatar-{id}")),
+                        Some(uuid),
+                        16.0,
+                    ))
+                })
+                .child(info.pack_name.clone())
+                .when(closable, |el| {
+                    el.child(
+                        div()
+                            .id(SharedString::from(format!("running-games-tab-close-{id}")))
+                            .flex_none()
+                            .size(u(24.0))
+                            .rounded_full()
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .hover(|s| s.bg(hsla(t.md_state_hover_on_surface)))
+                            .launcher_tooltip(t!("session.tab.close").into_owned())
+                            .on_click(move |_, _, cx| {
+                                cx.stop_propagation();
+                                close.update(cx, |v, cx| {
+                                    v.close_tab(id, cx);
+                                });
+                            })
+                            .child(Icon::Close.svg(14.0).text_color(fg)),
+                    )
+                })
+                .into_any_element(),
+        )
+    }
+
+    fn render_content(&self, cx: &mut Context<Self>) -> AnyElement {
+        let t = cx.tokens();
+        if self.tabs.is_empty() {
+            return div()
+                .flex_1()
+                .flex()
+                .items_center()
+                .justify_center()
+                .p(u(24.0))
+                .text_color(hsla(t.color_text_muted))
+                .child(t!("session.window.empty").into_owned())
+                .into_any_element();
+        }
+        let tabs: Vec<AnyElement> = self
+            .tabs
+            .iter()
+            .filter_map(|id| self.render_tab(*id, cx))
+            .collect();
+        let pane = self.selected.and_then(|id| self.panes.get(&id)).cloned();
+        let body: AnyElement = match pane {
+            Some(pane) => {
+                let el = div().flex_1().min_h_0().size_full().child(pane);
+                if self.switches > 0 {
+                    el.fade_through(("running-games-switch", self.switches))
+                } else {
+                    el.into_any_element()
+                }
+            }
+            None => div().flex_1().into_any_element(),
+        };
+        div()
+            .flex_1()
+            .min_h_0()
+            .flex()
+            .flex_col()
+            .child(
+                div()
+                    .id("running-games-tabs")
+                    .flex()
+                    .flex_none()
+                    .items_end()
+                    .px(u(8.0))
+                    .overflow_x_scroll()
+                    .border_b_1()
+                    .border_color(hsla(t.md_outline_variant))
+                    .children(tabs),
+            )
+            .child(body)
+            .into_any_element()
+    }
+
+    fn selected_pane_min(&self, cx: &App) -> Option<f32> {
+        self.selected
+            .and_then(|id| self.panes.get(&id))
+            .map(|p| p.read(cx).min_height())
+    }
+}
+
+impl Render for RunningGamesView {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let t = cx.tokens();
+        let state = HeaderState::of(self.docked, self.expanded, self.tabs.len());
+        let header = self.render_header(cx);
+        let content = state.content.then(|| self.render_content(cx));
+        let floor = cx.launcher_theme().solid_bg(true);
+        div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .bg(if self.docked { hsla(t.color_bg) } else { floor })
+            .text_color(hsla(t.md_on_surface))
+            .font_family(mmcl_ui_kit::fonts::UI_FAMILY)
+            .child(header)
+            .children(content)
+    }
+}
+
+/// The interface scale factor (1.0 at 100 %).
+fn scale_factor(cx: &App) -> f32 {
+    (scale::percent(cx) as f32 / 100.0).max(0.01)
+}
+
+fn open_window(view: Entity<RunningGamesView>, cx: &mut App) {
+    view.update(cx, |v, _| v.opening = false);
+    if view.read(cx).window.is_some() || view.read(cx).shut_down {
+        return;
+    }
+    let f = scale_factor(cx);
+    let theme = cx.launcher_theme();
+    let title: SharedString = t!("session.window.title").into_owned().into();
+    let identity = mmcl_core::AppIdentity::current();
+    let options = WindowOptions {
+        window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+            None,
+            size(px(WINDOW_SIZE.0 * f), px(WINDOW_SIZE.1 * f)),
+            cx,
+        ))),
+        titlebar: Some(TitlebarOptions {
+            title: Some(title),
+            ..Default::default()
+        }),
+        window_min_size: Some(size(px(WINDOW_MIN.0 * f), px(WINDOW_MIN.1 * f))),
+        window_background: theme.window_background(true),
+        app_id: Some(
+            identity
+                .linux_desktop_id
+                .trim_end_matches(".desktop")
+                .to_string(),
+        ),
+        ..Default::default()
+    };
+    let closer = view.clone();
+    let root_view = view.clone();
+    let opened = cx.open_window(options, move |window, cx| {
+        window.on_window_should_close(cx, move |_, cx| {
+            // Closing only hides the view: forget the window, keep the panes.
+            closer.update(cx, |v, cx| {
+                v.window = None;
+                cx.notify();
+            });
+            true
+        });
+        mmcl_ui_kit::scale::apply_to_window(window, cx);
+        cx.new(|cx| gpui_component::Root::new(root_view, window, cx))
+    });
+    match opened {
+        Ok(handle) => {
+            let any: AnyWindowHandle = handle.into();
+            let dark = !theme.is_light_chrome();
+            let _ = any.update(cx, |_, window, _| {
+                mmcl_platform::chrome::apply_title_bar_dark_mode(window, dark);
+                window.activate_window();
+            });
+            view.update(cx, |v, cx| {
+                v.window = Some(any);
+                cx.notify();
+            });
+        }
+        Err(e) => tracing::warn!(
+            "{}",
+            mmcl_i18n::tf!("log.runningGames.windowOpenFailed", e.to_string())
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// DockHost
+
+/// The docked body's host: the shell places it along the bottom of the main window, under its
+/// screen. It takes no room unless the view is docked with at least one game; collapsed it is
+/// only the header; expanded it takes its share of the window (at least its minimum, at most
+/// what the screen above can spare, see [`RunningGamesView::set_dock_room`]).
+pub struct DockHost {
+    view: Entity<RunningGamesView>,
+    _observe: gpui::Subscription,
+}
+
+impl DockHost {
+    /// A host for `view`.
+    pub fn new(view: Entity<RunningGamesView>, cx: &mut Context<Self>) -> Self {
+        let observe = cx.observe(&view, |_, _, cx| cx.notify());
+        DockHost {
+            view,
+            _observe: observe,
+        }
+    }
+
+    /// The view it hosts.
+    pub fn view(&self) -> &Entity<RunningGamesView> {
+        &self.view
+    }
+
+    /// The dock's current height in layout px (0 when it takes no room).
+    pub fn current_height(&self, window_height: f32, cx: &App) -> f32 {
+        let v = self.view.read(cx);
+        if !v.dock_visible() {
+            return 0.0;
+        }
+        let (min, pref) = dock_heights(
+            v.expanded,
+            window_height,
+            v.dock_share,
+            v.selected_pane_min(cx),
+        );
+        dock_height(min, pref, v.dock_room)
+    }
+}
+
+impl Render for DockHost {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let factor = scale_factor(cx);
+        let window_height = window.viewport_size().height.as_f32() / factor;
+        let height = self.current_height(window_height, cx);
+        if height <= 0.0 {
+            return div().id("running-games-dock").into_any_element();
+        }
+        self.view.update(cx, |v, _| v.dock_height = height);
+        let t = cx.tokens();
+        let moving = self.view.clone();
+        let up = self.view.clone();
+        let up_out = self.view.clone();
+        div()
+            .id("running-games-dock")
+            .flex_none()
+            .w_full()
+            .h(u(height))
+            .overflow_hidden()
+            .border_t_1()
+            .border_color(hsla(t.md_outline_variant))
+            .on_drag_move(move |event: &DragMoveEvent<DockResize>, window, cx| {
+                let factor = scale_factor(cx);
+                let window_height = window.viewport_size().height.as_f32() / factor;
+                let y = event.event.position.y;
+                moving.update(cx, |v, cx| v.drag_to(y, window_height, cx));
+            })
+            .on_mouse_up(MouseButton::Left, move |_, _, cx| {
+                up.update(cx, |v, _| v.end_drag());
+            })
+            .on_mouse_up_out(MouseButton::Left, move |_, _, cx| {
+                up_out.update(cx, |v, _| v.end_drag());
+            })
+            .child(self.view.clone())
+            .into_any_element()
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The global and the public API
+
+/// The Running Games singleton (installed by [`crate::init`]).
+pub struct RunningGames {
+    view: Entity<RunningGamesView>,
+    dock: Entity<DockHost>,
+}
+
+impl Global for RunningGames {}
+
+impl RunningGames {
+    /// Installs the singleton over `backend` (replacing an earlier one, which is shut down).
+    pub fn install(cx: &mut App, backend: Backend) -> Entity<RunningGamesView> {
+        if let Some(old) = cx.try_global::<RunningGames>().map(|g| g.view.clone()) {
+            old.update(cx, |v, cx| v.shutdown(cx));
+        }
+        let view = cx.new(|cx| RunningGamesView::new(backend, cx));
+        let dock_view = view.clone();
+        let dock = cx.new(|cx| DockHost::new(dock_view, cx));
+        cx.set_global(RunningGames {
+            view: view.clone(),
+            dock,
+        });
+        view
+    }
+
+    /// The view, when installed.
+    pub fn view(cx: &App) -> Option<Entity<RunningGamesView>> {
+        cx.try_global::<RunningGames>().map(|g| g.view.clone())
+    }
+
+    /// The dock host, when installed.
+    pub fn dock(cx: &App) -> Option<Entity<DockHost>> {
+        cx.try_global::<RunningGames>().map(|g| g.dock.clone())
+    }
+
+    fn with(cx: &mut App, f: impl FnOnce(&mut RunningGamesView, &mut Context<RunningGamesView>)) {
+        if let Some(view) = Self::view(cx) {
+            view.update(cx, f);
+        }
+    }
+}
+
+/// Shows a session's tab and reveals the view.
+pub fn show_session(cx: &mut App, id: SessionId) {
+    RunningGames::with(cx, |v, cx| v.show_session(id, cx));
+}
+
+/// Reveals the view (window or dock).
+pub fn show_window(cx: &mut App) {
+    RunningGames::with(cx, |v, cx| v.reveal(cx));
+}
+
+/// Collapses the dock / hides the window unless a game is still preparing.
+pub fn hide_unless_preparing(cx: &mut App) {
+    RunningGames::with(cx, |v, cx| v.hide_unless_preparing(cx));
+}
+
+/// Re-applies the theme's title-bar chrome when the theme key changed (cheap otherwise: the shell
+/// calls it on every screen switch).
+pub fn refresh_theme(cx: &mut App) {
+    RunningGames::with(cx, |v, cx| v.refresh_theme(cx));
+}
+
+/// Records the main window after a screen change (the shell keeps rendering [`dock_host`]).
+pub fn follow_screen(cx: &mut App, main_window: Option<AnyWindowHandle>) {
+    RunningGames::with(cx, |v, cx| v.follow_screen(main_window, cx));
+}
+
+/// Tells the dock how much height the screen above can spare (layout px; `None` = no limit).
+pub fn set_dock_room(cx: &mut App, room: Option<f32>) {
+    RunningGames::with(cx, |v, cx| v.set_dock_room(room, cx));
+}
+
+/// Docks into the main window or pops out.
+pub fn set_docked(cx: &mut App, docked: bool) {
+    RunningGames::with(cx, |v, cx| v.set_docked(docked, cx));
+}
+
+/// The dock host the shell renders under its screen.
+pub fn dock_host(cx: &App) -> Option<Entity<DockHost>> {
+    RunningGames::dock(cx)
+}
+
+/// At exit: disposes the panes, closes the window, drops the singleton.
+pub fn shutdown(cx: &mut App) {
+    if let Some(view) = RunningGames::view(cx) {
+        view.update(cx, |v, cx| v.shutdown(cx));
+        cx.remove_global::<RunningGames>();
+    }
+}
+
+/// Whether the view takes room docked (for the shell's layout).
+pub fn dock_visible(cx: &App) -> bool {
+    RunningGames::view(cx).is_some_and(|v| v.read(cx).dock_visible())
+}
+
+#[cfg(test)]
+mod tests {
+    //! Port of `RunningGamesDockResizeTest`, plus the header and dock-size rules.
+    use super::*;
+
+    const WINDOW: f32 = 1000.0;
+    const ROOM: f32 = 600.0;
+
+    fn close(a: f32, b: f32) -> bool {
+        (a - b).abs() < 1e-6
+    }
+
+    #[test]
+    fn dragging_up_grows_the_dock_and_down_shrinks_it() {
+        assert!(close(drag_share(420.0, 100.0, WINDOW, ROOM), 0.52));
+        assert!(close(drag_share(420.0, -100.0, WINDOW, ROOM), 0.32));
+    }
+
+    #[test]
+    fn the_dock_never_takes_more_than_the_screen_above_can_spare() {
+        assert!(close(drag_share(420.0, 400.0, WINDOW, ROOM), 0.60));
+    }
+
+    #[test]
+    fn the_share_stays_within_its_bounds() {
+        assert_eq!(drag_share(420.0, -900.0, WINDOW, ROOM), DOCK_SHARE_MIN);
+        assert_eq!(drag_share(420.0, 900.0, WINDOW, f32::MAX), DOCK_SHARE_MAX);
+        assert_eq!(clamp_share(5.0), DOCK_SHARE_MAX);
+        assert_eq!(clamp_share(-1.0), DOCK_SHARE_MIN);
+    }
+
+    #[test]
+    fn an_unusable_value_falls_back_to_the_default() {
+        assert!(close(clamp_share(f32::NAN), 0.42));
+        assert!(close(drag_share(420.0, 50.0, 0.0, ROOM), 0.42));
+    }
+
+    #[test]
+    fn header_controls_follow_the_mode() {
+        let window = HeaderState::of(false, true, 2);
+        assert!(window.dock_in && !window.title && !window.count && !window.collapse);
+        assert!(!window.pop_out && window.content && !window.grip);
+        let docked = HeaderState::of(true, true, 2);
+        assert!(docked.title && docked.count && docked.collapse && docked.pop_out);
+        assert!(!docked.dock_in && docked.content && docked.grip);
+        let collapsed = HeaderState::of(true, false, 1);
+        assert!(!collapsed.content && !collapsed.grip && collapsed.count);
+        assert!(!HeaderState::of(true, true, 0).count);
+    }
+
+    #[test]
+    fn the_dock_sizes_to_its_share_but_never_below_its_minimum() {
+        let (min, pref) = dock_heights(false, WINDOW, 0.42, Some(300.0));
+        assert_eq!((min, pref), (HEADER_HEIGHT, HEADER_HEIGHT));
+        let (min, pref) = dock_heights(true, WINDOW, 0.42, None);
+        assert_eq!(min, HEADER_HEIGHT + DOCK_MIN_BODY);
+        assert!(close(pref, 420.0));
+        // A tall pane minimum wins over the 240 px floor, so Stop and Kill always show.
+        let (min, _) = dock_heights(true, WINDOW, 0.1, Some(300.0));
+        assert_eq!(min, HEADER_HEIGHT + TAB_STRIP_HEIGHT + 300.0);
+        assert_eq!(dock_height(300.0, 500.0, 400.0), 400.0);
+        assert_eq!(
+            dock_height(300.0, 500.0, 100.0),
+            300.0,
+            "always the minimum"
+        );
+        assert_eq!(dock_height(300.0, 500.0, f32::INFINITY), 500.0);
+    }
+
+    #[test]
+    fn every_window_key_resolves() {
+        for key in [
+            "session.window.title",
+            "session.window.empty",
+            "session.dock.dockIn",
+            "session.dock.popOut",
+            "session.dock.resize",
+            "session.dock.collapse",
+            "session.dock.expand",
+            "session.tab.close",
+            "log.runningGames.windowOpenFailed",
+            "log.runningGames.settingSaveFailed",
+            "log.runningGames.cancelFailed",
+        ] {
+            assert!(mmcl_i18n::contains(key), "{key}");
+        }
+    }
+}

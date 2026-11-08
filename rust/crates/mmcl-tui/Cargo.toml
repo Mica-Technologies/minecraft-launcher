@@ -1,0 +1,28 @@
+[package]
+name = "mmcl-tui"
+description = "The full-screen terminal UI (--cli / --tui) of the Mica Minecraft Launcher: ratatui + crossterm over mmcl-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-log.workspace = true
+mmcl-config.workspace = true
+mmcl-manifest.workspace = true
+mmcl-platform.workspace = true
+mmcl-rgb.workspace = true
+mmcl-discord.workspace = true
+mmcl-engine.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
+unicode-width = "0.2"
+
+[dev-dependencies]
+serde_json.workspace = true
