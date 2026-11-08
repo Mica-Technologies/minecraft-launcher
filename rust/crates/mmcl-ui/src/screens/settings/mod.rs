@@ -12,9 +12,8 @@
 //! | [`mcp`] | what Security needs from `McpBootstrap` ([`mcp::McpPanel`], installed by `mmcl-app`) |
 //! | [`widgets`] | group cards, rows, dropdown items |
 //!
-//! Hooks for `mmcl-app`: [`set_add_account_handler`] (the Add-account dialog of
-//! `screens::accounts`; without it Add account opens the Login screen) and
-//! [`mcp::set_mcp_panel`].
+//! Hooks for `mmcl-app`: [`set_add_account_handler`] (overrides the Add-account opener; without
+//! it the `screens::accounts` window opens) and [`mcp::set_mcp_panel`].
 
 use std::rc::Rc;
 
@@ -195,11 +194,37 @@ pub fn set_add_account_handler(cx: &mut App, f: impl Fn(&mut Window, &mut App) +
     cx.set_global(AddAccountHook(Rc::new(f)));
 }
 
-/// Opens the Add-account dialog, or the Login screen when no dialog is installed.
+/// Opens the Add-account dialog (`AddAccountDialog.show(stage)`): the installed opener, else the
+/// accounts module's window over `window`. Never the Login screen: that would drop pending
+/// Settings edits and make the new account the default.
 pub fn open_add_account(window: &mut Window, cx: &mut App) {
     match cx.try_global::<AddAccountHook>().map(|h| h.0.clone()) {
         Some(f) => f(window, cx),
-        None => crate::shell::go_to(cx, ScreenRequest::new(ScreenId::LOGIN)),
+        None => super::accounts::show_add_account(Some(window.window_handle()), cx),
+    }
+}
+
+/// The payload that reopens Settings on a category with a result flash (after an import the
+/// screen is rebuilt, and Java's "Imported!" would otherwise never be seen). A plain `usize`
+/// payload still opens a category.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SettingsOpen {
+    /// The category index.
+    pub category: usize,
+    /// Show `settings.importBtn.success` on the Import button.
+    pub imported: bool,
+}
+
+impl SettingsOpen {
+    /// Reads a request's payload: a [`SettingsOpen`], a category `usize`, or category 0.
+    pub fn from_request(req: &mut ScreenRequest) -> SettingsOpen {
+        if let Some(open) = req.take_payload::<SettingsOpen>() {
+            return open;
+        }
+        SettingsOpen {
+            category: req.take_payload::<usize>().unwrap_or(0),
+            imported: false,
+        }
     }
 }
 
@@ -219,8 +244,12 @@ pub fn open_category(cx: &mut App, index: usize) {
 /// Registers Settings and Runtime Management.
 pub fn register(cx: &mut App) {
     ScreenRegistry::register_view(cx, ScreenId::SETTINGS, |mut req, window, cx| {
-        let category = req.take_payload::<usize>().unwrap_or(0);
-        SettingsScreen::new(category, window, cx)
+        let open = SettingsOpen::from_request(&mut req);
+        let mut screen = SettingsScreen::new(open.category, window, cx);
+        if open.imported {
+            screen.flash_imported(cx);
+        }
+        screen
     });
     ScreenRegistry::register_view(cx, ScreenId::RUNTIME, |_req, window, cx| {
         RuntimeScreen::new(window, cx)
@@ -237,6 +266,56 @@ mod tests {
             assert!(mmcl_i18n::english(c.title_key).is_some(), "{}", c.title_key);
             assert!(mmcl_i18n::english(&c.summary_key()).is_some(), "{}", c.id);
         }
+    }
+
+    #[test]
+    fn completion_keys_exist() {
+        for key in [
+            "log.settings.localeApplied",
+            "log.settings.importNotJson",
+            "settings.verifyAll.interrupted",
+            "log.verifyAction.packFailed",
+            "log.verifyAction.noProgressGui",
+            "notification.pack.running.title",
+            "notification.pack.running.verify",
+            "settings.importBtn.success",
+            "verify.progress.title",
+            "verify.progress.titleCounted",
+            "verify.packName.fallback",
+        ] {
+            assert!(mmcl_i18n::english(key).is_some(), "{key}");
+        }
+    }
+
+    #[test]
+    fn settings_open_reads_both_payload_kinds() {
+        let mut req = ScreenRequest::with_payload(
+            ScreenId::SETTINGS,
+            SettingsOpen {
+                category: 6,
+                imported: true,
+            },
+        );
+        assert_eq!(
+            SettingsOpen::from_request(&mut req),
+            SettingsOpen {
+                category: 6,
+                imported: true
+            }
+        );
+        let mut req = ScreenRequest::with_payload(ScreenId::SETTINGS, 3usize);
+        assert_eq!(
+            SettingsOpen::from_request(&mut req),
+            SettingsOpen {
+                category: 3,
+                imported: false
+            }
+        );
+        let mut req = ScreenRequest::new(ScreenId::SETTINGS);
+        assert_eq!(
+            SettingsOpen::from_request(&mut req),
+            SettingsOpen::default()
+        );
     }
 
     #[test]

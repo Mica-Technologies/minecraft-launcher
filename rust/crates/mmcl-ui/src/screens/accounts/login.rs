@@ -114,6 +114,8 @@ impl LoginScreen {
                 SignInPanelEvent::SignedIn(_) => this.latch.release(),
                 // Exit: close the launcher (no confirmation, like Java's `closeApp`).
                 SignInPanelEvent::Dismissed => cx.defer(crate::shell::close_app),
+                // The Login screen stays on the chooser (Java reloaded the page in place).
+                SignInPanelEvent::CancelledOutside => {}
             }
         });
         let announcement = services::try_engine(cx)

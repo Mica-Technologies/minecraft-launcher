@@ -229,6 +229,48 @@ pub fn force_frame_refresh<W: HasWindowHandle + ?Sized>(window: &W) -> bool {
     }
 }
 
+/// Makes an open window resizable or fixed-size (`Stage.setResizable`): GPUI fixes
+/// `is_resizable` when the window opens, so the "Resizable windows" setting is applied live
+/// here. Windows: `WS_THICKFRAME | WS_MAXIMIZEBOX` plus a frame refresh. macOS:
+/// `NSWindowStyleMaskResizable` (main thread). Linux: unsupported (`false`); the setting takes
+/// effect on the next window.
+pub fn set_resizable<W: HasWindowHandle + ?Sized>(window: &W, resizable: bool) -> bool {
+    #[cfg(windows)]
+    {
+        hwnd_of(window).is_some_and(|h| crate::win::set_resizable(h, resizable))
+    }
+    #[cfg(target_os = "macos")]
+    {
+        ns_view_of(window).is_some_and(|v| crate::mac::window::set_resizable(v, resizable))
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        let _ = (window, resizable);
+        false
+    }
+}
+
+/// Makes `window` owned by `owner` (`initOwner`: it stays above its owner). The owner is a
+/// [`crate::NativeHandle`] read earlier with [`crate::handle::native_handle`], since a GUI
+/// toolkit seldom lends two windows at once. Windows only (`GWLP_HWNDPARENT`); elsewhere
+/// `false`.
+pub fn set_owner<W: HasWindowHandle + ?Sized>(window: &W, owner: crate::NativeHandle) -> bool {
+    #[cfg(windows)]
+    {
+        match (hwnd_of(window), owner) {
+            (Some(w), crate::NativeHandle::Win32 { hwnd: o }) if w != o => {
+                crate::win::set_owner(w, Some(o))
+            }
+            _ => false,
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (window, owner);
+        false
+    }
+}
+
 /// Brings the window to the foreground: restores it when minimized, then
 /// `SetForegroundWindow` (Windows). Elsewhere `false`; use GPUI's `activate_window`.
 pub fn bring_to_front<W: HasWindowHandle + ?Sized>(window: &W) -> bool {

@@ -5,7 +5,7 @@
 //! uninstall; add by URL (Mica, Modrinth, CurseForge, Technic); import ZIP and Prism / MultiMC;
 //! the hosting manifest.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -45,7 +45,7 @@ use super::model::{
     STATUS_PREFIX, TYPE_PREFIX, label,
 };
 use super::pack_actions::{self, Done, StatusSink, home_dir, with_extension};
-use super::visuals::{self, LogoSource};
+use super::visuals::{self, Brand, LogoSource};
 use crate::actions::{BROWSE_CONTEXT, FocusSearch};
 use crate::dialogs::{self, Answer, Question};
 use crate::scale::u;
@@ -69,8 +69,10 @@ pub struct BrowseScreen {
     status: Option<String>,
     import: Option<(String, String)>,
     url_busy: Option<String>,
-    importing: bool,
+    importing_zip: bool,
+    importing_prism: bool,
     hosting_saved: bool,
+    extras_pending: HashSet<PackId>,
     vanilla: HashMap<String, Vec<VanillaVersionView>>,
     loaders: HashMap<String, Vec<LoaderVersionView>>,
     extras: HashMap<PackId, PackExtras>,
@@ -119,8 +121,10 @@ impl BrowseScreen {
             status: None,
             import: None,
             url_busy: None,
-            importing: false,
+            importing_zip: false,
+            importing_prism: false,
             hosting_saved: false,
+            extras_pending: HashSet::new(),
             vanilla: HashMap::new(),
             loaders: HashMap::new(),
             extras: HashMap::new(),
@@ -270,9 +274,39 @@ impl BrowseScreen {
                 this.entries = entries;
                 this.bounds = this.vm.clamp_and_slice(this.entries.len());
                 this.update_cycling(cx);
+                this.request_extras(cx);
                 cx.notify();
             });
         }));
+    }
+
+    /// Loads the folder / loader facts of every installed pack shown that has none yet (a pack
+    /// installed or changed while Browse is open), so its context menu's folder, export and
+    /// official-launcher items work without a search first. The menu reads them at open time.
+    fn request_extras(&mut self, cx: &mut Context<Self>) {
+        let missing: Vec<PackId> = self
+            .entries
+            .iter()
+            .filter(|e| e.kind == EntryKind::ModpackInstalled)
+            .filter_map(|e| e.pack.as_ref().map(|p| p.id.clone()))
+            .filter(|id| !self.extras.contains_key(id))
+            .filter(|id| self.extras_pending.insert(id.clone()))
+            .collect();
+        for id in missing {
+            let fut = self.backend.pack_extras(&id);
+            self.tasks.push(cx.spawn(async move |this, cx| {
+                let extras = fut.await;
+                let _ = this.update(cx, |this, cx| {
+                    this.extras_pending.remove(&id);
+                    if let Some(e) = extras
+                        && !this.disposed
+                    {
+                        this.extras.insert(id, e);
+                        cx.notify();
+                    }
+                });
+            }));
+        }
     }
 
     fn update_cycling(&mut self, cx: &mut Context<Self>) {
@@ -468,7 +502,7 @@ impl BrowseScreen {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let preview = self.backend.modrinth_preview(&classified);
+        let preview = self.backend.modrinth_preview(&url);
         cx.spawn_in(window, async move |this, cx| {
             let result = preview.await;
             let _ = this.update_in(cx, |this, window, cx| this.reset_url(window, cx));
@@ -481,36 +515,13 @@ impl BrowseScreen {
                     );
                     return;
                 }
+                PreviewResult::Failed(message) => {
+                    notify::error(&t!("notification.import.modrinth.failed.title"), message);
+                    return;
+                }
                 PreviewResult::Found(p) => {
-                    let title = p
-                        .title
-                        .clone()
-                        .unwrap_or_else(|| t!("preview.modrinth.unnamedProject").into_owned());
-                    let mut lines = vec![title.clone()];
-                    if let Some(d) = p.description.as_ref().filter(|d| !d.trim().is_empty()) {
-                        lines.push(String::new());
-                        lines.push(d.clone());
-                    }
-                    lines.push(String::new());
-                    lines.push(format!(
-                        "{} ({})",
-                        t!("preview.modrinth.sourceLabel"),
-                        p.slug
-                    ));
-                    if let Some(v) = &p.version_number {
-                        lines.push(tf!("preview.modrinth.versionLabel", v.as_str()));
-                    }
-                    if !p.game_versions.is_empty() {
-                        lines.push(tf!(
-                            "preview.modrinth.minecraftLabel",
-                            p.game_versions.join(", ")
-                        ));
-                    }
-                    if !p.loaders.is_empty() {
-                        lines.push(tf!("preview.modrinth.loaderLabel", p.loaders.join(", ")));
-                    }
-                    lines.push(tf!("preview.urlLabel", url.as_str()));
-                    (title, p.version_number.clone(), lines.join("\n"))
+                    let (title, body) = browse_logic::modrinth_preview_text(p, &url);
+                    (title, p.version_number.clone(), body)
                 }
                 PreviewResult::Unsupported => {
                     let body = [
@@ -531,11 +542,20 @@ impl BrowseScreen {
             if dialogs::ask_multiline(cx, &q, None).await != Answer::Primary {
                 return;
             }
+            // The placeholder card shows each step: waiting for the import-confirm dialog,
+            // then the download + install.
+            let _ = this.update(cx, |this, cx| this.begin_import(Some(title.clone()), cx));
             if let Some(confirm) = cx
                 .update(|_, cx| hooks::read(cx).confirm_import)
                 .ok()
                 .flatten()
             {
+                let _ = this.update(cx, |this, cx| {
+                    this.update_import_status(
+                        t!("library.import.waitingConfirmation").into_owned(),
+                        cx,
+                    )
+                });
                 let Ok(task) = cx.update(|_, cx| {
                     confirm(
                         ImportConfirm {
@@ -548,22 +568,24 @@ impl BrowseScreen {
                     return;
                 };
                 if !task.await {
+                    let _ = this.update(cx, |this, cx| this.end_import(cx));
                     return;
                 }
             }
+            notify::info(
+                &t!("notification.browse.importStarting.title"),
+                &t!("notification.browse.importStarting.body"),
+            );
             let _ = this.update(cx, |this, cx| {
-                this.begin_import(Some(title.clone()), cx);
                 this.update_import_status(
                     t!("library.import.modrinth.downloading").into_owned(),
                     cx,
                 );
             });
-            notify::info(
-                &t!("notification.import.preparing.title"),
-                &t!("notification.import.preparing.body"),
-            );
-            let Ok(fut) = cx.update(|_, cx| backend(cx).import(ImportRequest::Url(url.clone())))
-            else {
+            let Ok(fut) = cx.update(|_, cx| match &result {
+                PreviewResult::Found(p) => backend(cx).install_modrinth(p),
+                _ => backend(cx).import(ImportRequest::Url(url.clone())),
+            }) else {
                 return;
             };
             let r = fut.await;
@@ -581,7 +603,7 @@ impl BrowseScreen {
 
     /// Import ZIP.
     pub fn import_zip(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.importing || self.backend.announcements().disable_modpacks_edit {
+        if self.importing_zip || self.backend.announcements().disable_modpacks_edit {
             return;
         }
         let rx = cx.prompt_for_paths(PathPromptOptions {
@@ -603,7 +625,7 @@ impl BrowseScreen {
             };
             let name = file.file_stem().map(|s| s.to_string_lossy().into_owned());
             let fut = this.update(cx, |this, cx| {
-                this.importing = true;
+                this.importing_zip = true;
                 this.begin_import(name, cx);
                 this.backend.import(ImportRequest::ZipFile(file))
             });
@@ -626,7 +648,7 @@ impl BrowseScreen {
                 ),
             }
             let _ = this.update(cx, |this, cx| {
-                this.importing = false;
+                this.importing_zip = false;
                 this.end_import(cx);
             });
         })
@@ -635,7 +657,7 @@ impl BrowseScreen {
 
     /// Import MultiMC / Prism instance.
     pub fn import_prism(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.importing || self.backend.announcements().disable_modpacks_edit {
+        if self.importing_prism || self.backend.announcements().disable_modpacks_edit {
             return;
         }
         let rx = cx.prompt_for_paths(PathPromptOptions {
@@ -658,7 +680,7 @@ impl BrowseScreen {
             let name = dir.file_name().map(|s| s.to_string_lossy().into_owned());
             let shown = name.clone().unwrap_or_default();
             let fut = this.update(cx, |this, cx| {
-                this.importing = true;
+                this.importing_prism = true;
                 this.begin_import(name, cx);
                 this.backend.import(ImportRequest::PrismInstance(dir))
             });
@@ -677,7 +699,7 @@ impl BrowseScreen {
                 ),
             }
             let _ = this.update(cx, |this, cx| {
-                this.importing = false;
+                this.importing_prism = false;
                 this.end_import(cx);
             });
         })
@@ -713,10 +735,12 @@ impl BrowseScreen {
                         cx.notify();
                     });
                 }
-                Err(e) => tracing::warn!(
-                    "{}",
-                    tf!("log.library.hostingManifestFailed", e.to_string())
-                ),
+                Err(e) => {
+                    // Java's Logger.logError: logged and shown to the user.
+                    let message = tf!("log.gameLibrary.hostingManifestFailed", e.to_string());
+                    tracing::error!("{message}");
+                    dialogs::error(cx, &message, None).await;
+                }
             }
         })
         .detach();
@@ -774,6 +798,7 @@ impl BrowseScreen {
             }
             UiEvent::Engine(EngineEvent::PackChanged(id)) => {
                 self.extras.remove(id);
+                self.extras_pending.remove(id);
                 self.rebuild(cx);
             }
             UiEvent::Engine(EngineEvent::AnnouncementsChanged | EngineEvent::OfflineChanged(_)) => {
@@ -864,16 +889,20 @@ impl Screen for BrowseScreen {
         window.focus(&self.focus, cx);
         // Gathers off the UI thread, so the chrome paints at once.
         self.rebuild(cx);
-        if self.backend.available_packs_if_ready().is_none() {
-            self.status = Some(t!("main.fetchLabel.loading").into_owned());
-            let fut = self.backend.available_packs();
-            self.tasks.push(cx.spawn(async move |this, cx| {
-                let _ = fut.await;
-                let _ = this.update(cx, |this, cx| {
-                    this.status = None;
-                    this.rebuild(cx);
-                });
-            }));
+        match self.backend.available_packs_if_ready() {
+            Some(list) => visuals::prefetch_available(cx, &list, &self.backend),
+            None => {
+                self.status = Some(t!("main.fetchLabel.loading").into_owned());
+                let fut = self.backend.available_packs();
+                self.tasks.push(cx.spawn(async move |this, cx| {
+                    let list = fut.await;
+                    let _ = this.update(cx, |this, cx| {
+                        this.status = None;
+                        visuals::prefetch_available(cx, &list, &this.backend);
+                        this.rebuild(cx);
+                    });
+                }));
+            }
         }
     }
 
@@ -1068,9 +1097,16 @@ impl BrowseScreen {
                 (src.logo, src.background)
             }
             EntryKind::VanillaInstalled | EntryKind::VanillaAvailable => {
-                (LogoSource::Vanilla, None)
+                (LogoSource::Brand(Brand::Vanilla), None)
             }
-            EntryKind::LoaderAvailable => (LogoSource::None, None),
+            EntryKind::LoaderAvailable => (
+                entry
+                    .loader
+                    .as_ref()
+                    .and_then(|l| Brand::of_loader(&l.loader_type))
+                    .map_or(LogoSource::None, LogoSource::Brand),
+                None,
+            ),
         };
         let visual = visuals::card_visual(cx, &logo, &self.backend);
         let background = background.and_then(|b| visuals::background_source(cx, &b, &self.backend));
@@ -1107,14 +1143,30 @@ impl BrowseScreen {
         let menu: Option<super::card::MenuBuilder> = match (entry.kind, &entry.pack) {
             (EntryKind::ModpackInstalled, Some(p)) => {
                 let p = p.clone();
-                let extras = self.extras.get(&p.id).cloned();
                 let w = weak.clone();
                 Some(Rc::new(move |menu, _, cx| {
-                    let w = w.clone();
+                    // Read at open time: extras that arrived after this render still count.
+                    let extras = w
+                        .upgrade()
+                        .and_then(|this| this.read(cx).extras.get(&p.id).cloned());
+                    let (wd, ws) = (w.clone(), w.clone());
                     let done: Done = Rc::new(move |cx| {
-                        let _ = w.update(cx, |this, cx| this.rebuild(cx));
+                        let _ = wd.update(cx, |this, cx| this.rebuild(cx));
                     });
-                    pack_actions::build_pack_context_menu(menu, &p, extras.as_ref(), done, cx)
+                    let status: StatusSink = Rc::new(move |text, cx| {
+                        let _ = ws.update(cx, |this, cx| {
+                            this.status = text;
+                            cx.notify();
+                        });
+                    });
+                    pack_actions::build_pack_context_menu(
+                        menu,
+                        &p,
+                        extras.as_ref(),
+                        Some(status),
+                        done,
+                        cx,
+                    )
                 }))
             }
             _ => None,
@@ -1209,18 +1261,26 @@ impl BrowseScreen {
             )
             .child(
                 Button::new("browse-import-zip")
-                    .label(t!("browse.bottomBar.importZipBtn").into_owned())
+                    .label(if self.importing_zip {
+                        t!("browse.urlAdd.checking").into_owned()
+                    } else {
+                        t!("browse.bottomBar.importZipBtn").into_owned()
+                    })
                     .outline()
-                    .disabled(edit_disabled || self.importing)
+                    .disabled(edit_disabled || self.importing_zip)
                     .on_click(move |_: &ClickEvent, window, cx| {
                         let _ = w2.update(cx, |this, cx| this.import_zip(window, cx));
                     }),
             )
             .child(
                 Button::new("browse-import-prism")
-                    .label(t!("browse.bottomBar.importPrismBtn").into_owned())
+                    .label(if self.importing_prism {
+                        t!("browse.urlAdd.checking").into_owned()
+                    } else {
+                        t!("browse.bottomBar.importPrismBtn").into_owned()
+                    })
                     .outline()
-                    .disabled(edit_disabled || self.importing)
+                    .disabled(edit_disabled || self.importing_prism)
                     .on_click(move |_: &ClickEvent, window, cx| {
                         let _ = w3.update(cx, |this, cx| this.import_prism(window, cx));
                     }),

@@ -64,6 +64,20 @@ pub fn show(kind: Kind, title: &str, body: &str) {
     }
 }
 
+/// Delivers a notification natively on the calling thread, without the log line (for a
+/// front end's notification facade that already logs and runs on its own worker). Windows and
+/// Linux create the tray icon first. `Err` when the OS refused it.
+pub fn deliver(kind: Kind, title: &str, body: &str) -> crate::error::Result<()> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        native_show(kind, title, body)
+    })) {
+        Ok(r) => r,
+        Err(payload) => Err(crate::PlatformError::Other(
+            mmcl_util::startup_log::panic_message(payload.as_ref()),
+        )),
+    }
+}
+
 /// Removes the tray icon (idempotent).
 pub fn shutdown() {
     crate::tray::shutdown();

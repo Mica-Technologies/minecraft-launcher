@@ -219,6 +219,7 @@ pub(crate) mod tests {
             never_played: true,
             unread_news: 0,
             active: false,
+            ..Default::default()
         }
     }
 

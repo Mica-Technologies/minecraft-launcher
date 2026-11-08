@@ -64,6 +64,25 @@ fn summarize(p: &mmcl_engine::PackSummary) -> PackSummary {
     }
 }
 
+/// The model-facing pack list: installed first, then available; blank names are skipped and an
+/// installed pack shadows an available one of the same friendly name.
+fn merge_pack_lists(
+    installed: &[mmcl_engine::PackSummary],
+    available: &[mmcl_engine::PackSummary],
+) -> Vec<PackSummary> {
+    let mut out: Vec<PackSummary> = Vec::new();
+    for p in installed.iter().chain(available.iter()) {
+        if p.friendly_name.trim().is_empty() {
+            continue;
+        }
+        if out.iter().any(|o| o.friendly_name == p.friendly_name) {
+            continue; // installed shadows available
+        }
+        out.push(summarize(p));
+    }
+    out
+}
+
 /// [`LauncherView`] over the engine.
 #[derive(Clone)]
 pub struct EngineView {
@@ -76,34 +95,55 @@ impl EngineView {
     }
 
     fn installed_id(&self, friendly_name: &str) -> Option<PackId> {
-        self.engine
-            .installed_packs()
-            .into_iter()
-            .find(|p| p.friendly_name == friendly_name)
-            .map(|p| p.id)
+        find_by_friendly_name(&self.engine.installed_modpacks(), friendly_name).map(|p| p.id)
     }
+
+    /// An installed modpack by friendly name, else an available one (Java `findPack`). Waits
+    /// for the available list when it has not loaded yet.
+    fn any_id(&self, friendly_name: &str) -> Option<PackId> {
+        if let Some(id) = self.installed_id(friendly_name) {
+            return Some(id);
+        }
+        let ready = self.engine.available_packs_if_ready();
+        if let Some(p) = find_by_friendly_name(&ready, friendly_name) {
+            return Some(p.id);
+        }
+        if !ready.is_empty() {
+            return None;
+        }
+        let engine = self.engine.clone();
+        let fetched = run(&self.engine, async move { engine.available_packs().await })?;
+        find_by_friendly_name(&fetched, friendly_name).map(|p| p.id)
+    }
+}
+
+/// The first pack whose friendly name is exactly `friendly_name` (blank never matches).
+fn find_by_friendly_name(
+    packs: &[mmcl_engine::PackSummary],
+    friendly_name: &str,
+) -> Option<mmcl_engine::PackSummary> {
+    if friendly_name.trim().is_empty() {
+        return None;
+    }
+    packs
+        .iter()
+        .find(|p| p.friendly_name == friendly_name)
+        .cloned()
 }
 
 impl LauncherView for EngineView {
     fn packs(&self) -> Vec<PackSummary> {
-        let mut out: Vec<PackSummary> = Vec::new();
-        let installed = self.engine.installed_packs();
-        let available = self.engine.available_packs_if_ready();
-        for p in installed.iter().chain(available.iter()) {
-            if p.friendly_name.trim().is_empty() {
-                continue;
-            }
-            if out.iter().any(|o| o.friendly_name == p.friendly_name) {
-                continue; // installed shadows available
-            }
-            out.push(summarize(p));
-        }
-        out
+        // Modpacks only, as Java's MCP view: the installed vanilla versions are not modpacks.
+        merge_pack_lists(
+            &self.engine.installed_modpacks(),
+            &self.engine.available_packs_if_ready(),
+        )
     }
 
     fn manifest_of(&self, friendly_name: &str) -> Option<String> {
-        let id = self.installed_id(friendly_name)?;
-        let text = self.engine.pack_manifest_text(&id);
+        let id = self.any_id(friendly_name)?;
+        let engine = self.engine.clone();
+        let text = run(&self.engine, async move { engine.manifest_text(&id).await }).flatten();
         if text.is_none() {
             logging::warn("log.mcpView.manifestLoadFailed", &[friendly_name]);
         }
@@ -195,10 +235,7 @@ impl EngineActions {
     }
 
     fn installed(&self, friendly_name: &str) -> Option<mmcl_engine::PackSummary> {
-        self.engine
-            .installed_packs()
-            .into_iter()
-            .find(|p| p.friendly_name == friendly_name)
+        find_by_friendly_name(&self.engine.installed_modpacks(), friendly_name)
     }
 
     fn account_uuid(&self, username: &str) -> Option<String> {
@@ -214,7 +251,15 @@ impl EngineActions {
         Outcome::failed(format!("No modpack named \"{name}\" is installed."))
     }
 
-    fn edit<F>(&self, friendly_name: &str, op: F) -> Result<(), Outcome>
+    /// Runs a manifest edit on an authored pack. `refusal` turns an engine error the edit
+    /// itself raised (path taken, no such mod) into its model-facing failure; any other error
+    /// is logged and reported generically.
+    fn edit<F>(
+        &self,
+        friendly_name: &str,
+        refusal: impl FnOnce(&mmcl_engine::PackSummary, &EngineError) -> Option<Outcome>,
+        op: F,
+    ) -> Result<(), Outcome>
     where
         F: FnOnce(Engine, PackId) -> futures::future::BoxFuture<'static, Result<(), EngineError>>,
     {
@@ -232,10 +277,13 @@ impl EngineActions {
                 "\"{friendly_name}\" was installed from a remote manifest, which this launcher does not own and cannot edit. Use fork_modpack to make an editable copy first."
             )));
         }
-        let fut = op(self.engine.clone(), p.id);
+        let fut = op(self.engine.clone(), p.id.clone());
         match run(&self.engine, fut) {
             Some(Ok(())) => Ok(()),
             Some(Err(e)) => {
+                if let Some(o) = refusal(&p, &e) {
+                    return Err(o);
+                }
                 logging::warn_with("log.mcpActions.editManifestFailed", &[friendly_name], &e);
                 Err(Outcome::failed("The manifest could not be updated."))
             }
@@ -452,7 +500,19 @@ impl LauncherActions for EngineActions {
             remote_url.to_string(),
             local_path.to_string(),
         );
-        match self.edit(friendly_name, move |engine, id| {
+        let refusal = |p: &mmcl_engine::PackSummary, e: &EngineError| {
+            is_engine_text(
+                e,
+                "engine.error.modPathTaken",
+                &[&p.name, local_path.trim()],
+            )
+            .then(|| {
+                Outcome::failed(format!(
+                    "\"{friendly_name}\" already installs something to {local_path}."
+                ))
+            })
+        };
+        match self.edit(friendly_name, refusal, move |engine, id| {
             Box::pin(async move { engine.add_mod(&id, &m, &r, &l).await })
         }) {
             Ok(()) => Outcome::ok(format!(
@@ -464,7 +524,16 @@ impl LauncherActions for EngineActions {
 
     fn remove_mod(&self, friendly_name: &str, identifier: &str) -> Outcome {
         let i = identifier.to_string();
-        match self.edit(friendly_name, move |engine, id| {
+        let refusal = |p: &mmcl_engine::PackSummary, e: &EngineError| {
+            is_engine_text(e, "engine.error.modNotFound", &[identifier.trim(), &p.name]).then(
+                || {
+                    Outcome::failed(format!(
+                        "No mod matching \"{identifier}\" is in \"{friendly_name}\"."
+                    ))
+                },
+            )
+        };
+        match self.edit(friendly_name, refusal, move |engine, id| {
             Box::pin(async move { engine.remove_mod(&id, &i).await })
         }) {
             Ok(()) => Outcome::ok(format!(
@@ -473,6 +542,18 @@ impl LauncherActions for EngineActions {
             Err(o) => o,
         }
     }
+}
+
+/// Whether `e` is the engine's [`EngineError::Other`] rendered from `key` with `args`. The
+/// engine reports a taken mod path and a missing mod as localized `Other` text rather than
+/// their own variants, so the text is re-rendered here (same process, same bundle) and
+/// compared whole.
+fn is_engine_text(e: &EngineError, key: &str, args: &[&str]) -> bool {
+    let EngineError::Other(text) = e else {
+        return false;
+    };
+    let fmt: Vec<mmcl_i18n::FmtArg> = args.iter().map(|a| mmcl_i18n::FmtArg::from(*a)).collect();
+    *text == mmcl_i18n::format(key, &fmt)
 }
 
 /// The model-facing text of an account-resolution problem, by the engine's message key.
@@ -565,5 +646,132 @@ impl McpHost for EngineHost {
         std::fs::read_to_string(mmcl_core::DataPaths::single_instance_token_file())
             .map(|t| vec![t.trim().to_string()])
             .unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mmcl_core::{DataPaths, GameMode};
+    use mmcl_engine::EngineOptions;
+
+    fn summary(friendly: &str, installed: bool) -> mmcl_engine::PackSummary {
+        mmcl_engine::PackSummary {
+            id: PackId::new(format!("https://example.com/{friendly}.json")),
+            name: friendly.to_string(),
+            friendly_name: friendly.to_string(),
+            version: "2.0".into(),
+            installed_version: installed.then(|| "1.0".to_string()),
+            installed,
+            mod_loader: Some("forge".into()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn installed_shadows_available_and_blank_names_are_skipped() {
+        let installed = vec![summary("Alto", true), summary(" ", true)];
+        let available = vec![summary("Alto", false), summary("Beta", false)];
+        let list = merge_pack_lists(&installed, &available);
+        let names: Vec<_> = list.iter().map(|p| p.friendly_name.as_str()).collect();
+        assert_eq!(names, ["Alto", "Beta"]);
+        assert!(list[0].installed);
+        assert_eq!(list[0].version, "1.0");
+        assert_eq!(list[0].latest_version, "2.0");
+        assert!(!list[1].installed);
+        assert_eq!(list[1].version, "2.0");
+    }
+
+    #[test]
+    fn friendly_name_lookup_is_exact() {
+        let packs = vec![summary("Alto", true), summary("Beta", false)];
+        assert_eq!(
+            find_by_friendly_name(&packs, "Beta").map(|p| p.friendly_name),
+            Some("Beta".to_string())
+        );
+        assert!(find_by_friendly_name(&packs, "alto").is_none());
+        assert!(find_by_friendly_name(&packs, "").is_none());
+        assert!(find_by_friendly_name(&packs, "  ").is_none());
+    }
+
+    #[test]
+    fn engine_refusal_text_is_recognised_whole() {
+        let taken = EngineError::Other(mmcl_i18n::tf!(
+            "engine.error.modPathTaken",
+            "Alto",
+            "mods/jei.jar"
+        ));
+        assert!(is_engine_text(
+            &taken,
+            "engine.error.modPathTaken",
+            &["Alto", "mods/jei.jar"]
+        ));
+        assert!(!is_engine_text(
+            &taken,
+            "engine.error.modPathTaken",
+            &["Alto", "mods/other.jar"]
+        ));
+        assert!(!is_engine_text(
+            &taken,
+            "engine.error.modNotFound",
+            &["Alto", "mods/jei.jar"]
+        ));
+        let missing = EngineError::Other(mmcl_i18n::tf!("engine.error.modNotFound", "jei", "Alto"));
+        assert!(is_engine_text(
+            &missing,
+            "engine.error.modNotFound",
+            &["jei", "Alto"]
+        ));
+        assert!(!is_engine_text(
+            &EngineError::ShutDown,
+            "engine.error.modNotFound",
+            &["jei", "Alto"]
+        ));
+    }
+
+    struct Offline {
+        engine: Engine,
+        _rt: tokio::runtime::Runtime,
+        _dir: tempfile::TempDir,
+    }
+
+    fn offline_engine() -> Offline {
+        let dir = tempfile::tempdir().unwrap();
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+        let o = EngineOptions::offline_for_tests(
+            DataPaths::at_root(dir.path().join("data"), GameMode::Client),
+            rt.handle().clone(),
+        );
+        let engine = Engine::new(o).unwrap();
+        Offline {
+            engine,
+            _rt: rt,
+            _dir: dir,
+        }
+    }
+
+    #[test]
+    fn an_unknown_pack_has_no_manifest_even_after_loading_the_available_list() {
+        let h = offline_engine();
+        let view = EngineView::new(h.engine.clone());
+        assert!(view.packs().is_empty());
+        assert_eq!(view.manifest_of("Nope"), None);
+        assert_eq!(view.manifest_of(""), None);
+    }
+
+    #[test]
+    fn edits_of_a_pack_that_is_not_installed_say_so() {
+        let h = offline_engine();
+        let actions = EngineActions::new(h.engine.clone());
+        let add = actions.add_mod("Nope", "JEI", "https://example.com/jei.jar", "mods/jei.jar");
+        assert!(!add.ok);
+        assert_eq!(add.message, "No modpack named \"Nope\" is installed.");
+        let remove = actions.remove_mod("Nope", "jei");
+        assert!(!remove.ok);
+        assert_eq!(remove.message, "No modpack named \"Nope\" is installed.");
     }
 }

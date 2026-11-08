@@ -43,10 +43,12 @@ impl AddAccountWindow {
         let sub = cx.subscribe_in(
             &panel,
             window,
+            // Java: success, Cancel, and `callback.userCancelled()` (cancelled on Microsoft's
+            // page) all close the window.
             |_, _, ev: &SignInPanelEvent, window, _| match ev {
-                SignInPanelEvent::SignedIn(_) | SignInPanelEvent::Dismissed => {
-                    window.remove_window()
-                }
+                SignInPanelEvent::SignedIn(_)
+                | SignInPanelEvent::Dismissed
+                | SignInPanelEvent::CancelledOutside => window.remove_window(),
             },
         );
         // Java loaded the sign-in on show. The device code needs no extra window, so it starts at
@@ -144,7 +146,7 @@ pub fn show_add_account(owner: Option<AnyWindowHandle>, cx: &mut App) {
         window_background: crate::theme::secondary_window_background(),
         app_id: Some(
             mmcl_core::AppIdentity::current()
-                .linux_desktop_id
+                .linux_package_name
                 .to_string(),
         ),
         window_decorations: Some(WindowDecorations::Client),

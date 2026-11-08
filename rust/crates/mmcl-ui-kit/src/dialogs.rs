@@ -365,11 +365,14 @@ fn present_component(
             .title(spec.title.clone())
             // Solid surface: the native sheets' translucent background would vanish in a popup.
             .bg(cx.launcher_theme().solid_bg(true))
-            .w(scaled_px(cx, if spec.multiline {
-                WIDTH_MULTILINE
-            } else {
-                WIDTH
-            }))
+            .w(scaled_px(
+                cx,
+                if spec.multiline {
+                    WIDTH_MULTILINE
+                } else {
+                    WIDTH
+                },
+            ))
             .when(spec.multiline, |d| {
                 d.max_w(scaled_px(cx, WIDTH_MULTILINE.max(MIN_WIDTH_MULTILINE)))
             })
@@ -535,6 +538,33 @@ pub async fn error_multiline(cx: &AsyncApp, body: &str, owner: Option<AnyWindowH
         owner,
     )
     .await;
+}
+
+/// An informational alert with its own title and header and a multi-line body (the About
+/// dialog, `Alert(INFORMATION)`), closed with OK.
+pub async fn info(
+    cx: &AsyncApp,
+    title: &str,
+    header: &str,
+    body: &str,
+    owner: Option<AnyWindowHandle>,
+) {
+    show(cx, info_spec(title, header, body), owner).await;
+}
+
+/// The [`info`] dialog's description (pure, for tests).
+pub fn info_spec(title: &str, header: &str, body: &str) -> DialogSpec {
+    DialogSpec {
+        level: DialogLevel::Info,
+        title: sanitize_single_line(title).into(),
+        header: (!header.trim().is_empty()).then(|| sanitize_single_line(header).into()),
+        body: sanitize_multiline(body).into(),
+        multiline: true,
+        buttons: vec![DialogButton::new(
+            t!("dialog.button.ok").into_owned(),
+            ButtonRole::Primary,
+        )],
+    }
 }
 
 /// `showWarningMessage`.
@@ -764,6 +794,18 @@ pub async fn choose(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn info_keeps_line_breaks_and_drops_a_blank_header() {
+        let spec = info_spec("About", "  ", "Version 1\nline two");
+        assert_eq!(spec.level, DialogLevel::Info);
+        assert!(spec.header.is_none());
+        assert!(spec.multiline);
+        assert_eq!(spec.body.as_ref(), "Version 1\nline two");
+        assert_eq!(spec.buttons.len(), 1);
+        let named = info_spec("About", "Mica", "x");
+        assert_eq!(named.header.as_deref(), Some("Mica"));
+    }
 
     #[test]
     fn single_line_collapses_and_caps() {

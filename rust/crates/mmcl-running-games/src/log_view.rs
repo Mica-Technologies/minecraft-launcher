@@ -5,7 +5,8 @@
 //! It replaced a wrapping text area that re-laid out every paragraph on each appended batch.
 //! Here only the visible rows are laid out (`gpui::list`), rows wrap to the view's width, and
 //! there is no horizontal scrolling. Row selection stands in for free text selection: click,
-//! shift-click (range), ctrl/cmd-click (toggle); ctrl/cmd+C and the context menu copy the
+//! shift-click (range), ctrl/cmd-click (toggle), or the keyboard (Up / Down, Page Up / Down,
+//! Home / End, Shift to extend, Ctrl/Cmd+A for all); ctrl/cmd+C and the context menu copy the
 //! selected rows. The current find match is highlighted in its row.
 
 use gpui::{
@@ -26,6 +27,8 @@ pub const MATCH_CONTEXT_ROWS: usize = 3;
 /// The log's preferred height: small, so it takes only what its parent leaves and never squeezes
 /// the crash card above it.
 pub const PREF_HEIGHT: f32 = 120.0;
+/// Rows Page Up / Page Down move the selection.
+pub const PAGE_ROWS: isize = 20;
 
 /// The log view entity.
 pub struct SessionLogView {
@@ -207,12 +210,43 @@ impl SessionLogView {
             .into_any_element()
     }
 
+    /// Selects every line (Ctrl/Cmd+A).
+    pub fn select_all(&mut self, cx: &mut Context<Self>) {
+        self.lines.select_all();
+        cx.notify();
+    }
+
+    /// The keys of a JavaFX multiple-selection `ListView`: Ctrl/Cmd+C copies, Ctrl/Cmd+A selects
+    /// all, Up / Down / Page Up / Page Down / Home / End move the selection (Shift extends it).
     fn on_key(&mut self, event: &KeyDownEvent, _window: &mut Window, cx: &mut Context<Self>) {
         let ks = &event.keystroke;
-        if ks.key == "c" && ks.modifiers.secondary(cx) && !ks.modifiers.shift && !ks.modifiers.alt {
-            self.copy_selection(cx);
-            cx.stop_propagation();
+        let m = &ks.modifiers;
+        let command = m.secondary(cx) && !m.shift && !m.alt;
+        let plain = !m.control && !m.platform && !m.alt && !m.function;
+        let moved = match ks.key.as_str() {
+            "c" if command => {
+                self.copy_selection(cx);
+                cx.stop_propagation();
+                return;
+            }
+            "a" if command => {
+                self.select_all(cx);
+                cx.stop_propagation();
+                return;
+            }
+            "up" if plain => self.lines.move_lead(-1, m.shift),
+            "down" if plain => self.lines.move_lead(1, m.shift),
+            "pageup" if plain => self.lines.move_lead(-PAGE_ROWS, m.shift),
+            "pagedown" if plain => self.lines.move_lead(PAGE_ROWS, m.shift),
+            "home" if plain => self.lines.move_lead_to_edge(false, m.shift),
+            "end" if plain => self.lines.move_lead_to_edge(true, m.shift),
+            _ => return,
+        };
+        if let Some(ix) = moved {
+            self.list.scroll_to_reveal_item(ix);
         }
+        cx.notify();
+        cx.stop_propagation();
     }
 }
 

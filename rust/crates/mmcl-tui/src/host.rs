@@ -10,8 +10,8 @@
 use std::sync::Arc;
 
 use mmcl_engine::{
-    Engine, EngineError, EngineEvent, LaunchOptions, LogSubscription, OperationProgress, PackId,
-    PackSummary, SessionId, SessionInfo, Setting, Settings,
+    Engine, EngineError, EngineEvent, LaunchOptions, LogSubscription, PackId, PackSummary,
+    SessionId, SessionInfo, Setting, Settings,
 };
 use parking_lot::Mutex;
 use tokio::sync::broadcast::error::RecvError;
@@ -23,10 +23,10 @@ pub enum HostEvent {
     PacksChanged,
     /// The available-pack fetch finished.
     AvailableReady,
-    /// A session started, changed or went away.
+    /// A session started, changed or went away. A launch reports its progress here, through
+    /// the session's launch steps: the engine's `OperationId`s count separately from
+    /// `SessionId`s, so a `Progress` event never belongs to a launch.
     SessionsChanged(Option<Arc<SessionInfo>>),
-    /// An operation progressed (a launch reports under its session id).
-    Progress(OperationProgress),
     /// A setting changed.
     SettingChanged,
     /// The accounts changed (the status bar shows the default account).
@@ -270,7 +270,6 @@ impl TuiHost for EngineHost {
                             Some(HostEvent::SessionsChanged(Some(s)))
                         }
                         EngineEvent::SessionRemoved(_) => Some(HostEvent::SessionsChanged(None)),
-                        EngineEvent::Progress(p) => Some(HostEvent::Progress(p)),
                         EngineEvent::SettingChanged(_) => Some(HostEvent::SettingChanged),
                         EngineEvent::AccountsChanged => Some(HostEvent::AccountsChanged),
                         EngineEvent::ShuttingDown => {

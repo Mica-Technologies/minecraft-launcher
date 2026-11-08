@@ -24,7 +24,7 @@ use mmcl_ui_kit::theme::{ThemeExt as _, TypeStyleExt as _, hsla};
 use mmcl_ui_kit::{LoadingIndicator, TooltipExt as _};
 
 use super::home_logic::BadgeTone;
-use super::visuals::CardVisual;
+use super::visuals::{Brand, CardVisual};
 use crate::scale::u;
 
 /// Hero card width (px).
@@ -35,6 +35,51 @@ pub const HERO_IMAGE_H: f32 = 150.0;
 pub const LIBRARY_WIDTH: f32 = 300.0;
 /// Library card image height.
 pub const LIBRARY_IMAGE_H: f32 = 110.0;
+
+/// Where the image veil starts darkening (fraction of the image height).
+pub const VEIL_START: f32 = 0.55;
+/// The veil's black alpha at the bottom edge.
+pub const VEIL_ALPHA: f32 = 0.55;
+
+/// A colour from `0xRRGGBB`.
+fn rgb(v: u32) -> gpui::Hsla {
+    gpui::rgb(v).into()
+}
+
+/// A brand placeholder tile (`PlaceholderLogoFactory.doRender`): the two-stop gradient, a
+/// 10 % white band over the top 22 %, and the bold wordmark centred.
+fn brand_tile(brand: Brand, size: f32) -> impl IntoElement {
+    let tile = brand.tile();
+    let text_px = size * tile.text_size_per_128 as f32 / 128.0;
+    div()
+        .relative()
+        .size(u(size))
+        .bg(linear_gradient(
+            180.0,
+            linear_color_stop(rgb(tile.top), 0.0),
+            linear_color_stop(rgb(tile.bottom), 1.0),
+        ))
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .w_full()
+                .h(u(size * 0.22))
+                .bg(gpui::hsla(0.0, 0.0, 1.0, 0.10)),
+        )
+        .child(
+            div()
+                .text_size(u(text_px))
+                .line_height(u(text_px))
+                .font_weight(gpui::FontWeight::BOLD)
+                .text_color(rgb(tile.text_color))
+                .child(tile.text),
+        )
+}
 
 /// A click on the card body (`click_count` 1 or 2).
 pub type CardClick = Rc<dyn Fn(usize, &mut Window, &mut App)>;
@@ -159,10 +204,11 @@ fn image_area(
     badges: Vec<(String, BadgeTone)>,
     cx: &App,
 ) -> impl IntoElement {
+    // `.heroCardImageVeil`: clear down to 55 %, then darkening to 55 % black at the bottom.
     let veil = linear_gradient(
-        90.0,
-        linear_color_stop(gpui::hsla(0.0, 0.0, 0.0, 0.40), 0.0),
-        linear_color_stop(gpui::hsla(0.0, 0.0, 0.0, 0.70), 1.0),
+        180.0,
+        linear_color_stop(gpui::hsla(0.0, 0.0, 0.0, 0.0), VEIL_START),
+        linear_color_stop(gpui::hsla(0.0, 0.0, 0.0, VEIL_ALPHA), 1.0),
     );
     div()
         .relative()
@@ -202,7 +248,9 @@ fn image_area(
 fn logo_frame(g: &CardGeometry, visual: &CardVisual, id: &ElementId, cx: &App) -> impl IntoElement {
     let t = cx.tokens();
     let frame = !visual.logo_transparent;
-    let logo = if visual.logo_loaded && !mmcl_ui_kit::motion::is_reduced() {
+    let logo = if let Some(brand) = visual.placeholder {
+        brand_tile(brand, g.logo).into_any_element()
+    } else if visual.logo_loaded && !mmcl_ui_kit::motion::is_reduced() {
         mmcl_ui_kit::FadeImage::new(
             mmcl_ui_kit::focus::child_id(id, "logo"),
             visual.logo.clone(),

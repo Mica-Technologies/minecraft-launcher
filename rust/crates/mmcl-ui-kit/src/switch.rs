@@ -17,12 +17,12 @@ use gpui::{
 };
 use mmcl_theme::{Rgba, TokenSheet};
 
-use crate::scale::u;
 use crate::controls::DISABLED_OPACITY;
 use crate::controls::ToggleHandler;
 use crate::focus::{Activatable, child_id, focus_handle_for, nav_marker};
 use crate::icons::Icon;
 use crate::motion;
+use crate::scale::u;
 use crate::theme::{ThemeExt, hsla};
 
 /// Track width (px). The Java skin uses 40 (3/4 of Material's 52, rounded to even pixels).
@@ -53,6 +53,12 @@ pub fn handle_center_x(p: f32) -> f32 {
 pub fn icon_scales(p: f32) -> (f32, f32) {
     let p = p.clamp(0.0, 1.0);
     (p.max(0.01), (1.0 - p).max(0.01))
+}
+
+/// Whether an icon at `scale` is drawn at all. Below one pixel it is left out: GPUI rejects an
+/// SVG that snaps to zero device pixels and logs an error on every frame it is painted.
+pub fn icon_drawn(scale: f32) -> bool {
+    ICON * scale >= 1.0
 }
 
 /// The off-X colour: native sheets paint it with their opaque override (the translucent role
@@ -144,19 +150,23 @@ impl RenderOnce for HandleAt {
             .flex()
             .items_center()
             .justify_center()
-            .child(
-                div().absolute().opacity(1.0 - p).child(
-                    Icon::Close
-                        .svg(ICON * cross)
-                        .text_color(hsla(off_icon_color(theme.sheet()))),
-                ),
-            )
-            .child(
-                div()
-                    .absolute()
-                    .opacity(p)
-                    .child(Icon::Check.svg(ICON * check).text_color(hsla(t.md_primary))),
-            )
+            .when(icon_drawn(cross), |el| {
+                el.child(
+                    div().absolute().opacity(1.0 - p).child(
+                        Icon::Close
+                            .svg(ICON * cross)
+                            .text_color(hsla(off_icon_color(theme.sheet()))),
+                    ),
+                )
+            })
+            .when(icon_drawn(check), |el| {
+                el.child(
+                    div()
+                        .absolute()
+                        .opacity(p)
+                        .child(Icon::Check.svg(ICON * check).text_color(hsla(t.md_primary))),
+                )
+            })
     }
 }
 
@@ -294,6 +304,17 @@ mod tests {
         assert_eq!(icon_scales(1.0), (1.0, 0.01));
         let (c, x) = icon_scales(0.5);
         assert_eq!(c, x);
+    }
+
+    #[test]
+    fn a_shrunk_out_icon_is_not_drawn() {
+        // At rest the hidden icon would snap to zero pixels, which GPUI logs as an error.
+        let (check, cross) = icon_scales(0.0);
+        assert!(!icon_drawn(check));
+        assert!(icon_drawn(cross));
+        let (check, cross) = icon_scales(1.0);
+        assert!(icon_drawn(check));
+        assert!(!icon_drawn(cross));
     }
 
     #[test]

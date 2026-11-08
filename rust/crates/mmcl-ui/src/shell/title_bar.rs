@@ -31,6 +31,7 @@ pub fn height() -> gpui::Pixels {
 pub struct AppTitleBar {
     title: SharedString,
     help: Option<HelpTopic>,
+    brand: bool,
 }
 
 impl AppTitleBar {
@@ -39,7 +40,16 @@ impl AppTitleBar {
         AppTitleBar {
             title: title.into(),
             help,
+            brand: true,
         }
+    }
+
+    /// Whether the app icon and title show (default). Off under a screen whose navbar already
+    /// draws the brand lockup and the screen name (Java's `hideRedundantBranding`), so the
+    /// strip keeps only the drag area and the window controls.
+    pub fn brand(mut self, brand: bool) -> Self {
+        self.brand = brand;
+        self
     }
 }
 
@@ -80,18 +90,20 @@ impl RenderOnce for AppTitleBar {
                     .gap(px(8.0))
                     .min_w_0()
                     .overflow_hidden()
-                    .child(
-                        img(mmcl_ui_kit::assets::APP_ICON)
-                            .size(px(18.0))
-                            .flex_shrink_0(),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.0))
-                            .text_color(text)
-                            .truncate()
-                            .child(self.title),
-                    ),
+                    .when(self.brand, |el| {
+                        el.child(
+                            img(mmcl_ui_kit::assets::APP_ICON)
+                                .size(px(18.0))
+                                .flex_shrink_0(),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.0))
+                                .text_color(text)
+                                .truncate()
+                                .child(self.title),
+                        )
+                    }),
             )
             .child(
                 div()

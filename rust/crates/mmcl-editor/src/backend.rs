@@ -10,7 +10,9 @@
 //!
 //! The engine facade has no generic "GET this text" / "HEAD this URL" / "download to here"
 //! operations, so they live here, behind the trait, and the integrator can swap them for engine
-//! operations later without touching the editor.
+//! operations later without touching the editor. Every request honours the launcher proxy:
+//! `mmcl-net`'s own clients through the provider the engine installs, the HEAD client through
+//! [`mmcl_net::proxy::current_proxy`].
 
 use std::future::Future;
 use std::path::{Path, PathBuf};
@@ -19,6 +21,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mmcl_engine::{Engine, PackId, PackSummary};
+use mmcl_net::proxy::ProxyConfig;
+use parking_lot::Mutex;
 
 /// A boxed future the editor can await from any executor.
 pub type BoxFut<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
@@ -64,28 +68,61 @@ pub trait EditorBackend: Send + Sync + 'static {
 /// HEAD timeout (connect and read), as Java's `HttpURLConnection` used.
 pub const HEAD_TIMEOUT: Duration = Duration::from_secs(5);
 
+/// Builds the Check URLs HEAD client: 5 s timeouts, no redirects followed, and the launcher's
+/// proxy when one is set (Java's `HttpURLConnection` picked up the JVM proxy the launcher
+/// configured), else no proxy at all (never the environment's).
+pub fn build_head_client(proxy: Option<&ProxyConfig>) -> Result<reqwest::Client, NetError> {
+    let b = reqwest::Client::builder()
+        .user_agent(mmcl_net::user_agent())
+        .connect_timeout(HEAD_TIMEOUT)
+        .read_timeout(HEAD_TIMEOUT)
+        .timeout(HEAD_TIMEOUT * 2)
+        .redirect(reqwest::redirect::Policy::none());
+    let b = match proxy {
+        Some(p) => b.proxy(reqwest::Proxy::all(p.url()).map_err(|e| NetError::new(e.to_string()))?),
+        None => b.no_proxy(),
+    };
+    b.build().map_err(|e| NetError::new(e.to_string()))
+}
+
+/// The HEAD client, rebuilt only when the proxy settings changed since the last check.
+#[derive(Default)]
+struct HeadClientCache {
+    slot: Mutex<Option<(Option<ProxyConfig>, reqwest::Client)>>,
+}
+
+impl HeadClientCache {
+    fn client_for(&self, proxy: Option<ProxyConfig>) -> Result<reqwest::Client, NetError> {
+        let mut slot = self.slot.lock();
+        if let Some((cached, client)) = slot.as_ref()
+            && *cached == proxy
+        {
+            return Ok(client.clone());
+        }
+        let client = build_head_client(proxy.as_ref())?;
+        *slot = Some((proxy, client.clone()));
+        Ok(client)
+    }
+
+    #[cfg(test)]
+    fn cached_proxy(&self) -> Option<Option<ProxyConfig>> {
+        self.slot.lock().as_ref().map(|(p, _)| p.clone())
+    }
+}
+
 /// The production backend over [`Engine`] and `mmcl-net`.
 #[derive(Clone)]
 pub struct EngineBackend {
     engine: Engine,
-    head_client: Option<reqwest::Client>,
+    head_clients: Arc<HeadClientCache>,
 }
 
 impl EngineBackend {
     /// A backend running on `engine`'s runtime.
     pub fn new(engine: Engine) -> EngineBackend {
-        let head_client = reqwest::Client::builder()
-            .user_agent(mmcl_net::user_agent())
-            .connect_timeout(HEAD_TIMEOUT)
-            .read_timeout(HEAD_TIMEOUT)
-            .timeout(HEAD_TIMEOUT * 2)
-            .redirect(reqwest::redirect::Policy::none())
-            .no_proxy()
-            .build()
-            .ok();
         EngineBackend {
             engine,
-            head_client,
+            head_clients: Arc::new(HeadClientCache::default()),
         }
     }
 
@@ -121,12 +158,15 @@ impl EditorBackend for EngineBackend {
 
     fn head_status(&self, url: &str) -> BoxFut<Result<u16, NetError>> {
         let url = url.trim().to_string();
-        let client = self.head_client.clone();
+        // The launcher proxy as it is now, so a Settings change applies to the next check.
+        let client = self
+            .head_clients
+            .client_for(mmcl_net::proxy::current_proxy());
         self.run(async move {
             if !crate::url_check::is_http_url(&url) {
                 return Err(NetError::new(url));
             }
-            let client = client.ok_or_else(|| NetError::new("no HTTP client"))?;
+            let client = client?;
             let resp = client
                 .head(&url)
                 .send()
@@ -185,6 +225,42 @@ impl EditorBackend for EngineBackend {
 
 fn read_file(path: PathBuf) -> Result<Vec<u8>, NetError> {
     std::fs::read(&path).map_err(|e| NetError::new(e.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use mmcl_net::proxy::ProxyKind;
+
+    use super::*;
+
+    fn proxy(kind: ProxyKind) -> ProxyConfig {
+        ProxyConfig {
+            kind,
+            host: "proxy.example".into(),
+            port: 3128,
+        }
+    }
+
+    #[test]
+    fn the_head_client_builds_with_and_without_a_proxy() {
+        assert!(build_head_client(None).is_ok());
+        assert!(build_head_client(Some(&proxy(ProxyKind::Http))).is_ok());
+        assert!(build_head_client(Some(&proxy(ProxyKind::Socks))).is_ok());
+    }
+
+    #[test]
+    fn the_head_client_follows_the_proxy_settings() {
+        let cache = HeadClientCache::default();
+        assert_eq!(cache.cached_proxy(), None);
+        cache.client_for(None).unwrap();
+        assert_eq!(cache.cached_proxy(), Some(None));
+        cache.client_for(Some(proxy(ProxyKind::Http))).unwrap();
+        assert_eq!(cache.cached_proxy(), Some(Some(proxy(ProxyKind::Http))));
+        cache.client_for(Some(proxy(ProxyKind::Socks))).unwrap();
+        assert_eq!(cache.cached_proxy(), Some(Some(proxy(ProxyKind::Socks))));
+        cache.client_for(None).unwrap();
+        assert_eq!(cache.cached_proxy(), Some(None));
+    }
 }
 
 #[cfg(test)]

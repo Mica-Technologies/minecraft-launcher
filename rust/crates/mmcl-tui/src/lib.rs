@@ -12,7 +12,8 @@
 //! * [`host::TuiHost`]: everything the UI needs from the launcher (implemented over
 //!   [`mmcl_engine::Engine`] by [`host::EngineHost`], faked in tests).
 //! * [`format`], [`theme`], [`log_view`], [`runtime`], [`progress`]: pure pieces with tests.
-//! * [`follower`]: keeps RGB lighting and Discord presence on the newest running game.
+//! * [`follower`]: the running-game follower pieces (the engine runs its own follower, which
+//!   keeps RGB lighting and Discord presence on the newest running game).
 
 pub mod app;
 pub mod follower;
@@ -30,7 +31,7 @@ use std::sync::Arc;
 
 pub use app::{App, Msg, View};
 pub use follower::{
-    FollowerSink, PresenceSink, RunningGameFollower, install_running_game_follower,
+    FollowerSink, GamePresence, PresenceSink, RunningGameFollower, install_running_game_follower,
 };
 pub use host::{EngineHost, HostEvent, TuiHost};
 pub use mode::{enable, is_enabled, requested_in};
@@ -93,15 +94,16 @@ impl RunOutcome {
 }
 
 /// The TUI branch of the session start (spec B.2 step 6) over an engine: refuses without a
-/// saved account, installs the running-game follower (RGB + Discord follow TUI-launched games),
-/// starts the available-pack fetch and runs the UI. Messages go to the real terminal. Does not
-/// shut the engine down; the caller runs its normal cleanup afterwards.
+/// saved account, starts the available-pack fetch and runs the UI. RGB and Discord follow
+/// TUI-launched games through the engine's own follower (no second follower here, so no
+/// presence update is sent twice); build the engine with `follow_running_games = true`.
+/// Messages go to the real terminal. Does not shut the engine down; the caller runs its normal
+/// cleanup afterwards.
 pub fn run_engine(engine: &mmcl_engine::Engine) -> RunOutcome {
     if engine.accounts().is_empty() {
         eprintln!("{}", mmcl_i18n::t!("tui.auth.noAccount"));
         return RunOutcome::NoAccount;
     }
-    install_running_game_follower(engine);
     let host = EngineHost::new(engine.clone());
     match run(host) {
         Ok(()) => RunOutcome::Quit,

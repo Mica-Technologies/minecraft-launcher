@@ -4,7 +4,7 @@
 //!
 //! | Module | Java origin | What |
 //! |---|---|---|
-//! | [`shell`] | `MCLauncherGuiController`, `MCLauncherGuiWindow`, `WindowsTitleBarControls` | main window, custom title bar, navigation + gate, close guard, [`GuiHandle`], hooks |
+//! | [`shell`] | `MCLauncherGuiController`, `MCLauncherGuiWindow`, `WindowsTitleBarControls`, `LauncherActions`, `NotificationManager` | main window, custom title bar, navigation + gate, close guard, [`GuiHandle`], hooks, menu bar sync, tray/dock actions, desktop integration |
 //! | [`actions`] | `KeyboardShortcutManager` | actions, key bindings, key contexts |
 //! | [`menus`] | `SystemMenuBarManager` | the menu bar |
 //! | [`theme`] | `applyTheme`, `forceThemeChange` | theme resolution and native chrome hookup |
@@ -118,13 +118,6 @@ pub fn init_with(cx: &mut App, options: UiOptions) {
         actions::install_handlers(cx);
     }
     shell::controller::install(cx);
-    menus::set_app_menus(
-        cx,
-        &menus::MenuState {
-            theme: mmcl_theme::ThemeId::from_config_lenient(&settings.theme),
-            ..menus::MenuState::default()
-        },
-    );
 
     if let Some(engine) = options.engine {
         mmcl_ui_kit::controls::set_offline(cx, engine.is_offline());
@@ -135,12 +128,26 @@ pub fn init_with(cx: &mut App, options: UiOptions) {
         });
         cx.set_global(SettingsWatch(vec![watch]));
     }
+    // The bar from the current settings; [`install_desktop_integration`] keeps it in step.
+    shell::menu_bar::refresh_now(cx);
+}
+
+/// Turns on the event-driven desktop integration of [`shell::desktop`]: engine notifications
+/// as toasts through the platform backend (tray balloons on Windows), taskbar / dock progress
+/// for preparing launches, the short-launch "Ready to play" toast, and the menu bar, dock menu
+/// and jump list kept in step with every screen swap, launch and setting change. Call once
+/// after [`init`], instead of (not as well as) an app-side equivalent: both would toast twice.
+pub fn install_desktop_integration(cx: &mut App) {
+    shell::desktop::install(cx);
 }
 
 fn on_setting_event(event: &UiEvent, cx: &mut App) {
     let settings = |cx: &App| services::backend(cx).shell_settings();
     if event.is_setting(&Setting::Theme(String::new())) {
         shell::force_theme_refresh(cx);
+    } else if event.is_setting(&Setting::ResizableWindows(false)) {
+        let resizable = settings(cx).resizable_windows;
+        shell::set_resizable(cx, resizable);
     } else if event.is_setting(&Setting::UiScalePercent(0)) {
         let percent = settings(cx).ui_scale_percent;
         scale::set_ui_scale(cx, percent);

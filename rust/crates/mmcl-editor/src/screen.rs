@@ -7,15 +7,18 @@
 //! lists), bottom bar (status, Save, Return). Every network, disk and hashing step runs on the
 //! background executor; the view only applies results.
 
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext as _, ClickEvent, Context, Entity, FocusHandle, Focusable, Image,
-    InteractiveElement as _, IntoElement, KeyBinding, ObjectFit, ParentElement as _,
-    PathPromptOptions, Render, ScrollStrategy, SharedString, StatefulInteractiveElement as _,
-    Styled as _, StyledImage as _, Subscription, Task, UniformListScrollHandle, WeakEntity, Window,
-    actions, div, img, prelude::FluentBuilder as _, px, uniform_list,
+    App, AppContext as _, Bounds, ClickEvent, Context, CursorStyle, DragMoveEvent, EmptyView,
+    Entity, FocusHandle, Focusable, Image, InteractiveElement as _, IntoElement, KeyBinding,
+    MouseButton, MouseDownEvent, ObjectFit, ParentElement as _, PathPromptOptions, Pixels, Render,
+    ScrollStrategy, SharedString, StatefulInteractiveElement as _, Styled as _, StyledImage as _,
+    Subscription, Task, UniformListScrollHandle, WeakEntity, Window, actions, div, img,
+    prelude::FluentBuilder as _, px, uniform_list,
 };
 use gpui_component::WindowExt as _;
 use gpui_component::button::{Button, ButtonVariants as _};
@@ -31,7 +34,7 @@ use mmcl_ui_kit::dialogs::{self, Answer, ButtonRole, DialogButton, DialogLevel, 
 use mmcl_ui_kit::scale::u;
 use mmcl_ui_kit::{
     AnnouncementBanner, CloseDecision, HelpTopic, Icon, IconButton, Navigator, OfflineChip, Screen,
-    ScreenId, ScreenRequest, Switch, ThemeExt as _, TypeStyleExt as _, hsla,
+    ScreenId, ScreenRequest, Switch, ThemeExt as _, TooltipExt as _, TypeStyleExt as _, hsla,
 };
 
 use crate::EditorServices;
@@ -42,7 +45,7 @@ use crate::model::{self, EditorModel};
 use crate::modrinth::{self, AddOutcome, AddTotals};
 use crate::row::RowId;
 use crate::search_dialog::{Filters, ModrinthSearch};
-use crate::table::{Column, SortDir};
+use crate::table::{Column, ColumnLayout, FileTable, SortDir};
 
 actions!(
     mmcl_editor,
@@ -51,13 +54,51 @@ actions!(
         SaveDocument,
         /// New document (Ctrl/Cmd+N).
         NewDocument,
+        /// Select every shown row of the file table (Ctrl/Cmd+A).
+        SelectAllRows,
+        /// Focus row up (Up).
+        SelectPrevRow,
+        /// Focus row down (Down).
+        SelectNextRow,
+        /// Extend the selection up (Shift+Up).
+        ExtendPrevRow,
+        /// Extend the selection down (Shift+Down).
+        ExtendNextRow,
+        /// A page of rows up (Page Up).
+        SelectPageUp,
+        /// A page of rows down (Page Down).
+        SelectPageDown,
+        /// The first row (Home).
+        SelectFirstRow,
+        /// The last row (End).
+        SelectLastRow,
+        /// Extend the selection to the first row (Shift+Home).
+        ExtendFirstRow,
+        /// Extend the selection to the last row (Shift+End).
+        ExtendLastRow,
+        /// Edit the focus row's first text cell (F2 or Enter).
+        EditFocusedCell,
+        /// Commit the open cell and edit the next one (Tab).
+        NextCell,
+        /// Commit the open cell and edit the previous one (Shift+Tab).
+        PrevCell,
     ]
 );
 
 /// The editor's key context.
 pub const KEY_CONTEXT: &str = "ModpackEditor";
+/// The file table's key context (row navigation, select-all, start editing). Text inputs inside
+/// it keep their own Ctrl/Cmd+A and arrow keys: their deeper context wins.
+pub const TABLE_KEY_CONTEXT: &str = "ModpackEditorTable";
+/// The open cell editor's key context (Tab / Shift+Tab move to the next / previous cell).
+pub const CELL_KEY_CONTEXT: &str = "ModpackEditorCell";
 
-/// Binds Ctrl/Cmd+S and Ctrl/Cmd+N inside the editor (Alt/Shift variants do not match).
+/// Rows Page Up / Page Down move.
+const PAGE_ROWS: isize = 10;
+
+/// Binds Ctrl/Cmd+S and Ctrl/Cmd+N inside the editor (Alt/Shift variants do not match), and the
+/// file table's keys: Ctrl/Cmd+A, Up/Down (Shift extends), Page Up/Down, Home/End (Shift
+/// extends), F2 or Enter to edit, Tab / Shift+Tab between cells.
 pub fn bind_keys(cx: &mut App) {
     // KeyBinding::new does not resolve the "secondary" modifier in gpui-pre 0.3.11 (it panics
     // on parse), so name the platform's modifier directly.
@@ -65,14 +106,72 @@ pub fn bind_keys(cx: &mut App) {
     const SAVE: &str = "cmd-s";
     #[cfg(target_os = "macos")]
     const NEW: &str = "cmd-n";
+    #[cfg(target_os = "macos")]
+    const SELECT_ALL: &str = "cmd-a";
     #[cfg(not(target_os = "macos"))]
     const SAVE: &str = "ctrl-s";
     #[cfg(not(target_os = "macos"))]
     const NEW: &str = "ctrl-n";
+    #[cfg(not(target_os = "macos"))]
+    const SELECT_ALL: &str = "ctrl-a";
+    let table = Some(TABLE_KEY_CONTEXT);
+    let cell = Some(CELL_KEY_CONTEXT);
     cx.bind_keys([
         KeyBinding::new(SAVE, SaveDocument, Some(KEY_CONTEXT)),
         KeyBinding::new(NEW, NewDocument, Some(KEY_CONTEXT)),
+        KeyBinding::new(SELECT_ALL, SelectAllRows, table),
+        KeyBinding::new("up", SelectPrevRow, table),
+        KeyBinding::new("down", SelectNextRow, table),
+        KeyBinding::new("shift-up", ExtendPrevRow, table),
+        KeyBinding::new("shift-down", ExtendNextRow, table),
+        KeyBinding::new("pageup", SelectPageUp, table),
+        KeyBinding::new("pagedown", SelectPageDown, table),
+        KeyBinding::new("home", SelectFirstRow, table),
+        KeyBinding::new("end", SelectLastRow, table),
+        KeyBinding::new("shift-home", ExtendFirstRow, table),
+        KeyBinding::new("shift-end", ExtendLastRow, table),
+        KeyBinding::new("f2", EditFocusedCell, table),
+        KeyBinding::new("enter", EditFocusedCell, table),
+        KeyBinding::new("tab", NextCell, cell),
+        KeyBinding::new("shift-tab", PrevCell, cell),
     ]);
+}
+
+/// The drag payload of a header's resize edge.
+#[derive(Debug, Clone, Copy)]
+struct ColumnResize;
+
+/// The drag payload of a header being moved onto another.
+#[derive(Debug, Clone)]
+struct ColumnMove {
+    list: FileList,
+    col: Column,
+    label: SharedString,
+}
+
+impl Render for ColumnMove {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let t = cx.tokens();
+        div()
+            .px(u(8.0))
+            .py(u(4.0))
+            .rounded(u(mmcl_theme::shape::SMALL))
+            .bg(hsla(t.md_surface_container_high))
+            .text_color(hsla(t.md_on_surface))
+            .text_size(px(12.0))
+            .font_weight(gpui::FontWeight::SEMIBOLD)
+            .child(self.label.clone())
+    }
+}
+
+/// Where a column resize started: the column, the pointer x and the column's width then (layout
+/// px).
+#[derive(Debug, Clone, Copy)]
+struct ResizeStart {
+    list: FileList,
+    col: Column,
+    x: Pixels,
+    width: f32,
 }
 
 /// Tab labels, Metadata first, then the lists in `FileList::ALL` order.
@@ -128,11 +227,18 @@ pub struct ModpackEditor {
     cell_input: Entity<InputState>,
     editing: Option<CellEdit>,
     scrolls: Vec<UniformListScrollHandle>,
+    /// Per list: the user's column order and widths.
+    layouts: Vec<ColumnLayout>,
+    /// The shown table's header cells as last laid out (window px), for resize starts.
+    header_bounds: Rc<RefCell<Vec<Bounds<Pixels>>>>,
+    resize: Option<ResizeStart>,
     logo_preview: Option<Arc<Image>>,
     bg_preview: Option<Arc<Image>>,
     preview_generation: [u64; 2],
     announcement: SharedString,
     focus: FocusHandle,
+    /// The file table's focus (its key context handles row keys while it has focus).
+    table_focus: FocusHandle,
     /// The user already agreed to discard (Return), so the shell's own leave check passes.
     leave_confirmed: bool,
     set_up: bool,
@@ -201,8 +307,13 @@ impl ModpackEditor {
         subs.push(cx.subscribe_in(
             &cell_input,
             window,
-            |this, _, ev: &InputEvent, _w, cx| match ev {
-                InputEvent::PressEnter { .. } | InputEvent::Blur => this.commit_cell(cx),
+            |this, _, ev: &InputEvent, w, cx| match ev {
+                InputEvent::PressEnter { .. } => {
+                    this.commit_cell(cx);
+                    // Back to the table, so the arrow keys move rows again.
+                    this.table_focus.focus(w, cx);
+                }
+                InputEvent::Blur => this.commit_cell(cx),
                 _ => {}
             },
         ));
@@ -240,11 +351,18 @@ impl ModpackEditor {
                 .iter()
                 .map(|_| UniformListScrollHandle::new())
                 .collect(),
+            layouts: FileList::ALL
+                .iter()
+                .map(|l| ColumnLayout::new(*l))
+                .collect(),
+            header_bounds: Rc::default(),
+            resize: None,
             logo_preview: None,
             bg_preview: None,
             preview_generation: [0; 2],
             announcement: announcement.into(),
             focus: cx.focus_handle(),
+            table_focus: cx.focus_handle(),
             leave_confirmed: false,
             set_up: false,
             disposed: false,
@@ -930,6 +1048,135 @@ impl ModpackEditor {
         cx.notify();
     }
 
+    /// The file list of the tab showing (`None` on Metadata).
+    fn shown_list(&self) -> Option<FileList> {
+        self.tab
+            .checked_sub(1)
+            .and_then(|i| FileList::ALL.get(i).copied())
+    }
+
+    /// A row key over the shown table: applies `f` and scrolls its result into view. While a
+    /// cell is open the key belongs to the cell editor, so it propagates.
+    fn table_key(
+        &mut self,
+        cx: &mut Context<Self>,
+        f: impl FnOnce(&mut FileTable) -> Option<crate::row::RowId>,
+    ) {
+        let Some(list) = self.shown_list().filter(|_| self.editing.is_none()) else {
+            cx.propagate();
+            return;
+        };
+        let table = self.model.table_mut(list);
+        if let Some(id) = f(table)
+            && let Some(pos) = table.view_order().iter().position(|r| *r == id)
+        {
+            self.scrolls[list_index(list)].scroll_to_item(pos, ScrollStrategy::Nearest);
+        }
+        cx.notify();
+    }
+
+    /// F2 / Enter: edits the focus row's first text cell (in the shown column order).
+    fn edit_focused_cell(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(list) = self.shown_list().filter(|_| self.editing.is_none()) else {
+            cx.propagate();
+            return;
+        };
+        let table = self.model.table(list);
+        let Some(row) = table.lead().or_else(|| table.view_order().first().copied()) else {
+            return;
+        };
+        let Some(col) = self.layouts[list_index(list)]
+            .order()
+            .iter()
+            .copied()
+            .find(|c| c.is_text())
+        else {
+            return;
+        };
+        if table.lead() != Some(row) {
+            self.model.table_mut(list).click_row(row, false, false);
+        }
+        self.start_edit(CellEdit { list, row, col }, window, cx);
+    }
+
+    /// Tab / Shift+Tab in an open cell: commit it and edit the next / previous text cell (the
+    /// next row's first after the last column). Past either end the edit just commits.
+    fn step_cell(&mut self, forward: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(edit) = self.editing else {
+            cx.propagate();
+            return;
+        };
+        let cols = self.layouts[list_index(edit.list)].order().to_vec();
+        let next = self
+            .model
+            .table(edit.list)
+            .neighbor_cell(&cols, edit.row, edit.col, forward);
+        match next {
+            Some((row, col)) => {
+                if row != edit.row {
+                    let table = self.model.table_mut(edit.list);
+                    table.click_row(row, false, false);
+                    if let Some(pos) = table.view_order().iter().position(|r| *r == row) {
+                        self.scrolls[list_index(edit.list)]
+                            .scroll_to_item(pos, ScrollStrategy::Nearest);
+                    }
+                }
+                self.start_edit(
+                    CellEdit {
+                        list: edit.list,
+                        row,
+                        col,
+                    },
+                    window,
+                    cx,
+                );
+            }
+            None => {
+                self.commit_cell(cx);
+                self.table_focus.focus(window, cx);
+            }
+        }
+    }
+
+    /// A press on a header's resize edge: remember where the drag starts from.
+    fn begin_resize(&mut self, list: FileList, col: Column, x: Pixels, cx: &App) {
+        let pos = self.layouts[list_index(list)]
+            .order()
+            .iter()
+            .position(|c| *c == col);
+        let factor = (mmcl_ui_kit::scale::percent(cx) as f32 / 100.0).max(0.01);
+        let measured = pos
+            .and_then(|p| self.header_bounds.borrow().get(p).copied())
+            .map(|b| b.size.width.as_f32() / factor);
+        let width = self.layouts[list_index(list)]
+            .width(col)
+            .or(measured)
+            .unwrap_or(col.widths().0);
+        self.resize = Some(ResizeStart {
+            list,
+            col,
+            x,
+            width,
+        });
+    }
+
+    /// The resize edge moved to `x`: the column follows the pointer within its bounds.
+    fn resize_to(&mut self, x: Pixels, cx: &mut Context<Self>) {
+        let Some(start) = self.resize else { return };
+        let factor = (mmcl_ui_kit::scale::percent(cx) as f32 / 100.0).max(0.01);
+        let dx = (x - start.x).as_f32() / factor;
+        self.layouts[list_index(start.list)].set_width(start.col, start.width + dx);
+        cx.notify();
+    }
+
+    /// A header dropped on another: the column moves there.
+    fn move_column(&mut self, list: FileList, col: Column, target: Column, cx: &mut Context<Self>) {
+        self.commit_cell(cx);
+        if self.layouts[list_index(list)].move_column(col, target) {
+            cx.notify();
+        }
+    }
+
     /// Calc: downloads the row's remote and writes SHA-256 (primary), SHA-1 and MD5.
     fn calc_row(&mut self, list: FileList, id: RowId, cx: &mut Context<Self>) {
         self.commit_cell(cx);
@@ -1402,14 +1649,19 @@ impl ModpackEditor {
                 Input::new(&i.mc),
             ));
 
-        let preview = |image: Option<Arc<Image>>, w: f32, h: f32, a11y: &str| {
+        // `accessibleText` of the FXML previews: the screen-reader label, and the tooltip.
+        let preview = |image: Option<Arc<Image>>, w: f32, h: f32, id: &str, label_key: &str| {
+            let label = t!(label_key).into_owned();
             div()
                 .flex_none()
                 .w(u(w))
                 .h(u(h))
                 .rounded(u(mmcl_theme::shape::SMALL))
                 .bg(hsla(t.md_surface_container_high))
-                .id(SharedString::from(a11y.to_string()))
+                .id(SharedString::from(id.to_string()))
+                .role(gpui::Role::Image)
+                .aria_label(label.clone())
+                .launcher_tooltip(label)
                 .when_some(image, |el, image| {
                     el.child(img(image).w(u(w)).h(u(h)).object_fit(ObjectFit::Contain))
                 })
@@ -1442,6 +1694,7 @@ impl ModpackEditor {
                         64.0,
                         64.0,
                         "editor-logo-preview",
+                        "editor.preview.logo",
                     )),
             )
             .child(
@@ -1468,6 +1721,7 @@ impl ModpackEditor {
                         128.0,
                         64.0,
                         "editor-bg-preview",
+                        "editor.preview.background",
                     )),
             );
 
@@ -1499,7 +1753,12 @@ impl ModpackEditor {
         let t = cx.tokens();
         let li = list_index(list);
         let table = self.model.table(list);
-        let cols = Column::shown_for(list);
+        let layout = &self.layouts[li];
+        let cols: Vec<(Column, Option<f32>)> = layout
+            .order()
+            .iter()
+            .map(|c| (*c, layout.width(*c)))
+            .collect();
         let sort = table.sort();
         let count = table.view_order().len();
 
@@ -1552,6 +1811,9 @@ impl ModpackEditor {
                     .child(model::entry_count(table.len())),
             );
 
+        let bounds_sink = self.header_bounds.clone();
+        let drop_bg = hsla(t.md_state_hover_on_surface);
+        let edge = hsla(t.md_outline_variant);
         let header = div()
             .flex()
             .flex_none()
@@ -1560,7 +1822,13 @@ impl ModpackEditor {
             .border_b_1()
             .border_color(hsla(t.md_outline_variant))
             .bg(hsla(t.md_surface_container_high))
-            .children(cols.iter().map(|c| {
+            .on_children_prepainted(move |bounds, _w, _cx| *bounds_sink.borrow_mut() = bounds)
+            .on_drag_move(
+                cx.listener(|this, ev: &DragMoveEvent<ColumnResize>, _w, cx| {
+                    this.resize_to(ev.event.position.x, cx)
+                }),
+            )
+            .children(cols.iter().map(|(c, width)| {
                 let c = *c;
                 let label = c
                     .header_key()
@@ -1571,7 +1839,39 @@ impl ModpackEditor {
                     Some((sc, SortDir::Descending)) if sc == c => " \u{25BC}",
                     _ => "",
                 };
-                cell_box(c)
+                let payload = ColumnMove {
+                    list,
+                    col: c,
+                    label: label.clone().into(),
+                };
+                // The right edge: drag to resize, double-click for the default width.
+                let resize_edge = div()
+                    .id(("editor-col-resize", li * 16 + col_ix(c)))
+                    .absolute()
+                    .top_0()
+                    .bottom_0()
+                    .right_0()
+                    .w(u(6.0))
+                    .cursor(CursorStyle::ResizeLeftRight)
+                    .border_r_1()
+                    .border_color(edge)
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(move |this, ev: &MouseDownEvent, _w, cx| {
+                            cx.stop_propagation();
+                            this.begin_resize(list, c, ev.position.x, cx);
+                        }),
+                    )
+                    .on_click(cx.listener(move |this, ev: &ClickEvent, _w, cx| {
+                        cx.stop_propagation();
+                        if ev.click_count() >= 2 {
+                            this.layouts[li].reset_width(c);
+                            cx.notify();
+                        }
+                    }))
+                    .on_drag(ColumnResize, |_, _, _, cx| cx.new(|_| EmptyView));
+                cell_box(c, *width)
+                    .relative()
                     .id(("editor-header", li * 16 + col_ix(c)))
                     .font_weight(gpui::FontWeight::SEMIBOLD)
                     .text_size(px(12.0))
@@ -1582,7 +1882,15 @@ impl ModpackEditor {
                         this.model.table_mut(list).click_header(c);
                         cx.notify();
                     }))
-                    .child(format!("{label}{arrow}"))
+                    .on_drag(payload, |p, _, _, cx| cx.new(|_| p.clone()))
+                    .drag_over::<ColumnMove>(move |s, _, _, _| s.bg(drop_bg))
+                    .on_drop(cx.listener(move |this, m: &ColumnMove, _w, cx| {
+                        if m.list == list {
+                            this.move_column(list, m.col, c, cx);
+                        }
+                    }))
+                    .child(div().truncate().child(format!("{label}{arrow}")))
+                    .child(resize_edge)
             }));
 
         let cols_for_rows = cols.clone();
@@ -1600,8 +1908,62 @@ impl ModpackEditor {
         .track_scroll(&self.scrolls[li])
         .flex_1();
 
+        let empty = (count == 0).then(|| {
+            div()
+                .flex_1()
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_color(hsla(t.md_on_surface_variant))
+                .child(t!("editor.table.empty").into_owned())
+        });
         div().flex().flex_col().size_full().child(toolbar).child(
             div()
+                .id(("editor-table", li))
+                .key_context(TABLE_KEY_CONTEXT)
+                .track_focus(&self.table_focus)
+                .aria_label(tab_name(list))
+                .on_action(cx.listener(|this, _: &SelectAllRows, _w, cx| {
+                    this.table_key(cx, |t| {
+                        t.select_all_shown();
+                        None
+                    })
+                }))
+                .on_action(cx.listener(|this, _: &SelectPrevRow, _w, cx| {
+                    this.table_key(cx, |t| t.move_lead(-1, false))
+                }))
+                .on_action(cx.listener(|this, _: &SelectNextRow, _w, cx| {
+                    this.table_key(cx, |t| t.move_lead(1, false))
+                }))
+                .on_action(cx.listener(|this, _: &ExtendPrevRow, _w, cx| {
+                    this.table_key(cx, |t| t.move_lead(-1, true))
+                }))
+                .on_action(cx.listener(|this, _: &ExtendNextRow, _w, cx| {
+                    this.table_key(cx, |t| t.move_lead(1, true))
+                }))
+                .on_action(cx.listener(|this, _: &SelectPageUp, _w, cx| {
+                    this.table_key(cx, |t| t.move_lead(-PAGE_ROWS, false))
+                }))
+                .on_action(cx.listener(|this, _: &SelectPageDown, _w, cx| {
+                    this.table_key(cx, |t| t.move_lead(PAGE_ROWS, false))
+                }))
+                .on_action(cx.listener(|this, _: &SelectFirstRow, _w, cx| {
+                    this.table_key(cx, |t| t.move_lead_to_edge(false, false))
+                }))
+                .on_action(cx.listener(|this, _: &SelectLastRow, _w, cx| {
+                    this.table_key(cx, |t| t.move_lead_to_edge(true, false))
+                }))
+                .on_action(cx.listener(|this, _: &ExtendFirstRow, _w, cx| {
+                    this.table_key(cx, |t| t.move_lead_to_edge(false, true))
+                }))
+                .on_action(cx.listener(|this, _: &ExtendLastRow, _w, cx| {
+                    this.table_key(cx, |t| t.move_lead_to_edge(true, true))
+                }))
+                .on_action(
+                    cx.listener(|this, _: &EditFocusedCell, w, cx| this.edit_focused_cell(w, cx)),
+                )
+                .on_action(cx.listener(|this, _: &NextCell, w, cx| this.step_cell(true, w, cx)))
+                .on_action(cx.listener(|this, _: &PrevCell, w, cx| this.step_cell(false, w, cx)))
                 .flex()
                 .flex_col()
                 .flex_1()
@@ -1612,7 +1974,8 @@ impl ModpackEditor {
                 .rounded(u(mmcl_theme::shape::SMALL))
                 .overflow_hidden()
                 .child(header)
-                .child(rows),
+                .children(empty)
+                .when(count > 0, |el| el.child(rows)),
         )
     }
 
@@ -1620,7 +1983,7 @@ impl ModpackEditor {
         &self,
         list: FileList,
         id: RowId,
-        cols: &[Column],
+        cols: &[(Column, Option<f32>)],
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let t = cx.tokens();
@@ -1637,13 +2000,14 @@ impl ModpackEditor {
             .h(u(ROW_HEIGHT))
             .border_b_1()
             .border_color(hsla(t.md_outline_variant))
+            .aria_selected(selected)
             .when(selected, |el| el.bg(hsla(t.md_secondary_container)))
             .when(!selected, |el| {
                 el.hover(|s| s.bg(hsla(t.md_state_hover_on_surface)))
             })
-            .children(cols.iter().map(|c| {
+            .children(cols.iter().map(|(c, width)| {
                 let c = *c;
-                let base = cell_box(c).id(("editor-cell", rid * 16 + col_ix(c)));
+                let base = cell_box(c, *width).id(("editor-cell", rid * 16 + col_ix(c)));
                 let editing = self.editing
                     == Some(CellEdit {
                         list,
@@ -1652,9 +2016,11 @@ impl ModpackEditor {
                     });
                 if editing {
                     return base
-                        .capture_key_down(cx.listener(|this, ev: &gpui::KeyDownEvent, _w, cx| {
+                        .key_context(CELL_KEY_CONTEXT)
+                        .capture_key_down(cx.listener(|this, ev: &gpui::KeyDownEvent, w, cx| {
                             if ev.keystroke.key == "escape" {
                                 this.cancel_cell(cx);
+                                this.table_focus.focus(w, cx);
                                 cx.stop_propagation();
                             }
                         }))
@@ -1699,38 +2065,50 @@ impl ModpackEditor {
                                 }))
                                 .child(s.label)
                         })
-                        .on_click(cx.listener(move |this, ev: &ClickEvent, _w, cx| {
-                            this.row_clicked(list, id, ev, cx)
+                        .on_click(cx.listener(move |this, ev: &ClickEvent, w, cx| {
+                            this.row_clicked(list, id, ev, w, cx)
                         }))
                         .into_any_element()
                     }
-                    _ => base
-                        .text_color(hsla(t.md_on_surface))
-                        .text_size(px(13.0))
-                        .child(div().truncate().child(c.text_of(row).to_string()))
-                        .on_click(cx.listener(move |this, ev: &ClickEvent, w, cx| {
-                            if ev.click_count() >= 2 {
-                                this.start_edit(
-                                    CellEdit {
-                                        list,
-                                        row: id,
-                                        col: c,
-                                    },
-                                    w,
-                                    cx,
-                                );
-                            } else {
-                                this.row_clicked(list, id, ev, cx);
-                            }
-                        }))
-                        .into_any_element(),
+                    _ => {
+                        let text = c.text_of(row).to_string();
+                        base.text_color(hsla(t.md_on_surface))
+                            .text_size(px(13.0))
+                            // The whole value on hover: long URLs and SHA-256 hashes truncate.
+                            .when(!text.is_empty(), |el| el.launcher_tooltip(text.clone()))
+                            .child(div().truncate().child(text))
+                            .on_click(cx.listener(move |this, ev: &ClickEvent, w, cx| {
+                                if ev.click_count() >= 2 {
+                                    this.start_edit(
+                                        CellEdit {
+                                            list,
+                                            row: id,
+                                            col: c,
+                                        },
+                                        w,
+                                        cx,
+                                    );
+                                } else {
+                                    this.row_clicked(list, id, ev, w, cx);
+                                }
+                            }))
+                            .into_any_element()
+                    }
                 }
             }))
             .into_any_element()
     }
 
-    fn row_clicked(&mut self, list: FileList, id: RowId, ev: &ClickEvent, cx: &mut Context<Self>) {
+    fn row_clicked(
+        &mut self,
+        list: FileList,
+        id: RowId,
+        ev: &ClickEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.commit_cell(cx);
+        self.table_focus.focus(window, cx);
         let m = ev.modifiers();
         let toggle = m.secondary(cx);
         self.model.table_mut(list).click_row(id, toggle, m.shift);
@@ -1785,7 +2163,7 @@ fn list_loader_ix(l: Loader) -> usize {
 
 /// A cell sized by the column's width policy: Remote URL and Local Path grow (Remote absorbs
 /// the most), the rest keep their preferred width.
-fn cell_box(c: Column) -> gpui::Div {
+fn cell_box(c: Column, width: Option<f32>) -> gpui::Div {
     let (pref, min, _max) = c.widths();
     let base = div()
         .flex()
@@ -1793,6 +2171,10 @@ fn cell_box(c: Column) -> gpui::Div {
         .px(u(6.0))
         .h_full()
         .overflow_hidden();
+    if let Some(w) = width {
+        // A width the user dragged to.
+        return base.flex_none().w(u(w));
+    }
     match c {
         Column::Remote => base.flex_grow(2.0).flex_basis(u(pref)).min_w(u(min)),
         Column::Local | Column::Hash => base
@@ -1884,7 +2266,8 @@ impl Screen for ModpackEditor {
         self.announcement = self.services.backend.announcement().into();
         self.model.new_document();
         self.show_model(window, cx);
-        self.set_status(t!("editor.status.noFile").into_owned(), cx);
+        // Java's setup ran newDocument(), which announced the blank document.
+        self.set_status(t!("editor.status.newCreated").into_owned(), cx);
         if let Some(pack) = self.initial.take() {
             self.load_from_pack(pack, window, cx);
         }

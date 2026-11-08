@@ -24,9 +24,10 @@ use windows::Win32::UI::Shell::{
     SHCNE_ASSOCCHANGED, SHCNF_IDLIST, SHChangeNotify, SetCurrentProcessExplicitAppUserModelID,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    ASFW_ANY, AllowSetForegroundWindow, GetWindowRect, IsIconic, SW_RESTORE, SWP_FRAMECHANGED,
-    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetForegroundWindow, SetWindowPos,
-    ShowWindow,
+    ASFW_ANY, AllowSetForegroundWindow, GWL_STYLE, GWLP_HWNDPARENT, GetWindowLongPtrW,
+    GetWindowRect, IsIconic, SW_RESTORE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+    SWP_NOZORDER, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, ShowWindow, WS_MAXIMIZEBOX,
+    WS_THICKFRAME,
 };
 use windows::core::{HSTRING, w};
 
@@ -172,6 +173,42 @@ pub fn force_frame_refresh(h: isize) -> bool {
     })
 }
 
+/// The `GWL_STYLE` bits that make a window resizable: the sizing border and the maximize box.
+pub(crate) const RESIZE_STYLE_BITS: isize = (WS_THICKFRAME.0 | WS_MAXIMIZEBOX.0) as isize;
+
+/// `style` with the resize bits set or cleared (pure).
+pub(crate) fn resizable_style(style: isize, resizable: bool) -> isize {
+    if resizable {
+        style | RESIZE_STYLE_BITS
+    } else {
+        style & !RESIZE_STYLE_BITS
+    }
+}
+
+/// Adds or removes `WS_THICKFRAME | WS_MAXIMIZEBOX` and re-asserts the frame
+/// (`SWP_FRAMECHANGED`), so the sizing border, edge drags, Aero Snap resizing and
+/// double-click maximize follow the setting on an open window.
+pub fn set_resizable(h: isize, resizable: bool) -> bool {
+    crate::guard(|| unsafe {
+        let w = hwnd(h);
+        let style = GetWindowLongPtrW(w, GWL_STYLE);
+        let next = resizable_style(style, resizable);
+        if next != style {
+            SetWindowLongPtrW(w, GWL_STYLE, next);
+        }
+        force_frame_refresh(h)
+    })
+}
+
+/// Sets (or with `None` clears) the owner window (`GWLP_HWNDPARENT`): an owned window stays
+/// above its owner and minimizes with it (`initOwner`).
+pub fn set_owner(h: isize, owner: Option<isize>) -> bool {
+    crate::guard(|| unsafe {
+        SetWindowLongPtrW(hwnd(h), GWLP_HWNDPARENT, owner.unwrap_or(0));
+        true
+    })
+}
+
 /// `SHChangeNotify(SHCNE_ASSOCCHANGED)` so Explorer picks up new associations.
 pub fn notify_association_changed() {
     crate::guard(|| unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None) });
@@ -226,6 +263,19 @@ mod tests {
         copy_wide(&mut buf, "");
         assert_eq!(buf[0], 0);
     }
+
+    #[test]
+    fn resizable_style_toggles_only_the_resize_bits() {
+        let base = WS_SYSMENU_BIT | 0x10;
+        let on = resizable_style(base, true);
+        assert_eq!(on & RESIZE_STYLE_BITS, RESIZE_STYLE_BITS);
+        assert_eq!(on & !RESIZE_STYLE_BITS, base);
+        let off = resizable_style(on, false);
+        assert_eq!(off, base);
+        assert_eq!(resizable_style(off, false), base, "idempotent");
+    }
+
+    const WS_SYSMENU_BIT: isize = 0x0008_0000;
 
     #[test]
     fn startup_steps_are_safe_to_repeat() {

@@ -19,6 +19,9 @@ tokio.workspace = true
 futures.workspace = true
 tracing.workspace = true
 chrono.workspace = true
+# Decodes the launcher icon for the window (X11 takes it from WindowOptions); the version gpui
+# already uses.
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }

@@ -112,6 +112,69 @@ impl Column {
     }
 }
 
+/// The user's column arrangement for one table: column order (drag a header onto another) and
+/// widths (drag a header's right edge), as a JavaFX `TableView` allows. View state only: never
+/// saved, never part of the document.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ColumnLayout {
+    order: Vec<Column>,
+    widths: Vec<(Column, f32)>,
+}
+
+impl ColumnLayout {
+    /// The default arrangement of `list`'s columns.
+    pub fn new(list: FileList) -> ColumnLayout {
+        ColumnLayout {
+            order: Column::shown_for(list),
+            widths: Vec::new(),
+        }
+    }
+
+    /// The columns, left to right.
+    pub fn order(&self) -> &[Column] {
+        &self.order
+    }
+
+    /// The width the user gave `col` (px), `None` while it follows the default policy.
+    pub fn width(&self, col: Column) -> Option<f32> {
+        self.widths.iter().find(|(c, _)| *c == col).map(|(_, w)| *w)
+    }
+
+    /// Sets `col`'s width, held to its (min, max) bounds. Returns the width applied.
+    pub fn set_width(&mut self, col: Column, width: f32) -> f32 {
+        let (_, min, max) = col.widths();
+        let w = if width.is_nan() { min } else { width.max(min) };
+        let w = max.map_or(w, |m| w.min(m));
+        match self.widths.iter_mut().find(|(c, _)| *c == col) {
+            Some(slot) => slot.1 = w,
+            None => self.widths.push((col, w)),
+        }
+        w
+    }
+
+    /// Moves `col` to where `target` is (dropping a header on another). Returns whether the
+    /// order changed.
+    pub fn move_column(&mut self, col: Column, target: Column) -> bool {
+        if col == target {
+            return false;
+        }
+        let (Some(from), Some(to)) = (
+            self.order.iter().position(|c| *c == col),
+            self.order.iter().position(|c| *c == target),
+        ) else {
+            return false;
+        };
+        let c = self.order.remove(from);
+        self.order.insert(to, c);
+        true
+    }
+
+    /// Back to the default order and widths (double-click on a resize edge resets one width).
+    pub fn reset_width(&mut self, col: Column) {
+        self.widths.retain(|(c, _)| *c != col);
+    }
+}
+
 /// Sort direction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortDir {
@@ -130,6 +193,8 @@ pub struct FileTable {
     selection: HashSet<RowId>,
     /// Anchor of shift-click range selection.
     anchor: Option<RowId>,
+    /// The keyboard focus row (where arrow keys move from; the far end of a Shift range).
+    lead: Option<RowId>,
 }
 
 impl FileTable {
@@ -143,6 +208,7 @@ impl FileTable {
             sort: None,
             selection: HashSet::new(),
             anchor: None,
+            lead: None,
         }
     }
 
@@ -156,6 +222,7 @@ impl FileTable {
         self.rows.clear();
         self.selection.clear();
         self.anchor = None;
+        self.lead = None;
         for r in rows {
             self.push(r);
         }
@@ -219,6 +286,7 @@ impl FileTable {
         let selected = std::mem::take(&mut self.selection);
         self.rows.retain(|(id, _)| !selected.contains(id));
         self.anchor = None;
+        self.lead = None;
         before - self.rows.len()
     }
 
@@ -296,6 +364,7 @@ impl FileTable {
     pub fn clear_selection(&mut self) {
         self.selection.clear();
         self.anchor = None;
+        self.lead = None;
     }
 
     /// A click on a row: plain replaces the selection; `toggle` (Ctrl/Cmd) adds or removes;
@@ -311,6 +380,7 @@ impl FileTable {
                     self.selection.clear();
                 }
                 self.selection.extend(order[lo..=hi].iter().copied());
+                self.lead = Some(id);
                 return;
             }
         }
@@ -323,11 +393,93 @@ impl FileTable {
             self.selection.insert(id);
         }
         self.anchor = Some(id);
+        self.lead = Some(id);
     }
 
     /// Selects every row (Ctrl/Cmd+A over the table).
     pub fn select_all_shown(&mut self) {
-        self.selection = self.view_order().into_iter().collect();
+        let order = self.view_order();
+        if self.lead.is_none_or(|l| !order.contains(&l)) {
+            self.lead = order.first().copied();
+            self.anchor = self.lead;
+        }
+        self.selection = order.into_iter().collect();
+    }
+
+    /// The keyboard focus row, when it is still shown.
+    pub fn lead(&self) -> Option<RowId> {
+        self.lead.filter(|l| self.view_order().contains(l))
+    }
+
+    /// Up / Down (`delta` -1 / +1, Page Up / Down a larger step) over the shown rows, as a
+    /// JavaFX `TableView` does: plain moves the selection to the new row; `extend` (Shift)
+    /// selects the range from the anchor to it. With no focus row yet, Down starts at the first
+    /// row and Up at the last. Returns the new focus row (to scroll to).
+    pub fn move_lead(&mut self, delta: isize, extend: bool) -> Option<RowId> {
+        let order = self.view_order();
+        let last = order.len().checked_sub(1)?;
+        let target = match self.lead.and_then(|l| order.iter().position(|r| *r == l)) {
+            Some(pos) => pos.saturating_add_signed(delta).min(last),
+            None if delta >= 0 => 0,
+            None => last,
+        };
+        self.focus_view_index(&order, target, extend)
+    }
+
+    /// Home / End: the first or last shown row (`extend` selects the range to it).
+    pub fn move_lead_to_edge(&mut self, end: bool, extend: bool) -> Option<RowId> {
+        let order = self.view_order();
+        let last = order.len().checked_sub(1)?;
+        self.focus_view_index(&order, if end { last } else { 0 }, extend)
+    }
+
+    fn focus_view_index(&mut self, order: &[RowId], pos: usize, extend: bool) -> Option<RowId> {
+        let id = *order.get(pos)?;
+        let anchor_pos = self.anchor.and_then(|a| order.iter().position(|r| *r == a));
+        match anchor_pos {
+            Some(a) if extend => {
+                let (lo, hi) = if a <= pos { (a, pos) } else { (pos, a) };
+                self.selection = order[lo..=hi].iter().copied().collect();
+            }
+            _ => {
+                self.selection.clear();
+                self.selection.insert(id);
+                self.anchor = Some(id);
+            }
+        }
+        self.lead = Some(id);
+        Some(id)
+    }
+
+    /// The cell Tab (`forward`) or Shift+Tab moves an open editor to: the next text column of
+    /// the row in `cols` order, wrapping to the first (last) text column of the next (previous)
+    /// shown row. `None` past the last (first) cell.
+    pub fn neighbor_cell(
+        &self,
+        cols: &[Column],
+        row: RowId,
+        col: Column,
+        forward: bool,
+    ) -> Option<(RowId, Column)> {
+        let text: Vec<Column> = cols.iter().copied().filter(|c| c.is_text()).collect();
+        let at = text.iter().position(|c| *c == col)?;
+        let in_row = if forward {
+            text.get(at + 1)
+        } else {
+            at.checked_sub(1).and_then(|i| text.get(i))
+        };
+        if let Some(c) = in_row {
+            return Some((row, *c));
+        }
+        let order = self.view_order();
+        let pos = order.iter().position(|r| *r == row)?;
+        let next = if forward {
+            order.get(pos + 1)
+        } else {
+            pos.checked_sub(1).and_then(|i| order.get(i))
+        }?;
+        let c = if forward { text.first() } else { text.last() }?;
+        Some((*next, *c))
     }
 
     /// Sets a text cell. Returns whether the value changed.
@@ -386,6 +538,7 @@ impl FileTable {
     pub fn select_broken(&mut self, checked: &[RowId]) -> Option<RowId> {
         self.selection.clear();
         self.anchor = None;
+        self.lead = None;
         for id in checked {
             if self
                 .row(*id)
@@ -517,6 +670,96 @@ mod tests {
         assert_eq!(t.selection().len(), 3);
         t.click_row(order[1], true, false);
         assert_eq!(t.selection().len(), 2);
+    }
+
+    #[test]
+    fn select_all_selects_the_shown_rows_only() {
+        let mut t = table();
+        t.set_filter("a");
+        let shown = t.view_order();
+        t.select_all_shown();
+        assert_eq!(t.selection().len(), shown.len());
+        assert_eq!(t.lead(), shown.first().copied());
+        t.set_filter("");
+        t.select_all_shown();
+        assert_eq!(t.selection().len(), 3);
+    }
+
+    #[test]
+    fn arrow_keys_move_and_shift_arrows_extend() {
+        let mut t = table();
+        let order = t.view_order();
+        // No focus yet: Down starts at the top, Up at the bottom.
+        assert_eq!(t.move_lead(1, false), Some(order[0]));
+        assert_eq!(t.move_lead(1, false), Some(order[1]));
+        assert_eq!(t.selection().len(), 1);
+        assert!(t.is_selected(order[1]));
+        // Shift+Down extends from the anchor; Shift+Up shrinks back.
+        assert_eq!(t.move_lead(1, true), Some(order[2]));
+        assert_eq!(t.selection().len(), 2);
+        assert_eq!(t.move_lead(-1, true), Some(order[1]));
+        assert_eq!(t.selection().len(), 1);
+        assert_eq!(t.move_lead(-1, true), Some(order[0]));
+        assert!(t.is_selected(order[0]) && t.is_selected(order[1]));
+        // Held at the edges.
+        assert_eq!(t.move_lead(-5, false), Some(order[0]));
+        assert_eq!(t.move_lead(50, false), Some(order[2]));
+        assert_eq!(t.move_lead_to_edge(false, true), Some(order[0]));
+        assert_eq!(t.selection().len(), 3);
+        let mut u = table();
+        assert_eq!(u.move_lead(-1, false), Some(order[2]));
+        assert_eq!(FileTable::new(FileList::Mods).move_lead(1, false), None);
+        // A click moves the focus row too.
+        u.click_row(order[0], false, false);
+        assert_eq!(u.move_lead(1, false), Some(order[1]));
+    }
+
+    #[test]
+    fn tab_walks_the_text_cells() {
+        let t = table();
+        let order = t.view_order();
+        let cols = Column::shown_for(FileList::Mods);
+        assert_eq!(
+            t.neighbor_cell(&cols, order[0], Column::Name, true),
+            Some((order[0], Column::Remote))
+        );
+        // Type is the last text column; the next is the next row's first.
+        assert_eq!(
+            t.neighbor_cell(&cols, order[0], Column::Type, true),
+            Some((order[1], Column::Name))
+        );
+        assert_eq!(
+            t.neighbor_cell(&cols, order[1], Column::Name, false),
+            Some((order[0], Column::Type))
+        );
+        assert_eq!(t.neighbor_cell(&cols, order[2], Column::Type, true), None);
+        assert_eq!(t.neighbor_cell(&cols, order[0], Column::Name, false), None);
+        assert_eq!(t.neighbor_cell(&cols, order[0], Column::Client, true), None);
+    }
+
+    #[test]
+    fn columns_resize_within_their_bounds_and_reorder() {
+        let mut l = ColumnLayout::new(FileList::Mods);
+        assert_eq!(l.order(), Column::shown_for(FileList::Mods).as_slice());
+        assert_eq!(l.width(Column::Remote), None);
+        assert_eq!(
+            l.set_width(Column::Remote, 900.0),
+            900.0,
+            "Remote has no max"
+        );
+        assert_eq!(l.set_width(Column::Remote, 10.0), 150.0, "held to its min");
+        assert_eq!(l.set_width(Column::Type, 500.0), 65.0, "held to its max");
+        assert_eq!(l.set_width(Column::Type, f32::NAN), 45.0);
+        assert_eq!(l.width(Column::Type), Some(45.0));
+        l.reset_width(Column::Type);
+        assert_eq!(l.width(Column::Type), None);
+        assert!(l.move_column(Column::Hash, Column::Name));
+        assert_eq!(l.order()[0], Column::Hash);
+        assert_eq!(l.order()[1], Column::Name);
+        assert!(!l.move_column(Column::Hash, Column::Hash));
+        // A column the list does not show cannot move.
+        let mut r = ColumnLayout::new(FileList::ResourcePacks);
+        assert!(!r.move_column(Column::Name, Column::Remote));
     }
 
     #[test]

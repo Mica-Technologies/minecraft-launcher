@@ -7,6 +7,7 @@
 pub mod appearance;
 pub mod dock;
 pub mod notify;
+pub mod window;
 
 use objc2::MainThreadMarker;
 

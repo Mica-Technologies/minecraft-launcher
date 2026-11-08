@@ -73,6 +73,9 @@ pub enum SignInPanelEvent {
     SignedIn(AccountView),
     /// The dismiss button was pressed (any running flow was cancelled first).
     Dismissed,
+    /// The user cancelled outside the panel (closed the Microsoft window or cancelled on its
+    /// page). The panel is back on the chooser.
+    CancelledOutside,
 }
 
 /// The sign-in card.
@@ -226,8 +229,10 @@ impl SignInPanel {
         };
         self.run = None;
         self.tick = None;
-        if let Some(Finished::SignedIn(account)) = self.state.finish(generation, end) {
-            cx.emit(SignInPanelEvent::SignedIn(account));
+        match self.state.finish(generation, end) {
+            Some(Finished::SignedIn(account)) => cx.emit(SignInPanelEvent::SignedIn(account)),
+            Some(Finished::CancelledOutside) => cx.emit(SignInPanelEvent::CancelledOutside),
+            _ => {}
         }
         cx.notify();
     }

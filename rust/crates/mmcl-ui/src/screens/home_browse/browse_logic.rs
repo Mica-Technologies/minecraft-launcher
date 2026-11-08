@@ -408,6 +408,47 @@ pub fn empty_state(search: &str, type_label: &str, status_label: &str) -> (Icon,
     }
 }
 
+/// The Modrinth project preview (`buildModrinthPreview`): the title (or
+/// `preview.modrinth.unnamedProject`) and the dialog body: title, description, source + slug,
+/// version, Minecraft versions, loaders, URL.
+pub fn modrinth_preview_text(p: &mmcl_engine::ModrinthProjectView, url: &str) -> (String, String) {
+    let title = p
+        .title
+        .clone()
+        .filter(|t| !t.trim().is_empty())
+        .unwrap_or_else(|| t!("preview.modrinth.unnamedProject").into_owned());
+    let mut lines = vec![title.clone()];
+    if let Some(d) = p.description.as_ref().filter(|d| !d.trim().is_empty()) {
+        lines.push(String::new());
+        lines.push(d.clone());
+    }
+    lines.push(String::new());
+    lines.push(format!(
+        "{} ({})",
+        t!("preview.modrinth.sourceLabel"),
+        p.slug
+    ));
+    if let Some(v) = p
+        .version_number
+        .as_ref()
+        .or(p.version_name.as_ref())
+        .filter(|v| !v.trim().is_empty())
+    {
+        lines.push(tf!("preview.modrinth.versionLabel", v.as_str()));
+    }
+    if !p.game_versions.is_empty() {
+        lines.push(tf!(
+            "preview.modrinth.minecraftLabel",
+            p.game_versions.join(", ")
+        ));
+    }
+    if !p.loaders.is_empty() {
+        lines.push(tf!("preview.modrinth.loaderLabel", p.loaders.join(", ")));
+    }
+    lines.push(tf!("preview.urlLabel", url));
+    (title, lines.join("\n"))
+}
+
 /// The hosting manifest (`{ "available": [ urls ] }`), pretty-printed.
 pub fn hosting_manifest(urls: &[String]) -> String {
     let mut map = serde_json::Map::new();
@@ -478,6 +519,39 @@ pub fn prewarm_mod_names(roots: &[PathBuf]) {
 mod tests {
     use super::*;
     use crate::screens::home_browse::home_logic::tests::pack;
+
+    #[test]
+    fn modrinth_preview_lists_the_project_facts() {
+        let p = mmcl_engine::ModrinthProjectView {
+            slug: "fo".into(),
+            title: Some("Fabulously Optimized".into()),
+            description: Some("Fast.".into()),
+            version_number: Some("6.1".into()),
+            game_versions: vec!["1.21".into(), "1.21.1".into()],
+            loaders: vec!["fabric".into()],
+            ..Default::default()
+        };
+        let (title, body) = modrinth_preview_text(&p, "https://modrinth.com/modpack/fo");
+        assert_eq!(title, "Fabulously Optimized");
+        let lines: Vec<&str> = body.lines().collect();
+        assert_eq!(lines[0], "Fabulously Optimized");
+        assert_eq!(lines[2], "Fast.");
+        assert!(body.contains("(fo)"));
+        assert!(body.contains(&*tf!("preview.modrinth.versionLabel", "6.1")));
+        assert!(body.contains(&*tf!("preview.modrinth.minecraftLabel", "1.21, 1.21.1")));
+        assert!(body.contains(&*tf!("preview.modrinth.loaderLabel", "fabric")));
+        assert!(body.ends_with(&*tf!("preview.urlLabel", "https://modrinth.com/modpack/fo")));
+
+        let bare = mmcl_engine::ModrinthProjectView {
+            slug: "x".into(),
+            title: Some(" ".into()),
+            ..Default::default()
+        };
+        let (title, body) = modrinth_preview_text(&bare, "u");
+        assert_eq!(title, t!("preview.modrinth.unnamedProject"));
+        // Title, blank, source, URL: no description, version, Minecraft or loader lines.
+        assert_eq!(body.lines().count(), 4);
+    }
 
     fn vv(id: &str, kind: &str, installed: bool) -> VanillaVersionView {
         VanillaVersionView {

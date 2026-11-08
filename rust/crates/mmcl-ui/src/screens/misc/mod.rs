@@ -8,6 +8,7 @@
 //! | [`launch_progress`] | `MCLauncherLaunchProgressGui` | step-list screen + [`LaunchProgressHandle`] |
 //! | [`visuals`] | `BlockyHorizon`, voxel hop, `progressGlow`, `progressCard` | shared backdrop |
 //! | [`help`] | `MCLauncherHelpWindow` | singleton help window (HTML -> Markdown -> `TextView`) |
+//! | [`flows`] | `VerifyAction`, `RuntimeManager` | engine operations shown on the Progress screen |
 //!
 //! [`register`] registers both screens and installs the help window as the shell's help opener
 //! (title-bar help button, F1, Help menu).
@@ -17,6 +18,7 @@ use mmcl_ui_kit::{HelpTopic, ScreenId};
 
 use super::placeholder::ScreenSpec;
 
+pub mod flows;
 pub mod help;
 pub mod launch_progress;
 pub mod progress;

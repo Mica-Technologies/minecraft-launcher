@@ -407,17 +407,20 @@ fn launch_shows_progress_until_the_game_runs() {
         }
         d => panic!("{d:?}"),
     }
-    // Progress events under the session id update it too.
-    app.handle_msg(Msg::Host(HostEvent::Progress(
-        mmcl_engine::OperationProgress {
-            operation: mmcl_engine::OperationId(1),
-            label: "Runtime".into(),
-            text: "java".into(),
-            fraction: 0.8,
-        },
-    )));
+    // A later step snapshot moves it on (launches report through session steps only).
+    let mut further = preparing_with_steps(1, "https://a/pack.json");
+    further.steps[0].progress = 1.0;
+    further.steps[0].state = StepStateView::Done;
+    further.steps[1].state = StepStateView::Running;
+    *host.sessions.lock() = vec![further.clone()];
+    app.handle_msg(Msg::Host(HostEvent::SessionsChanged(Some(Arc::new(
+        further,
+    )))));
     match app.dialogs().last().unwrap() {
-        Dialog::Progress { lines, .. } => assert_eq!(lines.percent, "80%"),
+        Dialog::Progress { lines, .. } => {
+            assert_eq!(lines.section, "Starting");
+            assert_eq!(lines.percent, "50%");
+        }
         d => panic!("{d:?}"),
     }
     // Esc asks to cancel.

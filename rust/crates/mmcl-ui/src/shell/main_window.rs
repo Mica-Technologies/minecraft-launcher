@@ -28,6 +28,17 @@ use crate::services;
 
 /// How long window moves/resizes settle before the bounds are saved.
 pub const BOUNDS_DEBOUNCE: Duration = Duration::from_millis(500);
+/// How long a move settles before the display it ended on is compared (`monitorChangeDebouncer`).
+pub const MONITOR_DEBOUNCE: Duration = Duration::from_millis(200);
+/// The delay of the second frame refresh after a monitor change (the Windows 11 shell sometimes
+/// drops the first one while it debounces the drag).
+pub const MONITOR_RETRY: Duration = Duration::from_millis(200);
+
+/// Whether the window moved to another display (`nudgeIfMonitorChanged`): both displays known
+/// and different. The first sighting only seeds the comparison.
+pub fn monitor_changed(previous: Option<Rect>, current: Option<Rect>) -> bool {
+    matches!((previous, current), (Some(p), Some(c)) if p != c)
+}
 
 /// The main window's root view.
 pub struct MainWindow {
@@ -37,6 +48,9 @@ pub struct MainWindow {
     focus: FocusHandle,
     tracker: BoundsTracker,
     persist: Option<Task<()>>,
+    /// The display the window's centre was on at the last settled move.
+    display: Option<Rect>,
+    monitor_check: Option<Task<()>>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -80,6 +94,8 @@ impl MainWindow {
             focus: cx.focus_handle(),
             tracker,
             persist: None,
+            display: None,
+            monitor_check: None,
             _subscriptions: subscriptions,
         }
     }
@@ -171,6 +187,7 @@ impl MainWindow {
             cleanup_logged(&screen, cx);
         }
         self.persist = None;
+        self.monitor_check = None;
         self.flush_bounds(cx);
     }
 
@@ -241,6 +258,42 @@ impl MainWindow {
                 let _ = this.update(cx, |this, cx| this.flush_bounds(cx));
             }));
         }
+        if self.display.is_none() {
+            self.display = self.display_now(window, cx);
+        }
+        let timer = cx.background_executor().timer(MONITOR_DEBOUNCE);
+        self.monitor_check = Some(cx.spawn_in(window, async move |this, cx| {
+            timer.await;
+            let _ = this.update_in(cx, |this, window, cx| this.check_monitor(window, cx));
+        }));
+    }
+
+    fn display_now(&self, window: &Window, cx: &App) -> Option<Rect> {
+        let (all, primary) = screens(cx);
+        placement::screen_for(rect_of(window.bounds()), &all, primary)
+    }
+
+    /// The monitor-change nudge (`nudgeIfMonitorChanged`, Windows): when a settled move lands
+    /// the window on another display, re-cap the minimum size for that display and re-assert
+    /// the frame twice (`SWP_FRAMECHANGED`) so the per-monitor taskbar moves the button too.
+    /// GPUI's own window procedure re-scales on `WM_DPICHANGED` but never prods the shell.
+    fn check_monitor(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let current = self.display_now(window, cx);
+        let previous = std::mem::replace(&mut self.display, current);
+        if !monitor_changed(previous, current) {
+            return;
+        }
+        self.apply_min_size(window, cx);
+        if cfg!(windows) {
+            mmcl_platform::chrome::force_frame_refresh(&*window);
+            let retry = cx.background_executor().timer(MONITOR_RETRY);
+            self.monitor_check = Some(cx.spawn_in(window, async move |_, cx| {
+                retry.await;
+                let _ = cx.update(|window, _| {
+                    mmcl_platform::chrome::force_frame_refresh(&*window);
+                });
+            }));
+        }
     }
 
     /// Writes the last normal bounds + maximized flag now (skipped before any were seen).
@@ -291,12 +344,17 @@ impl Render for MainWindow {
         let theme = cx.launcher_theme();
         let t = theme.tokens();
         let fill = theme.window_fill(false);
-        let (title, navigable) = match &self.current {
+        let (title, navigable, has_nav_bar) = match &self.current {
             Some(screen) => (
                 screen.window_title(mmcl_core::AppIdentity::current().display_name, cx),
                 screen.installs_global_shortcuts(cx),
+                screen.allows_toolbar_navigation(cx),
             ),
-            None => (mmcl_core::AppIdentity::current().display_name.into(), false),
+            None => (
+                mmcl_core::AppIdentity::current().display_name.into(),
+                false,
+                false,
+            ),
         };
         let help = self.help_button_topic(cx);
         let dock = hooks::bottom_dock(cx);
@@ -311,7 +369,9 @@ impl Render for MainWindow {
             .when_some(fill, |el, fill| el.bg(fill))
             .text_color(hsla(t.color_text))
             .font_family(mmcl_ui_kit::fonts::UI_FAMILY)
-            .child(AppTitleBar::new(title, help))
+            // Screens with a navbar show the brand and screen name there; the strip above
+            // then carries only the drag area and window controls, so nothing shows twice.
+            .child(AppTitleBar::new(title, help).brand(!has_nav_bar))
             .child(
                 div()
                     .flex_1()
@@ -327,4 +387,19 @@ impl Render for MainWindow {
 /// The screen id a [`MainWindow`] shows, read through its entity.
 pub fn current_id(main: &Entity<MainWindow>, cx: &App) -> Option<ScreenId> {
     main.read(cx).current.as_ref().map(|s| s.id(cx))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_a_real_display_change_nudges() {
+        let a = Rect::new(0.0, 0.0, 1920.0, 1080.0);
+        let b = Rect::new(1920.0, 0.0, 2560.0, 1440.0);
+        assert!(!monitor_changed(None, Some(a)), "the first sighting seeds");
+        assert!(!monitor_changed(Some(a), Some(a)));
+        assert!(!monitor_changed(Some(a), None));
+        assert!(monitor_changed(Some(a), Some(b)));
+    }
 }

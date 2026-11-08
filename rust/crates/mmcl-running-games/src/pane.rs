@@ -1081,16 +1081,39 @@ pub fn status_dot_color(phase: SessionPhase, t: &mmcl_theme::Tokens) -> gpui::Hs
     }
 }
 
+/// Navigation that asks the current screen first (the shell's `navigate_gated`: Java's
+/// `mayNavigateAway`, so the editor's unsaved-changes prompt runs before a crash suggestion
+/// leaves it).
+pub type NavigateHandler = std::rc::Rc<dyn Fn(ScreenRequest, &mut App)>;
+
+#[derive(Clone)]
+struct GatedNavigation(NavigateHandler);
+
+impl gpui::Global for GatedNavigation {}
+
+/// Installs the gated navigation the crash card's Open Settings / Open Runtime use. The shell
+/// passes `mmcl_ui::shell::navigate_gated`. Without one they fall back to
+/// [`Navigator::go_to`], which does not ask the screen.
+pub fn set_navigate_handler(cx: &mut App, handler: impl Fn(ScreenRequest, &mut App) + 'static) {
+    cx.set_global(GatedNavigation(std::rc::Rc::new(handler)));
+}
+
+/// Navigates through the gated handler when one is installed.
+pub fn navigate(cx: &mut App, req: ScreenRequest) {
+    match cx.try_global::<GatedNavigation>().cloned() {
+        Some(GatedNavigation(handler)) => handler(req, cx),
+        None => {
+            Navigator::go_to(cx, req);
+        }
+    }
+}
+
 /// What the front end does with a crash action's result.
 pub fn apply_crash_result(result: CrashActionResult, cx: &mut App) {
     match result {
         CrashActionResult::Done => {}
-        CrashActionResult::OpenSettings => {
-            Navigator::go_to(cx, ScreenRequest::new(ScreenId::SETTINGS));
-        }
-        CrashActionResult::OpenRuntime => {
-            Navigator::go_to(cx, ScreenRequest::new(ScreenId::RUNTIME));
-        }
+        CrashActionResult::OpenSettings => navigate(cx, ScreenRequest::new(ScreenId::SETTINGS)),
+        CrashActionResult::OpenRuntime => navigate(cx, ScreenRequest::new(ScreenId::RUNTIME)),
         CrashActionResult::OpenPath(path) => mmcl_ui_kit::open_folder(cx, &path),
         CrashActionResult::OpenUrl(url) => mmcl_ui_kit::open_external_url(cx, &url),
     }

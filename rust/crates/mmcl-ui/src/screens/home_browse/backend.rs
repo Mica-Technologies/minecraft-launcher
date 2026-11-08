@@ -2,23 +2,22 @@
 
 //! What Home and Browse need from the launcher, as one trait ([`LibraryBackend`]).
 //!
-//! [`EngineLibrary`] implements it over [`mmcl_engine::Engine`]. A few operations the screens
-//! need have no engine API yet (cached pack image paths, vanilla uninstall, loader install, the
-//! Modrinth preview, the official-launcher export); the engine implementation then answers with
-//! a clear "not available" error or an empty result, and `mmcl-app` can install a fuller
-//! backend with [`set_backend`]. Tests use a fake.
+//! [`EngineLibrary`] implements it over [`mmcl_engine::Engine`]; [`EmptyLibrary`] answers
+//! "not available" for everything (no engine: previews, tests). `mmcl-app` or a test can
+//! install another backend with [`set_backend`].
 
 use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use gpui::{App, Global};
 use mmcl_engine::{
     AccountView, AnnouncementsView, Engine, EngineError, EngineEvent, ImportOutcome, ImportRequest,
-    ImportSourceView, LaunchOptions, LoaderVersionView, OperationId, PackId, PackSummary, Setting,
-    VanillaVersionView,
+    ImportSourceView, LaunchOptions, LoaderVersionView, ModrinthProjectView, OperationId, PackId,
+    PackSummary, Setting, VanillaVersionView,
 };
 use mmcl_i18n::t;
 
@@ -60,6 +59,8 @@ pub struct LibrarySettings {
     pub last_mod_pack: String,
     /// `quickStartCompleted`.
     pub quick_start_completed: bool,
+    /// `launcherUpdateCheck`: look for a newer launcher release.
+    pub launcher_update_check: bool,
 }
 
 impl Default for LibrarySettings {
@@ -70,6 +71,7 @@ impl Default for LibrarySettings {
             image_cycle_shuffle: false,
             last_mod_pack: String::new(),
             quick_start_completed: true,
+            launcher_update_check: true,
         }
     }
 }
@@ -85,24 +87,19 @@ pub struct Classified {
     pub version_id: Option<String>,
 }
 
-/// A Modrinth project, for the import preview.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ModrinthPreview {
-    pub title: Option<String>,
-    pub description: Option<String>,
-    pub slug: String,
-    pub version_number: Option<String>,
-    pub game_versions: Vec<String>,
-    pub loaders: Vec<String>,
-}
+/// A Modrinth project, for the import preview (pass it back to
+/// [`LibraryBackend::install_modrinth`]).
+pub type ModrinthPreview = ModrinthProjectView;
 
 /// The Modrinth preview lookup.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PreviewResult {
     /// Found.
-    Found(ModrinthPreview),
+    Found(Box<ModrinthPreview>),
     /// Modrinth returned nothing (offline, unknown slug).
     NotFound,
+    /// The lookup failed with a message (for example, not a Modrinth project URL).
+    Failed(String),
     /// This backend cannot preview; import directly after a plain confirmation.
     Unsupported,
 }
@@ -128,6 +125,8 @@ pub struct OfficialStatus {
     pub version_id: String,
     /// The loader version is already installed there.
     pub loader_installed: bool,
+    /// The profile name the export creates (`<pack> (Mica)`).
+    pub profile_name: String,
 }
 
 /// How an official launcher export ended.
@@ -191,6 +190,10 @@ pub trait LibraryBackend: 'static {
     fn active_session_for_pack(&self, id: &PackId) -> Option<mmcl_engine::SessionId>;
     /// Classifies a pasted URL.
     fn classify(&self, url: &str) -> Classified;
+    /// The folder the official loader logos are cached in (`config/loader-logos`).
+    fn loader_logos_dir(&self) -> Option<PathBuf>;
+    /// The game folder an official launcher export of `p` uses (shown before removing it).
+    fn official_export_dir(&self, p: &PackSummary) -> Option<PathBuf>;
     /// Cached image files of an installed pack.
     fn pack_images(&self, id: &PackId) -> PackImages;
     /// Discord presence for a screen (localized text).
@@ -222,8 +225,13 @@ pub trait LibraryBackend: 'static {
     fn install_loader(&self, version: &LoaderVersionView) -> BoxFut<Result<(), String>>;
     /// Imports a pack.
     fn import(&self, request: ImportRequest) -> BoxFut<Result<ImportOutcome, ImportFailure>>;
-    /// The Modrinth project behind a URL.
-    fn modrinth_preview(&self, classified: &Classified) -> BoxFut<PreviewResult>;
+    /// The Modrinth project behind a URL (nothing is installed).
+    fn modrinth_preview(&self, url: &str) -> BoxFut<PreviewResult>;
+    /// Downloads, translates and installs a previewed Modrinth project.
+    fn install_modrinth(
+        &self,
+        project: &ModrinthPreview,
+    ) -> BoxFut<Result<ImportOutcome, ImportFailure>>;
     /// Verifies a pack's files and waits for the result.
     fn verify(&self, id: &PackId) -> BoxFut<VerifyOutcome>;
     /// Writes a zip export.
@@ -240,8 +248,13 @@ pub trait LibraryBackend: 'static {
     fn official_status(&self, id: &PackId) -> BoxFut<Result<OfficialStatus, String>>;
     /// Installs the loader into the official launcher (`LoaderInstallerRunner`).
     fn official_install_loader(&self, id: &PackId) -> BoxFut<Result<String, String>>;
-    /// Creates the official launcher profile.
-    fn official_export(&self, id: &PackId) -> BoxFut<Result<OfficialOutcome, String>>;
+    /// Verifies the pack, installs the loader when `install_loader` (and it is missing), then
+    /// creates the official launcher profile.
+    fn official_export(
+        &self,
+        id: &PackId,
+        install_loader: bool,
+    ) -> BoxFut<Result<OfficialOutcome, String>>;
     /// Whether a profile was exported for the pack.
     fn official_has_export(&self, id: &PackId) -> bool;
     /// Removes the official launcher profile; the profile name.
@@ -273,6 +286,15 @@ pub fn backend(cx: &App) -> Rc<dyn LibraryBackend> {
 /// The "not available in this build" message.
 pub fn unavailable() -> String {
     t!("library.action.unavailable").into_owned()
+}
+
+/// Set once the first available-packs fetch has finished (an empty list is then "ready").
+static AVAILABLE_FETCHED: AtomicBool = AtomicBool::new(false);
+
+/// The available list as "ready": an empty list counts as loaded once the first fetch has
+/// finished (offline, empty manifest), so the screens do not show "Loading" on every visit.
+pub fn ready_available(list: Vec<PackSummary>, fetched: bool) -> Option<Vec<PackSummary>> {
+    (fetched || !list.is_empty()).then_some(list)
 }
 
 fn ready<T: Send + 'static>(v: T) -> BoxFut<T> {
@@ -343,6 +365,25 @@ fn msg(e: EngineError) -> String {
     e.message()
 }
 
+fn import_failure(err: EngineError) -> ImportFailure {
+    ImportFailure {
+        expected: matches!(
+            err,
+            EngineError::Modpack(_) | EngineError::Io(_) | EngineError::Other(_)
+        ),
+        message: err.message(),
+    }
+}
+
+/// How an official export outcome reads in the UI (vanilla never misses a loader).
+pub fn official_outcome(o: mmcl_engine::OfficialExportOutcome, vanilla: bool) -> OfficialOutcome {
+    if o.loader_installed || vanilla {
+        OfficialOutcome::Exported(o.profile_name)
+    } else {
+        OfficialOutcome::LoaderMissing(o.version_id)
+    }
+}
+
 impl EngineLibrary {
     fn spawn<T: Send + 'static>(
         &self,
@@ -361,6 +402,21 @@ impl EngineLibrary {
         Box::pin(async move {
             task.await
                 .unwrap_or_else(|_| Err(t!("engine.error.cancelled").into_owned()))
+        })
+    }
+
+    fn spawn_import(
+        &self,
+        fut: impl Future<Output = Result<ImportOutcome, ImportFailure>> + Send + 'static,
+    ) -> BoxFut<Result<ImportOutcome, ImportFailure>> {
+        let task = self.0.spawn(fut);
+        Box::pin(async move {
+            task.await.unwrap_or_else(|_| {
+                Err(ImportFailure {
+                    expected: false,
+                    message: t!("engine.error.cancelled").into_owned(),
+                })
+            })
         })
     }
 }
@@ -388,14 +444,20 @@ impl LibraryBackend for EngineLibrary {
     }
 
     fn installed_vanilla_ids(&self) -> Vec<String> {
-        // The engine has no vanilla getter yet; the config list is the source of truth
-        // (`VanillaVersionManager.getInstalledVersionIds`).
-        self.0.config().installed_vanilla_versions()
+        // `installed_packs` ends with the installed vanilla versions.
+        self.0
+            .installed_packs()
+            .into_iter()
+            .filter(|p| p.is_vanilla)
+            .filter_map(|p| p.id.vanilla_version().map(str::to_string))
+            .collect()
     }
 
     fn available_packs_if_ready(&self) -> Option<Vec<PackSummary>> {
-        let list = self.0.available_packs_if_ready();
-        (!list.is_empty()).then_some(list)
+        ready_available(
+            self.0.available_packs_if_ready(),
+            AVAILABLE_FETCHED.load(Ordering::SeqCst),
+        )
     }
 
     fn settings(&self) -> LibrarySettings {
@@ -406,6 +468,7 @@ impl LibraryBackend for EngineLibrary {
             image_cycle_shuffle: s.image_cycle_shuffle,
             last_mod_pack: s.last_mod_pack,
             quick_start_completed: s.quick_start_completed,
+            launcher_update_check: s.launcher_update_check,
         }
     }
 
@@ -464,9 +527,29 @@ impl LibraryBackend for EngineLibrary {
         }
     }
 
-    fn pack_images(&self, _id: &PackId) -> PackImages {
-        // No engine API for the cached image files yet: the cards fall back to the URLs.
-        PackImages::default()
+    fn loader_logos_dir(&self) -> Option<PathBuf> {
+        Some(self.0.paths().loader_logos_dir())
+    }
+
+    fn official_export_dir(&self, p: &PackSummary) -> Option<PathBuf> {
+        use mmcl_engine::engine::official_export::{profile_display_name, sanitize_folder_name};
+        Some(
+            self.0
+                .paths()
+                .official_launcher_exports_dir()
+                .join(sanitize_folder_name(&profile_display_name(
+                    &p.name,
+                    p.is_vanilla,
+                ))),
+        )
+    }
+
+    fn pack_images(&self, id: &PackId) -> PackImages {
+        let v = self.0.pack_images(id);
+        PackImages {
+            logos: v.logos,
+            backgrounds: v.backgrounds,
+        }
     }
 
     fn set_presence(&self, text: &str) {
@@ -507,7 +590,14 @@ impl LibraryBackend for EngineLibrary {
 
     fn available_packs(&self) -> BoxFut<Vec<PackSummary>> {
         let e = self.0.clone();
-        self.spawn(async move { e.available_packs().await }, Vec::new())
+        self.spawn(
+            async move {
+                let list = e.available_packs().await;
+                AVAILABLE_FETCHED.store(true, Ordering::SeqCst);
+                list
+            },
+            Vec::new(),
+        )
     }
 
     fn vanilla_versions(&self, kind: &str) -> BoxFut<Vec<VanillaVersionView>> {
@@ -550,60 +640,45 @@ impl LibraryBackend for EngineLibrary {
         let e = self.0.clone();
         let v = version.to_string();
         self.spawn_res(async move {
-            if delete_files {
-                let folder: String = format!("Minecraft{v}")
-                    .chars()
-                    .filter(char::is_ascii_alphanumeric)
-                    .collect();
-                let root = e.paths().pack_install_dir(&folder);
-                if root.exists()
-                    && let Err(err) = tokio::fs::remove_dir_all(&root).await
-                {
-                    tracing::warn!(
-                        "{}",
-                        mmcl_i18n::tf!(
-                            "log.library.vanillaFolderDeleteFailed",
-                            &v,
-                            err.to_string()
-                        )
-                    );
-                }
-            }
-            let mut ids = e.config().installed_vanilla_versions();
-            ids.retain(|x| x != &v);
-            e.config().set_installed_vanilla_versions(&ids);
-            e.emit(EngineEvent::PacksChanged);
-            Ok(())
+            e.uninstall_pack(&PackId::vanilla(&v), delete_files)
+                .await
+                .map_err(msg)
         })
     }
 
-    fn install_loader(&self, _version: &LoaderVersionView) -> BoxFut<Result<(), String>> {
-        ready(Err(unavailable()))
+    fn install_loader(&self, version: &LoaderVersionView) -> BoxFut<Result<(), String>> {
+        let e = self.0.clone();
+        let v = version.clone();
+        self.spawn_res(async move { e.install_loader_version(&v).await.map(|_| ()).map_err(msg) })
     }
 
     fn import(&self, request: ImportRequest) -> BoxFut<Result<ImportOutcome, ImportFailure>> {
         let e = self.0.clone();
-        let task = self.0.spawn(async move {
-            e.import(request).await.map_err(|err| ImportFailure {
-                expected: matches!(
-                    err,
-                    EngineError::Modpack(_) | EngineError::Io(_) | EngineError::Other(_)
-                ),
-                message: err.message(),
-            })
-        });
-        Box::pin(async move {
-            task.await.unwrap_or_else(|_| {
-                Err(ImportFailure {
-                    expected: false,
-                    message: t!("engine.error.cancelled").into_owned(),
-                })
-            })
-        })
+        self.spawn_import(async move { e.import(request).await.map_err(import_failure) })
     }
 
-    fn modrinth_preview(&self, _classified: &Classified) -> BoxFut<PreviewResult> {
-        ready(PreviewResult::Unsupported)
+    fn modrinth_preview(&self, url: &str) -> BoxFut<PreviewResult> {
+        let e = self.0.clone();
+        let url = url.to_string();
+        self.spawn(
+            async move {
+                match e.preview_modrinth(&url).await {
+                    Ok(Some(p)) => PreviewResult::Found(Box::new(p)),
+                    Ok(None) => PreviewResult::NotFound,
+                    Err(err) => PreviewResult::Failed(err.message()),
+                }
+            },
+            PreviewResult::NotFound,
+        )
+    }
+
+    fn install_modrinth(
+        &self,
+        project: &ModrinthPreview,
+    ) -> BoxFut<Result<ImportOutcome, ImportFailure>> {
+        let e = self.0.clone();
+        let p = project.clone();
+        self.spawn_import(async move { e.install_modrinth(&p).await.map_err(import_failure) })
     }
 
     fn verify(&self, id: &PackId) -> BoxFut<VerifyOutcome> {
@@ -612,7 +687,8 @@ impl LibraryBackend for EngineLibrary {
         self.spawn(
             async move {
                 let mut rx = e.subscribe();
-                match e.verify_pack(&id).await {
+                let op = e.next_operation_id();
+                match e.verify_pack_with(&id, op).await {
                     Ok(op) => {
                         await_operation(&mut rx, op).await;
                         VerifyOutcome::Done
@@ -653,8 +729,17 @@ impl LibraryBackend for EngineLibrary {
         })
     }
 
-    fn cache_images(&self, _id: &PackId) -> BoxFut<bool> {
-        ready(false)
+    fn cache_images(&self, id: &PackId) -> BoxFut<bool> {
+        let e = self.0.clone();
+        let id = id.clone();
+        self.spawn(
+            async move {
+                e.cache_pack_images(&id)
+                    .await
+                    .is_ok_and(|v| !v.logos.is_empty() || !v.backgrounds.is_empty())
+            },
+            false,
+        )
     }
 
     fn fetch_bytes(&self, url: &str) -> BoxFut<Result<Vec<u8>, String>> {
@@ -700,31 +785,60 @@ impl LibraryBackend for EngineLibrary {
         )
     }
 
-    fn official_status(&self, _id: &PackId) -> BoxFut<Result<OfficialStatus, String>> {
-        ready(Err(unavailable()))
-    }
-
-    fn official_install_loader(&self, _id: &PackId) -> BoxFut<Result<String, String>> {
-        ready(Err(unavailable()))
-    }
-
-    fn official_export(&self, id: &PackId) -> BoxFut<Result<OfficialOutcome, String>> {
+    fn official_status(&self, id: &PackId) -> BoxFut<Result<OfficialStatus, String>> {
         let e = self.0.clone();
         let id = id.clone();
         self.spawn_res(async move {
-            e.export_pack(&id, mmcl_engine::ExportRequest::OfficialLauncher)
+            e.official_export_status(&id)
                 .await
-                .map(|_| OfficialOutcome::Exported(String::new()))
+                .map(|s| OfficialStatus {
+                    available: s.available,
+                    dot_minecraft: s.dot_minecraft,
+                    version_id: s.version_id,
+                    loader_installed: s.loader_installed,
+                    profile_name: s.profile_name,
+                })
                 .map_err(msg)
         })
     }
 
-    fn official_has_export(&self, _id: &PackId) -> bool {
-        false
+    fn official_install_loader(&self, id: &PackId) -> BoxFut<Result<String, String>> {
+        let e = self.0.clone();
+        let id = id.clone();
+        self.spawn_res(async move { e.install_official_loader(&id).await.map_err(msg) })
     }
 
-    fn official_remove(&self, _id: &PackId) -> BoxFut<Result<String, String>> {
-        ready(Err(unavailable()))
+    fn official_export(
+        &self,
+        id: &PackId,
+        install_loader: bool,
+    ) -> BoxFut<Result<OfficialOutcome, String>> {
+        let e = self.0.clone();
+        let id = id.clone();
+        self.spawn_res(async move {
+            let vanilla = id.vanilla_version().is_some();
+            let op = e.next_operation_id();
+            e.export_official(&id, install_loader, op)
+                .await
+                .map(|o| official_outcome(o, vanilla))
+                .map_err(msg)
+        })
+    }
+
+    fn official_has_export(&self, id: &PackId) -> bool {
+        self.0.has_official_export(id)
+    }
+
+    fn official_remove(&self, id: &PackId) -> BoxFut<Result<String, String>> {
+        let e = self.0.clone();
+        let id = id.clone();
+        self.spawn_res(async move {
+            let name = e.pack(&id).map(|p| {
+                mmcl_engine::engine::official_export::profile_display_name(&p.name, p.is_vanilla)
+            });
+            e.remove_official_export(&id).await.map_err(msg)?;
+            Ok(name.unwrap_or_default())
+        })
     }
 }
 
@@ -782,6 +896,12 @@ impl LibraryBackend for EmptyLibrary {
             version_id: None,
         }
     }
+    fn loader_logos_dir(&self) -> Option<PathBuf> {
+        None
+    }
+    fn official_export_dir(&self, _p: &PackSummary) -> Option<PathBuf> {
+        None
+    }
     fn pack_images(&self, _id: &PackId) -> PackImages {
         PackImages::default()
     }
@@ -825,8 +945,17 @@ impl LibraryBackend for EmptyLibrary {
             message: unavailable(),
         }))
     }
-    fn modrinth_preview(&self, _c: &Classified) -> BoxFut<PreviewResult> {
+    fn modrinth_preview(&self, _url: &str) -> BoxFut<PreviewResult> {
         ready(PreviewResult::Unsupported)
+    }
+    fn install_modrinth(
+        &self,
+        _p: &ModrinthPreview,
+    ) -> BoxFut<Result<ImportOutcome, ImportFailure>> {
+        ready(Err(ImportFailure {
+            expected: false,
+            message: unavailable(),
+        }))
     }
     fn verify(&self, _id: &PackId) -> BoxFut<VerifyOutcome> {
         ready(VerifyOutcome::Unsupported)
@@ -852,7 +981,7 @@ impl LibraryBackend for EmptyLibrary {
     fn official_install_loader(&self, _id: &PackId) -> BoxFut<Result<String, String>> {
         ready(Err(unavailable()))
     }
-    fn official_export(&self, _id: &PackId) -> BoxFut<Result<OfficialOutcome, String>> {
+    fn official_export(&self, _id: &PackId, _l: bool) -> BoxFut<Result<OfficialOutcome, String>> {
         ready(Err(unavailable()))
     }
     fn official_has_export(&self, _id: &PackId) -> bool {
@@ -897,6 +1026,35 @@ mod tests {
         assert_eq!(
             slug_parts(ImportSourceView::Modrinth, "not a url"),
             (None, None)
+        );
+    }
+
+    #[test]
+    fn empty_available_list_is_ready_once_fetched() {
+        assert_eq!(ready_available(Vec::new(), false), None);
+        assert_eq!(ready_available(Vec::new(), true), Some(Vec::new()));
+        let one = vec![PackSummary::default()];
+        assert_eq!(ready_available(one.clone(), false), Some(one));
+    }
+
+    #[test]
+    fn official_outcomes_flag_a_missing_loader() {
+        let o = |installed| mmcl_engine::OfficialExportOutcome {
+            profile_name: "P (Mica)".into(),
+            version_id: "1.20.1-forge-47".into(),
+            loader_installed: installed,
+        };
+        assert_eq!(
+            official_outcome(o(true), false),
+            OfficialOutcome::Exported("P (Mica)".into())
+        );
+        assert_eq!(
+            official_outcome(o(false), false),
+            OfficialOutcome::LoaderMissing("1.20.1-forge-47".into())
+        );
+        assert_eq!(
+            official_outcome(o(false), true),
+            OfficialOutcome::Exported("P (Mica)".into())
         );
     }
 

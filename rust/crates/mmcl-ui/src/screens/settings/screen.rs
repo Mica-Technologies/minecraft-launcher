@@ -29,8 +29,8 @@ use mmcl_engine::settings::{
     UI_SCALE_STEPS,
 };
 use mmcl_engine::{
-    AccountStatus, AccountView, ChipTone, EngineEvent, Notification, NotificationKind,
-    RgbStatusView, ScanFrequency, Setting, Settings,
+    AccountView, ChipTone, EngineEvent, Notification, NotificationKind, OperationId, RgbStatusView,
+    ScanFrequency, Setting, Settings,
 };
 use mmcl_i18n::{SUPPORTED, t, tf};
 use mmcl_theme::shape;
@@ -47,9 +47,10 @@ use super::widgets::{
     OptSelect, bottom_bar, button_row, category_header, group, hint, labeled_row, new_select,
     section_title, select_index, stacked_row,
 };
-use super::{CATEGORIES, NAV_GROUPS, category, open_add_account};
+use super::{CATEGORIES, NAV_GROUPS, SettingsOpen, category, open_add_account};
 use crate::dialogs::{self, Answer, Question};
 use crate::scale::u;
+use crate::screens::accounts::{AccountRow, account_rows as account_rows_of, make_default};
 use crate::services::{self, UiEvent};
 use crate::widgets::{AnnouncementBanner, NavBar, OfflineChip};
 
@@ -65,8 +66,6 @@ pub const SOURCE_URL: &str = "https://github.com/MicaTechnologies/Mica-Minecraft
 const SAVED_FLASH: Duration = Duration::from_secs(5);
 /// How long export / import results show.
 const RESULT_FLASH: Duration = Duration::from_secs(2);
-/// How long the RGB connection test lasts before the chip is re-read.
-const RGB_TEST: Duration = Duration::from_secs(2);
 
 /// The dropdowns of the screen (for the shared selection handler).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -87,6 +86,8 @@ enum Sel {
 struct ScanUi {
     folder: PathBuf,
     running: bool,
+    /// The running scan's operation id (its `Progress` events).
+    op: Option<OperationId>,
     output: Option<SharedString>,
     bar: Entity<WavyProgressBar>,
 }
@@ -145,6 +146,10 @@ pub struct SettingsScreen {
     export_flash: Option<SharedString>,
     import_flash: Option<SharedString>,
     busy: bool,
+    /// "Verify all game files" is starting (guards a double click).
+    verifying: bool,
+    /// The RGB connection test runs (off the UI thread).
+    rgb_testing: bool,
     scan: ScanUi,
     mcp: McpUi,
     is_dev: bool,
@@ -180,6 +185,40 @@ fn apply_writes(engine: &mmcl_engine::Engine, writes: Vec<Setting>) {
         let key = w.key();
         if let Err(e) = engine.set(w) {
             tracing::warn!("{}", tf!("log.settings.saveFailed", key, e.message()));
+        }
+    }
+}
+
+/// Verifies one pack under `op` (on the engine's runtime), mirroring its `Progress` events onto
+/// the Progress screen: the step label as the section line, the step text as the detail line,
+/// and the bar. Subscribes before the verify starts, so no early event is missed.
+async fn verify_one_reporting(
+    engine: mmcl_engine::Engine,
+    id: mmcl_engine::PackId,
+    op: OperationId,
+    handle: crate::screens::misc::progress::ProgressHandle,
+) -> mmcl_engine::EngineResult<OperationId> {
+    use tokio::sync::broadcast::error::RecvError;
+    let mut rx = engine.subscribe();
+    let verify = engine.verify_pack_with(&id, op);
+    tokio::pin!(verify);
+    loop {
+        tokio::select! {
+            res = &mut verify => return res,
+            ev = rx.recv() => match ev {
+                Ok(EngineEvent::Progress(p)) if p.operation == op => {
+                    if !p.label.trim().is_empty() {
+                        handle.set_section(p.label.clone());
+                    }
+                    handle.set_detail(logic::strip_ansi(&p.text));
+                    handle.set_progress(
+                        crate::screens::misc::progress::Progress::from_fraction(p.fraction),
+                    );
+                }
+                Ok(_) | Err(RecvError::Lagged(_)) => {}
+                // No more events: just wait for the verify itself.
+                Err(RecvError::Closed) => return verify.await,
+            },
         }
     }
 }
@@ -453,9 +492,12 @@ impl SettingsScreen {
             export_flash: None,
             import_flash: None,
             busy: false,
+            verifying: false,
+            rgb_testing: false,
             scan: ScanUi {
                 folder: root.clone(),
                 running: false,
+                op: None,
                 output: None,
                 bar,
             },
@@ -528,7 +570,7 @@ impl SettingsScreen {
                 cx.notify();
             }
             UiEvent::Engine(EngineEvent::Progress(p))
-                if self.scan.running && p.label == t!("settings.fxml.malwareScanning") =>
+                if self.scan.running && self.scan.op == Some(p.operation) =>
             {
                 let line = logic::strip_ansi(&p.text);
                 if !line.trim().is_empty() {
@@ -777,9 +819,18 @@ impl SettingsScreen {
             if !crate::shell::confirm_quit_while_games_run(cx).await {
                 return;
             }
-            if this.update(cx, |s, cx| s.persist_now(cx)).is_ok() {
-                cx.update(crate::shell::restart_app);
-            }
+            let Ok(override_tag) = this.update(cx, |s, cx| {
+                s.persist_now(cx);
+                s.saved.locale_override.clone()
+            }) else {
+                return;
+            };
+            // The restart rebuilds every screen in-process; switch the bundles first so it
+            // comes back in the new language (Java relaunched the JVM for this).
+            let locale = mmcl_i18n::locale::resolve(&override_tag);
+            tracing::info!("{}", tf!("log.settings.localeApplied", locale.to_tag()));
+            mmcl_i18n::set_locale(locale);
+            cx.update(crate::shell::restart_app);
         })
         .detach();
     }
@@ -923,11 +974,18 @@ impl SettingsScreen {
 
     // ---- advanced ------------------------------------------------------------------------
 
+    /// `VerifyAction.runForPacks(installed)`: skips (and reports) packs whose game runs, then
+    /// verifies the rest one by one on the Progress screen ("Verifying X (i of n)", the step and
+    /// its bar from the engine's progress events), then a summary toast and Home.
     fn verify_all(&mut self, cx: &mut Context<Self>) {
+        if self.verifying {
+            return;
+        }
         let Some(engine) = services::try_engine(cx) else {
             return;
         };
-        if engine.installed_packs().is_empty() {
+        let installed = engine.installed_packs();
+        if installed.is_empty() {
             notify(
                 cx,
                 NotificationKind::Info,
@@ -936,14 +994,89 @@ impl SettingsScreen {
             );
             return;
         }
-        let task = engine.spawn({
-            let e = engine.clone();
-            async move { e.verify_all_packs().await }
+        let plan = logic::verify_plan(&installed, |p| {
+            engine.active_session_for_pack(&p.id).is_some()
         });
-        cx.spawn(async move |_, cx| {
-            if let Ok(Err(e)) = task.await {
-                dialogs::error(cx, &e.message(), None).await;
+        for item in &plan.running {
+            let mut n = Notification::new(
+                NotificationKind::Warning,
+                t!("notification.pack.running.title"),
+                tf!("notification.pack.running.verify", item.name.as_str()),
+            );
+            n.pack = Some(item.id.clone());
+            engine.notify(n);
+        }
+        if plan.verify.is_empty() {
+            return;
+        }
+        self.verifying = true;
+        cx.notify();
+        // The unsaved-changes prompt first: the Progress screen replaces Settings.
+        let gate = crate::shell::may_navigate_away(cx);
+        cx.spawn(async move |this, cx| {
+            if !gate.await {
+                let _ = this.update(cx, |s, cx| {
+                    s.verifying = false;
+                    cx.notify();
+                });
+                return;
             }
+            let Some(handle) = cx.update(crate::screens::misc::progress::show_progress) else {
+                tracing::error!("{}", t!("log.verifyAction.noProgressGui"));
+                let _ = this.update(cx, |s, cx| {
+                    s.verifying = false;
+                    cx.notify();
+                });
+                return;
+            };
+            // From here Settings is gone; the task runs on its own.
+            let total = plan.verify.len();
+            let (mut ok, mut failed) = (0usize, 0usize);
+            for (i, item) in plan.verify.into_iter().enumerate() {
+                handle.set_labels(logic::verify_title(&item.name, i, total), "");
+                handle.set_detail("");
+                handle.set_progress(crate::screens::misc::progress::Progress::Percent(0.0));
+                let op = engine.next_operation_id();
+                let task = engine.spawn(verify_one_reporting(
+                    engine.clone(),
+                    item.id.clone(),
+                    op,
+                    handle.clone(),
+                ));
+                match task.await {
+                    Ok(Ok(_)) => ok += 1,
+                    Ok(Err(e)) => {
+                        failed += 1;
+                        tracing::error!(
+                            "{}",
+                            tf!(
+                                "log.verifyAction.packFailed",
+                                item.name.as_str(),
+                                e.message()
+                            )
+                        );
+                    }
+                    Err(_) => {
+                        failed += 1;
+                        tracing::error!(
+                            "{}",
+                            tf!(
+                                "log.verifyAction.packFailed",
+                                item.name.as_str(),
+                                t!("settings.verifyAll.interrupted").as_ref()
+                            )
+                        );
+                    }
+                }
+            }
+            let (is_error, title, body) = logic::verify_outcome(ok, failed);
+            let kind = if is_error {
+                NotificationKind::Error
+            } else {
+                NotificationKind::Success
+            };
+            engine.notify(Notification::new(kind, title, body));
+            cx.update(|cx| crate::shell::go_to(cx, ScreenRequest::new(ScreenId::HOME)));
         })
         .detach();
     }
@@ -1011,10 +1144,18 @@ impl SettingsScreen {
             return;
         }
         let folder = self.scan.folder.clone();
-        let Some(task) = services::run(cx, move |e| async move { e.scan_folder(&folder).await })
+        let Some(op) = services::try_engine(cx).map(|e| e.next_operation_id()) else {
+            return;
+        };
+        let Some(task) =
+            services::run(
+                cx,
+                move |e| async move { e.scan_folder_with(&folder, op).await },
+            )
         else {
             return;
         };
+        self.scan.op = Some(op);
         self.scan.running = true;
         self.scan.output = None;
         self.scan.bar.update(cx, |b, cx| b.set_progress(-1.0, cx));
@@ -1023,6 +1164,7 @@ impl SettingsScreen {
             let result = task.await;
             let _ = this.update(cx, |s, cx| {
                 s.scan.running = false;
+                s.scan.op = None;
                 s.scan.bar.update(cx, |b, cx| b.set_progress(1.0, cx));
                 s.scan.output = Some(
                     match result {
@@ -1220,6 +1362,8 @@ impl SettingsScreen {
             let Ok(Ok(Some(path))) = rx.await else {
                 return;
             };
+            // The platform save dialog has no `*.json` filter: a bare name gets the extension.
+            let path = logic::export_path(&path);
             let task = cx.update(|cx| {
                 services::run(cx, move |e| async move { e.export_settings(&path).await })
             });
@@ -1253,19 +1397,35 @@ impl SettingsScreen {
             let Some(path) = paths.into_iter().next() else {
                 return;
             };
-            let task = cx.update(|cx| {
-                services::run(cx, move |e| async move { e.import_settings(&path).await })
-            });
-            let ok = match task {
-                Some(t) => matches!(t.await, Ok(Ok(()))),
-                None => false,
+            // The platform open dialog has no `*.json` filter: refuse anything else here.
+            let ok = if logic::is_json_file(&path) {
+                let task = cx.update(|cx| {
+                    services::run(cx, move |e| async move { e.import_settings(&path).await })
+                });
+                match task {
+                    Some(t) => matches!(t.await, Ok(Ok(()))),
+                    None => false,
+                }
+            } else {
+                tracing::warn!(
+                    "{}",
+                    tf!("log.settings.importNotJson", path.display().to_string())
+                );
+                false
             };
             if ok {
-                // Reload Settings so every control shows the imported values.
+                // Reload Settings so every control shows the imported values; the new screen
+                // shows "Imported!" on the button.
                 cx.update(|cx| {
                     crate::shell::go_to(
                         cx,
-                        ScreenRequest::with_payload(ScreenId::SETTINGS, category),
+                        ScreenRequest::with_payload(
+                            ScreenId::SETTINGS,
+                            SettingsOpen {
+                                category,
+                                imported: true,
+                            },
+                        ),
                     )
                 });
             } else {
@@ -1286,21 +1446,44 @@ impl SettingsScreen {
 
     // ---- RGB -----------------------------------------------------------------------------
 
+    /// `runRgbConnectionTest`: the engine's test blocks for the flash (about 2 s), so it runs on
+    /// a background thread; the button stays disabled until it is done.
     fn rgb_test(&mut self, cx: &mut Context<Self>) {
-        let ran = services::try_engine(cx).is_some_and(|e| e.rgb_test());
-        if !ran {
-            notify(
-                cx,
-                NotificationKind::Warning,
-                "notification.settings.rgbDisabled.title",
-                "notification.settings.rgbDisabled.body",
-            );
+        if self.rgb_testing {
             return;
         }
+        let Some(engine) = services::try_engine(cx) else {
+            return;
+        };
+        self.rgb_testing = true;
+        cx.notify();
+        let run = cx
+            .background_executor()
+            .spawn(async move { engine.rgb_test() });
         self.tasks.push(cx.spawn(async move |this, cx| {
-            cx.background_executor().timer(RGB_TEST).await;
-            let _ = this.update(cx, |s, cx| s.refresh_rgb_status(cx));
+            let ran = run.await;
+            let _ = this.update(cx, |s, cx| {
+                s.rgb_testing = false;
+                if ran {
+                    // The flash is over: re-read the status chip.
+                    s.refresh_rgb_status(cx);
+                } else {
+                    notify(
+                        cx,
+                        NotificationKind::Warning,
+                        "notification.settings.rgbDisabled.title",
+                        "notification.settings.rgbDisabled.body",
+                    );
+                }
+                cx.notify();
+            });
         }));
+    }
+
+    /// Shows "Imported!" on the Import button for a moment (the screen reopened after an
+    /// import).
+    pub(super) fn flash_imported(&mut self, cx: &mut Context<Self>) {
+        self.flash(false, t!("settings.importBtn.success").into_owned(), cx);
     }
 }
 
@@ -1460,8 +1643,9 @@ impl SettingsScreen {
 
         let mut account_rows: Vec<AnyElement> =
             vec![hint(label("settings.accounts.hint"), cx).into_any_element()];
-        for (i, a) in self.accounts.clone().into_iter().enumerate() {
-            account_rows.push(self.render_account_row(i, a, cx));
+        // `AccountListModel.rows`: the default first, with its "Default account" status.
+        for (i, row) in account_rows_of(&self.accounts).into_iter().enumerate() {
+            account_rows.push(self.render_account_row(i, row, cx));
         }
         account_rows.push(
             Button::new("settings-add-account")
@@ -1511,19 +1695,12 @@ impl SettingsScreen {
         ]
     }
 
-    fn render_account_row(&self, i: usize, a: AccountView, cx: &mut Context<Self>) -> AnyElement {
+    fn render_account_row(&self, i: usize, a: AccountRow, cx: &mut Context<Self>) -> AnyElement {
         let t = cx.tokens();
-        let needs_sign_in = a.status == AccountStatus::NeedsSignIn;
-        let mut status = t!(a.status.l10n_key()).into_owned();
-        if !a.remembered {
-            status = tf!("account.status.withSessionOnly", status.as_str());
-        }
-        let can_make_default = !a.is_default && a.status == AccountStatus::Ready;
-        let name = if a.name.is_empty() {
-            a.uuid.clone()
-        } else {
-            a.name.clone()
-        };
+        let needs_sign_in = a.needs_sign_in;
+        let status = a.status_text();
+        let can_make_default = a.can_make_default;
+        let name = a.name.clone();
         let mut buttons: Vec<AnyElement> = Vec::new();
         if needs_sign_in {
             buttons.push(
@@ -1540,14 +1717,9 @@ impl SettingsScreen {
                 Button::new(("acct-default", i))
                     .label(label("settings.accounts.makeDefault"))
                     .outline()
-                    .on_click(cx.listener(move |s, _: &ClickEvent, _, cx| {
-                        if let Some(e) = services::try_engine(cx)
-                            && let Err(err) = e.set_default_account(&uuid)
-                        {
-                            tracing::warn!("{}", err.message());
-                        }
-                        s.reload_accounts(cx);
-                    }))
+                    // Written off the UI thread (the account store encrypts and writes); the
+                    // AccountsChanged event repaints the list.
+                    .on_click(move |_: &ClickEvent, _, cx| make_default(cx, uuid.clone()))
                     .into_any_element(),
             );
         }
@@ -1911,6 +2083,8 @@ impl SettingsScreen {
             Button::new("settings-verify-all")
                 .label(label("settings.fxml.verifyAllGame"))
                 .outline()
+                .loading(self.verifying)
+                .disabled(self.verifying)
                 .on_click(cx.listener(|s, _: &ClickEvent, _, cx| s.verify_all(cx))),
             some_label("settings.fxml.reHashesEvery"),
             cx,
@@ -2101,7 +2275,13 @@ impl SettingsScreen {
         let status = if running {
             format!(
                 "{}  \u{2022}  {}",
-                tf!("settings.mcp.status.running", s.mcp_port.to_string()),
+                tf!(
+                    "settings.mcp.status.running",
+                    logic::status_port(
+                        panel.as_ref().map(|p| p.endpoint_url()).as_deref(),
+                        s.mcp_port
+                    )
+                ),
                 tf!("settings.mcp.status.sessions", sessions.len() as i64)
             )
         } else {
@@ -2640,6 +2820,8 @@ impl SettingsScreen {
                     Button::new("rgb-test")
                         .label(label("settings.fxml.testConnection"))
                         .outline()
+                        .loading(self.rgb_testing)
+                        .disabled(self.rgb_testing)
                         .on_click(cx.listener(|s, _: &ClickEvent, _, cx| s.rgb_test(cx))),
                     some_label("settings.fxml.flashesSolidMagenta"),
                     cx,

@@ -44,15 +44,20 @@ use super::model::{
 use super::pack_actions;
 use super::visuals;
 use crate::actions::{FocusSearch, HOME_CONTEXT, PlayLast, Refresh};
+use crate::dialogs::{self, Answer, Question};
 use crate::scale::u;
 use crate::services::{UiEvent, events};
 use crate::widgets::NavBar;
+use mmcl_ui_kit::notify;
 
 /// The single-click delay before the detail modal opens (a double click plays instead).
 pub const SINGLE_CLICK_DELAY: Duration = Duration::from_millis(130);
 
 /// The first Home of the process fades in once.
 static SHOWN_ONCE: AtomicBool = AtomicBool::new(false);
+
+/// The "update available" toast shows once per session.
+static UPDATE_TOAST_SHOWN: AtomicBool = AtomicBool::new(false);
 
 /// The Home screen.
 pub struct HomeScreen {
@@ -147,6 +152,10 @@ impl HomeScreen {
     }
 
     fn apply(&mut self, change: Change, cx: &mut Context<Self>) {
+        // Any filter / sort / page change ends the `-c` selection ring.
+        if change != Change::None {
+            self.focused_pack = None;
+        }
         match change {
             Change::None => {}
             Change::Rebuild => self.rebuild(cx),
@@ -189,10 +198,9 @@ impl HomeScreen {
     fn request_extras(&mut self, cx: &mut Context<Self>) {
         for item in &self.items {
             let id = item.summary.id.clone();
-            if item.summary.is_vanilla
-                || self.extras.contains_key(&id)
-                || !self.extras_pending.insert(id.clone())
-            {
+            // Vanilla packs too: their install folder backs the folder, export and
+            // official-launcher items of the context menu.
+            if self.extras.contains_key(&id) || !self.extras_pending.insert(id.clone()) {
                 continue;
             }
             let fut = self.backend.pack_extras(&id);
@@ -348,6 +356,9 @@ impl HomeScreen {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.focused_pack.take().is_some() {
+            cx.notify();
+        }
         if count >= 2 {
             self.pending_click = None;
             if self.backend.announcements().disable_gameplay {
@@ -376,17 +387,54 @@ impl HomeScreen {
         }));
     }
 
+    /// The avatar / name click with an installed switcher hook (without one, the shared
+    /// account chip opens its own switcher menu).
     fn open_account_switcher(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        match hooks::read(cx).account_switcher {
-            Some(f) => f(window, cx),
-            None => {
-                crate::shell::navigate_gated(
-                    cx,
-                    ScreenRequest::with_payload(ScreenId::SETTINGS, 0usize),
+        if let Some(f) = hooks::read(cx).account_switcher {
+            f(window, cx);
+        }
+    }
+
+    /// The update glyph (`promptAndOpenUpdate`): "Update now / Later", then the release page
+    /// (http(s) only).
+    fn prompt_update(&mut self, url: String, cx: &mut Context<Self>) {
+        cx.spawn(async move |_, cx| {
+            let q = Question::new(
+                t!("dialog.update.available.title"),
+                t!("dialog.update.available.header"),
+                t!("dialog.update.available.body"),
+                t!("dialog.update.available.button.now"),
+                t!("dialog.update.available.button.later"),
+            );
+            if dialogs::ask(cx, &q, None).await != Answer::Primary {
+                return;
+            }
+            if home_logic::is_openable_update_url(&url) {
+                cx.update(|cx| mmcl_ui_kit::open_external_url(cx, &url));
+            } else {
+                tracing::error!("{}", tf!("log.updateCheck.refuseNonHttpUrl", url.as_str()));
+            }
+        })
+        .detach();
+    }
+
+    /// A newer release was found: the glyph, the red taskbar cue and (once per session) the
+    /// "update available" toast (`UpdateCheckManager.checkAndConfigureUI`).
+    fn on_update_found(&mut self, info: Option<UpdateAvailable>, cx: &mut Context<Self>) {
+        if let Some(u) = &info {
+            mmcl_platform::progress::show_full_error();
+            if UPDATE_TOAST_SHOWN
+                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                .is_ok()
+            {
+                notify::info(
+                    &t!("notification.update.available.title"),
+                    &tf!("notification.update.available.body", u.version.as_str()),
                 );
             }
         }
-        self.backend.set_presence(&t!("discordRpc.screen.settings"));
+        self.update = info;
+        cx.notify();
     }
 
     fn on_event(&mut self, event: &UiEvent, cx: &mut Context<Self>) {
@@ -494,26 +542,30 @@ impl Screen for HomeScreen {
             },
         ));
 
-        // Update check (the navbar download glyph).
-        let upd = self.backend.check_update();
-        self.tasks.push(cx.spawn(async move |this, cx| {
-            let info = upd.await;
-            let _ = this.update(cx, |this, cx| {
-                this.update = info;
-                cx.notify();
-            });
-        }));
-        // The available-packs fetch: show "Loading available packs…" until it completes.
-        if self.backend.available_packs_if_ready().is_none() {
-            self.loading_available = true;
-            let fut = self.backend.available_packs();
+        // Update check (the navbar download glyph), unless turned off in Settings.
+        if self.backend.settings().launcher_update_check {
+            let upd = self.backend.check_update();
             self.tasks.push(cx.spawn(async move |this, cx| {
-                let _ = fut.await;
-                let _ = this.update(cx, |this, cx| {
-                    this.loading_available = false;
-                    cx.notify();
-                });
+                let info = upd.await;
+                let _ = this.update(cx, |this, cx| this.on_update_found(info, cx));
             }));
+        }
+        // The available-packs fetch: show "Loading available packs…" until it completes, then
+        // warm every available pack's logo palette for Browse.
+        match self.backend.available_packs_if_ready() {
+            Some(list) => visuals::prefetch_available(cx, &list, &self.backend),
+            None => {
+                self.loading_available = true;
+                let fut = self.backend.available_packs();
+                self.tasks.push(cx.spawn(async move |this, cx| {
+                    let list = fut.await;
+                    let _ = this.update(cx, |this, cx| {
+                        this.loading_available = false;
+                        visuals::prefetch_available(cx, &list, &this.backend);
+                        cx.notify();
+                    });
+                }));
+            }
         }
         self.rebuild(cx);
         if let Some(name) = self.select_after_setup.take() {
@@ -616,14 +668,18 @@ impl HomeScreen {
                 settings_presence.set_presence(&t!("discordRpc.screen.settings"));
                 crate::shell::navigate_gated(cx, ScreenRequest::new(ScreenId::SETTINGS));
             });
+        let wu = weak.clone();
         let update = self.update.clone().map(|u| {
             IconButton::new(
                 "home-update",
                 Icon::Download,
-                t!("main.navbar.update.a11y").into_owned(),
+                tf!("tooltip.update.available", u.version.as_str()),
             )
             .compact()
-            .on_click(move |_, cx| mmcl_ui_kit::open_external_url(cx, &u.url))
+            .on_click(move |_, cx| {
+                let url = u.url.clone();
+                let _ = wu.update(cx, |this, cx| this.prompt_update(url, cx));
+            })
         });
         let help = IconButton::new(
             "home-help",
@@ -632,38 +688,45 @@ impl HomeScreen {
         )
         .compact()
         .on_click(|_, cx| crate::shell::show_help(cx, HelpTopic::MainScreen));
-        let name = self
-            .account
-            .as_ref()
-            .map(|a| a.name.clone())
-            .unwrap_or_default();
-        let uuid = self.account.as_ref().map(|a| a.uuid.clone());
-        let w = weak.clone();
-        let chip = div()
-            .id("home-account")
-            .flex()
-            .items_center()
-            .gap(u(8.0))
-            .px(u(8.0))
-            .py(u(4.0))
-            .rounded_full()
-            .cursor_pointer()
-            .hover(|s| s.bg(hsla(t.md_state_hover_on_surface)))
-            .child(Avatar::new("home-avatar", uuid, 28.0))
-            .child(
-                div()
-                    .type_role(TypeRole::LabelLarge)
-                    .text_color(hsla(t.color_text))
-                    .child(if name.is_empty() {
-                        t!("main.navbar.player").into_owned()
-                    } else {
-                        name
-                    }),
-            )
-            .launcher_tooltip(t!("main.navbar.avatar.a11y").into_owned())
-            .on_click(move |_: &ClickEvent, window, cx| {
-                let _ = w.update(cx, |this, cx| this.open_account_switcher(window, cx));
-            });
+        let chip = if hooks::read(cx).account_switcher.is_some() {
+            let name = self
+                .account
+                .as_ref()
+                .map(|a| a.name.clone())
+                .unwrap_or_default();
+            let uuid = self.account.as_ref().map(|a| a.uuid.clone());
+            let w = weak.clone();
+            div()
+                .id("home-account")
+                .flex()
+                .items_center()
+                .gap(u(8.0))
+                .px(u(8.0))
+                .py(u(4.0))
+                .rounded_full()
+                .cursor_pointer()
+                .hover(|s| s.bg(hsla(t.md_state_hover_on_surface)))
+                .child(Avatar::new("home-avatar", uuid, 28.0))
+                .child(
+                    div()
+                        .type_role(TypeRole::LabelLarge)
+                        .text_color(hsla(t.color_text))
+                        .child(if name.is_empty() {
+                            t!("main.navbar.player").into_owned()
+                        } else {
+                            name
+                        }),
+                )
+                .launcher_tooltip(t!("main.navbar.avatar.a11y").into_owned())
+                .on_click(move |_: &ClickEvent, window, cx| {
+                    let _ = w.update(cx, |this, cx| this.open_account_switcher(window, cx));
+                })
+                .into_any_element()
+        } else {
+            // The shared chip: switch the default account, add one, or manage accounts
+            // (`AccountSwitcherMenu`).
+            crate::screens::accounts::switcher::account_chip("home-account", cx).into_any_element()
+        };
         NavBar::new(t!("main.navbar.library").into_owned())
             .action(refresh)
             .action(browse)
@@ -889,14 +952,26 @@ impl HomeScreen {
             })),
             menu: Some({
                 let builder: super::card::MenuBuilder = Rc::new(move |menu, _, cx| {
-                    let wm = wm.clone();
+                    // Read at open time: extras that arrived after this render still count.
+                    let extras = wm
+                        .upgrade()
+                        .and_then(|this| this.read(cx).extras.get(&menu_pack.id).cloned())
+                        .or_else(|| extras.clone());
+                    let (wd, ws) = (wm.clone(), wm.clone());
                     let done: pack_actions::Done = Rc::new(move |cx| {
-                        let _ = wm.update(cx, |this, cx| this.rebuild(cx));
+                        let _ = wd.update(cx, |this, cx| this.rebuild(cx));
+                    });
+                    let status: pack_actions::StatusSink = Rc::new(move |text, cx| {
+                        let _ = ws.update(cx, |this, cx| {
+                            this.status = text;
+                            cx.notify();
+                        });
                     });
                     pack_actions::build_pack_context_menu(
                         menu,
                         &menu_pack,
                         extras.as_ref(),
+                        Some(status),
                         done,
                         cx,
                     )
@@ -938,12 +1013,17 @@ impl HomeScreen {
                     .child(t!(state.sub).into_owned()),
             )
             .when(state.browse_button, |el| {
+                // The same gate as the navbar's Browse button (`libraryBtn.fire()`).
+                let edit_disabled = self.backend.announcements().disable_modpacks_edit;
+                let presence = self.backend.clone();
                 el.child(
                     Button::new("home-empty-browse")
                         .label(t!("main.navbar.browse").into_owned())
                         .icon(Icon::Browse)
                         .primary()
-                        .on_click(|_: &ClickEvent, _, cx| {
+                        .disabled(edit_disabled)
+                        .on_click(move |_: &ClickEvent, _, cx| {
+                            presence.set_presence(&t!("discordRpc.screen.browsing"));
                             crate::shell::navigate_gated(cx, ScreenRequest::new(ScreenId::BROWSE));
                         }),
                 )
@@ -998,11 +1078,13 @@ impl HomeScreen {
     }
 }
 
-/// The pack's website (`packURL`), when it is an http(s) URL.
+/// The pack's website (`packURL`), when it is an http(s) URL (else the button is disabled).
 pub fn pack_website(p: &mmcl_engine::PackSummary) -> Option<String> {
-    let _ = p;
-    // The summary has no website field yet; the manifest URL is not a website.
-    None
+    p.website
+        .as_deref()
+        .map(str::trim)
+        .filter(|w| home_logic::is_openable_update_url(w))
+        .map(str::to_string)
 }
 
 impl Render for HomeScreen {

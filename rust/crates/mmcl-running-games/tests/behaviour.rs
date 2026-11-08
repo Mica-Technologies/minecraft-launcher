@@ -31,6 +31,8 @@ struct State {
     height_saves: Vec<i32>,
     crash: Option<CrashView>,
     max_lines: i32,
+    /// `inGameConsoleEnable` off.
+    console_off: bool,
 }
 
 struct Fake {
@@ -185,6 +187,9 @@ impl GamesBackend for Fake {
     }
     fn console_max_lines(&self) -> i32 {
         self.state.borrow().max_lines
+    }
+    fn in_game_console(&self) -> bool {
+        !self.state.borrow().console_off
     }
 }
 
@@ -418,6 +423,8 @@ fn a_crash_with_a_log_stays_on_the_log(cx: &mut TestAppContext) {
     s.has_crash_report = true;
     fake.add(s);
     fake.push(SessionId(1), &["some output"]);
+    // Docked, so the crash's reveal expands the dock instead of opening a window.
+    fake.state.borrow_mut().docked = true;
     let view = install(cx, &fake);
     fake.change(SessionId(1), |s| s.phase = SessionPhase::Crashed);
     cx.run_until_parked();
@@ -426,6 +433,79 @@ fn a_crash_with_a_log_stays_on_the_log(cx: &mut TestAppContext) {
         assert!(p.diagnosis().is_some());
         assert!(!p.showing_crash_report());
     });
+}
+
+#[gpui::test]
+fn the_view_steps_aside_once_the_game_is_up_and_a_crash_brings_it_back(cx: &mut TestAppContext) {
+    let fake = Fake::new();
+    {
+        let mut s = fake.state.borrow_mut();
+        s.docked = true;
+        s.console_off = true;
+    }
+    fake.add(session(1, SessionPhase::Preparing));
+    fake.add(session(2, SessionPhase::Running));
+    let view = install(cx, &fake);
+    view.update(cx, |v, cx| v.select(SessionId(2), cx));
+    fake.change(SessionId(1), |s| s.phase = SessionPhase::Running);
+    cx.run_until_parked();
+    view.read_with(cx, |v, _| assert!(!v.is_expanded(), "stepped aside"));
+    fake.change(SessionId(1), |s| s.phase = SessionPhase::Crashed);
+    cx.run_until_parked();
+    view.read_with(cx, |v, _| {
+        assert!(v.is_expanded(), "the crash brings it back");
+        assert_eq!(v.selected(), Some(SessionId(1)));
+    });
+}
+
+#[gpui::test]
+fn with_the_console_setting_on_the_view_stays(cx: &mut TestAppContext) {
+    let fake = Fake::new();
+    fake.state.borrow_mut().docked = true;
+    fake.add(session(1, SessionPhase::Preparing));
+    let view = install(cx, &fake);
+    fake.change(SessionId(1), |s| s.phase = SessionPhase::Running);
+    cx.run_until_parked();
+    view.read_with(cx, |v, _| assert!(v.is_expanded()));
+}
+
+#[gpui::test]
+fn sessions_pruned_from_the_history_lose_their_tabs(cx: &mut TestAppContext) {
+    let fake = Fake::new();
+    fake.add(session(1, SessionPhase::Exited));
+    fake.add(session(2, SessionPhase::Running));
+    let view = install(cx, &fake);
+    view.read_with(cx, |v, _| {
+        assert_eq!(v.tabs(), [SessionId(1), SessionId(2)])
+    });
+    // The registry drops the oldest ended session when another one ends, with no removal event.
+    fake.state
+        .borrow_mut()
+        .sessions
+        .retain(|s| s.id != SessionId(1));
+    fake.change(SessionId(2), |s| s.phase = SessionPhase::Exited);
+    cx.run_until_parked();
+    view.read_with(cx, |v, _| assert_eq!(v.tabs(), [SessionId(2)]));
+}
+
+#[gpui::test]
+fn tab_keys_switch_games(cx: &mut TestAppContext) {
+    let fake = Fake::new();
+    for id in 1..=3 {
+        fake.add(session(id, SessionPhase::Running));
+    }
+    let view = install(cx, &fake);
+    view.update(cx, |v, cx| v.select(SessionId(1), cx));
+    view.update(cx, |v, cx| v.select_relative(1, cx));
+    view.read_with(cx, |v, _| assert_eq!(v.selected(), Some(SessionId(2))));
+    view.update(cx, |v, cx| v.select_relative(isize::MAX, cx));
+    view.read_with(cx, |v, _| assert_eq!(v.selected(), Some(SessionId(3))));
+    view.update(cx, |v, cx| v.select_relative(1, cx));
+    view.read_with(cx, |v, _| {
+        assert_eq!(v.selected(), Some(SessionId(1)), "wraps")
+    });
+    view.update(cx, |v, cx| v.select_relative(-1, cx));
+    view.read_with(cx, |v, _| assert_eq!(v.selected(), Some(SessionId(3))));
 }
 
 #[gpui::test]

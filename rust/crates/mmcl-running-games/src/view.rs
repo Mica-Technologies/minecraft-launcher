@@ -10,13 +10,18 @@
 //! closes and is opened again on the next reveal; the view and its panes live on in between.
 
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use gpui::{
     AnyElement, AnyWindowHandle, App, AppContext as _, Bounds, Context, CursorStyle, DragMoveEvent,
-    EmptyView, Entity, Global, InteractiveElement as _, IntoElement, MouseButton, ParentElement,
-    Pixels, Render, SharedString, StatefulInteractiveElement as _, Styled, Task, TitlebarOptions,
-    Window, WindowBounds, WindowOptions, div, prelude::FluentBuilder as _, px, size,
+    EmptyView, Entity, FocusHandle, Focusable, Global, InteractiveElement as _, IntoElement,
+    KeyBinding, MouseButton, ParentElement, Pixels, Render, ScrollHandle, SharedString,
+    StatefulInteractiveElement as _, Styled, Task, TitlebarOptions, Window, WindowBounds,
+    WindowOptions, actions, div, prelude::FluentBuilder as _, px, size,
 };
+use gpui_component::button::{Button, ButtonVariants as _};
+use gpui_component::menu::{DropdownMenu as _, PopupMenuItem};
+use gpui_component::{IconName, Sizable as _};
 use mmcl_engine::{EngineEvent, SessionId, SessionInfo, SessionPhase};
 use mmcl_i18n::t;
 use mmcl_ui_kit::scale::{self, u};
@@ -26,6 +31,92 @@ use tokio::sync::broadcast::error::RecvError;
 use crate::backend::Backend;
 use crate::pane::{GameSessionPane, status_dot_color};
 use crate::widgets::{ActionButton, ButtonStyle};
+
+actions!(
+    running_games,
+    [
+        /// The next game's tab (Ctrl+Tab; Right on the focused tab strip). Wraps.
+        NextTab,
+        /// The previous game's tab (Ctrl+Shift+Tab; Left on the focused tab strip). Wraps.
+        PrevTab,
+        /// The first tab (Home on the focused tab strip).
+        FirstTab,
+        /// The last tab (End on the focused tab strip).
+        LastTab,
+    ]
+);
+
+/// The view's key context (Ctrl+Tab / Ctrl+Shift+Tab anywhere inside it).
+pub const KEY_CONTEXT: &str = "RunningGames";
+/// The tab strip's key context (arrow keys, Home / End while it has focus).
+pub const TABS_KEY_CONTEXT: &str = "RunningGamesTabs";
+
+/// Binds the tab keys of a JavaFX `TabPane`: Ctrl+Tab / Ctrl+Shift+Tab inside the view (Ctrl on
+/// every platform, as JavaFX used), and Left / Right / Home / End on the focused tab strip.
+pub fn bind_keys(cx: &mut App) {
+    let view = Some(KEY_CONTEXT);
+    let tabs = Some(TABS_KEY_CONTEXT);
+    cx.bind_keys([
+        KeyBinding::new("ctrl-tab", NextTab, view),
+        KeyBinding::new("ctrl-shift-tab", PrevTab, view),
+        KeyBinding::new("right", NextTab, tabs),
+        KeyBinding::new("left", PrevTab, tabs),
+        KeyBinding::new("home", FirstTab, tabs),
+        KeyBinding::new("end", LastTab, tabs),
+    ]);
+}
+
+/// The tab index a tab key selects among `len` tabs from `current`: `delta` steps, wrapping; or
+/// the first / last tab for `delta` of `isize::MIN` / `isize::MAX`. `None` with no tabs.
+pub fn tab_index_after(len: usize, current: Option<usize>, delta: isize) -> Option<usize> {
+    let last = len.checked_sub(1)?;
+    match delta {
+        isize::MIN => Some(0),
+        isize::MAX => Some(last),
+        _ => {
+            let Some(cur) = current.filter(|c| *c <= last) else {
+                return Some(if delta < 0 { last } else { 0 });
+            };
+            let len = len as isize;
+            Some((cur as isize + delta).rem_euclid(len) as usize)
+        }
+    }
+}
+
+/// What a session's phase change asks of the view (Java: `LauncherCore` hides the window once
+/// the game is up when "Show console on launch" is off, and `onGameExited` shows the crashed
+/// session's tab again).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PhaseReaction {
+    /// Step aside (collapse the dock / hide the window) unless another game still prepares.
+    pub step_aside: bool,
+    /// Show the session's tab and reveal the view.
+    pub reveal: bool,
+    /// Re-read the registry: an ended session may have pushed old ended ones out of its
+    /// 20-entry history, which sends no removal event of its own.
+    pub resync: bool,
+}
+
+/// The [`PhaseReaction`] of a session moving from `prev` (`None`: not seen before) to `next`.
+pub fn phase_reaction(
+    prev: Option<SessionPhase>,
+    next: SessionPhase,
+    in_game_console: bool,
+) -> PhaseReaction {
+    let was_active = prev.is_some_and(SessionPhase::is_active);
+    PhaseReaction {
+        step_aside: !in_game_console
+            && prev == Some(SessionPhase::Preparing)
+            && next == SessionPhase::Running,
+        reveal: was_active && next == SessionPhase::Crashed,
+        resync: was_active && !next.is_active(),
+    }
+}
+
+/// Computes how much height (layout px) the screen above the dock can spare, from the window's
+/// height in layout px (`None` = no limit). Installed by the shell with
+/// [`set_dock_room_provider`]; read on every dock layout.
+pub type DockRoomProvider = Rc<dyn Fn(f32, &Window, &App) -> Option<f32>>;
 
 /// The dock's smallest share of the main window's height.
 pub const DOCK_SHARE_MIN: f32 = 0.10;
@@ -155,6 +246,16 @@ pub struct RunningGamesView {
     opening: bool,
     switches: usize,
     shut_down: bool,
+    /// The view's focus (Ctrl+Tab works while focus is anywhere inside it).
+    focus: FocusHandle,
+    /// The tab strip's focus (arrow keys switch tabs).
+    tabs_focus: FocusHandle,
+    /// The tab strip's scroll state: scrolls the selected tab into view and tells whether the
+    /// tabs overflow (then a menu lists every tab).
+    tab_scroll: ScrollHandle,
+    tabs_overflow: bool,
+    /// The tab count the overflow was last measured for.
+    overflow_measured: Option<usize>,
     _events: Option<Task<()>>,
 }
 
@@ -195,6 +296,11 @@ impl RunningGamesView {
             opening: false,
             switches: 0,
             shut_down: false,
+            focus: cx.focus_handle(),
+            tabs_focus: cx.focus_handle(),
+            tab_scroll: ScrollHandle::new(),
+            tabs_overflow: false,
+            overflow_measured: None,
             _events: events,
         };
         view.sync(cx);
@@ -252,8 +358,24 @@ impl RunningGamesView {
                 let info = (*info).clone();
                 match self.panes.get(&info.id).cloned() {
                     Some(pane) => {
-                        self.infos.insert(info.id, info.clone());
+                        let (id, next) = (info.id, info.phase);
+                        let prev = self.infos.get(&id).map(|i| i.phase);
+                        self.infos.insert(id, info.clone());
                         pane.update(cx, |p, cx| p.apply(info, cx));
+                        // The setting is read only when the game just came up.
+                        let console = prev != Some(SessionPhase::Preparing)
+                            || next != SessionPhase::Running
+                            || self.backend.in_game_console();
+                        let reaction = phase_reaction(prev, next, console);
+                        if reaction.resync {
+                            self.sync(cx);
+                        }
+                        if reaction.step_aside {
+                            self.hide_unless_preparing(cx);
+                        }
+                        if reaction.reveal {
+                            self.show_session(id, cx);
+                        }
                         cx.notify();
                     }
                     None => self.sync(cx),
@@ -329,12 +451,28 @@ impl RunningGamesView {
         }
     }
 
-    /// Selects a tab (fading its pane in).
+    /// Selects a tab (fading its pane in) and scrolls it into view.
     pub fn select(&mut self, id: SessionId, cx: &mut Context<Self>) {
-        if self.tabs.contains(&id) && self.selected != Some(id) {
+        let Some(ix) = self.tabs.iter().position(|t| *t == id) else {
+            return;
+        };
+        self.tab_scroll.scroll_to_item(ix);
+        if self.selected != Some(id) {
             self.selected = Some(id);
             self.switches += 1;
             cx.notify();
+        }
+    }
+
+    /// A tab key: `delta` tabs on (wrapping), or the first / last tab for `isize::MIN` /
+    /// `isize::MAX` (see [`tab_index_after`]).
+    pub fn select_relative(&mut self, delta: isize, cx: &mut Context<Self>) {
+        let current = self
+            .selected
+            .and_then(|s| self.tabs.iter().position(|t| *t == s));
+        if let Some(ix) = tab_index_after(self.tabs.len(), current, delta) {
+            let id = self.tabs[ix];
+            self.select(id, cx);
         }
     }
 
@@ -684,6 +822,7 @@ impl RunningGamesView {
         let entity = cx.entity();
         let select = entity.clone();
         let close = entity.clone();
+        let strip_focus = self.tabs_focus.clone();
         let fg = if selected {
             hsla(t.md_on_surface)
         } else {
@@ -692,6 +831,9 @@ impl RunningGamesView {
         Some(
             div()
                 .id(SharedString::from(format!("running-games-tab-{id}")))
+                .role(gpui::Role::Tab)
+                .aria_label(info.pack_name.clone())
+                .aria_selected(selected)
                 .flex()
                 .flex_none()
                 .items_center()
@@ -714,7 +856,10 @@ impl RunningGamesView {
                     gpui::FontWeight::NORMAL
                 })
                 .text_color(fg)
-                .on_click(move |_, _, cx| select.update(cx, |v, cx| v.select(id, cx)))
+                .on_click(move |_, window, cx| {
+                    strip_focus.focus(window, cx);
+                    select.update(cx, |v, cx| v.select(id, cx));
+                })
                 .child(
                     div()
                         .flex_none()
@@ -785,6 +930,22 @@ impl RunningGamesView {
             }
             None => div().flex_1().into_any_element(),
         };
+        let strip = div()
+            .id("running-games-tabs")
+            .role(gpui::Role::TabList)
+            .key_context(TABS_KEY_CONTEXT)
+            .track_focus(&self.tabs_focus)
+            .on_action(cx.listener(|v, _: &NextTab, _w, cx| v.select_relative(1, cx)))
+            .on_action(cx.listener(|v, _: &PrevTab, _w, cx| v.select_relative(-1, cx)))
+            .on_action(cx.listener(|v, _: &FirstTab, _w, cx| v.select_relative(isize::MIN, cx)))
+            .on_action(cx.listener(|v, _: &LastTab, _w, cx| v.select_relative(isize::MAX, cx)))
+            .flex()
+            .flex_1()
+            .min_w_0()
+            .items_end()
+            .overflow_x_scroll()
+            .track_scroll(&self.tab_scroll)
+            .children(tabs);
         div()
             .flex_1()
             .min_h_0()
@@ -792,17 +953,55 @@ impl RunningGamesView {
             .flex_col()
             .child(
                 div()
-                    .id("running-games-tabs")
                     .flex()
                     .flex_none()
-                    .items_end()
+                    .items_center()
                     .px(u(8.0))
-                    .overflow_x_scroll()
                     .border_b_1()
                     .border_color(hsla(t.md_outline_variant))
-                    .children(tabs),
+                    .child(strip)
+                    .when(self.tabs_overflow, |el| {
+                        el.child(self.render_overflow_menu(cx))
+                    }),
             )
             .child(body)
+            .into_any_element()
+    }
+
+    /// The drop-down listing every tab when they overflow the strip (JavaFX `TabPane`).
+    fn render_overflow_menu(&self, cx: &mut Context<Self>) -> AnyElement {
+        let entries: Vec<(SessionId, SharedString, bool)> = self
+            .tabs
+            .iter()
+            .filter_map(|id| {
+                let info = self.infos.get(id)?;
+                Some((
+                    *id,
+                    info.pack_name.clone().into(),
+                    self.selected == Some(*id),
+                ))
+            })
+            .collect();
+        let entity = cx.entity().downgrade();
+        Button::new("running-games-tab-overflow")
+            .ghost()
+            .small()
+            .icon(IconName::ChevronDown)
+            .tooltip(t!("session.tab.overflow").into_owned())
+            .dropdown_menu(move |mut menu, _, _| {
+                for (id, name, selected) in &entries {
+                    let target = entity.clone();
+                    let id = *id;
+                    menu = menu.item(
+                        PopupMenuItem::new(name.clone())
+                            .checked(*selected)
+                            .on_click(move |_, _, cx| {
+                                let _ = target.update(cx, |v, cx| v.select(id, cx));
+                            }),
+                    );
+                }
+                menu
+            })
             .into_any_element()
     }
 
@@ -814,13 +1013,25 @@ impl RunningGamesView {
 }
 
 impl Render for RunningGamesView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = cx.tokens();
+        // Whether the tabs overflow is known only after a layout: measure again on the next
+        // frame whenever the tab count changed (window resizes re-render on their own).
+        self.tabs_overflow = self.tabs.len() > 1 && self.tab_scroll.max_offset().x > px(0.0);
+        if self.overflow_measured != Some(self.tabs.len()) {
+            self.overflow_measured = Some(self.tabs.len());
+            cx.on_next_frame(window, |_, _, cx| cx.notify());
+        }
         let state = HeaderState::of(self.docked, self.expanded, self.tabs.len());
         let header = self.render_header(cx);
         let content = state.content.then(|| self.render_content(cx));
         let floor = cx.launcher_theme().solid_bg(true);
         div()
+            .id("running-games")
+            .key_context(KEY_CONTEXT)
+            .track_focus(&self.focus)
+            .on_action(cx.listener(|v, _: &NextTab, _w, cx| v.select_relative(1, cx)))
+            .on_action(cx.listener(|v, _: &PrevTab, _w, cx| v.select_relative(-1, cx)))
             .size_full()
             .flex()
             .flex_col()
@@ -830,6 +1041,28 @@ impl Render for RunningGamesView {
             .child(header)
             .children(content)
     }
+}
+
+impl Focusable for RunningGamesView {
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
+        self.focus.clone()
+    }
+}
+
+/// The launcher icon for the window (Java `WindowIcons.apply`). GPUI takes it from
+/// `WindowOptions` on X11 only; Windows windows already carry the executable's icon (resource 1,
+/// GPUI's window-class icon), macOS uses the bundle icon and Wayland the `app_id`'s desktop
+/// file. Decoded once.
+pub fn window_icon() -> Option<std::sync::Arc<image::RgbaImage>> {
+    static ICON: std::sync::OnceLock<Option<std::sync::Arc<image::RgbaImage>>> =
+        std::sync::OnceLock::new();
+    ICON.get_or_init(|| {
+        let bytes = mmcl_ui_kit::assets::Assets::launcher_asset(mmcl_ui_kit::assets::APP_ICON)?;
+        image::load_from_memory_with_format(bytes, image::ImageFormat::Png)
+            .map(|img| std::sync::Arc::new(img.to_rgba8()))
+            .ok()
+    })
+    .clone()
 }
 
 /// The interface scale factor (1.0 at 100 %).
@@ -857,6 +1090,7 @@ fn open_window(view: Entity<RunningGamesView>, cx: &mut App) {
             ..Default::default()
         }),
         window_min_size: Some(size(px(WINDOW_MIN.0 * f), px(WINDOW_MIN.1 * f))),
+        icon: window_icon(),
         window_background: theme.window_background(true),
         app_id: Some(
             identity
@@ -884,9 +1118,12 @@ fn open_window(view: Entity<RunningGamesView>, cx: &mut App) {
         Ok(handle) => {
             let any: AnyWindowHandle = handle.into();
             let dark = !theme.is_light_chrome();
-            let _ = any.update(cx, |_, window, _| {
+            let focus = view.read(cx).focus.clone();
+            let _ = any.update(cx, |_, window, cx| {
                 mmcl_platform::chrome::apply_title_bar_dark_mode(window, dark);
                 window.activate_window();
+                // Ctrl+Tab works at once, before anything inside was clicked.
+                focus.focus(window, cx);
             });
             view.update(cx, |v, cx| {
                 v.window = Some(any);
@@ -911,6 +1148,13 @@ pub struct DockHost {
     view: Entity<RunningGamesView>,
     _observe: gpui::Subscription,
 }
+
+/// The installed [`DockRoomProvider`] (a global, so it outlives an in-process restart that
+/// installs a new view and dock).
+#[derive(Clone)]
+struct DockRoomHook(DockRoomProvider);
+
+impl Global for DockRoomHook {}
 
 impl DockHost {
     /// A host for `view`.
@@ -947,6 +1191,10 @@ impl Render for DockHost {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let factor = scale_factor(cx);
         let window_height = window.viewport_size().height.as_f32() / factor;
+        if let Some(DockRoomHook(provider)) = cx.try_global::<DockRoomHook>().cloned() {
+            let room = provider(window_height, window, cx);
+            self.view.update(cx, |v, cx| v.set_dock_room(room, cx));
+        }
         let height = self.current_height(window_height, cx);
         if height <= 0.0 {
             return div().id("running-games-dock").into_any_element();
@@ -1056,6 +1304,21 @@ pub fn set_dock_room(cx: &mut App, room: Option<f32>) {
     RunningGames::with(cx, |v, cx| v.set_dock_room(room, cx));
 }
 
+/// Installs how the dock learns the room the screen above can spare, from the main window's
+/// height in layout px: Java's `ScaledRoot.dockRoom()` (window height minus the shell chrome
+/// and the current screen's minimum height). Evaluated on every dock layout. The shell
+/// installs it once (before or after [`crate::init`]); until then the dock takes its full
+/// share.
+pub fn set_dock_room_provider(
+    cx: &mut App,
+    provider: impl Fn(f32, &Window, &App) -> Option<f32> + 'static,
+) {
+    cx.set_global(DockRoomHook(Rc::new(provider)));
+    if let Some(dock) = RunningGames::dock(cx) {
+        dock.update(cx, |_, cx| cx.notify());
+    }
+}
+
 /// Docks into the main window or pops out.
 pub fn set_docked(cx: &mut App, docked: bool) {
     RunningGames::with(cx, |v, cx| v.set_docked(docked, cx));
@@ -1149,6 +1412,62 @@ mod tests {
     }
 
     #[test]
+    fn the_window_icon_is_the_launcher_logo() {
+        let icon = window_icon().expect("the bundled launcher icon decodes");
+        assert!(icon.width() > 0 && icon.height() > 0);
+    }
+
+    #[test]
+    fn tab_keys_wrap_and_jump_to_the_ends() {
+        assert_eq!(tab_index_after(0, None, 1), None);
+        assert_eq!(tab_index_after(3, Some(0), 1), Some(1));
+        assert_eq!(tab_index_after(3, Some(2), 1), Some(0), "Ctrl+Tab wraps");
+        assert_eq!(
+            tab_index_after(3, Some(0), -1),
+            Some(2),
+            "Ctrl+Shift+Tab wraps"
+        );
+        assert_eq!(tab_index_after(3, None, 1), Some(0));
+        assert_eq!(tab_index_after(3, None, -1), Some(2));
+        assert_eq!(
+            tab_index_after(3, Some(9), 1),
+            Some(0),
+            "a stale index restarts"
+        );
+        assert_eq!(tab_index_after(3, Some(1), isize::MIN), Some(0));
+        assert_eq!(tab_index_after(3, Some(1), isize::MAX), Some(2));
+    }
+
+    #[test]
+    fn the_view_steps_aside_once_a_game_is_up_and_returns_on_a_crash() {
+        use SessionPhase::*;
+        // "Show console on launch" off: Preparing -> Running steps aside.
+        let up = phase_reaction(Some(Preparing), Running, false);
+        assert!(up.step_aside && !up.reveal && !up.resync);
+        // On, or any other change: it stays.
+        assert!(!phase_reaction(Some(Preparing), Running, true).step_aside);
+        assert!(!phase_reaction(None, Running, false).step_aside);
+        assert!(!phase_reaction(Some(Running), Running, false).step_aside);
+        // A crash of a live game brings the view back and re-reads the registry.
+        let crash = phase_reaction(Some(Running), Crashed, true);
+        assert!(crash.reveal && crash.resync && !crash.step_aside);
+        assert!(phase_reaction(Some(Preparing), Crashed, false).reveal);
+        assert!(
+            !phase_reaction(Some(Crashed), Crashed, true).reveal,
+            "only once"
+        );
+        // Other endings only re-read the registry (its 20-entry history may drop old tabs).
+        for end in [Exited, Cancelled, Failed] {
+            let r = phase_reaction(Some(Running), end, true);
+            assert!(r.resync && !r.reveal && !r.step_aside, "{end:?}");
+        }
+        assert_eq!(
+            phase_reaction(Some(Exited), Exited, true),
+            PhaseReaction::default()
+        );
+    }
+
+    #[test]
     fn every_window_key_resolves() {
         for key in [
             "session.window.title",
@@ -1159,6 +1478,7 @@ mod tests {
             "session.dock.collapse",
             "session.dock.expand",
             "session.tab.close",
+            "session.tab.overflow",
             "log.runningGames.windowOpenFailed",
             "log.runningGames.settingSaveFailed",
             "log.runningGames.cancelFailed",

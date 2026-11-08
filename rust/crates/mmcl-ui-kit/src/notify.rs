@@ -9,8 +9,9 @@
 //! - Windows: a toast under the launcher's AppUserModelID; macOS: Notification Center; Linux:
 //!   D-Bus via `notify-rust`, then `notify-send` as a last resort (probed once, 2 s timeouts).
 //! - Display failures log `log.notification.displayFailed` and use the fallback.
-//! - The tray icon belongs to the platform slice; this facade never creates one. A platform
-//!   backend can replace the default with [`set_backend`].
+//! - The tray icon belongs to the platform slice; this facade never creates one. `mmcl-ui`
+//!   installs a platform backend with [`set_backend`] (tray balloons on Windows, which need no
+//!   Start-menu AUMID shortcut; the tray plus D-Bus on Linux), falling back to this default.
 
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -38,6 +39,9 @@ pub enum Kind {
 pub trait NotificationBackend: Send + Sync {
     /// Shows it; `Err` with a message when it could not be shown.
     fn show(&self, kind: Kind, title: &str, body: &str) -> Result<(), String>;
+
+    /// Releases native resources at exit (a tray icon). Called once by [`shutdown`].
+    fn shutdown(&self) {}
 }
 
 /// The default backend: `notify-rust`, then `notify-send` on Linux.
@@ -219,9 +223,18 @@ pub fn error(title: &str, body: &str) {
     display(Kind::Error, title, body);
 }
 
-/// Stops showing notifications (once at exit; idempotent). Later calls still log.
+/// Stops showing notifications (once at exit; idempotent) and lets the backend release its
+/// native resources (the tray icon). Later calls still log.
 pub fn shutdown() {
-    SHUT_DOWN.store(true, Ordering::Relaxed);
+    if SHUT_DOWN.swap(true, Ordering::AcqRel) {
+        return;
+    }
+    let backend = BACKEND.read().clone();
+    if let Some(backend) = backend {
+        // Wait for a toast being delivered, so the tray is not removed under it.
+        let _serial = SERIAL.lock();
+        backend.shutdown();
+    }
 }
 
 /// Whether [`shutdown`] has run.
@@ -264,17 +277,20 @@ mod tests {
         assert!(!without.contains('—'), "{without}");
     }
 
-    struct Recorder(Mutex<Vec<(Kind, String, String)>>);
+    struct Recorder(Mutex<Vec<(Kind, String, String)>>, Mutex<u32>);
     impl NotificationBackend for Recorder {
         fn show(&self, kind: Kind, title: &str, body: &str) -> Result<(), String> {
             self.0.lock().push((kind, title.into(), body.into()));
             Ok(())
         }
+        fn shutdown(&self) {
+            *self.1.lock() += 1;
+        }
     }
 
     #[test]
     fn backend_receives_notifications_until_shutdown() {
-        let rec = Arc::new(Recorder(Mutex::new(Vec::new())));
+        let rec = Arc::new(Recorder(Mutex::new(Vec::new()), Mutex::new(0)));
         set_backend(rec.clone());
         warn("W", "body");
         let deadline = Instant::now() + Duration::from_secs(5);
@@ -285,6 +301,7 @@ mod tests {
         shutdown();
         shutdown();
         assert!(is_shut_down());
+        assert_eq!(*rec.1.lock(), 1, "the backend is released once");
         error("E", "");
         std::thread::sleep(Duration::from_millis(50));
         assert_eq!(rec.0.lock().len(), 1);

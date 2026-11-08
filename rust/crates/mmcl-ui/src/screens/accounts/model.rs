@@ -204,6 +204,10 @@ pub enum Finished {
     SignedIn(AccountView),
     /// Nothing to report; the panel is back on the chooser.
     Idle,
+    /// The user cancelled outside the panel (closed the Microsoft window or cancelled on its
+    /// page); the panel is back on the chooser. Add-account closes (Java's
+    /// `callback.userCancelled() -> stage.close()`), the Login screen stays.
+    CancelledOutside,
     /// Failed; the panel shows the message and is back on the chooser.
     Failed,
 }
@@ -328,8 +332,15 @@ impl PanelState {
                 Finished::SignedIn(account)
             }
             FlowEnd::Cancelled => {
+                // Our Cancel button moved the phase to Cancelling first; otherwise the user
+                // cancelled outside the panel (closed the Microsoft window, declined there).
+                let ours = self.phase == Phase::Cancelling;
                 self.phase = Phase::Choose;
-                Finished::Idle
+                if ours {
+                    Finished::Idle
+                } else {
+                    Finished::CancelledOutside
+                }
             }
             FlowEnd::Failed(message) => {
                 self.phase = Phase::Choose;
@@ -641,7 +652,46 @@ mod tests {
         let g2 = s.start(SignInKind::WebView).unwrap();
         assert_eq!(s.finish(g1, FlowEnd::Failed("old".into())), None);
         assert!(s.status.is_none());
-        assert_eq!(s.finish(g2, FlowEnd::Cancelled), Some(Finished::Idle));
+        assert_eq!(
+            s.finish(g2, FlowEnd::Cancelled),
+            Some(Finished::CancelledOutside)
+        );
         assert_eq!(s.finish(g2, FlowEnd::Cancelled), None, "already finished");
+    }
+
+    #[test]
+    fn cancelling_outside_the_panel_is_told_apart_from_our_cancel() {
+        let mut s = PanelState::new(vec![SignInKind::WebView]);
+        let g = s.start(SignInKind::WebView).unwrap();
+        // The Microsoft window was closed: no Cancel press before the flow ended.
+        assert_eq!(
+            s.finish(g, FlowEnd::Cancelled),
+            Some(Finished::CancelledOutside)
+        );
+        assert_eq!(s.phase, Phase::Choose);
+        assert!(s.status.is_none());
+        let g = s.start(SignInKind::WebView).unwrap();
+        assert!(s.cancel());
+        assert_eq!(s.finish(g, FlowEnd::Cancelled), Some(Finished::Idle));
+    }
+
+    #[test]
+    fn rows_put_the_default_first_with_its_status() {
+        let accounts = vec![
+            acct("a", "Alex", AccountStatus::Ready, false, true),
+            acct("b", "Blake", AccountStatus::Refreshing, false, true),
+            acct("c", "Casey", AccountStatus::Ready, true, true),
+        ];
+        let rows = account_rows(&accounts);
+        assert_eq!(
+            rows.iter().map(|r| r.uuid.as_str()).collect::<Vec<_>>(),
+            ["c", "a", "b"]
+        );
+        assert_eq!(rows[0].status_key, "account.status.default");
+        assert!(!rows[0].can_make_default);
+        assert!(
+            rows[2].can_make_default,
+            "a refreshing account can still be made the default"
+        );
     }
 }

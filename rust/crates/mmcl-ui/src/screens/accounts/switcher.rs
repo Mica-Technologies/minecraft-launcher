@@ -5,8 +5,10 @@
 //! saved-accounts list shares (make default, sign out with its confirmation).
 
 use gpui::{
-    App, AsyncApp, ClickEvent, IntoElement, ParentElement, SharedString, Styled, Window, div,
+    App, AsyncApp, ClickEvent, InteractiveElement as _, IntoElement, ParentElement, SharedString,
+    StatefulInteractiveElement as _, Styled, Window, div, prelude::FluentBuilder as _,
 };
+use gpui_component::WindowExt as _;
 use gpui_component::button::{Button, ButtonVariants as _};
 use gpui_component::menu::{DropdownMenu as _, PopupMenu, PopupMenuItem};
 use mmcl_i18n::{t, tf};
@@ -141,6 +143,139 @@ pub fn build_menu(menu: PopupMenu, cx: &App) -> PopupMenu {
             PopupMenuItem::new(t!("account.switcher.manage").into_owned())
                 .on_click(|_: &ClickEvent, _, cx| open_account_settings(cx)),
         )
+}
+
+/// The switcher popup's width (px at 100 %).
+pub const SWITCHER_WIDTH: f32 = 340.0;
+/// How far below the window top the popup sits (px at 100 %): just under the nav bar, where
+/// the Home chip that opens it lives.
+pub const SWITCHER_TOP: f32 = 56.0;
+
+/// What a switcher entry does when picked.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Pick {
+    Account(SwitcherAction),
+    AddAccount,
+    Manage,
+}
+
+fn run_pick(pick: Pick, window: &mut Window, cx: &mut App) {
+    window.close_dialog(cx);
+    match pick {
+        Pick::Account(SwitcherAction::None) => {}
+        Pick::Account(SwitcherAction::MakeDefault(uuid)) => make_default(cx, uuid),
+        Pick::Account(SwitcherAction::SignInAgain) | Pick::AddAccount => {
+            show_add_account(Some(window.window_handle()), cx)
+        }
+        Pick::Manage => open_account_settings(cx),
+    }
+}
+
+fn pick_row(
+    id: gpui::ElementId,
+    pick: Pick,
+    leading: gpui::AnyElement,
+    text: SharedString,
+    cx: &App,
+) -> gpui::AnyElement {
+    let t = cx.tokens();
+    let hover = hsla(t.md_state_hover_on_surface);
+    let active = pick != Pick::Account(SwitcherAction::None);
+    div()
+        .id(id)
+        .w_full()
+        .flex()
+        .items_center()
+        .gap(u(8.0))
+        .px(u(10.0))
+        .py(u(6.0))
+        .rounded(u(8.0))
+        .text_color(hsla(t.color_text))
+        .when(active, |d| d.cursor_pointer().hover(move |s| s.bg(hover)))
+        .child(leading)
+        .child(div().flex_1().min_w_0().truncate().child(text))
+        .when(active, |d| {
+            d.on_click(move |_: &ClickEvent, window, cx| run_pick(pick.clone(), window, cx))
+        })
+        .into_any_element()
+}
+
+/// The switcher's content: one entry per account (tick on the default, avatar, name or the
+/// "sign in again" hint), a separator, Add another account, Manage accounts.
+fn switcher_list(rows: Vec<AccountRow>, cx: &App) -> impl IntoElement {
+    let t = cx.tokens();
+    let mut col = div().w_full().flex().flex_col().gap(u(2.0));
+    for (i, row) in rows.into_iter().enumerate() {
+        let tick = div()
+            .min_w(u(14.0))
+            .text_color(hsla(t.color_primary))
+            .child(if row.is_default { "\u{2713}" } else { "" });
+        let leading = div()
+            .flex()
+            .items_center()
+            .gap(u(6.0))
+            .child(tick)
+            .child(Avatar::new(
+                SharedString::from(format!("switcher-dlg-avatar-{}", row.uuid)),
+                Some(row.uuid.clone()),
+                24.0,
+            ))
+            .into_any_element();
+        let text: SharedString = row.switcher_label().into();
+        col = col.child(pick_row(
+            ("switcher-account", i).into(),
+            Pick::Account(row.switcher_action()),
+            leading,
+            text,
+            cx,
+        ));
+    }
+    let spacer = || div().min_w(u(14.0)).into_any_element();
+    col.child(
+        div()
+            .my(u(4.0))
+            .h(gpui::px(1.0))
+            .w_full()
+            .bg(hsla(t.color_border)),
+    )
+    .child(pick_row(
+        "switcher-add".into(),
+        Pick::AddAccount,
+        spacer(),
+        t!("account.switcher.addAccount").into_owned().into(),
+        cx,
+    ))
+    .child(pick_row(
+        "switcher-manage".into(),
+        Pick::Manage,
+        spacer(),
+        t!("account.switcher.manage").into_owned().into(),
+        cx,
+    ))
+}
+
+/// `AccountSwitcherMenu.show`: the switcher over `window`, opened from Home's avatar / name
+/// chip. The Home chip belongs to another module and hands over only the window, so the menu
+/// is a light popup just below the nav bar (dismissed by a click outside or Escape) rather
+/// than a dropdown anchored to the chip. Without an in-window root it opens Manage accounts.
+pub fn show_switcher(window: &mut Window, cx: &mut App) {
+    if !matches!(window.root::<gpui_component::Root>(), Some(Some(_))) {
+        open_account_settings(cx);
+        return;
+    }
+    window.open_dialog(cx, |dialog, _, cx| {
+        // Re-read on every rebuild, so a change while open (a renewal) shows at once.
+        let rows = current_rows(cx);
+        dialog
+            .title(SharedString::from(
+                t!("account.switcher.header").into_owned(),
+            ))
+            .w(crate::scale::scaled_px(cx, SWITCHER_WIDTH))
+            .margin_top(crate::scale::scaled_px(cx, SWITCHER_TOP))
+            .keyboard(true)
+            .overlay_closable(true)
+            .child(switcher_list(rows, cx))
+    });
 }
 
 /// The navbar's account chip: the default account's 28 px avatar and name (`Player` without

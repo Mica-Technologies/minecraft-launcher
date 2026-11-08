@@ -10,22 +10,28 @@
 //!
 //! The window is per session: [`cleanup`] (on GUI exit / restart) closes it and drops its state,
 //! so a restarted session never reuses a window owned by the old one.
+//!
+//! Like Java's help stage it carries its own OS title (taskbar, Alt-Tab, Mission Control),
+//! opens centred on the launcher window, is owned by it on Windows (stays above it;
+//! `initOwner`), keeps its minimum size in step with the interface scale
+//! (`ScaledMinSize.follow`), and under the Native theme shows the same Mica / vibrancy backdrop
+//! as the main window.
 
 pub mod markdown;
 pub mod pages;
 
 use gpui::{
-    AnyWindowHandle, App, AppContext as _, Bounds, ClickEvent, Context, FocusHandle, Global,
-    InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Render, SharedString,
-    StatefulInteractiveElement as _, Styled, Window, WindowBounds, WindowHandle, WindowKind,
-    WindowOptions, div, prelude::FluentBuilder, px, size,
+    AnyWindowHandle, App, AppContext as _, Bounds, ClickEvent, Context, FocusHandle, Global, Hsla,
+    InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Pixels, Render, SharedString,
+    StatefulInteractiveElement as _, Styled, Subscription, Window, WindowBackgroundAppearance,
+    WindowBounds, WindowHandle, WindowKind, WindowOptions, div, prelude::FluentBuilder, px, size,
 };
 use gpui_component::text::TextView;
 use gpui_component::{Root, TitleBar};
 use mmcl_i18n::{t, tf};
 use mmcl_theme::typography::TypeRole;
 use mmcl_ui_kit::HelpTopic;
-use mmcl_ui_kit::theme::{ThemeExt as _, TypeStyleExt as _, hsla};
+use mmcl_ui_kit::theme::{ActiveTheme, ThemeExt as _, TypeStyleExt as _, hsla};
 
 use crate::scale::u;
 
@@ -124,6 +130,8 @@ pub struct HelpView {
     language: (String, String),
     /// The topic list's focus (arrow keys move the selection).
     list_focus: FocusHandle,
+    /// Follows the interface scale (the minimum size).
+    _scale: Option<Subscription>,
 }
 
 impl HelpView {
@@ -133,6 +141,7 @@ impl HelpView {
             loaded: load_topic(topic, &language.0, &language.1),
             language,
             list_focus: cx.focus_handle().tab_stop(true),
+            _scale: None,
         }
     }
 
@@ -210,6 +219,7 @@ impl Render for HelpView {
                 }))
         });
         let id = SharedString::from(format!("mmcl-help-page-{}", self.loaded.path));
+        let (_, fill) = help_background(&theme);
         let page = TextView::markdown(id, self.loaded.markdown.clone())
             .selectable(true)
             .scrollable(true)
@@ -222,7 +232,7 @@ impl Render for HelpView {
             .size_full()
             .flex()
             .flex_col()
-            .bg(theme.solid_bg(true))
+            .when_some(fill, |el, fill| el.bg(fill))
             .text_color(hsla(t.color_text))
             .font_family(mmcl_ui_kit::fonts::UI_FAMILY)
             .child(
@@ -230,7 +240,7 @@ impl Render for HelpView {
                 // with gpui-component's caption buttons on the right.
                 TitleBar::new()
                     .bg(gpui::transparent_black())
-                    .border_color(hsla(t.color_border))
+                    .border_color(gpui::transparent_black())
                     .child(
                         div()
                             .flex()
@@ -314,29 +324,65 @@ struct HelpState {
     window: Option<WindowHandle<Root>>,
     view: Option<gpui::Entity<HelpView>>,
     /// The theme the window was last themed for (`theme + ":" + osDark`).
-    theme_key: Option<mmcl_theme::TokenSheet>,
+    theme_key: Option<ActiveTheme>,
 }
 
 impl Global for HelpState {}
 
-fn options(cx: &App) -> WindowOptions {
-    let scale = mmcl_ui_kit::scale::percent(cx) as f32 / 100.0;
-    let (w, h) = (PREF_SIZE.0 * scale, PREF_SIZE.1 * scale);
-    let origin = crate::shell::main_window_handle(cx)
-        .and(cx.primary_display())
-        .map(|d| d.bounds().center() - gpui::point(px(w / 2.0), px(h / 2.0)));
-    let bounds = match origin {
-        Some(o) => Bounds::new(o, size(px(w), px(h))),
-        None => Bounds::centered(None, size(px(w), px(h)), cx),
-    };
+/// What the help window paints: the main window's backdrop and fill under a backdrop theme
+/// (Native: Mica on Windows, vibrancy on macOS), else the opaque secondary-window floor.
+pub fn help_background(theme: &ActiveTheme) -> (WindowBackgroundAppearance, Option<Hsla>) {
+    match theme.window_background(false) {
+        WindowBackgroundAppearance::Opaque => (
+            WindowBackgroundAppearance::Opaque,
+            Some(theme.solid_bg(true)),
+        ),
+        backdrop => (backdrop, theme.window_fill(false)),
+    }
+}
+
+/// The minimum size at `percent` interface scale.
+pub fn min_size_at(percent: i32) -> gpui::Size<Pixels> {
+    let scale = percent as f32 / 100.0;
+    size(px(MIN_SIZE.0 * scale), px(MIN_SIZE.1 * scale))
+}
+
+/// The window's bounds: the preferred size centred on `launcher` (the main window's bounds),
+/// else on the primary display.
+pub fn initial_bounds(launcher: Option<Bounds<Pixels>>, percent: i32, cx: &App) -> Bounds<Pixels> {
+    let scale = percent as f32 / 100.0;
+    let wanted = size(px(PREF_SIZE.0 * scale), px(PREF_SIZE.1 * scale));
+    match launcher {
+        Some(main) => Bounds::new(
+            main.center() - gpui::point(wanted.width / 2.0, wanted.height / 2.0),
+            wanted,
+        ),
+        None => Bounds::centered(None, wanted, cx),
+    }
+}
+
+/// Grows the help window when the interface scale raised its minimum above its size (GPUI
+/// fixes the OS minimum when the window opens).
+fn follow_scale(window: &mut Window, cx: &App) {
+    let min = min_size_at(mmcl_ui_kit::scale::percent(cx));
+    let now = window.viewport_size();
+    if now.width < min.width || now.height < min.height {
+        window.resize(size(now.width.max(min.width), now.height.max(min.height)));
+    }
+}
+
+fn options(cx: &App, launcher: Option<Bounds<Pixels>>) -> WindowOptions {
+    let percent = mmcl_ui_kit::scale::percent(cx);
+    let bounds = initial_bounds(launcher, percent, cx);
+    let (background, _) = help_background(&cx.launcher_theme());
     WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(bounds)),
-        window_min_size: Some(size(px(MIN_SIZE.0 * scale), px(MIN_SIZE.1 * scale))),
+        window_min_size: Some(min_size_at(percent)),
         kind: WindowKind::Normal,
-        window_background: crate::theme::secondary_window_background(),
+        window_background: background,
         app_id: Some(
             mmcl_core::AppIdentity::current()
-                .linux_desktop_id
+                .linux_package_name
                 .to_string(),
         ),
         window_decorations: Some(gpui::WindowDecorations::Client),
@@ -361,9 +407,24 @@ pub fn show(topic: HelpTopic, cx: &mut App) {
         // The window went away behind our back: rebuild.
         cx.set_global(HelpState::default());
     }
+    // The launcher window: where to centre, and the owner (Windows).
+    let launcher = crate::shell::main_window_handle(cx).and_then(|h| {
+        h.update(cx, |_, w, _| {
+            (w.bounds(), mmcl_platform::handle::native_handle(&*w))
+        })
+        .ok()
+    });
     let mut built = None;
-    let opened = cx.open_window(options(cx), |window, cx| {
-        let view = cx.new(|cx| HelpView::new(topic, cx));
+    let opened = cx.open_window(options(cx, launcher.map(|l| l.0)), |window, cx| {
+        let view = cx.new(|cx| {
+            let mut view = HelpView::new(topic, cx);
+            view._scale = Some(
+                cx.observe_global_in::<mmcl_ui_kit::scale::UiScale>(window, |_, window, cx| {
+                    follow_scale(window, cx)
+                }),
+            );
+            view
+        });
         built = Some(view.clone());
         window.on_window_should_close(cx, |_, cx| {
             // Closing the window ends it; the next show builds a fresh one.
@@ -374,6 +435,12 @@ pub fn show(topic: HelpTopic, cx: &mut App) {
     });
     match opened {
         Ok(handle) => {
+            let _ = handle.update(cx, |_, window, _| {
+                window.set_window_title(&t!("window.help.title"));
+                if let Some((_, owner)) = launcher {
+                    mmcl_platform::chrome::set_owner(&*window, owner);
+                }
+            });
             let state = cx.global_mut::<HelpState>();
             state.window = Some(handle);
             state.view = built;
@@ -392,22 +459,32 @@ pub fn hide(cx: &mut App) {
 /// `refreshTheme()`: re-applies the title-bar mode only when the theme really changed (every
 /// main-window theme pass calls it). The content re-themes itself at render time.
 pub fn refresh_theme(cx: &mut App) {
-    let sheet = cx.launcher_theme().sheet();
+    let theme = cx.launcher_theme();
     let Some(state) = cx.try_global::<HelpState>() else {
         return;
     };
     let Some(window) = state.window else { return };
-    if state.theme_key == Some(sheet) {
+    let previous = state.theme_key;
+    if previous == Some(theme) {
         return;
     }
+    let (background, _) = help_background(&theme);
+    let was = previous.map(|p| help_background(&p).0);
     let applied = window
         .update(cx, |_, window, cx| {
+            if was.is_some() && background == WindowBackgroundAppearance::MicaBackdrop {
+                // DWM ignores a repeated Mica request, so a dark -> light flip kept the tint.
+                window.set_background_appearance(WindowBackgroundAppearance::Opaque);
+            }
+            if was != Some(background) || background == WindowBackgroundAppearance::MicaBackdrop {
+                window.set_background_appearance(background);
+            }
             crate::theme::install_theme_on(window, cx);
             window.refresh();
         })
         .is_ok();
     if applied {
-        cx.global_mut::<HelpState>().theme_key = Some(sheet);
+        cx.global_mut::<HelpState>().theme_key = Some(theme);
     }
 }
 
@@ -511,6 +588,51 @@ mod tests {
         ] {
             assert!(mmcl_i18n::english(k).is_some(), "{k}");
         }
+    }
+
+    #[test]
+    fn the_backdrop_follows_the_main_window_only_under_backdrop_themes() {
+        use mmcl_theme::{Platform, Theme, ThemeId};
+        let dark = ActiveTheme {
+            theme: Theme::new(ThemeId::Dark, true, Platform::Windows),
+            mica_supported: true,
+        };
+        let (bg, fill) = help_background(&dark);
+        assert_eq!(bg, WindowBackgroundAppearance::Opaque);
+        assert_eq!(fill, Some(dark.solid_bg(true)));
+        let native = ActiveTheme {
+            theme: Theme::new(ThemeId::Native, true, Platform::Windows),
+            mica_supported: true,
+        };
+        assert_eq!(help_background(&native).0, native.window_background(false));
+        let refused = ActiveTheme {
+            mica_supported: false,
+            ..native
+        };
+        assert_eq!(
+            help_background(&refused).0,
+            WindowBackgroundAppearance::Opaque,
+            "no backdrop where Mica is refused (it would paint black)"
+        );
+    }
+
+    #[test]
+    fn minimum_size_scales() {
+        assert_eq!(min_size_at(100), size(px(600.0), px(400.0)));
+        assert_eq!(min_size_at(150), size(px(900.0), px(600.0)));
+    }
+
+    #[gpui::test]
+    fn help_opens_centred_on_the_launcher(cx: &mut gpui::TestAppContext) {
+        cx.update(|cx| {
+            let main = Bounds::new(
+                gpui::point(px(1000.0), px(200.0)),
+                size(px(1200.0), px(800.0)),
+            );
+            let b = initial_bounds(Some(main), 100, cx);
+            assert_eq!(b.size, size(px(800.0), px(600.0)));
+            assert_eq!(b.center(), main.center());
+        });
     }
 
     #[gpui::test]

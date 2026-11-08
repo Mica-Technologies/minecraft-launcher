@@ -15,9 +15,12 @@
 //! [`hooks::on_screen_shown`] hooks.
 
 pub mod controller;
+pub mod desktop;
 pub mod hooks;
 pub mod main_window;
+pub mod menu_bar;
 pub mod placeholder;
+pub mod shell_actions;
 pub mod title_bar;
 
 pub use controller::{
@@ -25,7 +28,7 @@ pub use controller::{
     confirm_restart_while_games_run, current_help_topic, current_screen, exit, force_theme_refresh,
     go_to, handle, is_started, main_view, main_window_handle, may_leave_for_launch,
     may_navigate_away, navigate_gated, on_close_requested, prebuild_main, request_focus,
-    request_quit, start_gui, with_main_window,
+    request_quit, set_resizable, start_gui, with_main_window,
 };
 pub use hooks::{
     MenuToggle, close_app, on_exit, on_screen_shown, on_theme_changed, restart_app,
@@ -33,4 +36,5 @@ pub use hooks::{
     set_play_recent_handler, set_restart_handler, show_help,
 };
 pub use main_window::MainWindow;
+pub use shell_actions::{import_mmcjson, mmcjson_path, run as run_shell_action};
 pub use title_bar::{AppTitleBar, help_button};

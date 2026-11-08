@@ -13,7 +13,9 @@ use mmcl_engine::settings::{
     CONSOLE_LOG_MAX_LINES_PRESETS, IMAGE_CYCLE_INTERVALS, RGB_BACKENDS, RGB_EFFECT_STYLES, THEMES,
     canonical_theme,
 };
-use mmcl_engine::{RuntimeView, ScanSummary, Setting, Settings};
+use mmcl_engine::{
+    PackId, PackLoadState, PackSummary, RuntimeView, ScanSummary, Setting, Settings,
+};
 use mmcl_i18n::{SUPPORTED, t, tf};
 
 // ---------------------------------------------------------------------------------------------
@@ -609,6 +611,136 @@ pub fn resolve_selection(
     snapshot.get(selected?)
 }
 
+// ---------------------------------------------------------------------------------------------
+// Verify all game files (`VerifyAction.runForPacks`)
+
+/// One pack to verify (or skipped because a game of it runs).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifyItem {
+    pub id: PackId,
+    pub name: String,
+}
+
+/// What "Verify all game files" does with the installed packs.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct VerifyPlan {
+    /// Verified in this order.
+    pub verify: Vec<VerifyItem>,
+    /// Launching or running: skipped with a warning, not repaired under the game.
+    pub running: Vec<VerifyItem>,
+}
+
+/// `safePackName`: the friendly name, else the name, else `verify.packName.fallback`.
+pub fn verify_pack_name(p: &PackSummary) -> String {
+    [p.friendly_name.trim(), p.name.trim()]
+        .into_iter()
+        .find(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| t!("verify.packName.fallback").into_owned())
+}
+
+/// Splits the installed packs: packs whose manifest failed to load (or is not loaded yet) are
+/// left out, as the engine's verify-all does; packs with an active game are skipped.
+pub fn verify_plan(packs: &[PackSummary], is_active: impl Fn(&PackSummary) -> bool) -> VerifyPlan {
+    let mut plan = VerifyPlan::default();
+    for p in packs {
+        if p.load_state != PackLoadState::Loaded {
+            continue;
+        }
+        let item = VerifyItem {
+            id: p.id.clone(),
+            name: verify_pack_name(p),
+        };
+        if p.active || is_active(p) {
+            plan.running.push(item);
+        } else {
+            plan.verify.push(item);
+        }
+    }
+    plan
+}
+
+/// The progress title: `verify.progress.title` for one pack, `titleCounted` (1-based) for more.
+pub fn verify_title(name: &str, index: usize, total: usize) -> String {
+    if total > 1 {
+        tf!(
+            "verify.progress.titleCounted",
+            name,
+            (index + 1) as i64,
+            total as i64
+        )
+    } else {
+        tf!("verify.progress.title", name)
+    }
+}
+
+/// The closing notification `(is_error, title, body)` after `ok` packs verified and `failed`
+/// failed.
+pub fn verify_outcome(ok: usize, failed: usize) -> (bool, String, String) {
+    if failed == 0 {
+        let key = if ok == 1 {
+            "notification.verify.complete.bodyOne"
+        } else {
+            "notification.verify.complete.bodyMany"
+        };
+        (
+            false,
+            t!("notification.verify.complete.title").into_owned(),
+            tf!(key, ok as i64),
+        )
+    } else {
+        (
+            true,
+            t!("notification.verify.completedWithErrors.title").into_owned(),
+            tf!(
+                "notification.verify.completedWithErrors.body",
+                ok as i64,
+                failed as i64
+            ),
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Settings export / import (the `*.json` file chooser filter)
+
+/// The export target: `.json` is appended when the chosen name has no extension (the Java
+/// chooser's `*.json` filter did the same).
+pub fn export_path(chosen: &std::path::Path) -> std::path::PathBuf {
+    if chosen.extension().is_some() {
+        chosen.to_path_buf()
+    } else {
+        chosen.with_extension("json")
+    }
+}
+
+/// Whether an import pick passes the `*.json` filter (the platform picker has no filter).
+pub fn is_json_file(path: &std::path::Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("json"))
+}
+
+// ---------------------------------------------------------------------------------------------
+// MCP status
+
+/// The port of an endpoint URL such as `http://127.0.0.1:47833/mcp` (the port the server
+/// actually bound, which can differ from the configured one after a fallback).
+pub fn endpoint_port(url: &str) -> Option<u16> {
+    let rest = url.split_once("://").map_or(url, |(_, r)| r);
+    let authority = rest.split('/').next()?;
+    let (_, port) = authority.rsplit_once(':')?;
+    port.parse().ok().filter(|p| *p != 0)
+}
+
+/// The port the status line shows: the bound one when the endpoint names it, else `configured`.
+pub fn status_port(endpoint: Option<&str>, configured: i32) -> String {
+    endpoint
+        .and_then(endpoint_port)
+        .map(|p| p.to_string())
+        .unwrap_or_else(|| configured.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1034,5 +1166,111 @@ mod tests {
         );
         assert!(resolve_selection(&snapshot, Some(2)).is_none());
         assert!(resolve_selection(&snapshot, None).is_none());
+    }
+
+    fn pack(id: &str, friendly: &str, name: &str) -> PackSummary {
+        PackSummary {
+            id: PackId::new(id),
+            friendly_name: friendly.into(),
+            name: name.into(),
+            installed: true,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn verify_pack_name_falls_back_like_safe_pack_name() {
+        assert_eq!(verify_pack_name(&pack("a", "Friendly", "raw")), "Friendly");
+        assert_eq!(verify_pack_name(&pack("a", "  ", "raw")), "raw");
+        assert_eq!(
+            verify_pack_name(&pack("a", "", "")),
+            t!("verify.packName.fallback")
+        );
+    }
+
+    #[test]
+    fn verify_plan_skips_running_and_unloaded_packs() {
+        let mut failed = pack("failed", "Failed", "f");
+        failed.load_state = PackLoadState::Failed;
+        let mut stub = pack("stub", "Stub", "s");
+        stub.load_state = PackLoadState::Stub;
+        let mut active = pack("active", "Active", "a");
+        active.active = true;
+        let packs = vec![
+            pack("one", "One", "1"),
+            failed,
+            stub,
+            active,
+            pack("vanilla:1.21", "", "1.21"),
+            pack("busy", "Busy", "b"),
+        ];
+        let plan = verify_plan(&packs, |p| p.id.0 == "busy");
+        let ids = |v: &[VerifyItem]| v.iter().map(|i| i.id.0.clone()).collect::<Vec<_>>();
+        assert_eq!(ids(&plan.verify), ["one", "vanilla:1.21"]);
+        assert_eq!(ids(&plan.running), ["active", "busy"]);
+        assert_eq!(plan.verify[1].name, "1.21");
+        assert_eq!(verify_plan(&[], |_| false), VerifyPlan::default());
+    }
+
+    #[test]
+    fn verify_titles_count_only_when_several() {
+        assert_eq!(verify_title("P", 0, 1), tf!("verify.progress.title", "P"));
+        assert_eq!(
+            verify_title("P", 1, 3),
+            tf!("verify.progress.titleCounted", "P", 2i64, 3i64)
+        );
+    }
+
+    #[test]
+    fn verify_outcome_picks_singular_plural_and_error() {
+        let (err, title, body) = verify_outcome(1, 0);
+        assert!(!err);
+        assert_eq!(title, t!("notification.verify.complete.title"));
+        assert_eq!(body, tf!("notification.verify.complete.bodyOne", 1i64));
+        let (_, _, body) = verify_outcome(3, 0);
+        assert_eq!(body, tf!("notification.verify.complete.bodyMany", 3i64));
+        let (err, title, body) = verify_outcome(2, 1);
+        assert!(err);
+        assert_eq!(title, t!("notification.verify.completedWithErrors.title"));
+        assert_eq!(
+            body,
+            tf!("notification.verify.completedWithErrors.body", 2i64, 1i64)
+        );
+    }
+
+    #[test]
+    fn export_path_adds_json_only_without_an_extension() {
+        use std::path::Path;
+        assert_eq!(
+            export_path(Path::new("dir/settings")),
+            Path::new("dir/settings.json")
+        );
+        assert_eq!(
+            export_path(Path::new("dir/settings.json")),
+            Path::new("dir/settings.json")
+        );
+        assert_eq!(
+            export_path(Path::new("dir/backup.txt")),
+            Path::new("dir/backup.txt")
+        );
+        assert!(is_json_file(Path::new("a/b.JSON")));
+        assert!(is_json_file(Path::new("b.json")));
+        assert!(!is_json_file(Path::new("b.txt")));
+        assert!(!is_json_file(Path::new("json")));
+    }
+
+    #[test]
+    fn mcp_status_shows_the_bound_port() {
+        assert_eq!(endpoint_port("http://127.0.0.1:47834/mcp"), Some(47834));
+        assert_eq!(endpoint_port("http://127.0.0.1:47834"), Some(47834));
+        assert_eq!(endpoint_port("http://localhost/mcp"), None);
+        assert_eq!(endpoint_port("http://127.0.0.1:0/mcp"), None);
+        assert_eq!(endpoint_port("garbage"), None);
+        assert_eq!(
+            status_port(Some("http://127.0.0.1:47834/mcp"), 47833),
+            "47834"
+        );
+        assert_eq!(status_port(Some("nope"), 47833), "47833");
+        assert_eq!(status_port(None, 47833), "47833");
     }
 }

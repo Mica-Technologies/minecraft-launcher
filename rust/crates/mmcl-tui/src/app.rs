@@ -1175,13 +1175,6 @@ impl App {
                 }
                 self.on_games_changed();
             }
-            HostEvent::Progress(p) => {
-                if self.launch.as_ref().and_then(|l| l.session).map(|s| s.0) == Some(p.operation.0)
-                {
-                    let (pct, s, d) = progress::from_operation(&p);
-                    self.set_progress(pct, &s, &d);
-                }
-            }
             HostEvent::SettingChanged => {
                 self.apply_theme();
                 if self.view == View::Settings && self.dialogs.is_empty() {

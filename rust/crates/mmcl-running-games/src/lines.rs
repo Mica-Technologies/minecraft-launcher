@@ -192,6 +192,8 @@ pub struct LogLines {
     current: Option<Match>,
     selection: BTreeSet<usize>,
     anchor: Option<usize>,
+    /// The keyboard focus row (where the arrow keys move from; the far end of a Shift range).
+    lead: Option<usize>,
 }
 
 impl LogLines {
@@ -264,6 +266,7 @@ impl LogLines {
             .filter_map(|ix| ix.checked_sub(dropped))
             .collect();
         self.anchor = self.anchor.and_then(|a| a.checked_sub(dropped));
+        self.lead = self.lead.and_then(|l| l.checked_sub(dropped));
         dropped
     }
 
@@ -322,7 +325,7 @@ impl LogLines {
                 self.anchor = Some(ix);
             }
             SelectMode::Range => {
-                let anchor = self.anchor.unwrap_or(ix);
+                let anchor = *self.anchor.get_or_insert(ix);
                 self.selection.clear();
                 self.selection.extend(anchor.min(ix)..=anchor.max(ix));
             }
@@ -333,12 +336,63 @@ impl LogLines {
                 self.anchor = Some(ix);
             }
         }
+        self.lead = Some(ix);
+    }
+
+    /// Ctrl/Cmd+A: selects every line.
+    pub fn select_all(&mut self) {
+        if self.lines.is_empty() {
+            return;
+        }
+        self.selection = (0..self.lines.len()).collect();
+        if self.lead.is_none_or(|l| l >= self.lines.len()) {
+            self.lead = Some(0);
+            self.anchor = Some(0);
+        }
+    }
+
+    /// The keyboard focus row.
+    pub fn lead(&self) -> Option<usize> {
+        self.lead.filter(|l| *l < self.lines.len())
+    }
+
+    /// Up / Down (`delta` -1 / +1; Page Up / Down a larger step), as a JavaFX `ListView` with
+    /// multiple selection: plain selects the new row alone; `extend` (Shift) selects the range
+    /// from the anchor to it. With no focus row yet, Down starts at the first row and Up at the
+    /// last. Returns the new focus row (to scroll to).
+    pub fn move_lead(&mut self, delta: isize, extend: bool) -> Option<usize> {
+        let last = self.lines.len().checked_sub(1)?;
+        let target = match self.lead() {
+            Some(l) => l.saturating_add_signed(delta).min(last),
+            None if delta >= 0 => 0,
+            None => last,
+        };
+        self.focus_row(target, extend);
+        Some(target)
+    }
+
+    /// Home / End: the first or last row (`extend` selects the range to it).
+    pub fn move_lead_to_edge(&mut self, end: bool, extend: bool) -> Option<usize> {
+        let last = self.lines.len().checked_sub(1)?;
+        let target = if end { last } else { 0 };
+        self.focus_row(target, extend);
+        Some(target)
+    }
+
+    fn focus_row(&mut self, ix: usize, extend: bool) {
+        let mode = if extend && self.anchor.is_some() {
+            SelectMode::Range
+        } else {
+            SelectMode::Single
+        };
+        self.select(ix, mode);
     }
 
     /// Clears the row selection.
     pub fn clear_selection(&mut self) {
         self.selection.clear();
         self.anchor = None;
+        self.lead = None;
     }
 
     /// The selected rows' text in row order, each line followed by `'\n'`; `None` when nothing
@@ -531,5 +585,53 @@ mod tests {
         log.set_text("z");
         assert!(log.selected_rows().is_empty());
         assert_eq!(log.text(), "z\n");
+    }
+
+    #[test]
+    fn select_all_and_keyboard_moves() {
+        let mut log = LogLines::new();
+        log.select_all();
+        assert!(log.selected_rows().is_empty(), "nothing to select");
+        assert_eq!(log.move_lead(1, false), None);
+        log.set_text(
+            "a
+b
+c
+d
+",
+        );
+        log.select_all();
+        assert_eq!(log.selected_rows(), [0, 1, 2, 3]);
+        assert_eq!(
+            log.selected_text().as_deref(),
+            Some(
+                "a
+b
+c
+d
+"
+            )
+        );
+        log.clear_selection();
+        // No focus row yet: Down starts at the top, Up at the bottom.
+        assert_eq!(log.move_lead(1, false), Some(0));
+        assert_eq!(log.move_lead(1, false), Some(1));
+        assert_eq!(log.selected_rows(), [1]);
+        assert_eq!(log.move_lead(1, true), Some(2));
+        assert_eq!(log.move_lead(1, true), Some(3));
+        assert_eq!(log.selected_rows(), [1, 2, 3]);
+        assert_eq!(log.move_lead(-3, true), Some(0));
+        assert_eq!(log.selected_rows(), [0, 1]);
+        assert_eq!(log.move_lead(-1, false), Some(0), "held at the top");
+        assert_eq!(log.move_lead_to_edge(true, true), Some(3));
+        assert_eq!(log.selected_rows(), [0, 1, 2, 3]);
+        assert_eq!(log.move_lead_to_edge(false, false), Some(0));
+        assert_eq!(log.selected_rows(), [0]);
+        log.clear_selection();
+        assert_eq!(log.move_lead(-1, false), Some(3));
+        // A click moves the focus row; the focus row follows trimmed lines.
+        log.select(2, SelectMode::Single);
+        assert_eq!(log.lead(), Some(2));
+        assert_eq!(log.move_lead(1, false), Some(3));
     }
 }

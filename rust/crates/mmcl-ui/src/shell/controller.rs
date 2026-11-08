@@ -277,7 +277,7 @@ pub fn main_window_options(cx: &App) -> (WindowOptions, BoundsTracker) {
         window_background: theme.window_background(false),
         app_id: Some(
             mmcl_core::AppIdentity::current()
-                .linux_desktop_id
+                .linux_package_name
                 .to_string(),
         ),
         window_decorations: Some(WindowDecorations::Client),
@@ -325,7 +325,28 @@ pub fn start_gui(cx: &mut App) -> Result<AnyWindowHandle, ShellError> {
     c.window = Some(handle);
     c.main = Some(main);
     c.state.started.store(true, Ordering::Release);
+    let _ = handle.update(cx, |_, window, cx| {
+        super::desktop::on_main_window_opened(window, cx);
+    });
     Ok(handle.into())
+}
+
+/// `setResizable` on the open main window (the "Resizable windows" setting, applied live).
+/// GPUI fixes resizability at window creation, so this goes through the native window; on
+/// Linux it is not supported and the setting applies to the next window. Returns whether the
+/// window changed.
+pub fn set_resizable(cx: &mut App, resizable: bool) -> bool {
+    let mut changed = false;
+    with_main_window(cx, |window, _| {
+        changed = mmcl_platform::chrome::set_resizable(&*window, resizable);
+    });
+    if !changed {
+        tracing::debug!(
+            "{}",
+            mmcl_i18n::tf!("log.ui.resizableNotApplied", resizable.to_string())
+        );
+    }
+    changed
 }
 
 /// `prebuildMainGui`: GPUI views are cheap to build, so this is a no-op kept for the API.

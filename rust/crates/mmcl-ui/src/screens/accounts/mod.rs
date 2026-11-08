@@ -33,6 +33,7 @@ pub use model::{AccountRow, SwitcherAction, account_rows};
 pub use panel::{SignInHost, SignInPanel, SignInPanelEvent};
 pub use switcher::{
     account_chip, confirm_sign_out, current_rows, make_default, open_account_settings,
+    show_switcher,
 };
 
 /// The screens this module provides.
@@ -45,7 +46,10 @@ pub const SPECS: [ScreenSpec; 1] = [ScreenSpec {
     pref: Some((1120.0, 860.0)),
 }];
 
-/// Registers the Login screen.
+/// Registers the Login screen and opens the account switcher from Home's avatar / name chip
+/// (`MCLauncherMainGui` -> `AccountSwitcherMenu.show`). `mmcl-app` may install its own
+/// switcher later; the last installed wins.
 pub fn register(cx: &mut App) {
     login::register(cx);
+    super::home_browse::set_account_switcher_handler(cx, switcher::show_switcher);
 }

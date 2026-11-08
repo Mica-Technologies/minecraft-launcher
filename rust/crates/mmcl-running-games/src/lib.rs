@@ -23,8 +23,14 @@
 //! mmcl_running_games::init(cx, engine.clone());
 //! // the shell renders `mmcl_running_games::dock_host(cx)` under its screen and calls
 //! // `follow_screen` / `refresh_theme` on every screen change;
-//! // the launch flow calls `show_session(cx, id)` (or `hide_unless_preparing`).
+//! // the launch flow calls `show_session(cx, id)`;
+//! mmcl_running_games::set_navigate_handler(cx, |req, cx| mmcl_ui::shell::navigate_gated(cx, req));
+//! mmcl_running_games::set_dock_room_provider(cx, |window_height, window, cx| /* room */ None);
 //! ```
+//!
+//! The view reacts to the sessions by itself: once a game is up it steps aside when "Show
+//! console on launch" is off (`hide_unless_preparing`), and a crash shows that game's tab again.
+//! [`init`] binds the tab keys (Ctrl+Tab, Ctrl+Shift+Tab, arrows on the tab strip) once.
 
 pub mod backend;
 pub mod lines;
@@ -36,15 +42,16 @@ mod widgets;
 
 use std::rc::Rc;
 
-use gpui::{App, Entity};
+use gpui::{App, Entity, Global};
 
 pub use backend::{Backend, GamesBackend};
 pub use log_view::SessionLogView;
-pub use pane::{GameSessionPane, format_duration};
+pub use pane::{GameSessionPane, NavigateHandler, format_duration, set_navigate_handler};
 pub use view::{
-    DOCK_SHARE_MAX, DOCK_SHARE_MIN, DockHost, RunningGames, RunningGamesView, clamp_share,
-    dock_host, dock_visible, drag_share, follow_screen, hide_unless_preparing, refresh_theme,
-    set_dock_room, set_docked, show_session, show_window, shutdown,
+    DOCK_SHARE_MAX, DOCK_SHARE_MIN, DockHost, DockRoomProvider, PhaseReaction, RunningGames,
+    RunningGamesView, clamp_share, dock_host, dock_visible, drag_share, follow_screen,
+    hide_unless_preparing, phase_reaction, refresh_theme, set_dock_room, set_dock_room_provider,
+    set_docked, show_session, show_window, shutdown, tab_index_after,
 };
 
 /// The Running Games model handle (the spec's `RunningGamesModel`).
@@ -58,5 +65,14 @@ pub fn init(cx: &mut App, engine: mmcl_engine::Engine) -> RunningGamesModel {
 
 /// [`init`] over any backend (tests, alternative front ends).
 pub fn init_with_backend(cx: &mut App, backend: Backend) -> RunningGamesModel {
+    if cx.try_global::<KeysBound>().is_none() {
+        cx.set_global(KeysBound);
+        view::bind_keys(cx);
+    }
     RunningGames::install(cx, backend)
 }
+
+/// Marks the key bindings as installed (an in-process restart calls [`init`] again).
+struct KeysBound;
+
+impl Global for KeysBound {}

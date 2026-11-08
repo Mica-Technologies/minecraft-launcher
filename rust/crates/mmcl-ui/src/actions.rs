@@ -5,8 +5,9 @@
 //! Global navigation chords live in the [`NAVIGABLE_CONTEXT`] key context, which the shell sets
 //! on its root only while the current screen [`installs_global_shortcuts`]; Login and the
 //! progress screens therefore never get them. `secondary` is Cmd on macOS and Ctrl elsewhere
-//! (JavaFX "shortcut"). No binding uses Alt (Alt+Cmd+letter is a text accelerator) and bare
-//! Cmd+M is left to macOS Minimize.
+//! (JavaFX "shortcut"). No binding uses Alt (Alt+Cmd+letter is a text accelerator). Cmd+M is
+//! bound to [`Minimize`] on macOS only: GPUI's Window > Minimize item is a custom action, not
+//! AppKit's `performMiniaturize:`, so macOS does not supply the chord itself.
 //!
 //! | Chord | Action | Where |
 //! |---|---|---|
@@ -19,11 +20,18 @@
 //! | Enter | [`PlayLast`] | [`HOME_CONTEXT`] |
 //! | secondary-f | [`FocusSearch`] | [`HOME_CONTEXT`], [`BROWSE_CONTEXT`] |
 //! | cmd-q | [`Quit`] | macOS, everywhere |
+//! | cmd-shift-h | [`OpenHome`] | macOS, navigable screens (the Java menu accelerator) |
+//! | cmd-r | [`Refresh`] | macOS, everywhere (Home handles it itself; elsewhere the shell) |
+//! | cmd-m | [`Minimize`] | macOS, everywhere |
+//! | cmd-h | [`HideApp`] | macOS, everywhere |
+//! | cmd-1 .. cmd-8 | [`PlayRecent1`] .. [`PlayRecent8`] | macOS, everywhere |
 //!
 //! Screen-specific actions ([`Refresh`], [`PlayLast`], [`FocusSearch`]) are handled by the
 //! screens: set the context on the screen root (`.key_context(HOME_CONTEXT)`) and add
 //! `.on_action(cx.listener(..))`. Navigation actions are handled by the shell (app-level
-//! listeners in [`install_handlers`]), always behind the navigation gate.
+//! listeners in [`install_handlers`]), always behind the navigation gate. [`Refresh`] also has
+//! an app-level handler: from any other screen it re-checks the announcements, re-fetches the
+//! pack list and goes Home (`SystemMenuBarManager.refreshMain`).
 //!
 //! [`installs_global_shortcuts`]: mmcl_ui_kit::Screen::installs_global_shortcuts
 
@@ -61,6 +69,20 @@ actions!(
         Zoom,
         /// Open the Mica Technologies website (menu bar).
         OpenWebsite,
+        /// The About dialog (macOS application menu).
+        About,
+        /// Hide the application (macOS, Cmd+H).
+        HideApp,
+        /// Hide the other applications (macOS).
+        HideOtherApps,
+        /// Show every application again (macOS).
+        ShowAllApps,
+        /// Bring the launcher window forward (dock menu).
+        ShowLauncher,
+        /// Play the last selected modpack (dock / tray).
+        PlayLastPack,
+        /// Open the last selected modpack's mods folder (dock / tray).
+        OpenLastMods,
     ]
 );
 
@@ -139,9 +161,29 @@ pub fn binding_table() -> Vec<(&'static str, &'static str, Option<&'static str>)
     ];
     if cfg!(target_os = "macos") {
         v.push(("cmd-q", "Quit", None));
+        v.push(("cmd-shift-h", "OpenHome", Some(NAVIGABLE_CONTEXT)));
+        v.push(("cmd-r", "Refresh", None));
+        v.push(("cmd-m", "Minimize", None));
+        v.push(("cmd-h", "HideApp", None));
+        for (keys, action) in RECENT_CHORDS {
+            v.push((keys, action, None));
+        }
     }
     v
 }
+
+/// The Play Recent quick-launch chords (macOS): the first [`crate::shell::menu_bar::RECENT_MAX`]
+/// entries of Modpacks > Play Recent.
+const RECENT_CHORDS: [(&str, &str); 8] = [
+    ("cmd-1", "PlayRecent1"),
+    ("cmd-2", "PlayRecent2"),
+    ("cmd-3", "PlayRecent3"),
+    ("cmd-4", "PlayRecent4"),
+    ("cmd-5", "PlayRecent5"),
+    ("cmd-6", "PlayRecent6"),
+    ("cmd-7", "PlayRecent7"),
+    ("cmd-8", "PlayRecent8"),
+];
 
 /// `secondary-<keys>` resolved for this OS: `KeyBinding::new` does not resolve `secondary`.
 #[cfg(target_os = "macos")]
@@ -173,12 +215,31 @@ pub fn bind_global_keys(cx: &mut App) {
         KeyBinding::new(sec!("f"), FocusSearch, search),
     ];
     if cfg!(target_os = "macos") {
-        bindings.push(KeyBinding::new("cmd-q", Quit, None));
+        bindings.extend([
+            KeyBinding::new("cmd-q", Quit, None),
+            KeyBinding::new("cmd-shift-h", OpenHome, nav),
+            KeyBinding::new("cmd-r", Refresh, None),
+            KeyBinding::new("cmd-m", Minimize, None),
+            KeyBinding::new("cmd-h", HideApp, None),
+            KeyBinding::new("cmd-1", PlayRecent1, None),
+            KeyBinding::new("cmd-2", PlayRecent2, None),
+            KeyBinding::new("cmd-3", PlayRecent3, None),
+            KeyBinding::new("cmd-4", PlayRecent4, None),
+            KeyBinding::new("cmd-5", PlayRecent5, None),
+            KeyBinding::new("cmd-6", PlayRecent6, None),
+            KeyBinding::new("cmd-7", PlayRecent7, None),
+            KeyBinding::new("cmd-8", PlayRecent8, None),
+        ]);
     }
     cx.bind_keys(bindings);
 }
 
+/// Navigation from a shortcut, menu or the dock: the main window comes forward (a dock or
+/// Running Games window click may have started it), then the gate decides.
 fn go(cx: &mut App, id: ScreenId) {
+    if shell::is_started(cx) {
+        shell::request_focus(cx);
+    }
     shell::navigate_gated(cx, ScreenRequest::new(id));
 }
 
@@ -201,6 +262,20 @@ pub fn install_handlers(cx: &mut App) {
         shell::with_main_window(cx, |window, _| window.zoom_window());
     });
     cx.on_action(|_: &OpenWebsite, cx| mmcl_ui_kit::open_external_url(cx, WEBSITE_URL));
+    cx.on_action(|_: &Refresh, cx| shell::shell_actions::refresh_and_go_home(cx));
+    cx.on_action(|_: &About, cx| shell::shell_actions::show_about(cx));
+    cx.on_action(|_: &HideApp, cx| cx.hide());
+    cx.on_action(|_: &HideOtherApps, cx| cx.hide_other_apps());
+    cx.on_action(|_: &ShowAllApps, cx| cx.unhide_other_apps());
+    cx.on_action(|_: &ShowLauncher, cx| {
+        shell::shell_actions::run(mmcl_platform::MenuAction::ShowLauncher, cx)
+    });
+    cx.on_action(|_: &PlayLastPack, cx| {
+        shell::shell_actions::run(mmcl_platform::MenuAction::PlayLast, cx)
+    });
+    cx.on_action(|_: &OpenLastMods, cx| {
+        shell::shell_actions::run(mmcl_platform::MenuAction::OpenLastModsFolder, cx)
+    });
 
     cx.on_action(|_: &PlayRecent1, cx| hooks::play_recent(0, cx));
     cx.on_action(|_: &PlayRecent2, cx| hooks::play_recent(1, cx));
@@ -237,13 +312,36 @@ pub fn install_handlers(cx: &mut App) {
 mod tests {
     use super::*;
 
-    /// Guarded bug 27: no Alt chords, and bare Cmd+M is never bound.
+    /// Guarded bug 27: no Alt chords; bare Cmd+M only ever means Minimize (macOS), and the
+    /// secondary-M chord stays unbound on every OS.
     #[test]
     fn shortcuts_avoid_alt_and_bare_cmd_m() {
-        for (keys, _, _) in binding_table() {
+        for (keys, action, ctx) in binding_table() {
             assert!(!keys.contains("alt-"), "{keys} uses Alt");
             assert_ne!(keys, "secondary-m");
-            assert_ne!(keys, "cmd-m");
+            if keys == "cmd-m" {
+                assert_eq!((action, ctx), ("Minimize", None));
+            }
+        }
+    }
+
+    #[test]
+    fn no_chord_is_bound_twice_in_one_context() {
+        let table = binding_table();
+        let mut seen = std::collections::HashSet::new();
+        for (keys, _, ctx) in &table {
+            assert!(seen.insert((*keys, *ctx)), "{keys} bound twice in {ctx:?}");
+        }
+    }
+
+    /// Play Recent quick-launch covers exactly the entries the submenu lists (Java caps the
+    /// list at eight).
+    #[test]
+    fn recent_chords_match_the_submenu_cap() {
+        assert_eq!(RECENT_CHORDS.len(), crate::shell::menu_bar::RECENT_MAX);
+        for (i, (keys, action)) in RECENT_CHORDS.iter().enumerate() {
+            assert_eq!(*keys, format!("cmd-{}", i + 1));
+            assert_eq!(*action, format!("PlayRecent{}", i + 1));
         }
     }
 

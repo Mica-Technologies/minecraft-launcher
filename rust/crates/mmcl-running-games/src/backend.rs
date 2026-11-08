@@ -53,6 +53,11 @@ pub trait GamesBackend: 'static {
     fn set_dock_height(&self, per_mille: i32);
     /// `consoleLogMaxLines` (0 = unlimited).
     fn console_max_lines(&self) -> i32;
+    /// `inGameConsoleEnable` ("Show console on launch" / "Keep games window open"): when off,
+    /// the view steps aside once a game is up. Defaults to on (the view stays).
+    fn in_game_console(&self) -> bool {
+        true
+    }
 }
 
 /// A shared backend handle.
@@ -98,9 +103,19 @@ impl GamesBackend for Engine {
 
     fn crash(&self, id: SessionId) -> LocalBoxFuture<'static, Option<CrashView>> {
         let engine = self.clone();
-        self.spawn(async move { engine.session_crash(id).await.ok() })
-            .map(|r| r.ok().flatten())
-            .boxed_local()
+        self.spawn(async move {
+            match engine.session_crash(id).await {
+                Ok(view) => Some(view),
+                // The session's log could not be read: the pack's newest crash report still
+                // gives the card and the crash-report toggle (Java showed the toggle whenever a
+                // report existed, diagnosis or not).
+                Err(_) => engine
+                    .session(id)
+                    .and_then(|info| engine.latest_crash(&info.pack)),
+            }
+        })
+        .map(|r| r.ok().flatten())
+        .boxed_local()
     }
 
     fn cancel(&self, id: SessionId) {
@@ -161,5 +176,9 @@ impl GamesBackend for Engine {
 
     fn console_max_lines(&self) -> i32 {
         self.config().console_log_max_lines()
+    }
+
+    fn in_game_console(&self) -> bool {
+        self.config().in_game_console()
     }
 }

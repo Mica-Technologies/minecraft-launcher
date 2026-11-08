@@ -77,6 +77,7 @@ pub fn vanilla_summary(version: &str) -> PackSummary {
         never_played: true,
         unread_news: 0,
         active: false,
+        ..Default::default()
     }
 }
 
@@ -89,6 +90,12 @@ pub fn merge_vanilla(mut packs: Vec<PackSummary>, vanilla_ids: &[String]) -> Vec
         }
     }
     packs
+}
+
+/// Only `http(s)` pages are opened (the update release page, a pack website).
+pub fn is_openable_update_url(url: &str) -> bool {
+    let lower = url.trim().to_ascii_lowercase();
+    lower.starts_with("https://") || lower.starts_with("http://")
 }
 
 fn non_blank(s: &str) -> Option<&str> {
@@ -409,6 +416,28 @@ pub fn find_by_name(items: &[HomeItem], order: &[usize], name: &str) -> Option<u
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+
+    #[test]
+    fn only_http_pages_open() {
+        assert!(is_openable_update_url(
+            "https://github.com/x/releases/tag/v1"
+        ));
+        assert!(is_openable_update_url(" HTTP://example.com "));
+        assert!(!is_openable_update_url("file:///etc/passwd"));
+        assert!(!is_openable_update_url("javascript:alert(1)"));
+        assert!(!is_openable_update_url(""));
+    }
+
+    #[test]
+    fn website_button_uses_the_pack_url() {
+        use super::super::home::pack_website;
+        let mut p = pack("A");
+        assert_eq!(pack_website(&p), None);
+        p.website = Some(" https://example.com/pack ".into());
+        assert_eq!(pack_website(&p), Some("https://example.com/pack".into()));
+        p.website = Some("ftp://example.com".into());
+        assert_eq!(pack_website(&p), None);
+    }
 
     pub(crate) fn pack(name: &str) -> PackSummary {
         let mut p = vanilla_summary("x");

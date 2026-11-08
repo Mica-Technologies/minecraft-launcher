@@ -301,12 +301,22 @@ fn menu_item(label: impl Into<gpui::SharedString>) -> PopupMenuItem {
     PopupMenuItem::new(label)
 }
 
+/// The shortcut icon of a pack: its first cached logo, else the summary's cached primary logo.
+pub fn shortcut_logo(cached: Vec<PathBuf>, pack: &PackSummary) -> Option<PathBuf> {
+    cached
+        .into_iter()
+        .next()
+        .or_else(|| pack.logo_path.clone().filter(|p| p.is_file()))
+}
+
 /// Adds the pack context menu's items to `menu` (`buildPackContextMenu`), rebuilt per open from
-/// the pack's current state. `done` runs after an uninstall.
+/// the pack's current state. `status` shows "Removing <pack>..." on the calling screen while an
+/// uninstall runs; `done` runs after it.
 pub fn build_pack_context_menu(
     mut menu: PopupMenu,
     pack: &PackSummary,
     extras: Option<&PackExtras>,
+    status: Option<StatusSink>,
     done: Done,
     cx: &App,
 ) -> PopupMenu {
@@ -342,7 +352,7 @@ pub fn build_pack_context_menu(
     menu = menu.separator();
     {
         let target_name = pack.name.clone();
-        let logo = backend(cx).pack_images(&pack.id).logos.into_iter().next();
+        let logo = shortcut_logo(backend(cx).pack_images(&pack.id).logos, pack);
         menu = menu.item(
             menu_item(t!("main.contextMenu.createShortcut").into_owned()).on_click(
                 move |_, _, cx| {
@@ -417,7 +427,7 @@ pub fn build_pack_context_menu(
     let p = pack.clone();
     menu.item(
         menu_item(t!("main.contextMenu.uninstall").into_owned()).on_click(move |_, _, cx| {
-            confirm_and_uninstall_modpack(cx, &p, None, Some(done.clone()));
+            confirm_and_uninstall_modpack(cx, &p, status.clone(), Some(done.clone()));
         }),
     )
 }
@@ -579,54 +589,41 @@ pub fn official_export(cx: &mut App, pack: &PackSummary) {
                 Answer::Closed => return,
             };
         }
+        // The engine runs Java's order in one call: verify (modded), install the loader when
+        // asked, then write the profile.
         if !pack.is_vanilla {
-            notify::info(
-                &t!("officialExport.menuItem"),
-                &t!("officialExport.verifying"),
-            );
-            if let VerifyOutcome::Failed(e) = cx.update(|cx| backend(cx).verify(&pack.id)).await {
-                notify::error(
-                    &t!("officialExport.failed.title"),
-                    &tf!("officialExport.failed.body", e),
-                );
-                return;
-            }
+            notify::info(&t!("officialExport.verifying"), &name);
         }
         if install_loader {
             notify::info(
-                &t!("officialExport.menuItem"),
                 &tf!("officialExport.installLoader.inProgress", loader.as_str()),
+                &name,
             );
-            match cx
-                .update(|cx| backend(cx).official_install_loader(&pack.id))
-                .await
-            {
-                Ok(m) => notify::success(
-                    &t!("officialExport.installLoader.success.title"),
-                    &tf!("officialExport.installLoader.success.body", m),
-                ),
-                Err(e) => {
-                    tracing::warn!("{e}");
-                    notify::warn(
-                        &t!("officialExport.installLoader.failed.title"),
-                        &tf!("officialExport.installLoader.failed.body", e),
-                    );
-                }
-            }
         }
-        notify::info(
-            &t!("officialExport.menuItem"),
-            &t!("officialExport.inProgress"),
-        );
-        match cx.update(|cx| backend(cx).official_export(&pack.id)).await {
+        notify::info(&t!("officialExport.inProgress"), &name);
+        match cx
+            .update(|cx| backend(cx).official_export(&pack.id, install_loader))
+            .await
+        {
             Ok(OfficialOutcome::Exported(profile)) => notify::success(
                 &t!("officialExport.success.title"),
                 &tf!("officialExport.success.body", profile),
             ),
-            Ok(OfficialOutcome::LoaderMissing(_)) => notify::warn(
-                &t!("officialExport.successButLoaderMissing.title"),
-                &tf!("officialExport.successButLoaderMissing.body", vid.as_str()),
-            ),
+            Ok(OfficialOutcome::LoaderMissing(version)) => {
+                // A failed loader install lands here too (the engine logs its message).
+                let shown = if version.trim().is_empty() {
+                    vid.clone()
+                } else {
+                    version
+                };
+                notify::warn(
+                    &t!("officialExport.successButLoaderMissing.title"),
+                    &tf!(
+                        "officialExport.successButLoaderMissing.body",
+                        shown.as_str()
+                    ),
+                );
+            }
             Err(e) => notify::error(
                 &t!("officialExport.failed.title"),
                 &tf!("officialExport.failed.body", e),
@@ -637,11 +634,16 @@ pub fn official_export(cx: &mut App, pack: &PackSummary) {
 }
 
 /// Remove from the official Minecraft Launcher.
+/// The confirmation shows the export's game folder inside the Mica exports folder
+/// (`computeExportGameDir`); `root` (the pack's own folder) is only the fallback.
 pub fn official_remove(cx: &mut App, pack: &PackSummary, root: Option<PathBuf>) {
     let pack = pack.clone();
+    let game_dir = backend(cx).official_export_dir(&pack).or(root);
     cx.spawn(async move |cx| {
         let name = pack.name.clone();
-        let dir = root.map(|r| r.display().to_string()).unwrap_or_default();
+        let dir = game_dir
+            .map(|r| r.display().to_string())
+            .unwrap_or_default();
         let q = Question::new(
             t!("officialExport.remove.confirm.title"),
             tf!("officialExport.remove.confirm.header", name.as_str()),
@@ -682,6 +684,23 @@ mod tests {
             with_extension(PathBuf::from("a.json"), "zip"),
             PathBuf::from("a.json")
         );
+    }
+
+    #[test]
+    fn shortcut_logo_prefers_the_cached_list() {
+        let mut p = super::super::home_logic::vanilla_summary("1.20.1");
+        p.logo_path = Some(PathBuf::from("definitely/missing/logo.png"));
+        assert_eq!(
+            shortcut_logo(vec![PathBuf::from("a.png")], &p),
+            Some(PathBuf::from("a.png"))
+        );
+        // A summary path that is not on disk is not used.
+        assert_eq!(shortcut_logo(Vec::new(), &p), None);
+        let file = std::env::temp_dir().join("mmcl-ui-shortcut-logo-test.png");
+        std::fs::write(&file, b"x").unwrap();
+        p.logo_path = Some(file.clone());
+        assert_eq!(shortcut_logo(Vec::new(), &p), Some(file.clone()));
+        let _ = std::fs::remove_file(file);
     }
 
     #[test]

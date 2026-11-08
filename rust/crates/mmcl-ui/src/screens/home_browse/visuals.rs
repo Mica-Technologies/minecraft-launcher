@@ -339,6 +339,101 @@ fn gpui_format(bytes: &[u8]) -> Option<ImageFormat> {
 const GRADIENT_W: u32 = 96;
 const GRADIENT_H: u32 = 40;
 
+/// The canvas-drawn brand tiles of Browse's vanilla and loader cards
+/// (`PlaceholderLogoFactory`): a two-stop vertical gradient with a short bold wordmark.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Brand {
+    /// The green-grass "MC" tile.
+    Vanilla,
+    /// "F" in forge orange on dark grey.
+    Forge,
+    /// "N" in white on orange.
+    NeoForge,
+    /// "FAB" in brown on tan.
+    Fabric,
+}
+
+/// What a brand tile draws (colours as `0xRRGGBB`, the text size per 128 px of tile).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BrandTile {
+    pub top: u32,
+    pub bottom: u32,
+    pub text: &'static str,
+    pub text_color: u32,
+    pub text_size_per_128: u32,
+}
+
+impl Brand {
+    /// The brand of a loader type (`forge`, `neoforge`, `fabric`; any case).
+    pub fn of_loader(loader_type: &str) -> Option<Brand> {
+        match loader_type.trim().to_ascii_lowercase().as_str() {
+            "forge" => Some(Brand::Forge),
+            "neoforge" => Some(Brand::NeoForge),
+            "fabric" => Some(Brand::Fabric),
+            _ => None,
+        }
+    }
+
+    /// The loader type id (`None` for vanilla), also the cache file stem.
+    pub fn loader_type(self) -> Option<&'static str> {
+        match self {
+            Brand::Vanilla => None,
+            Brand::Forge => Some("forge"),
+            Brand::NeoForge => Some("neoforge"),
+            Brand::Fabric => Some("fabric"),
+        }
+    }
+
+    /// The project's official logo (cached as `config/loader-logos/<type>.png`).
+    pub fn official_url(self) -> Option<&'static str> {
+        match self {
+            Brand::Vanilla => None,
+            Brand::Forge => Some("https://files.minecraftforge.net/static/images/embed_logo.png"),
+            Brand::NeoForge => Some("https://neoforged.net/img/authors/neoforged.png"),
+            Brand::Fabric => Some("https://fabricmc.net/assets/logo.png"),
+        }
+    }
+
+    /// The cached official logo file in `dir`.
+    pub fn cache_file(self, dir: &std::path::Path) -> Option<PathBuf> {
+        self.loader_type().map(|t| dir.join(format!("{t}.png")))
+    }
+
+    /// The placeholder tile.
+    pub fn tile(self) -> BrandTile {
+        match self {
+            Brand::Vanilla => BrandTile {
+                top: 0x7BB344,
+                bottom: 0x3F7821,
+                text: "MC",
+                text_color: 0xFFFFFF,
+                text_size_per_128: 56,
+            },
+            Brand::Forge => BrandTile {
+                top: 0x525252,
+                bottom: 0x1F1F1F,
+                text: "F",
+                text_color: 0xFF8A3A,
+                text_size_per_128: 78,
+            },
+            Brand::NeoForge => BrandTile {
+                top: 0xF08646,
+                bottom: 0xB54115,
+                text: "N",
+                text_color: 0xFFFFFF,
+                text_size_per_128: 78,
+            },
+            Brand::Fabric => BrandTile {
+                top: 0xDEC596,
+                bottom: 0x937547,
+                text: "FAB",
+                text_color: 0x3B2A13,
+                text_size_per_128: 44,
+            },
+        }
+    }
+}
+
 /// Where a card's logo comes from.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LogoSource {
@@ -348,6 +443,9 @@ pub enum LogoSource {
     Url(String),
     /// The bundled launcher logo (vanilla).
     Vanilla,
+    /// A brand tile (Browse's vanilla and loader cards); loader brands upgrade to the official
+    /// logo once it is cached.
+    Brand(Brand),
     /// None declared: the bundled logo on a Forge default background.
     None,
 }
@@ -358,6 +456,7 @@ impl LogoSource {
             LogoSource::File(p) => format!("file:{}", p.display()),
             LogoSource::Url(u) => format!("url:{u}"),
             LogoSource::Vanilla => "__mica_launcher_logo__".into(),
+            LogoSource::Brand(b) => format!("__brand_{b:?}__"),
             LogoSource::None => "__none__".into(),
         }
     }
@@ -385,6 +484,10 @@ pub struct VisualCache {
     gradients: HashMap<String, Arc<Image>>,
     backgrounds: HashMap<String, Slot>,
     pending_cache: HashSet<String>,
+    /// Official loader logos being downloaded (or that failed) this session.
+    loader_fetches: HashSet<Brand>,
+    /// Available-pack logos were prefetched this session.
+    available_prefetched: bool,
 }
 
 impl Global for VisualCache {}
@@ -400,6 +503,8 @@ pub struct CardVisual {
     pub logo_transparent: bool,
     /// The gradient behind everything.
     pub gradient: Option<Arc<Image>>,
+    /// Draw this brand tile instead of `logo` (no official logo cached yet).
+    pub placeholder: Option<Brand>,
 }
 
 fn analyze(bytes: Vec<u8>) -> Option<Loaded> {
@@ -433,6 +538,68 @@ fn forge_gradient(cx: &mut App) -> Option<Arc<Image>> {
     gradient_for(cx, "__forge_default__", || {
         Some(render_default_forge(GRADIENT_W, GRADIENT_H))
     })
+}
+
+fn vanilla_gradient(cx: &mut App) -> Option<Arc<Image>> {
+    gradient_for(cx, "__vanilla_default__", || {
+        Some(render_diagonal(
+            &default_vanilla_stops(),
+            GRADIENT_W,
+            GRADIENT_H,
+        ))
+    })
+}
+
+/// Downloads a loader's official logo into `config/loader-logos` once per session
+/// (`PlaceholderLogoFactory.resolveLogo`); windows refresh when it lands, so the brand tile
+/// upgrades to the official logo.
+fn ensure_loader_logo(cx: &mut App, brand: Brand, backend: &Rc<dyn LibraryBackend>) {
+    let (Some(url), Some(dest)) = (
+        brand.official_url(),
+        backend
+            .loader_logos_dir()
+            .and_then(|d| brand.cache_file(&d)),
+    ) else {
+        return;
+    };
+    if !cx
+        .default_global::<VisualCache>()
+        .loader_fetches
+        .insert(brand)
+    {
+        return;
+    }
+    let fetch = backend.fetch_bytes(url);
+    cx.spawn(async move |cx| {
+        let written = match fetch.await {
+            Ok(bytes) if gpui_format(&bytes).is_some() => {
+                let dest2 = dest.clone();
+                cx.background_spawn(async move {
+                    if let Some(parent) = dest2.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    std::fs::write(&dest2, bytes)
+                })
+                .await
+                .map_err(|e| e.to_string())
+            }
+            Ok(_) => Err(super::backend::unavailable()),
+            Err(e) => Err(e),
+        };
+        match written {
+            Ok(()) => cx.update(|cx| cx.refresh_windows()),
+            Err(e) => tracing::warn!(
+                "{}",
+                mmcl_i18n::tf!(
+                    "log.placeholderLogo.officialFetchFailed",
+                    brand.loader_type().unwrap_or_default(),
+                    url,
+                    e
+                )
+            ),
+        }
+    })
+    .detach();
 }
 
 fn bundled_logo(_cx: &App) -> Option<Vec<u8>> {
@@ -498,7 +665,34 @@ pub fn card_visual(
             logo_loaded: true,
             logo_transparent: false,
             gradient: forge_gradient(cx),
+            placeholder: None,
         },
+        LogoSource::Brand(brand) => {
+            // A cached official logo draws like any cached file.
+            if let Some(file) = backend
+                .loader_logos_dir()
+                .and_then(|d| brand.cache_file(&d))
+                .filter(|f| f.metadata().is_ok_and(|m| m.len() > 0))
+            {
+                let file = LogoSource::File(file);
+                if let Slot::Ready(_) = logo_slot(cx, &file, backend) {
+                    return card_visual(cx, &file, backend);
+                }
+            } else {
+                ensure_loader_logo(cx, *brand, backend);
+            }
+            CardVisual {
+                logo: bundled,
+                logo_loaded: true,
+                logo_transparent: true,
+                gradient: if *brand == Brand::Vanilla {
+                    vanilla_gradient(cx)
+                } else {
+                    forge_gradient(cx)
+                },
+                placeholder: Some(*brand),
+            }
+        }
         _ => {
             let slot = logo_slot(cx, source, backend);
             let vanilla = matches!(source, LogoSource::Vanilla);
@@ -512,13 +706,7 @@ pub fn card_visual(
                                 Some(render_diagonal(&gradient_stops(&p), GRADIENT_W, GRADIENT_H))
                             })
                         }
-                        (_, true) => gradient_for(cx, "__vanilla_default__", || {
-                            Some(render_diagonal(
-                                &default_vanilla_stops(),
-                                GRADIENT_W,
-                                GRADIENT_H,
-                            ))
-                        }),
+                        (_, true) => vanilla_gradient(cx),
                         _ => forge_gradient(cx),
                     };
                     CardVisual {
@@ -526,6 +714,7 @@ pub fn card_visual(
                         logo_loaded: true,
                         logo_transparent: l.transparent,
                         gradient,
+                        placeholder: None,
                     }
                 }
                 Slot::Loading | Slot::Failed => CardVisual {
@@ -533,16 +722,11 @@ pub fn card_visual(
                     logo_loaded: matches!(slot, Slot::Failed),
                     logo_transparent: false,
                     gradient: if vanilla {
-                        gradient_for(cx, "__vanilla_default__", || {
-                            Some(render_diagonal(
-                                &default_vanilla_stops(),
-                                GRADIENT_W,
-                                GRADIENT_H,
-                            ))
-                        })
+                        vanilla_gradient(cx)
                     } else {
                         forge_gradient(cx)
                     },
+                    placeholder: None,
                 },
             }
         }
@@ -616,7 +800,7 @@ pub fn ensure_cached(cx: &mut App, pack: &mmcl_engine::PackId, backend: &Rc<dyn 
 /// The dominant palette of a pack logo, once loaded (`sampleDominantPackPalette`); `None` for
 /// vanilla or while loading.
 pub fn pack_palette(cx: &App, source: &LogoSource, count: usize) -> Option<Vec<Rgbf>> {
-    if count == 0 || matches!(source, LogoSource::Vanilla) {
+    if count == 0 || matches!(source, LogoSource::Vanilla | LogoSource::Brand(_)) {
         return None;
     }
     match cx.try_global::<VisualCache>()?.logos.get(&source.key())? {
@@ -633,15 +817,80 @@ pub fn pack_palette(cx: &App, source: &LogoSource, count: usize) -> Option<Vec<R
 /// (`prefetchAvailableModpackBackgrounds`).
 pub fn prefetch(cx: &mut App, sources: &[LogoSource], backend: &Rc<dyn LibraryBackend>) {
     for s in sources {
-        if !matches!(s, LogoSource::None) {
+        if !matches!(s, LogoSource::None | LogoSource::Brand(_)) {
             let _ = logo_slot(cx, s, backend);
         }
     }
 }
 
+/// The logo sources of the available packs worth warming (their remote logos).
+pub fn available_logo_sources(packs: &[mmcl_engine::PackSummary]) -> Vec<LogoSource> {
+    let mut seen = HashSet::new();
+    packs
+        .iter()
+        .filter(|p| !p.installed)
+        .filter_map(|p| p.logo_url.as_ref())
+        .map(|u| u.trim())
+        .filter(|u| !u.is_empty() && seen.insert(u.to_string()))
+        .map(|u| LogoSource::Url(u.to_string()))
+        .collect()
+}
+
+/// Warms every available pack's logo palette once per session
+/// (`prefetchAvailableModpackBackgrounds`), so Browse's gradients are ready on first view.
+pub fn prefetch_available(
+    cx: &mut App,
+    packs: &[mmcl_engine::PackSummary],
+    backend: &Rc<dyn LibraryBackend>,
+) {
+    let cache = cx.default_global::<VisualCache>();
+    if cache.available_prefetched {
+        return;
+    }
+    cache.available_prefetched = true;
+    let sources = available_logo_sources(packs);
+    prefetch(cx, &sources, backend);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn brands_follow_the_placeholder_factory() {
+        assert_eq!(Brand::of_loader("Forge"), Some(Brand::Forge));
+        assert_eq!(Brand::of_loader(" neoforge "), Some(Brand::NeoForge));
+        assert_eq!(Brand::of_loader("fabric"), Some(Brand::Fabric));
+        assert_eq!(Brand::of_loader("quilt"), None);
+        assert_eq!(Brand::Vanilla.tile().text, "MC");
+        assert_eq!(Brand::Vanilla.tile().top, 0x7BB344);
+        assert_eq!(Brand::Fabric.tile().text, "FAB");
+        assert!(Brand::Vanilla.official_url().is_none());
+        assert_eq!(
+            Brand::Forge.cache_file(std::path::Path::new("d")),
+            Some(std::path::Path::new("d").join("forge.png"))
+        );
+        assert_eq!(Brand::Vanilla.cache_file(std::path::Path::new("d")), None);
+    }
+
+    #[test]
+    fn available_logos_are_deduplicated_and_skip_installed() {
+        let mut a = mmcl_engine::PackSummary {
+            logo_url: Some("https://x/a.png".into()),
+            ..Default::default()
+        };
+        let b = a.clone();
+        let mut c = a.clone();
+        c.logo_url = Some(" ".into());
+        let mut d = a.clone();
+        d.logo_url = Some("https://x/d.png".into());
+        d.installed = true;
+        a.name = "A".into();
+        assert_eq!(
+            available_logo_sources(&[a, b, c, d]),
+            vec![LogoSource::Url("https://x/a.png".into())]
+        );
+    }
 
     fn solid(w: u32, h: u32, c: [u8; 4]) -> RgbaImage {
         RgbaImage::from_pixel(w, h, Rgba(c))
