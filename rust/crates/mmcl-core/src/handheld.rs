@@ -124,6 +124,35 @@ pub fn detect_from_process_env() -> Option<HandheldKind> {
     detect(&|name| std::env::var_os(name).map(|v| v.to_string_lossy().into_owned()))
 }
 
+/// The `--gamepad` / `--no-gamepad` switch of this process: 0 unset, 1 on, 2 off.
+static CLI_FLAG: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
+/// Records the command-line gamepad switch ([`crate::args::gamepad_flag`]) for this process.
+/// It wins over the saved setting and is never saved.
+pub fn set_cli_flag(flag: Option<bool>) {
+    let v = match flag {
+        None => 0,
+        Some(true) => 1,
+        Some(false) => 2,
+    };
+    CLI_FLAG.store(v, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The command-line gamepad switch recorded with [`set_cli_flag`].
+pub fn cli_flag() -> Option<bool> {
+    match CLI_FLAG.load(std::sync::atomic::Ordering::Relaxed) {
+        1 => Some(true),
+        2 => Some(false),
+        _ => None,
+    }
+}
+
+/// The effective mode for this process: the command-line switch, the saved setting, then
+/// detection from the process environment.
+pub fn effective(config: Option<bool>) -> GamepadMode {
+    GamepadMode::resolve(cli_flag(), config, detect_from_process_env())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

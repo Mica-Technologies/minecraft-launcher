@@ -1,5 +1,6 @@
 [package]
 name = "mmcl-app"
+description = "The Mica Minecraft Launcher executable: argument handling, startup guard, single instance, mode dispatch (GUI, terminal UI, server, MCP relay, sign-in and RGB helpers) and the GUI wiring."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -17,3 +18,32 @@ embed-resource = "3"
 gpui.workspace = true
 gpui-platform.workspace = true
 gpui-component.workspace = true
+mmcl-core.workspace = true
+mmcl-auth.workspace = true
+mmcl-i18n.workspace = true
+mmcl-log.workspace = true
+mmcl-util.workspace = true
+mmcl-platform.workspace = true
+mmcl-rgb.workspace = true
+mmcl-engine.workspace = true
+mmcl-mcp.workspace = true
+mmcl-tui.workspace = true
+mmcl-signin-webview.workspace = true
+mmcl-ui-kit.workspace = true
+mmcl-ui.workspace = true
+mmcl-editor.workspace = true
+mmcl-running-games.workspace = true
+futures.workspace = true
+parking_lot.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_System_Console",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+tempfile.workspace = true
