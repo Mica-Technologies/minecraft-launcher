@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
+
+  Installer strings, ported from the Java installer's CustomUIStrings_en.wxl. The stock WixUI
+  strings are Overridable, so these win at link time. [ProductName] is the identity's display
+  name. Keep ExitDialogDescription under about 140 characters: the ExitDialog body is 40 units
+  tall.
+-->
+<WixLocalization Culture="en-US" Codepage="1252" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+
+  <String Id="MainFeatureTitle" Value="Mica Minecraft Launcher" />
+  <String Id="MmclLauncherRunningError" Value="[ProductName] is still running. Close it, then run the installer again. Nothing has been changed." />
+
+  <String Id="WelcomeDlgTitle" Value="{\WixUI_Font_Bigger}Install [ProductName]" />
+  <String Id="WelcomeDlgDescription" Value="This wizard will install [ProductName] on your computer. The launcher manages Minecraft Forge modpacks, downloads Java runtimes on demand, and signs you in with your Microsoft account.&#x0D;&#x0A;&#x0D;&#x0A;Click Next to continue, or Cancel to exit." />
+
+  <String Id="LicenseAgreementDlgTitle" Value="{\WixUI_Font_Title}License Agreement" />
+  <String Id="LicenseAgreementDlgDescription" Value="[ProductName] is free software, licensed under the GNU GPL v3." />
+
+  <String Id="InstallDirDlgTitle" Value="{\WixUI_Font_Title}Choose Install Location" />
+  <String Id="InstallDirDlgDescription" Value="Accept the default folder, or click Change to pick another." />
+
+  <String Id="ShortcutPromptDlg_Title" Value="[ProductName] Setup" />
+  <String Id="ShortcutPromptDlgTitle" Value="{\WixUI_Font_Title}Shortcuts" />
+  <String Id="ShortcutPromptDlgDescription" Value="Choose where to place the launcher's shortcuts." />
+  <String Id="ShortcutPromptDlgDesktopShortcutControlLabel" Value="Create a Desktop shortcut" />
+  <String Id="ShortcutPromptDlgStartMenuShortcutControlLabel" Value="Create a Start menu shortcut" />
+
+  <String Id="VerifyReadyDlgInstallTitle" Value="{\WixUI_Font_Title}Ready to Install" />
+  <String Id="VerifyReadyDlgInstallText" Value="Setup will now install [ProductName] using the options you selected. Click Install to begin, Back to review your choices, or Cancel to exit." />
+  <String Id="VerifyReadyDlgRemoveTitle" Value="{\WixUI_Font_Title}Ready to Uninstall" />
+  <String Id="VerifyReadyDlgRemoveText" Value="Setup will now remove [ProductName] from your computer. Your modpacks, Java runtimes, and saved games stored under your user profile are not affected. Click Remove to continue." />
+  <String Id="VerifyReadyDlgUpdateTitle" Value="{\WixUI_Font_Title}Ready to Update" />
+  <String Id="VerifyReadyDlgUpdateText" Value="Setup will now update [ProductName] to the new version. Your modpacks and saved games are preserved. Click Update to continue." />
+
+  <String Id="ProgressDlgTitleInstalling" Value="{\WixUI_Font_Title}Installing [ProductName]" />
+  <String Id="ProgressDlgTextInstalling" Value="Setting up [ProductName]. This usually takes under a minute." />
+  <String Id="ProgressDlgTitleUpdating" Value="{\WixUI_Font_Title}Updating [ProductName]" />
+  <String Id="ProgressDlgTextUpdating" Value="Updating [ProductName] to the new version." />
+  <String Id="ProgressDlgTitleRemoving" Value="{\WixUI_Font_Title}Uninstalling [ProductName]" />
+  <String Id="ProgressDlgTextRemoving" Value="Removing [ProductName] files." />
+
+  <String Id="ExitDialogTitle" Value="{\WixUI_Font_Bigger}Installation Complete" />
+  <String Id="ExitDialogDescription" Value="[ProductName] is ready. On first run, sign in with your Microsoft account to authenticate with Mojang." />
+
+</WixLocalization>

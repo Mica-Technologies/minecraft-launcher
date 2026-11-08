@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
+
+  Burn bootstrapper (WiX Toolset v5): one Setup.exe holding both MSIs. The theme's check box
+  binds to MMCL_INSTALL_FOR_ALL_USERS and picks the chained MSI:
+    0 (default) -> per-user MSI, no elevation, %LOCALAPPDATA%\Programs\<AppName>
+    1           -> per-machine MSI, UAC, %ProgramFiles%\<AppName>
+  Scripted installs: "Setup.exe /quiet MMCL_INSTALL_FOR_ALL_USERS=1".
+
+  Variables passed by xtask (-d):
+    AppName, Manufacturer, BundleVersion (a.b.c.d: first three win_version parts + the
+    minutes-based bundle revision, strictly increasing so same-version rebuilds replace the
+    previous bundle instead of stacking Add/Remove Programs entries), BundleUpgradeCode,
+    MsiUserPath, MsiMachinePath, IconFile, ThemeFile, ThemeLocFile, AboutUrl, HelpUrl,
+    UpdateUrl, LicenseUrl.
+
+  Differences from the Java bundle, on purpose:
+    - no Options page (SuppressOptionsUI): the MSIs fix their install root, so the Java
+      bundle's editable folder was display-only;
+    - no RegistrySearch on the Uninstall key: it was keyed by UpgradeCode, never matched, and
+      nothing read it.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
+
+  <Bundle Name="$(var.AppName)"
+          Version="$(var.BundleVersion)"
+          Manufacturer="$(var.Manufacturer)"
+          AboutUrl="$(var.AboutUrl)"
+          HelpUrl="$(var.HelpUrl)"
+          UpdateUrl="$(var.UpdateUrl)"
+          UpgradeCode="$(var.BundleUpgradeCode)"
+          IconSourceFile="$(var.IconFile)"
+          DisableModify="yes"
+          Compressed="yes">
+
+    <!-- Every sibling bundle with this UpgradeCode is an upgrade target, whatever its version. -->
+    <RelatedBundle Id="$(var.BundleUpgradeCode)" Action="upgrade" />
+
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication
+          Theme="hyperlinkLargeLicense"
+          LicenseUrl="$(var.LicenseUrl)"
+          ThemeFile="$(var.ThemeFile)"
+          LocalizationFile="$(var.ThemeLocFile)"
+          ShowVersion="yes"
+          SuppressOptionsUI="yes" />
+    </BootstrapperApplication>
+
+    <!-- Scope choice. Not persisted: every run starts per-user. -->
+    <Variable Name="MMCL_INSTALL_FOR_ALL_USERS" Type="numeric" Value="0" Persisted="no" bal:Overridable="yes" />
+
+    <Chain>
+      <MsiPackage Id="UserMsi"
+                  SourceFile="$(var.MsiUserPath)"
+                  InstallCondition="MMCL_INSTALL_FOR_ALL_USERS = 0"
+                  Compressed="yes"
+                  Vital="yes"
+                  Visible="no"
+                  ForcePerMachine="no" />
+      <MsiPackage Id="MachineMsi"
+                  SourceFile="$(var.MsiMachinePath)"
+                  InstallCondition="MMCL_INSTALL_FOR_ALL_USERS = 1"
+                  Compressed="yes"
+                  Vital="yes"
+                  Visible="no"
+                  ForcePerMachine="yes" />
+    </Chain>
+  </Bundle>
+</Wix>

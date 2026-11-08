@@ -2,3 +2,7 @@
 # workstation's resource budget. Override per call with `-j N` if needed.
 [build]
 jobs = 6
+
+[alias]
+# cargo xtask dist <os> | version | checksums (packaging, not shipped)
+xtask = "run -p xtask --"

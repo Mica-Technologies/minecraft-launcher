@@ -1,0 +1,212 @@
+# Build, test and package the Rust launcher (rust/**). The Java workflows are separate and
+# untouched.
+#
+# - pull requests and pushes that touch rust/**: test job, then the package matrix
+#   (Windows MSI x2 + Setup.exe + portable zip, macOS arm64 + intel DMG/PKG, Linux
+#   deb/rpm/AppImage/tar.gz), uploaded as workflow artifacts;
+# - a pushed tag rs-*: the same, then a GitHub *pre-release* for that tag. Pre-releases never
+#   show up in /releases/latest, so the Java launcher's update check is not affected.
+#
+# Versions come from `cargo xtask version` (rust/xtask/src/version.rs).
+name: Rust Build
+
+on:
+  pull_request:
+    paths:
+      - 'rust/**'
+      - '.github/workflows/rust-build.yml'
+  # No path filter on push: GitHub applies it to tag pushes too, which would skip releases.
+  # The rewrite branch is Rust-only work, so every push to it is a Rust change anyway.
+  push:
+    branches:
+      - rewrite/rust-gpui
+    tags:
+      - 'rs-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+    working-directory: rust
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # GPUI's Linux build and run-time dependencies, plus WebKitGTK for the sign-in web view.
+  LINUX_DEPS: >-
+    pkg-config libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libvulkan-dev
+    libx11-dev libx11-xcb-dev libxcb1-dev libfontconfig1-dev libfreetype6-dev libasound2-dev
+    libwebkit2gtk-4.1-dev libgtk-3-dev libssl-dev
+
+jobs:
+  prepare:
+    name: Version
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      win_version: ${{ steps.v.outputs.win_version }}
+      tag: ${{ steps.v.outputs.tag }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - id: v
+        name: Compute version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/rs-* ]]; then
+            cargo run --locked -q -p xtask -- version --mode tag --tag "$GITHUB_REF_NAME" --github-output
+          else
+            cargo run --locked -q -p xtask -- version --mode pr --sha "$GITHUB_SHA" --github-output
+          fi
+
+  test:
+    name: Test
+    needs: prepare
+    runs-on: ubuntu-22.04
+    env:
+      MMCL_VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+      - name: Install system libraries
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_DEPS
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            rust/target
+          key: rust-test-${{ runner.os }}-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: rust-test-${{ runner.os }}-
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Unit tests
+        run: cargo test --workspace --locked
+
+  package:
+    name: Package (${{ matrix.name }})
+    needs: [prepare, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows-x64, os: windows-latest, target: x86_64-pc-windows-msvc, dist: windows }
+          - { name: macos-arm64, os: macos-latest, target: aarch64-apple-darwin, dist: macos }
+          - { name: macos-x64, os: macos-15-intel, target: x86_64-apple-darwin, dist: macos }
+          - { name: linux-x64, os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, dist: linux }
+    runs-on: ${{ matrix.os }}
+    env:
+      MMCL_VERSION: ${{ needs.prepare.outputs.version }}
+      MAC_SIGNING_IDENTITY: ${{ secrets.MAC_SIGNING_IDENTITY }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal --target ${{ matrix.target }}
+          rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            rust/target
+          key: rust-dist-${{ matrix.target }}-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: rust-dist-${{ matrix.target }}-
+      - name: Install WiX Toolset v5
+        if: runner.os == 'Windows'
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2 WixToolset.Bal.wixext/5.0.2
+          wix --version
+      - name: Install system libraries and appimagetool
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y $LINUX_DEPS file desktop-file-utils
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL -A "ci-build" -o "$RUNNER_TEMP/bin/appimagetool" \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x "$RUNNER_TEMP/bin/appimagetool"
+          echo "APPIMAGETOOL=$RUNNER_TEMP/bin/appimagetool" >> "$GITHUB_ENV"
+      - name: Package
+        run: >
+          cargo run --locked -p xtask --
+          dist ${{ matrix.dist }}
+          --version "$MMCL_VERSION"
+          --win-version "${{ needs.prepare.outputs.win_version }}"
+          --target ${{ matrix.target }}
+          --out target/dist/release
+      - name: Check the Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          for deb in target/dist/release/*.deb; do dpkg-deb --info "$deb" && dpkg-deb --contents "$deb"; done
+          for rpm in target/dist/release/*.rpm; do rpm -qlp "$rpm"; rpm -qp --requires "$rpm"; done
+          desktop-file-validate target/dist/stage/linux-release/*.AppDir/*.desktop || true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rust-${{ matrix.name }}-${{ github.event.pull_request.number && format('pr{0}', github.event.pull_request.number) || github.ref_name }}
+          path: rust/target/dist/release/*
+          retention-days: 14
+          if-no-files-found: error
+
+  release:
+    name: Pre-release
+    if: startsWith(github.ref, 'refs/tags/rs-')
+    needs: [prepare, package]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+      - id: body
+        name: Release notes
+        run: |
+          cargo run --locked -q -p xtask -- checksums ../artifacts --out ../checksums.md
+          {
+            echo "## Mica Minecraft Launcher (Rust) ${{ needs.prepare.outputs.version }} (Pre-Release)"
+            echo
+            echo "Rust rewrite preview. Installs side by side with the Java launcher (its own data folder, installers and identity)."
+            echo "Pre-releases may be removed after 90 days."
+            echo
+            cat ../checksums.md
+          } > ../release-body.md
+      - uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Rust Pre-Release ${{ needs.prepare.outputs.version }}
+          body_path: release-body.md
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            artifacts/*.msi
+            artifacts/*.exe
+            artifacts/*.dmg
+            artifacts/*.pkg
+            artifacts/*.deb
+            artifacts/*.rpm
+            artifacts/*.zip
+            artifacts/*.tar.gz
+            artifacts/*.AppImage

@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
+
+  MSI for the Rust launcher (WiX Toolset v5). One source, built twice by `cargo xtask dist
+  windows`: once per-user (Scope=perUser, %LOCALAPPDATA%\Programs\<AppName>) and once
+  per-machine (Scope=perMachine, %ProgramFiles%\<AppName>). The Burn bundle in bundle/ picks
+  one at run time.
+
+  Preprocessor variables (all passed by xtask with -d):
+    Scope           perUser | perMachine
+    AppName         display name ("Mica Minecraft Launcher (Rust)"), also the install folder
+    ExeName         installed executable file name ("<AppName>.exe")
+    Version         MSI ProductVersion (win_version: major<=255, minor<=255, build<=65535)
+    UpgradeCode     the identity's MSI UpgradeCode (shared by both scopes)
+    Manufacturer    "Mica Technologies"
+    Description     one-line product description (ARP comments)
+    Aumid           Windows AppUserModelID, stamped on every shortcut
+    MenuGroup       Start menu folder name
+    ExePath         staged executable
+    LicenseTxt      staged LICENSE.txt
+    LicenseRtf      LICENSE converted to RTF (license page)
+    IconFile        launcher .ico (ARP icon)
+    BannerBmp       493x58 banner bitmap
+    DialogBmp       493x312 dialog bitmap
+    HelpUrl / AboutUrl / UpdateUrl   Add/Remove Programs links
+    RegKey          HKCU key that holds the per-user key paths
+    RegisterUrlScheme      1 to register mmcl:// at install time, else 0
+    RegisterModpackType    1 to register .mmcjson at install time, else 0
+    ProgId          ProgID for .mmcjson (only read when RegisterModpackType = 1)
+
+  Upgrades: MajorUpgrade with AllowDowngrades (no upper bound, so upgrades, downgrades and
+  same-version reinstalls all replace the installed product; ProductCode is new every build).
+
+  Running gate (the 2026-10 in-use upgrade wipe): Wix4CloseApplications only *detects* the
+  running launcher (no close message, no reboot prompt) and sets MMCL_LAUNCHER_RUNNING; it is
+  moved ahead of MmclLauncherRunning, which aborts before RemoveExistingProducts touches
+  anything. A repair is never refused.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <?if $(var.Scope) = "perMachine" ?>
+    <?define RegRoot = "HKLM" ?>
+  <?else?>
+    <?define RegRoot = "HKCU" ?>
+  <?endif?>
+
+  <Package Name="$(var.AppName)"
+           Manufacturer="$(var.Manufacturer)"
+           Version="$(var.Version)"
+           UpgradeCode="$(var.UpgradeCode)"
+           Scope="$(var.Scope)"
+           Language="1033"
+           Compressed="yes"
+           InstallerVersion="500">
+
+    <SummaryInformation Description="$(var.Description)" Manufacturer="$(var.Manufacturer)" />
+
+    <MajorUpgrade AllowDowngrades="yes" Schedule="afterInstallInitialize" />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Branding: installer bitmaps, license page, ARP entry. -->
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.BannerBmp)" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.DialogBmp)" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+
+    <Icon Id="AppIcon.ico" SourceFile="$(var.IconFile)" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="ARPHELPLINK" Value="$(var.HelpUrl)" />
+    <Property Id="ARPURLINFOABOUT" Value="$(var.AboutUrl)" />
+    <Property Id="ARPURLUPDATEINFO" Value="$(var.UpdateUrl)" />
+    <Property Id="ARPCOMMENTS" Value="$(var.Description)" />
+    <Property Id="ARPCONTACT" Value="$(var.Manufacturer)" />
+    <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize" Sequence="execute" />
+
+    <!-- Shortcut choices (ShortcutPromptDlg); both default on, also for silent and Burn runs. -->
+    <Property Id="JP_INSTALL_DESKTOP_SHORTCUT" Value="1" Secure="yes" />
+    <Property Id="JP_INSTALL_STARTMENU_SHORTCUT" Value="1" Secure="yes" />
+
+    <!-- Directory layout. -->
+    <?if $(var.Scope) = "perMachine" ?>
+      <StandardDirectory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="$(var.AppName)" />
+      </StandardDirectory>
+    <?else?>
+      <StandardDirectory Id="LocalAppDataFolder">
+        <Directory Id="UserProgramsDir" Name="Programs">
+          <Directory Id="INSTALLDIR" Name="$(var.AppName)" />
+        </Directory>
+      </StandardDirectory>
+    <?endif?>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="MenuGroupDir" Name="$(var.MenuGroup)" />
+    </StandardDirectory>
+    <StandardDirectory Id="DesktopFolder" />
+
+    <!-- The launcher itself. Everything else (fonts, translations, icons) is compiled in. -->
+    <ComponentGroup Id="AppFiles" Directory="INSTALLDIR">
+      <?if $(var.Scope) = "perMachine" ?>
+        <Component Id="LauncherExe">
+          <File Id="LauncherExeFile" Source="$(var.ExePath)" Name="$(var.ExeName)" KeyPath="yes" />
+        </Component>
+        <Component Id="LicenseFile">
+          <File Id="LicenseTxt" Source="$(var.LicenseTxt)" Name="LICENSE.txt" KeyPath="yes" />
+        </Component>
+      <?else?>
+        <!-- Per-user components need an HKCU key path and a RemoveFolder per created folder
+             (ICE38 / ICE64). -->
+        <Component Id="LauncherExe">
+          <File Id="LauncherExeFile" Source="$(var.ExePath)" Name="$(var.ExeName)" KeyPath="no" />
+          <RegistryValue Root="HKCU" Key="$(var.RegKey)" Name="LauncherExe" Type="integer" Value="1" KeyPath="yes" />
+          <RemoveFolder Id="RemoveInstallDir" Directory="INSTALLDIR" On="uninstall" />
+          <RemoveFolder Id="RemoveUserProgramsDir" Directory="UserProgramsDir" On="uninstall" />
+        </Component>
+        <Component Id="LicenseFile">
+          <File Id="LicenseTxt" Source="$(var.LicenseTxt)" Name="LICENSE.txt" KeyPath="no" />
+          <RegistryValue Root="HKCU" Key="$(var.RegKey)" Name="LicenseFile" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      <?endif?>
+    </ComponentGroup>
+
+    <!-- Shortcuts carry the AUMID so toasts, jump lists and taskbar grouping match the id the
+         process sets at startup. Non-advertised shortcuts use an HKCU key path (ICE43). -->
+    <ComponentGroup Id="Shortcuts">
+      <Component Id="StartMenuShortcut" Directory="MenuGroupDir" Condition="JP_INSTALL_STARTMENU_SHORTCUT">
+        <Shortcut Id="StartMenuShortcutLink"
+                  Name="$(var.AppName)"
+                  Description="$(var.Description)"
+                  Target="[INSTALLDIR]$(var.ExeName)"
+                  WorkingDirectory="INSTALLDIR">
+          <ShortcutProperty Key="System.AppUserModel.ID" Value="$(var.Aumid)" />
+        </Shortcut>
+        <RemoveFolder Id="RemoveMenuGroupDir" Directory="MenuGroupDir" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="$(var.RegKey)" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      <Component Id="DesktopShortcut" Directory="DesktopFolder" Condition="JP_INSTALL_DESKTOP_SHORTCUT">
+        <Shortcut Id="DesktopShortcutLink"
+                  Name="$(var.AppName)"
+                  Description="$(var.Description)"
+                  Target="[INSTALLDIR]$(var.ExeName)"
+                  WorkingDirectory="INSTALLDIR">
+          <ShortcutProperty Key="System.AppUserModel.ID" Value="$(var.Aumid)" />
+        </Shortcut>
+        <RegistryValue Root="HKCU" Key="$(var.RegKey)" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Install-time OS registration, so uninstall removes it again (the Java launcher only
+         registered at run time and left orphaned keys). The side-by-side Rust identity
+         registers neither: Java keeps mmcl:// and .mmcjson until the switch-over. -->
+    <?if $(var.RegisterUrlScheme) = 1 OR $(var.RegisterModpackType) = 1 ?>
+    <ComponentGroup Id="Registration" Directory="INSTALLDIR">
+      <?if $(var.RegisterUrlScheme) = 1 ?>
+        <Component Id="UrlScheme">
+          <RegistryKey Root="$(var.RegRoot)" Key="Software\Classes\mmcl">
+            <RegistryValue Type="string" Value="URL:Mica Minecraft Launcher Protocol" />
+            <RegistryValue Name="URL Protocol" Type="string" Value="" />
+            <RegistryValue Key="DefaultIcon" Type="string" Value="&quot;[INSTALLDIR]$(var.ExeName)&quot;,0" />
+            <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[INSTALLDIR]$(var.ExeName)&quot; &quot;%1&quot;" />
+          </RegistryKey>
+          <RegistryValue Root="HKCU" Key="$(var.RegKey)" Name="UrlScheme" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      <?endif?>
+      <?if $(var.RegisterModpackType) = 1 ?>
+        <Component Id="ModpackFileType">
+          <RegistryValue Root="$(var.RegRoot)" Key="Software\Classes\.mmcjson" Type="string" Value="$(var.ProgId)" />
+          <RegistryKey Root="$(var.RegRoot)" Key="Software\Classes\$(var.ProgId)">
+            <RegistryValue Type="string" Value="Mica Minecraft Modpack" />
+            <RegistryValue Key="DefaultIcon" Type="string" Value="&quot;[INSTALLDIR]$(var.ExeName)&quot;,1" />
+            <RegistryValue Key="shell\open\command" Type="string" Value="&quot;[INSTALLDIR]$(var.ExeName)&quot; &quot;%1&quot;" />
+          </RegistryKey>
+          <RegistryValue Root="HKCU" Key="$(var.RegKey)" Name="ModpackFileType" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      <?endif?>
+    </ComponentGroup>
+    <?endif?>
+
+    <Feature Id="DefaultFeature" Title="!(loc.MainFeatureTitle)" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentGroupRef Id="Shortcuts" />
+      <?if $(var.RegisterUrlScheme) = 1 OR $(var.RegisterModpackType) = 1 ?>
+        <ComponentGroupRef Id="Registration" />
+      <?endif?>
+    </Feature>
+
+    <!-- Running gate. -->
+    <util:CloseApplication Id="MmclLauncherRunningCheck"
+                           Target="$(var.ExeName)"
+                           Property="MMCL_LAUNCHER_RUNNING"
+                           CloseMessage="no"
+                           RebootPrompt="no" />
+    <CustomAction Id="MmclLauncherRunning" Error="!(loc.MmclLauncherRunningError)" />
+
+    <InstallExecuteSequence>
+      <Custom Action="override Wix4CloseApplications_$(sys.BUILDARCHSHORT)" Before="MmclLauncherRunning" Condition="VersionNT &gt; 400" />
+      <Custom Action="MmclLauncherRunning" Before="RemoveExistingProducts" Condition="MMCL_LAUNCHER_RUNNING AND (NOT Installed OR REMOVE~=&quot;ALL&quot;)" />
+    </InstallExecuteSequence>
+
+    <UIRef Id="MmclUI_InstallDir" />
+  </Package>
+</Wix>

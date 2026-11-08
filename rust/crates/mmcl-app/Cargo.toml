@@ -9,6 +9,10 @@ authors.workspace = true
 name = "mica-minecraft-launcher"
 path = "src/main.rs"
 
+# Windows icon + VERSIONINFO resources (build.rs). Packaging itself is `cargo xtask dist`.
+[build-dependencies]
+embed-resource = "3"
+
 [dependencies]
 gpui.workspace = true
 gpui-platform.workspace = true

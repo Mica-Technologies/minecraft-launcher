@@ -1,5 +1,6 @@
 [package]
 name = "xtask"
+description = "Packaging, versioning and release checksums for the Rust launcher (not shipped)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,3 +8,22 @@ publish = false
 
 [dependencies]
 anyhow.workspace = true
+chrono.workspace = true
+sha2.workspace = true
+hex.workspace = true
+zip.workspace = true
+flate2.workspace = true
+tar.workspace = true
+walkdir.workspace = true
+mmcl-core.workspace = true
+md-5.workspace = true
+# Linux icon sizes are scaled from the 1024 px source.
+image = { version = "0.25", default-features = false, features = ["png"] }
+# RPMs are written natively (no rpmbuild or cargo-generate-rpm needed).
+rpm = { version = "0.30", default-features = false, features = ["payload", "gzip-compression"] }
+
+[dev-dependencies]
+plist = "1.10"
+quick-xml = "0.42"
+serde_yaml = "0.9"
+tempfile.workspace = true
