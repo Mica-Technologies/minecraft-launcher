@@ -1,0 +1,40 @@
+[package]
+name = "mmcl-modpack"
+description = "Modpack runtime: managed files, file sync, manifest fetch and cache, install index, pack manager, sidecars, backups, export and importers."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-log.workspace = true
+mmcl-i18n.workspace = true
+mmcl-util.workspace = true
+mmcl-config.workspace = true
+mmcl-net.workspace = true
+mmcl-archive.workspace = true
+mmcl-progress.workspace = true
+mmcl-manifest.workspace = true
+mmcl-mojang.workspace = true
+mmcl-scan.workspace = true
+tokio.workspace = true
+futures.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+dashmap.workspace = true
+arc-swap.workspace = true
+indexmap.workspace = true
+hex.workspace = true
+url.workspace = true
+regex.workspace = true
+chrono.workspace = true
+zip.workspace = true
+walkdir.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

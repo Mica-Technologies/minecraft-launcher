@@ -1,0 +1,35 @@
+[package]
+name = "mmcl-launch"
+description = "Launch pipeline: Forge, NeoForge, Fabric and vanilla loaders, install processors, libraries, natives, assets, classpath, JVM and game arguments, and process start."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-log.workspace = true
+mmcl-util.workspace = true
+mmcl-config.workspace = true
+mmcl-net.workspace = true
+mmcl-archive.workspace = true
+mmcl-progress.workspace = true
+mmcl-manifest.workspace = true
+mmcl-mojang.workspace = true
+mmcl-runtime.workspace = true
+mmcl-modpack.workspace = true
+mmcl-auth.workspace = true
+tokio.workspace = true
+futures.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+parking_lot.workspace = true
+indexmap.workspace = true
+url.workspace = true
+regex.workspace = true
+zip.workspace = true
+walkdir.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
