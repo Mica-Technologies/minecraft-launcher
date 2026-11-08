@@ -1,0 +1,32 @@
+[package]
+name = "mmcl-rgb"
+description = "RGB peripheral lighting for the Mica Minecraft Launcher: effect engine, circuit breaker, OpenRGB/Razer/Corsair/ASUS/Windows Dynamic Lighting backends (vendor DLLs isolated in a helper process), pack-logo palette sampler"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-i18n.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+parking_lot.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "webp", "ico"] }
+
+[target.'cfg(windows)'.dependencies]
+libloading = "0.8"
+windows-future = "0.3"
+windows = { version = "0.62", features = [
+    "Devices_Lights",
+    "Devices_Enumeration",
+    "Foundation",
+    "Foundation_Collections",
+    "UI",
+    "Win32_System_WinRT",
+] }
+
+[dev-dependencies]
+tempfile.workspace = true

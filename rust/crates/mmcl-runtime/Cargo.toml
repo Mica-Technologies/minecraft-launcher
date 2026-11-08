@@ -1,0 +1,32 @@
+[package]
+name = "mmcl-runtime"
+description = "Java runtime manager for the Mica Minecraft Launcher: Mojang runtime components, Bell-SW Liberica JRE 8, and Liberica/Adoptium builds where Mojang publishes none (Linux ARM64)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-log.workspace = true
+mmcl-mojang.workspace = true
+mmcl-net.workspace = true
+mmcl-archive.workspace = true
+mmcl-progress.workspace = true
+mmcl-util.workspace = true
+tokio.workspace = true
+futures.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+parking_lot.workspace = true
+walkdir.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+hex.workspace = true
+flate2.workspace = true
+tar.workspace = true

@@ -1,0 +1,76 @@
+[package]
+name = "mmcl-platform"
+description = "OS integration for the Mica Minecraft Launcher: theme probe, DWM chrome and Mica, taskbar and dock progress, jump list, tray, notifications, single-instance IPC, registration helpers, desktop shortcuts and power state, all over raw window handles"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-log.workspace = true
+mmcl-util.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+raw-window-handle.workspace = true
+rand.workspace = true
+hex.workspace = true
+dirs.workspace = true
+socket2 = "0.6"
+image = { version = "0.25", default-features = false, features = ["png"] }
+starship-battery = "0.12"
+open = "5"
+
+[target.'cfg(windows)'.dependencies]
+windows-registry = "0.6"
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_Networking_WinSock",
+    "Win32_Storage_EnhancedStorage",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Variant",
+    "Win32_UI_Controls",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = [
+    "std",
+    "NSString",
+    "NSGeometry",
+    "NSObject",
+    "NSUserDefaults",
+] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+    "std",
+    "NSAppearance",
+    "NSApplication",
+    "NSControl",
+    "NSDockTile",
+    "NSImage",
+    "NSImageView",
+    "NSProgressIndicator",
+    "NSResponder",
+    "NSView",
+    "NSWindow",
+] }
+dispatch2 = "0.3"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tokio.workspace = true
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+ksni = { version = "0.3", features = ["blocking"] }
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1,0 +1,24 @@
+[package]
+name = "mmcl-scan-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+license = "GPL-3.0-only"
+
+[package.metadata]
+cargo-fuzz = true
+
+# Kept out of the main workspace: `cargo fuzz` needs nightly and libFuzzer.
+[workspace]
+members = ["."]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+mmcl-scan = { path = ".." }
+
+[[bin]]
+name = "classfile_parse"
+path = "fuzz_targets/classfile_parse.rs"
+test = false
+doc = false
+bench = false

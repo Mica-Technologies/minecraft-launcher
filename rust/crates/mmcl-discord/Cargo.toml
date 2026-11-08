@@ -1,0 +1,20 @@
+[package]
+name = "mmcl-discord"
+description = "Discord Rich Presence for the Mica Minecraft Launcher: an own IPC client (named pipe / Unix socket) with ACTIVITY_JOIN support, and the presence state machine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mmcl-core.workspace = true
+mmcl-i18n.workspace = true
+mmcl-log.workspace = true
+mmcl-util.workspace = true
+tokio.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+uuid.workspace = true
+url.workspace = true

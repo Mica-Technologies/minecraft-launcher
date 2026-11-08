@@ -1,0 +1,142 @@
+// Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
+
+//! DWM window attributes (`WindowChromeManager`).
+
+use std::sync::OnceLock;
+
+use windows::Win32::Graphics::Dwm::{
+    DWMWINDOWATTRIBUTE, DwmExtendFrameIntoClientArea, DwmSetWindowAttribute,
+};
+use windows::Win32::UI::Controls::MARGINS;
+
+use super::hwnd;
+use crate::chrome::Backdrop;
+
+/// `DWMWA_USE_IMMERSIVE_DARK_MODE`.
+pub const DWMWA_USE_IMMERSIVE_DARK_MODE: u32 = 20;
+/// The pre-20H1 value of the same attribute (Windows 10 19H1/19H2).
+pub const DWMWA_USE_IMMERSIVE_DARK_MODE_OLD: u32 = 19;
+/// `DWMWA_SYSTEMBACKDROP_TYPE`.
+pub const DWMWA_SYSTEMBACKDROP_TYPE: u32 = 38;
+
+fn set_u32(h: isize, attr: u32, value: u32) -> windows::core::Result<()> {
+    unsafe {
+        DwmSetWindowAttribute(
+            hwnd(h),
+            DWMWINDOWATTRIBUTE(attr as i32),
+            (&value as *const u32).cast(),
+            std::mem::size_of::<u32>() as u32,
+        )
+    }
+}
+
+/// Immersive dark mode on the title bar; retries with attribute 19 when 20 is refused.
+pub fn set_dark_mode(h: isize, dark: bool) -> bool {
+    crate::guard(|| {
+        let value = u32::from(dark);
+        if set_u32(h, DWMWA_USE_IMMERSIVE_DARK_MODE, value).is_ok() {
+            return true;
+        }
+        match set_u32(h, DWMWA_USE_IMMERSIVE_DARK_MODE_OLD, value) {
+            Ok(()) => true,
+            Err(e) => {
+                tracing::warn!(
+                    "{}",
+                    mmcl_i18n::tf!("log.windowChrome.darkModeFailed", e.to_string())
+                );
+                false
+            }
+        }
+    })
+}
+
+/// A colour attribute (34 border, 35 caption, 36 caption text) as a `COLORREF`.
+pub fn set_color_attr(h: isize, attr: u32, value: u32) -> bool {
+    crate::guard(|| match set_u32(h, attr, value) {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::debug!(
+                "{}",
+                mmcl_i18n::tf!(
+                    "log.windowChrome.colorFailed",
+                    attr.to_string(),
+                    e.to_string()
+                )
+            );
+            false
+        }
+    })
+}
+
+/// The system backdrop; `true` only on `S_OK`.
+pub fn apply_backdrop(h: isize, kind: Backdrop) -> bool {
+    crate::guard(
+        || match set_u32(h, DWMWA_SYSTEMBACKDROP_TYPE, kind.value()) {
+            Ok(()) => true,
+            Err(e) => {
+                tracing::debug!(
+                    "{}",
+                    mmcl_i18n::tf!("log.windowChrome.backdropFailed", e.to_string())
+                );
+                false
+            }
+        },
+    )
+}
+
+/// `DwmExtendFrameIntoClientArea` with all margins -1.
+pub fn extend_frame(h: isize) -> bool {
+    crate::guard(|| {
+        let m = MARGINS {
+            cxLeftWidth: -1,
+            cxRightWidth: -1,
+            cyTopHeight: -1,
+            cyBottomHeight: -1,
+        };
+        match unsafe { DwmExtendFrameIntoClientArea(hwnd(h), &m) } {
+            Ok(()) => true,
+            Err(e) => {
+                tracing::warn!(
+                    "{}",
+                    mmcl_i18n::tf!("log.windowChrome.extendFrameFailed", e.to_string())
+                );
+                false
+            }
+        }
+    })
+}
+
+/// The `EnableTransparency` setting, read fresh each call. Missing or unreadable counts as on.
+pub fn transparency_enabled() -> bool {
+    let key = windows_registry::CURRENT_USER
+        .open(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+    match key.and_then(|k| k.get_u32("EnableTransparency")) {
+        Ok(v) => v != 0,
+        Err(e) => {
+            // ERROR_FILE_NOT_FOUND: the value was never written, which means "on".
+            if e.code().0 as u32 != 0x8007_0002 {
+                tracing::debug!(
+                    "{}",
+                    mmcl_i18n::tf!("log.windowChrome.transparencyReadFailed", e.to_string())
+                );
+            }
+            true
+        }
+    }
+}
+
+static MICA_OS_SUPPORT: OnceLock<bool> = OnceLock::new();
+
+/// Transparency on **and** the OS accepts Mica (probed once with a real HWND, then cached).
+pub fn supports_mica(h: Option<isize>) -> bool {
+    if !transparency_enabled() {
+        return false;
+    }
+    if let Some(&s) = MICA_OS_SUPPORT.get() {
+        return s;
+    }
+    let Some(h) = h else {
+        return false;
+    };
+    *MICA_OS_SUPPORT.get_or_init(|| apply_backdrop(h, Backdrop::Mica))
+}
