@@ -124,6 +124,12 @@ fn apply_native_chrome(window: &mut Window, theme: ActiveTheme, was_applied: boo
         // DWM ignores a repeated Mica request, so a dark -> light flip kept the old tint.
         window.set_background_appearance(WindowBackgroundAppearance::Opaque);
     }
+    if background == WindowBackgroundAppearance::MicaBackdrop {
+        // GPUI sets the DWM system backdrop but not the frame extension. With our custom
+        // caption, DWM then paints Mica only in the (absent) frame and the client area shows
+        // white, so extend the frame over the whole client area (Java's issue #80 fix too).
+        let _ = mmcl_platform::chrome::extend_frame_into_client_area(&*window);
+    }
     window.set_background_appearance(background);
     let _ = mmcl_platform::chrome::apply_title_bar_dark_mode(&*window, !theme.is_light_chrome());
 }
