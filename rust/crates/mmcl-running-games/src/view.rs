@@ -360,7 +360,11 @@ impl RunningGamesView {
 
     fn on_event(&mut self, event: EngineEvent, cx: &mut Context<Self>) {
         match event {
-            EngineEvent::SessionStarted(_) | EngineEvent::SessionRemoved(_) => self.sync(cx),
+            // Every launch shows in its own tab, whoever started it (Java's LauncherCore.play
+            // calls showSession for GUI, MCP and deep-link launches alike). Only the GUI's own
+            // play flow did this before, so an MCP launch stayed hidden behind the last tab.
+            EngineEvent::SessionStarted(info) => self.show_session(info.id, cx),
+            EngineEvent::SessionRemoved(_) => self.sync(cx),
             EngineEvent::SessionChanged(info) => {
                 let info = (*info).clone();
                 match self.panes.get(&info.id).cloned() {

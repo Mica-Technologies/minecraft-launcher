@@ -234,7 +234,8 @@ fn tabs_follow_the_registry(cx: &mut TestAppContext) {
     cx.run_until_parked();
     view.read_with(cx, |v, _| {
         assert_eq!(v.tabs(), [SessionId(1), SessionId(2)]);
-        assert_eq!(v.selected(), Some(SessionId(1)));
+        // A new launch shows its own tab, whoever started it (Java's showSession).
+        assert_eq!(v.selected(), Some(SessionId(2)));
     });
     // A session the registry no longer lists loses its tab and its pane is disposed.
     let pane = view.read_with(cx, |v, _| v.pane(SessionId(1)).cloned().unwrap());
