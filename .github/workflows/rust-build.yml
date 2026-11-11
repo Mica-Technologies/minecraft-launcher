@@ -162,9 +162,17 @@ jobs:
           for deb in target/dist/release/*.deb; do dpkg-deb --info "$deb" && dpkg-deb --contents "$deb"; done
           for rpm in target/dist/release/*.rpm; do rpm -qlp "$rpm"; rpm -qp --requires "$rpm"; done
           desktop-file-validate target/dist/stage/linux-release/*.AppDir/*.desktop || true
+      # Artifact names may not contain "/", which branch names such as rewrite/rust-gpui do.
+      - id: artifact
+        name: Name the artifact
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "$PR" ]; then ref="pr$PR"; else ref="${GITHUB_REF_NAME//\//-}"; fi
+          echo "name=rust-${{ matrix.name }}-$ref" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v7
         with:
-          name: rust-${{ matrix.name }}-${{ github.event.pull_request.number && format('pr{0}', github.event.pull_request.number) || github.ref_name }}
+          name: ${{ steps.artifact.outputs.name }}
           path: rust/target/dist/release/*
           retention-days: 14
           if-no-files-found: error
