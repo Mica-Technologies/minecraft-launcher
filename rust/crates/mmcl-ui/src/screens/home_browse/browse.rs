@@ -417,12 +417,17 @@ impl BrowseScreen {
         };
     }
 
+    // Both sinks defer: actions call them synchronously from a card's click handler, which is
+    // still inside this screen's update, and a nested update of the same entity panics.
     fn status_sink(cx: &mut Context<Self>) -> StatusSink {
         let weak = cx.entity().downgrade();
         Rc::new(move |text, cx| {
-            let _ = weak.update(cx, |this, cx| {
-                this.status = text;
-                cx.notify();
+            let weak = weak.clone();
+            cx.defer(move |cx| {
+                let _ = weak.update(cx, |this, cx| {
+                    this.status = text;
+                    cx.notify();
+                });
             });
         })
     }
@@ -430,7 +435,10 @@ impl BrowseScreen {
     fn done(cx: &mut Context<Self>) -> Done {
         let weak = cx.entity().downgrade();
         Rc::new(move |cx| {
-            let _ = weak.update(cx, |this, cx| this.rebuild(cx));
+            let weak = weak.clone();
+            cx.defer(move |cx| {
+                let _ = weak.update(cx, |this, cx| this.rebuild(cx));
+            });
         })
     }
 

@@ -981,13 +981,21 @@ impl HomeScreen {
                         .and_then(|this| this.read(cx).extras.get(&menu_pack.id).cloned())
                         .or_else(|| extras.clone());
                     let (wd, ws) = (wm.clone(), wm.clone());
+                    // Deferred: menu actions call these synchronously, possibly while this
+                    // screen is still being updated (a nested update panics).
                     let done: pack_actions::Done = Rc::new(move |cx| {
-                        let _ = wd.update(cx, |this, cx| this.rebuild(cx));
+                        let wd = wd.clone();
+                        cx.defer(move |cx| {
+                            let _ = wd.update(cx, |this, cx| this.rebuild(cx));
+                        });
                     });
                     let status: pack_actions::StatusSink = Rc::new(move |text, cx| {
-                        let _ = ws.update(cx, |this, cx| {
-                            this.status = text;
-                            cx.notify();
+                        let ws = ws.clone();
+                        cx.defer(move |cx| {
+                            let _ = ws.update(cx, |this, cx| {
+                                this.status = text;
+                                cx.notify();
+                            });
                         });
                     });
                     pack_actions::build_pack_context_menu(
