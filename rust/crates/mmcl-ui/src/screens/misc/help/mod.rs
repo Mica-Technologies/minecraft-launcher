@@ -489,6 +489,11 @@ pub fn refresh_theme(cx: &mut App) {
                 // DWM ignores a repeated Mica request, so a dark -> light flip kept the tint.
                 window.set_background_appearance(WindowBackgroundAppearance::Opaque);
             }
+            if background == WindowBackgroundAppearance::MicaBackdrop {
+                // As for the main window: without the frame extended over the client area,
+                // DWM shows Mica only in the frame and the client area stays white.
+                let _ = mmcl_platform::chrome::extend_frame_into_client_area(&*window);
+            }
             if was != Some(background) || background == WindowBackgroundAppearance::MicaBackdrop {
                 window.set_background_appearance(background);
             }
