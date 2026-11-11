@@ -131,7 +131,8 @@ impl CardGeometry {
         logo: 68.0,
         body_x: 18.0,
         body_bottom: 16.0,
-        name_role: TypeRole::HeadingH2,
+        // 16 px like the library card: Java's `.heroCardTitle` overrides `heading-h2`'s 22 px.
+        name_role: TypeRole::HeadingH3,
         badge_pad: (10.0, 12.0),
     };
     /// The library card.

@@ -17,6 +17,7 @@ use gpui::{
     Subscription, Task, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::input::{Input, InputEvent, InputState};
+use gpui_component::scroll::ScrollableElement as _;
 use mmcl_engine::{
     CrashAction, CrashActionResult, CrashSeverity, CrashView, LaunchStepView, LogEvent, SessionId,
     SessionInfo, SessionPhase, StepStateView,
@@ -35,8 +36,15 @@ use crate::trim;
 use crate::widgets::{ActionButton, ButtonStyle};
 
 /// The pane's smallest useful height (layout px): header, toolbar, a few log rows and the
-/// footer, so Stop and Kill always show when the dock is small.
-pub const MIN_HEIGHT: f32 = 300.0;
+/// footer, so Stop and Kill always show when the dock is small. It must cover the fixed parts:
+/// padding 32 + header card 84 + search bar 48 + the log's own floor
+/// ([`crate::log_view::PREF_HEIGHT`], 120) + footer 52 = 336. At 300 the log overflowed under
+/// the footer in the smallest dock.
+pub const MIN_HEIGHT: f32 = 360.0;
+
+/// The widest the "Getting the game ready" card grows (layout px), so its lines stay readable
+/// in a wide pop-out window.
+const STEPS_MAX_WIDTH: f32 = 720.0;
 
 /// Formats an uptime: `m:ss`, or `h:mm:ss` once there are hours, inside `session.uptime`.
 /// (The old console did not zero-pad, "5:3"; this does.)
@@ -657,13 +665,16 @@ impl GameSessionPane {
             })
             .collect();
         let id = self.info.id;
+        // A steady width (not the width of the current step's text). In a short dock the card
+        // shrinks below its content: the heading and Cancel stay put and only the step rows
+        // scroll, with a visible scrollbar.
         div()
-            .id("session-steps")
             .flex()
             .flex_col()
             .gap(u(14.0))
-            .max_h_full()
-            .overflow_y_scroll()
+            .w_full()
+            .max_w(u(STEPS_MAX_WIDTH))
+            .min_h_0()
             .pt(u(16.0))
             .px(u(20.0))
             .pb(u(20.0))
@@ -671,13 +682,20 @@ impl GameSessionPane {
             .bg(hsla(t.md_surface_container_low))
             .child(
                 div()
+                    .flex_none()
                     .type_role(TypeRole::HeadingH3)
                     .text_color(hsla(t.md_on_surface))
                     .child(t!("session.preparing.heading").into_owned()),
             )
-            .child(div().flex().flex_col().gap(u(10.0)).children(rows))
             .child(
-                div().flex().child(
+                div()
+                    .id("session-steps")
+                    .min_h_0()
+                    .overflow_y_scrollbar()
+                    .child(div().flex().flex_col().gap(u(10.0)).children(rows)),
+            )
+            .child(
+                div().flex().flex_none().child(
                     ActionButton::new(
                         SharedString::from(format!("session-cancel-{id}")),
                         t!("session.button.cancel").into_owned(),
@@ -978,7 +996,6 @@ impl Render for GameSessionPane {
                 .min_h_0()
                 .flex()
                 .flex_col()
-                .items_start()
                 .child(self.render_steps(vis, cx).into_any_element())
                 .into_any_element()
         } else {
