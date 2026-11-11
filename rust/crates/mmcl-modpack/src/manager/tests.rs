@@ -207,6 +207,11 @@ async fn offline_load_uses_index_and_cache() {
         r#"{"available":[]}"#,
     );
     m.install_by_url("https://h/a.mmcjson").await.unwrap();
+    // The install may have started a background revalidate on the shared pool; let it finish,
+    // or a slow runner still sees it pending below (that is not the offline load's doing).
+    if let Some(f) = m.installed_revalidate() {
+        f.await;
+    }
     http.set_offline(true);
     let before = http.log.lock().len();
     m.fetch_installed(true).await;

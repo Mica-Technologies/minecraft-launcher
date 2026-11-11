@@ -100,7 +100,8 @@ jobs:
         # --keep-going reports every crate's lints in one run instead of stopping at the first.
         run: cargo clippy --workspace --all-targets --locked --keep-going -- -D warnings
       - name: Unit tests
-        run: cargo test --workspace --locked
+        # --no-fail-fast runs every crate's tests even after one fails.
+        run: cargo test --workspace --locked --no-fail-fast
 
   package:
     name: Package (${{ matrix.name }})
