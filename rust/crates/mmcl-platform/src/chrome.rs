@@ -274,13 +274,23 @@ pub fn set_owner<W: HasWindowHandle + ?Sized>(window: &W, owner: crate::NativeHa
 /// Brings the window to the foreground: restores it when minimized, then
 /// `SetForegroundWindow` (Windows). Elsewhere `false`; use GPUI's `activate_window`.
 pub fn bring_to_front<W: HasWindowHandle + ?Sized>(window: &W) -> bool {
+    bring_handle_to_front(crate::handle::native_handle(window))
+}
+
+/// [`bring_to_front`] for a handle captured earlier. Call it outside any GPUI update: the
+/// Win32 calls send messages synchronously, and GPUI drops an input event that arrives while
+/// the app is already borrowed ("RefCell already borrowed").
+pub fn bring_handle_to_front(handle: crate::NativeHandle) -> bool {
     #[cfg(windows)]
     {
-        hwnd_of(window).is_some_and(crate::win::bring_to_front)
+        match handle {
+            crate::NativeHandle::Win32 { hwnd } => crate::win::bring_to_front(hwnd),
+            _ => false,
+        }
     }
     #[cfg(not(windows))]
     {
-        let _ = window;
+        let _ = handle;
         false
     }
 }

@@ -472,10 +472,19 @@ pub fn request_quit(cx: &mut App) {
 
 /// `requestFocus`: bring the main window forward (tray click, deep links).
 pub fn request_focus(cx: &mut App) {
+    let mut native = None;
     with_main_window(cx, |window, _| {
         window.activate_window();
-        let _ = mmcl_platform::chrome::bring_to_front(&*window);
+        native = Some(mmcl_platform::handle::native_handle(&*window));
     });
+    // Outside the update: SetForegroundWindow and the restore send window messages
+    // synchronously, and input arriving while the app is borrowed is dropped by GPUI.
+    if let Some(handle) = native {
+        cx.spawn(async move |_| {
+            let _ = mmcl_platform::chrome::bring_handle_to_front(handle);
+        })
+        .detach();
+    }
 }
 
 /// `forceThemeRefresh`: re-resolve and re-apply the theme everywhere.
