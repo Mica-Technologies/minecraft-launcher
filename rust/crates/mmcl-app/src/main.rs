@@ -90,15 +90,21 @@ fn run() -> i32 {
     let info = mmcl_core::build::info();
     mmcl_log::install_console(info.app_name, info.is_dev, cl.tui);
 
-    // 5. Single instance.
-    if !mmcl_platform::single_instance::try_acquire() {
+    // 5. Single instance, for the client only. An explicit server (`-s`) runs in its own
+    // working directory and shares nothing with the client's data folder; taking the lock
+    // turned it away whenever the GUI was open (it was handed over as a plain "open" and the
+    // server never started), and it would also stop two servers in different folders.
+    let explicit_server = cl.session.mode_action == ModeAction::Server;
+    if !explicit_server && !mmcl_platform::single_instance::try_acquire() {
         let headless = mmcl_core::mode::is_headless(&|k| std::env::var(k).ok());
         return second_launch::run(&cl.raw, cl.tui, headless || !cl.likely_client());
     }
 
     // 6. The session.
     let code = session(&cl);
-    mmcl_platform::single_instance::release();
+    if !explicit_server {
+        mmcl_platform::single_instance::release();
+    }
     code
 }
 
