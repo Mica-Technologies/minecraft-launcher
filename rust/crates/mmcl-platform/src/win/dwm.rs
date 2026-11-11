@@ -84,16 +84,25 @@ pub fn apply_backdrop(h: isize, kind: Backdrop) -> bool {
     )
 }
 
-/// `DwmExtendFrameIntoClientArea` with all margins -1.
+/// The margins that put the DWM frame (and so the Mica backdrop) behind the whole client area.
+///
+/// Not the usual "sheet of glass" (all -1): with that, DWM also paints the caption's own
+/// minimize, maximize and close buttons into the client area, on top of the launcher's drawn
+/// ones. A bottom margin taller than any window covers the same area without the caption
+/// buttons, and the window keeps `WS_CAPTION`, which a maximized window needs to stay off the
+/// taskbar. (Java drops `WS_CAPTION` instead and handles maximize in its own window procedure;
+/// GPUI owns the window procedure here.)
+pub(crate) const CLIENT_GLASS: MARGINS = MARGINS {
+    cxLeftWidth: 0,
+    cxRightWidth: 0,
+    cyTopHeight: 0,
+    cyBottomHeight: 65_535,
+};
+
+/// `DwmExtendFrameIntoClientArea` with [`CLIENT_GLASS`].
 pub fn extend_frame(h: isize) -> bool {
-    crate::guard(|| {
-        let m = MARGINS {
-            cxLeftWidth: -1,
-            cxRightWidth: -1,
-            cyTopHeight: -1,
-            cyBottomHeight: -1,
-        };
-        match unsafe { DwmExtendFrameIntoClientArea(hwnd(h), &m) } {
+    crate::guard(
+        || match unsafe { DwmExtendFrameIntoClientArea(hwnd(h), &CLIENT_GLASS) } {
             Ok(()) => true,
             Err(e) => {
                 tracing::warn!(
@@ -102,8 +111,8 @@ pub fn extend_frame(h: isize) -> bool {
                 );
                 false
             }
-        }
-    })
+        },
+    )
 }
 
 /// The `EnableTransparency` setting, read fresh each call. Missing or unreadable counts as on.
@@ -139,4 +148,18 @@ pub fn supports_mica(h: Option<isize>) -> bool {
         return false;
     };
     *MICA_OS_SUPPORT.get_or_init(|| apply_backdrop(h, Backdrop::Mica))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A -1 margin is the "sheet of glass", which brings DWM's caption buttons into the client
+    /// area (doubled buttons). The glass must come from the bottom margin alone.
+    #[test]
+    fn client_glass_is_not_the_sheet_of_glass() {
+        let m = CLIENT_GLASS;
+        assert_eq!((m.cxLeftWidth, m.cxRightWidth, m.cyTopHeight), (0, 0, 0));
+        assert!(m.cyBottomHeight >= 16_384, "taller than any window");
+    }
 }

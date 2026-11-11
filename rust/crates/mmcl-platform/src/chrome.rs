@@ -186,8 +186,8 @@ pub fn supports_mica<W: HasWindowHandle + ?Sized>(window: &W) -> bool {
     }
 }
 
-/// `DwmExtendFrameIntoClientArea(-1, -1, -1, -1)`: call after creating a window with a custom
-/// caption. Harmless if GPUI also does it.
+/// Extends the DWM frame behind the whole client area so the Mica backdrop shows there, without
+/// DWM's own caption buttons (see `win::dwm::CLIENT_GLASS`). Harmless if GPUI also does it.
 pub fn extend_frame_into_client_area<W: HasWindowHandle + ?Sized>(window: &W) -> bool {
     #[cfg(windows)]
     {

@@ -39,9 +39,28 @@ pub struct MicaSupport(pub bool);
 
 impl Global for MicaSupport {}
 
-/// The token sheet the native chrome was last applied for (per session).
+/// What the native chrome depends on: the token sheet and whether Mica can show.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChromeKey {
+    /// The token sheet.
+    pub sheet: TokenSheet,
+    /// Whether Mica was supported when the chrome was applied.
+    pub mica_supported: bool,
+}
+
+impl ChromeKey {
+    /// The key of a resolved theme.
+    pub fn of(theme: ActiveTheme) -> Self {
+        Self {
+            sheet: theme.theme.sheet,
+            mica_supported: theme.mica_supported,
+        }
+    }
+}
+
+/// What the native chrome was last applied for (per session).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(crate) struct AppliedChrome(pub Option<TokenSheet>);
+pub(crate) struct AppliedChrome(pub Option<ChromeKey>);
 
 impl Global for AppliedChrome {}
 
@@ -74,15 +93,20 @@ pub struct ApplyPlan {
 }
 
 /// The pure decision of [`apply_main`].
+///
+/// The chrome re-runs when the sheet changes **or** when Mica support changes: the first screen
+/// applies the theme before the window is probed for Mica, so without the second check the
+/// chrome stayed opaque (GPUI clears an opaque window to white) under Native's transparent
+/// palette.
 pub fn plan(
     current: Option<ActiveTheme>,
     next: ActiveTheme,
-    applied_sheet: Option<TokenSheet>,
+    applied: Option<ChromeKey>,
     force: bool,
 ) -> ApplyPlan {
     ApplyPlan {
         set_global: force || current != Some(next),
-        chrome: mmcl_theme::chrome_changed(applied_sheet, next.theme.sheet),
+        chrome: applied != Some(ChromeKey::of(next)),
     }
 }
 
@@ -102,7 +126,7 @@ pub fn apply_main(window: &mut Window, cx: &mut App, force: bool) {
     }
     if decision.chrome {
         apply_native_chrome(window, next, applied.is_some());
-        cx.set_global(AppliedChrome(Some(next.theme.sheet)));
+        cx.set_global(AppliedChrome(Some(ChromeKey::of(next))));
     }
     if decision.set_global {
         hooks::run_theme_changed(cx);
@@ -196,7 +220,7 @@ mod tests {
     #[test]
     fn plain_navigation_does_not_touch_chrome() {
         let t = resolve("Dark", true, false);
-        let p = plan(Some(t), t, Some(t.theme.sheet), false);
+        let p = plan(Some(t), t, Some(ChromeKey::of(t)), false);
         assert_eq!(
             p,
             ApplyPlan {
@@ -204,15 +228,31 @@ mod tests {
                 chrome: false
             }
         );
-        let forced = plan(Some(t), t, Some(t.theme.sheet), true);
+        let forced = plan(Some(t), t, Some(ChromeKey::of(t)), true);
         assert!(forced.set_global && !forced.chrome);
+    }
+
+    /// The first screen applies Native before the Mica probe; the forced apply after the probe
+    /// must re-run the chrome so the window becomes Mica instead of staying opaque white.
+    #[test]
+    fn mica_support_change_reapplies_chrome() {
+        let before_probe = resolve("Native (Mica)", true, false);
+        let after_probe = resolve("Native (Mica)", true, true);
+        assert_eq!(before_probe.theme.sheet, after_probe.theme.sheet);
+        let p = plan(
+            Some(before_probe),
+            after_probe,
+            Some(ChromeKey::of(before_probe)),
+            true,
+        );
+        assert!(p.set_global && p.chrome);
     }
 
     #[test]
     fn a_sheet_change_reapplies_chrome() {
         let dark = resolve("Dark", true, false);
         let light = resolve("Light", true, false);
-        let p = plan(Some(dark), light, Some(dark.theme.sheet), false);
+        let p = plan(Some(dark), light, Some(ChromeKey::of(dark)), false);
         assert!(p.set_global && p.chrome);
         let first = plan(None, dark, None, false);
         assert!(
