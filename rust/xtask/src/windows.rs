@@ -287,22 +287,49 @@ fn build_bundle(ctx: &Ctx, wix: &Path, user: &Path, machine: &Path, out: &Path) 
     let obj = ctx.dist.join("obj").join("bundle");
     std::fs::create_dir_all(&obj)?;
     let mut cmd = Command::new(wix);
-    cmd.current_dir(&src).args([
-        "build",
-        "-nologo",
-        "-arch",
-        "x64",
-        "-ext",
-        "WixToolset.Bal.wixext",
-        "-ext",
-        "WixToolset.Util.wixext",
-    ]);
+    cmd.current_dir(&src)
+        .args(["build", "-nologo", "-arch", "x64", "-ext"])
+        .arg(bal_extension(home_dir().as_deref()))
+        .args(["-ext", "WixToolset.Util.wixext"]);
     for (k, v) in bundle_defines(ctx, user, machine) {
         cmd.arg("-d").arg(format!("{k}={v}"));
     }
     cmd.arg("-intermediatefolder").arg(&obj);
     cmd.arg(src.join("bundle.wxs")).arg("-o").arg(out);
     ctx::run(&mut cmd)
+}
+
+/// The user's home folder (`USERPROFILE`), where `wix extension add -g` caches extensions.
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("USERPROFILE").map(PathBuf::from)
+}
+
+/// The `-ext` value for the bootstrapper extension.
+///
+/// WiX 5 resolves `-ext WixToolset.Bal.wixext` to `WixToolset.Bal.wixext.dll` inside the cached
+/// package, but the 5.x package ships that DLL as `WixToolset.BootstrapperApplications.wixext.dll`,
+/// so the name alone fails with WIX0144 even though the extension is installed. Pass the DLL's
+/// path when the global cache has it (newest version first), else the name.
+fn bal_extension(home: Option<&Path>) -> std::ffi::OsString {
+    const NAME: &str = "WixToolset.Bal.wixext";
+    let Some(home) = home else {
+        return NAME.into();
+    };
+    let root = home.join(".wix").join("extensions").join(NAME);
+    let mut versions: Vec<PathBuf> = std::fs::read_dir(&root)
+        .map(|d| d.filter_map(|e| e.ok().map(|e| e.path())).collect())
+        .unwrap_or_default();
+    versions.sort();
+    versions
+        .iter()
+        .rev()
+        .map(|v| {
+            v.join("wixext5")
+                .join("WixToolset.BootstrapperApplications.wixext.dll")
+        })
+        .find(|dll| dll.is_file())
+        .map(|dll| dll.into_os_string())
+        .unwrap_or_else(|| NAME.into())
 }
 
 /// `<app>/<file>` entries for each staged file.
@@ -430,6 +457,25 @@ impl Signer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bal_extension_uses_the_cached_dll_path() {
+        let home = tempfile::tempdir().unwrap();
+        assert_eq!(bal_extension(None), "WixToolset.Bal.wixext");
+        assert_eq!(bal_extension(Some(home.path())), "WixToolset.Bal.wixext");
+        let root = home.path().join(".wix/extensions/WixToolset.Bal.wixext");
+        for v in ["5.0.1", "5.0.2"] {
+            let dir = root.join(v).join("wixext5");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join("WixToolset.BootstrapperApplications.wixext.dll"),
+                b"",
+            )
+            .unwrap();
+        }
+        let got = PathBuf::from(bal_extension(Some(home.path())));
+        assert!(got.ends_with("5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll"));
+    }
 
     #[test]
     fn rtf_escapes() {
