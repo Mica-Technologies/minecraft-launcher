@@ -33,6 +33,8 @@ pub struct PackExtras {
     pub loader_name: Option<String>,
     /// The loader version (`1.12.2-14.23.5.2860`).
     pub loader_version: Option<String>,
+    /// The Minecraft version once the loader is known (the list summary may not have it yet).
+    pub minecraft_version: Option<String>,
     /// Newest update-log entry (ms since the epoch).
     pub newest_update_ms: Option<i64>,
 }
@@ -602,6 +604,7 @@ impl LibraryBackend for EngineLibrary {
                     root: Some(d.root),
                     loader_name: d.loader_name,
                     loader_version: d.loader_version,
+                    minecraft_version: d.summary.minecraft_version,
                     newest_update_ms: d.update_log.first().and_then(|u| parse_day_ms(&u.when)),
                 })
             },

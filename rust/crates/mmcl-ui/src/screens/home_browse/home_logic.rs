@@ -227,7 +227,16 @@ pub fn chips(item: &HomeItem) -> Vec<String> {
     if p.is_vanilla {
         out.push(t!("main.chip.vanilla").into_owned());
     }
-    let mc = p.minecraft_version.as_deref().and_then(non_blank);
+    let mc = p
+        .minecraft_version
+        .as_deref()
+        .and_then(non_blank)
+        .or_else(|| {
+            item.extras
+                .as_ref()
+                .and_then(|e| e.minecraft_version.as_deref())
+                .and_then(non_blank)
+        });
     if let Some(mc) = mc {
         out.push(tf!("main.chip.minecraft", mc));
     }
@@ -585,6 +594,21 @@ pub(crate) mod tests {
         // Vanilla: the vanilla chip and Minecraft, no pack version (it equals the MC version).
         assert_eq!(v.len(), 2);
         assert_eq!(short_loader("0.15.11"), "0.15.11");
+    }
+
+    /// After a restart the list summary has no Minecraft version until the loader is built;
+    /// the chip then comes from the extras the card loads.
+    #[test]
+    fn minecraft_chip_falls_back_to_the_extras() {
+        let mut p = pack("A");
+        p.minecraft_version = None;
+        let mut it = HomeItem::new(p);
+        assert!(!chips(&it).iter().any(|c| c.contains("1.12.2")));
+        it.extras = Some(PackExtras {
+            minecraft_version: Some("1.12.2".into()),
+            ..Default::default()
+        });
+        assert_eq!(chips(&it)[0], tf!("main.chip.minecraft", "1.12.2"));
     }
 
     #[test]

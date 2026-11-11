@@ -786,6 +786,10 @@ impl Engine {
     /// The detail modal's data.
     pub async fn pack_details(&self, id: &PackId) -> EngineResult<PackDetails> {
         let pack = self.require_installed(id)?;
+        // The loader first: it is what gives the summary its Minecraft version when the
+        // manifest does not name one, so summarising before it left the version empty.
+        let loader_name = pack.loader_name().await.ok().flatten();
+        let loader_version = pack.loader_version().await.ok().flatten();
         let summary = self.summarize(&pack, true);
         let key = id.as_str().to_string();
         let today = chrono::Local::now().date_naive();
@@ -805,8 +809,8 @@ impl Engine {
             };
         Ok(PackDetails {
             root: pack.pack_root(),
-            loader_name: pack.loader_name().await.ok().flatten(),
-            loader_version: pack.loader_version().await.ok().flatten(),
+            loader_name,
+            loader_version,
             news: pack
                 .visible_news(today)
                 .into_iter()
