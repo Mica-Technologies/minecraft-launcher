@@ -270,12 +270,12 @@ fn set_native_permissions(natives: &Path) {
         .filter_map(|e| e.ok())
     {
         let n = e.file_name().to_string_lossy();
-        if n.ends_with(".dylib") || n.ends_with(".so") || n.ends_with(".jnilib") {
-            if let Ok(m) = e.metadata() {
-                let mut p = m.permissions();
-                p.set_mode(p.mode() | 0o555);
-                let _ = fs::set_permissions(e.path(), p);
-            }
+        if (n.ends_with(".dylib") || n.ends_with(".so") || n.ends_with(".jnilib"))
+            && let Ok(m) = e.metadata()
+        {
+            let mut p = m.permissions();
+            p.set_mode(p.mode() | 0o555);
+            let _ = fs::set_permissions(e.path(), p);
         }
     }
 }
