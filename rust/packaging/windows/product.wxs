@@ -107,14 +107,16 @@
         </Component>
       <?else?>
         <!-- Per-user components need an HKCU key path and a RemoveFolder per created folder
-             (ICE38 / ICE64). -->
-        <Component Id="LauncherExe">
+             (ICE38 / ICE64). A component holding a file under a registry key path cannot have
+             a generated GUID (WIX0230), so these two carry fixed ones. Never reuse or change
+             them: they identify the components across upgrades. -->
+        <Component Id="LauncherExe" Guid="55F85DB4-A8F2-4C7C-8677-8D22D5936616">
           <File Id="LauncherExeFile" Source="$(var.ExePath)" Name="$(var.ExeName)" KeyPath="no" />
           <RegistryValue Root="HKCU" Key="$(var.RegKey)" Name="LauncherExe" Type="integer" Value="1" KeyPath="yes" />
           <RemoveFolder Id="RemoveInstallDir" Directory="INSTALLDIR" On="uninstall" />
           <RemoveFolder Id="RemoveUserProgramsDir" Directory="UserProgramsDir" On="uninstall" />
         </Component>
-        <Component Id="LicenseFile">
+        <Component Id="LicenseFile" Guid="3842E57E-DA74-4E4C-97DB-1B30C6A0755D">
           <File Id="LicenseTxt" Source="$(var.LicenseTxt)" Name="LICENSE.txt" KeyPath="no" />
           <RegistryValue Root="HKCU" Key="$(var.RegKey)" Name="LicenseFile" Type="integer" Value="1" KeyPath="yes" />
         </Component>
