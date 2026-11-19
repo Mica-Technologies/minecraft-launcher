@@ -273,7 +273,7 @@ impl Tool for ReadOnlyTool {
                 "Lists the games that are launching or running: the modpack, the account playing it (username), whether it is still preparing or running, and how long it has run in seconds."
             }
             Kind::ListOptionalMods => {
-                "Lists a modpack's optional mods: mods the pack offers that each player switches on or off. For each: its file name (localName, the identifier set_optional_mod takes), display name, description, whether it is on now, whether it is on by default, the player's own choice (on, off, or default when following the default), its sides, and the file names it requires and conflicts with."
+                "Lists a modpack's optional mods: mods the pack offers that each player switches on or off. For each: its file name (localName, the identifier set_optional_mod takes), display name, description, whether it is on now (enabled), whether this launcher installs it (installs: on and client-side), whether it is on by default, the player's own choice (on, off, or default when following the default), its sides, and the file names it requires and conflicts with."
             }
         }
     }
@@ -296,14 +296,18 @@ impl Tool for ReadOnlyTool {
     }
 }
 
-/// One `list_optional_mods` entry: `localName, name, description, enabled, defaultEnabled,
-/// playerChoice (on/off/default), clientSide, serverSide, requires, conflictsWith`.
+/// One `list_optional_mods` entry: `localName, name, description, enabled, installs,
+/// defaultEnabled, playerChoice (on/off/default), clientSide, serverSide, requires,
+/// conflictsWith`.
 fn optional_mod_entry(o: &super::OptionalModInfo) -> Value {
     let mut m = Map::new();
     m.insert("localName".into(), Value::String(o.local_name.clone()));
     m.insert("name".into(), Value::String(o.name.clone()));
     m.insert("description".into(), Value::String(o.description.clone()));
     m.insert("enabled".into(), Value::Bool(o.enabled));
+    // "enabled" is the player's on/off state whatever the side; a server-only mod can be on
+    // and still never land in this launcher's mods folder.
+    m.insert("installs".into(), Value::Bool(o.enabled && o.client_side));
     m.insert("defaultEnabled".into(), Value::Bool(o.default_enabled));
     let choice = match o.player_choice {
         None => "default",
@@ -595,7 +599,35 @@ mod tests {
             "no choice means following the default"
         );
         assert_eq!(lib["serverSide"], true);
+        assert_eq!(ausm["installs"], true);
         assert!(out["note"].as_str().unwrap().contains("next time"));
+    }
+
+    /// A server-only mod can be on and still never be installed by this launcher.
+    #[test]
+    fn a_server_only_optional_mod_is_on_but_not_installed_by_the_launcher() {
+        let v = StubView::with_packs(vec![pack("Alto", true)]);
+        v.optional.lock().push((
+            "Alto".into(),
+            vec![crate::tools::OptionalModInfo {
+                local_name: "srv.jar".into(),
+                name: "Server tweak".into(),
+                enabled: true,
+                default_enabled: true,
+                client_side: false,
+                server_side: true,
+                ..Default::default()
+            }],
+        ));
+        let (r, _) = registry(v);
+        let out = parsed(&call(
+            &r,
+            "list_optional_mods",
+            json!({"friendlyName": "Alto"}),
+        ));
+        let srv = &out["optionalMods"][0];
+        assert_eq!(srv["enabled"], true);
+        assert_eq!(srv["installs"], false);
     }
 
     #[test]
