@@ -59,23 +59,28 @@ class LinuxPackageInstallerTest
         }
     }
 
+    // The package file is passed absolute. Expectations go through toAbsolutePath() too, so these
+    // also hold on Windows, where "/home/..." is drive-relative and gains the current drive.
+
     @Test
     void debianPackagesGoThroughAptWhereItExists()
     {
-        assertEquals( List.of( "pkexec", "/usr/bin/apt-get", "install", "-y", DEB.toString() ),
+        String deb = DEB.toAbsolutePath().toString();
+        assertEquals( List.of( "pkexec", "/usr/bin/apt-get", "install", "-y", deb ),
                       LinuxPackageInstaller.command( InstallKind.LINUX_DEB, DEB,
                                                      p -> Set.of( Path.of( "/usr/bin/apt-get" ) ).contains( p ) ) );
-        assertEquals( List.of( "pkexec", "/usr/bin/dpkg", "-i", DEB.toString() ),
+        assertEquals( List.of( "pkexec", "/usr/bin/dpkg", "-i", deb ),
                       LinuxPackageInstaller.command( InstallKind.LINUX_DEB, DEB, p -> false ) );
     }
 
     @Test
     void rpmPackagesGoThroughDnfWhereItExists()
     {
-        assertEquals( List.of( "pkexec", "/usr/bin/dnf", "install", "-y", RPM.toString() ),
+        String rpm = RPM.toAbsolutePath().toString();
+        assertEquals( List.of( "pkexec", "/usr/bin/dnf", "install", "-y", rpm ),
                       LinuxPackageInstaller.command( InstallKind.LINUX_RPM, RPM,
                                                      p -> Set.of( Path.of( "/usr/bin/dnf" ) ).contains( p ) ) );
-        assertEquals( List.of( "pkexec", "/usr/bin/rpm", "-U", RPM.toString() ),
+        assertEquals( List.of( "pkexec", "/usr/bin/rpm", "-U", rpm ),
                       LinuxPackageInstaller.command( InstallKind.LINUX_RPM, RPM, p -> false ) );
     }
 
@@ -86,7 +91,7 @@ class LinuxPackageInstallerTest
 
         List< String > command = LinuxPackageInstaller.command( InstallKind.LINUX_DEB, spaced, p -> false );
 
-        assertEquals( spaced.toString(), command.get( command.size() - 1 ) );
+        assertEquals( spaced.toAbsolutePath().toString(), command.get( command.size() - 1 ) );
         assertTrue( Path.of( command.get( command.size() - 1 ) ).isAbsolute() );
     }
 
