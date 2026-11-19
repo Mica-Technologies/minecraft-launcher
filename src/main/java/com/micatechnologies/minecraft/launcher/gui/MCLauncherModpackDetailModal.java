@@ -85,23 +85,27 @@ import java.util.function.Supplier;
  *   <li>Clicking Play (the launch then shows in the Running Games window)</li>
  * </ul>
  *
- * <p>Layout (top to bottom). A persistent header + footer frame a tabbed body so
- * the modal's many sections are grouped instead of stacked into one long scroll:
+ * <p>Layout (top to bottom). One scroll area holds everything but the action row, and the tab
+ * bar sticks to its top once the hero has scrolled away:
  * <ol>
- *   <li><b>Hero image</b> (persistent) — large pack background (or procedural
- *       gradient when none), overlaid with the pack logo, friendly name, badges
- *       (Beta / Updated), and the close button.</li>
- *   <li><b>Meta header</b> (persistent) — the stat-chip row (Minecraft / loader /
- *       pack version, RAM, mod count) and, when the audit flags issues, the
- *       Problems banner — so identity and a broken-pack warning are always visible.</li>
- *   <li><b>Tab bar</b> — a segmented control switching the scrollable body between:
+ *   <li><b>Hero image</b> — large pack background (or procedural gradient when none),
+ *       overlaid with the pack logo, friendly name, badges (Beta / Updated), the image
+ *       cycle's arrows and the close button. Scrolls away.</li>
+ *   <li><b>Meta header</b> — the stat-chip row (Minecraft / loader / pack version, RAM,
+ *       mod count) and, when the audit flags issues, the Problems banner. Scrolls away.</li>
+ *   <li><b>Tab bar</b> — a segmented control; pinned at the top of the scroll area once it
+ *       gets there, with a close button at its end while pinned. The tabs (see
+ *       {@link DetailModalLayout#tabsFor}):
  *     <ul>
- *       <li><b>Overview</b> (default) — News, Links, Quick Actions, Stats.</li>
- *       <li><b>Content</b> — Worlds / Servers / Mods / Screenshots / Shader Packs /
- *           Resource Packs file browsers (only when the pack has an install folder).</li>
- *       <li><b>Activity</b> — Update Log and Crash History.</li>
- *       <li><b>Advanced</b> — "Launch as" (the pack's account) for any pack with a settings
- *           key, plus the verify and scan controls when there's a manifest.</li>
+ *       <li><b>Overview</b> (default) — What's new (a pending update), the Optional mods
+ *           summary with a Choose button, News, Links, At a glance (stats), Quick actions.</li>
+ *       <li><b>Problems</b> — files re-downloaded on every launch (only when there are some).</li>
+ *       <li><b>Mods</b> — the Optional mods switches, then the installed mods (modded packs).</li>
+ *       <li><b>Worlds &amp; files</b> — Worlds / Servers / Screenshots / Shader packs /
+ *           Resource packs (only when the pack has an install folder).</li>
+ *       <li><b>Activity</b> — Update log and Crash history.</li>
+ *       <li><b>Settings</b> — "Launch as" (the pack's account) for any pack with a settings
+ *           key, plus the game-file and official-launcher controls when there's a manifest.</li>
  *     </ul>
  *     Each tab's body is built lazily on first activation and cached. See
  *     {@code packNews}/{@code packLinks} in
@@ -109,8 +113,8 @@ import java.util.function.Supplier;
  *     {@link com.micatechnologies.minecraft.launcher.game.modpack.LinkItem}.</li>
  * </ol>
  *
- * <p>The Play and Website buttons live in a sticky action row pinned below the
- * tabbed body so the primary actions remain reachable from any tab.
+ * <p>The Play and Website buttons live in a fixed action row below the scroll area, so the
+ * primary actions remain reachable from any tab and scroll position.
  *
  * @since 3.4
  */
@@ -125,7 +129,7 @@ public class MCLauncherModpackDetailModal extends StackPane
     private static final double MODAL_MIN_HEIGHT = 480;
 
     /** Hard upper cap on the modal card's width. The tabbed layout splits the
-     *  former single scroll across Overview / Content / Activity / Advanced, so a
+     *  content across Overview / Mods / Worlds &amp; files / Activity / Settings, so a
      *  wider modal now buys genuinely-more usable width (the file-browser grids,
      *  side-by-side content) rather than just longer text lines — hence the raise
      *  from the pre-tab 1100. */
@@ -144,8 +148,8 @@ public class MCLauncherModpackDetailModal extends StackPane
      *  modal. ~2× the hero-card image height (150 → 320) so background art is
      *  genuinely "viewed bigger" rather than just "viewed slightly bigger." The hero
      *  only reaches this on a tall modal — it scales down toward
-     *  {@link #HERO_MIN_HEIGHT} on short modals so the sticky hero can't starve the
-     *  scrollable body (see the binding in {@link #buildHeroSection}). */
+     *  {@link #HERO_MIN_HEIGHT} on short modals so the first screenful still shows the
+     *  tab bar and some of the body (see the binding in {@link #buildHeroSection}). */
     private static final double HERO_HEIGHT      = 320;
 
     /** Floor for the responsive hero height. Below this the pack art reads as a thin
@@ -493,20 +497,43 @@ public class MCLauncherModpackDetailModal extends StackPane
     //  Content construction
     // =============================================================================
 
-    /** Tab identifiers for the detail modal's segmented tab bar. */
-    private static final String TAB_OVERVIEW = "overview";
-    private static final String TAB_CONTENT  = "content";
-    private static final String TAB_ACTIVITY = "activity";
-    private static final String TAB_ADVANCED = "advanced";
-    private static final String TAB_PROBLEMS = "problems";
+    /** Tab identifiers for the detail modal's segmented tab bar (see {@link DetailModalLayout}). */
+    private static final String TAB_OVERVIEW = DetailModalLayout.TAB_OVERVIEW;
+    private static final String TAB_PROBLEMS = DetailModalLayout.TAB_PROBLEMS;
+    private static final String TAB_MODS     = DetailModalLayout.TAB_MODS;
+    private static final String TAB_FILES    = DetailModalLayout.TAB_FILES;
+    private static final String TAB_ACTIVITY = DetailModalLayout.TAB_ACTIVITY;
+    private static final String TAB_SETTINGS = DetailModalLayout.TAB_SETTINGS;
 
     /** The audit problems for the pack being shown; empty when it has none. Listed in the Problems
      *  tab, summarised by the header banner. */
     private java.util.List< ModPackAuditLog.Problem > currentProblems = java.util.List.of();
 
-    /** Scroll pane hosting the active tab's body; its content is swapped on tab
-     *  switch (the body itself never moves, so the sticky header/footer stay put). */
+    /** The one scroll area: hero, chips and Problems banner, tab bar and the active tab's body
+     *  all scroll together; the action row below it stays put. */
     private ScrollPane bodyScroll;
+    /** The scroll area's content, the column the hero, header, tab bar and body sit in. */
+    private VBox scrollContent;
+    /** The tab bar. It scrolls with the content until it reaches the top of the scroll area,
+     *  then a translation keeps it pinned there while the body scrolls under it. */
+    private HBox tabBar;
+    /** Holds the active tab's body under the tab bar; its minimum height is the viewport minus
+     *  the tab bar, so any tab, however short, can scroll to the pinned position. */
+    private StackPane bodyHolder;
+    /** The close button in the tab bar's row, shown while the bar is pinned (the hero's own
+     *  close button has scrolled away by then). */
+    private MFXButton pinnedClose;
+    /** The scroll position in pixels, as last set by the player or by this class. Held in pixels
+     *  because the scroll pane's fraction means something else every time the content's height
+     *  changes (tab switches, sections that load in the background, collapsing a section). */
+    private double scrollOffsetPx = 0;
+    /** Whether the tab bar is pinned at the top of the scroll area. */
+    private boolean tabBarPinned = false;
+    /** Set while this class writes the scroll position, so the listener doesn't read it back. */
+    private boolean adjustingScroll = false;
+    /** Set from a change in the content's height until the next pulse; scroll-value changes in
+     *  that window come from the scroll pane re-fitting itself, not from the player. */
+    private boolean contentResizing = false;
     /** Lazily-built body VBox for each tab, keyed by tab id. Built on first
      *  activation (rendered incrementally) and cached so re-selecting is instant.
      *  Cleared on every {@link #show(GameModPack)}. */
@@ -516,13 +543,17 @@ public class MCLauncherModpackDetailModal extends StackPane
     /** Bumped on every {@link #show(GameModPack)} so a deferred per-tab render
      *  started for an earlier pack abandons itself once the modal is re-shown. */
     private int packGeneration = 0;
+    /** Updates the Overview's Optional mods summary from the set of mods that are on; set once the
+     *  summary has loaded, called by the Mods tab's toggles. {@code null} while there is none. */
+    private java.util.function.Consumer< java.util.Set< String > > optionalSummaryUpdater;
 
     /**
-     * Builds the cheap modal chrome — hero, an empty body scroll-pane,
-     * and the action row — so the modal card has enough structure to
-     * lay out and start fading in immediately. Heavy section builders
-     * (chips, quick actions, stats, content-browser sections, advanced)
-     * are deferred to {@link #populateBodyContent} via Platform.runLater.
+     * Builds the cheap modal chrome — one scroll area holding the hero, the chips and Problems
+     * banner, the tab bar and an empty body, plus the fixed action row under it — so the modal
+     * card has enough structure to lay out and start fading in immediately. The active tab's
+     * sections are built later (see {@link #populateBodyContent}).
+     *
+     * @param pack the pack to show
      */
     private void rebuildModalSkeleton( GameModPack pack )
     {
@@ -533,13 +564,15 @@ public class MCLauncherModpackDetailModal extends StackPane
         PackColorScheme.apply( modalCard, null );
         tabBodies.clear();
         tabButtons.clear();
+        optionalSummaryUpdater = null;
+        scrollOffsetPx = 0;
+        tabBarPinned = false;
         final int gen = ++packGeneration;
 
         Node hero = buildHeroSection( pack );
 
-        // Persistent meta header under the hero: the chip row plus, when the audit
-        // flags issues, the Problems banner — so pack identity and a broken-pack
-        // warning stay visible regardless of which tab is active.
+        // Meta header under the hero: the chip row plus, when the audit flags issues, the
+        // Problems banner. It scrolls away with the hero; the tab bar's Problems badge stays.
         VBox headerMeta = new VBox( 10 );
         headerMeta.setPadding( new Insets( 14, 24, 0, 24 ) );
         headerMeta.getStyleClass().add( "modpackDetailHeaderMeta" );
@@ -551,45 +584,250 @@ public class MCLauncherModpackDetailModal extends StackPane
             currentProblems = problemSource.apply( pack.getPackRootFolder(), pack.getLaunchCount() );
             if ( !currentProblems.isEmpty() ) {
                 headerMeta.getChildren().add(
-                        buildProblemsBanner( currentProblems.size(), () -> selectTab( TAB_PROBLEMS, pack, gen ) ) );
+                        buildProblemsBanner( currentProblems.size(), () -> selectTab( TAB_PROBLEMS, pack, gen, true ) ) );
             }
         }
 
-        // Which tabs apply: Overview always; Content/Activity need an install folder
-        // to browse / report on; Advanced needs a stable settings key (a manifest, or a vanilla
-        // version) for its per-pack settings, and shows the manifest-only ones only with a
-        // manifest.
-        java.util.List< String > tabs = new java.util.ArrayList<>();
-        tabs.add( TAB_OVERVIEW );
-        if ( !currentProblems.isEmpty() ) {
-            tabs.add( TAB_PROBLEMS );
-        }
-        if ( pack.getPackRootFolder() != null ) {
-            tabs.add( TAB_CONTENT );
-            tabs.add( TAB_ACTIVITY );
-        }
-        if ( pack.getSettingsKey() != null ) {
-            tabs.add( TAB_ADVANCED );
-        }
-        HBox tabBar = buildTabBar( pack, tabs, gen );
+        java.util.List< String > tabs = DetailModalLayout.tabsFor( !currentProblems.isEmpty(), pack.isVanillaVersion(),
+                                                                   pack.getPackRootFolder() != null,
+                                                                   pack.getSettingsKey() != null );
+        tabBar = buildTabBar( pack, tabs, gen );
+        // Drawn over the body that scrolls under it while pinned.
+        tabBar.setViewOrder( -1 );
 
-        bodyScroll = new ScrollPane();
+        bodyHolder = new StackPane();
+        bodyHolder.getStyleClass().add( "modpackDetailBodyHolder" );
+        bodyHolder.setAlignment( Pos.TOP_LEFT );
+
+        scrollContent = new VBox( hero, headerMeta, tabBar, bodyHolder );
+        scrollContent.getStyleClass().add( "modpackDetailScrollContent" );
+
+        bodyScroll = new ScrollPane( scrollContent );
         bodyScroll.setFitToWidth( true );
         bodyScroll.setHbarPolicy( ScrollPane.ScrollBarPolicy.NEVER );
         bodyScroll.setVbarPolicy( ScrollPane.ScrollBarPolicy.AS_NEEDED );
         bodyScroll.getStyleClass().add( "modpackDetailScroll" );
         SmoothScroll.install( bodyScroll );
         VBox.setVgrow( bodyScroll, Priority.ALWAYS );
+        // The card has rounded corners but no clip of its own: round the scroll area's top so the
+        // pinned tab bar and the body under it stay inside the card. The clip runs past the
+        // bottom edge so the corners there (against the action row) stay square.
+        Rectangle scrollClip = ShapeScale.round( new Rectangle(), ShapeScale.EXTRA_LARGE );
+        scrollClip.widthProperty().bind( bodyScroll.widthProperty() );
+        scrollClip.heightProperty().bind( bodyScroll.heightProperty().add( ShapeScale.EXTRA_LARGE * 2 ) );
+        bodyScroll.setClip( scrollClip );
+        installTabBarPinning();
 
         HBox actions = buildActionRow( pack );
 
-        modalCard.getChildren().addAll( hero, headerMeta, tabBar, bodyScroll, actions );
+        modalCard.getChildren().addAll( bodyScroll, actions );
     }
 
     /**
-     * Builds the segmented tab bar. Each tab is a clickable {@link Label} styled
-     * as a segmented-control button; clicking activates that tab via
-     * {@link #selectTab}.
+     * Wires the sticky tab bar. The scroll position is tracked in pixels and kept steady while
+     * the content's height changes; the tab bar is translated down by however far the area has
+     * scrolled past it, so it stays at the top while the body scrolls under it; and the body is
+     * kept at least a viewport (less the tab bar) tall so the pinned position is always reachable.
+     */
+    private void installTabBarPinning()
+    {
+        final ScrollPane scroll = bodyScroll;
+        final HBox bar = tabBar;
+        scroll.vvalueProperty().addListener( ( o, was, now ) -> {
+            if ( adjustingScroll ) {
+                updateTabBarPin();
+            }
+            else if ( contentResizing ) {
+                // The scroll pane's skin rescales the fraction itself when the content's size
+                // changes, after this class has already set it for the new size: put it back.
+                restoreScrollOffset();
+            }
+            else {
+                scrollOffsetPx = currentScrollOffset();
+                updateTabBarPin();
+            }
+        } );
+        // Content height changes (a section loads, a tab switches, a section collapses): keep the
+        // same pixel position rather than the same fraction, so nothing on screen jumps. This
+        // listens to the layout bounds, not the height: the skin re-fits the scroll value from its
+        // own layout-bounds listener, and this one, added before the skin exists, runs first, so
+        // the guard is up by the time the skin's change arrives.
+        scrollContent.layoutBoundsProperty().addListener( ( o, was, now ) -> {
+            if ( was.getHeight() == now.getHeight() ) {
+                return;
+            }
+            restoreScrollOffset();
+            if ( !contentResizing ) {
+                contentResizing = true;
+                Platform.runLater( () -> {
+                    contentResizing = false;
+                    restoreScrollOffset();
+                } );
+            }
+        } );
+        scroll.viewportBoundsProperty().addListener( ( o, was, now ) -> {
+            updateBodyMinHeight();
+            restoreScrollOffset();
+        } );
+        bar.heightProperty().addListener( ( o, was, now ) -> updateBodyMinHeight() );
+        // The hero's height follows the card's, so the bar's place moves on a resize; a pinned
+        // bar stays pinned and the body under it keeps its place.
+        bar.layoutYProperty().addListener( ( o, was, now ) -> {
+            if ( tabBarPinned ) {
+                scrollOffsetPx += now.doubleValue() - was.doubleValue();
+            }
+            restoreScrollOffset();
+        } );
+    }
+
+    /** Keeps the body at least as tall as the viewport under the tab bar. */
+    private void updateBodyMinHeight()
+    {
+        if ( bodyScroll == null || bodyHolder == null || tabBar == null ) return;
+        // Rounded up, plus a pixel: the viewport's height is snapped to whole pixels while the
+        // content's isn't, and a body a fraction short would leave the pinned position unreachable.
+        double min = Math.ceil( bodyScroll.getViewportBounds().getHeight() - tabBar.getHeight() ) + 1;
+        bodyHolder.setMinHeight( Math.max( 0, min ) );
+    }
+
+    /** @return how far the content can scroll, in pixels; zero when it fits */
+    private double scrollableHeight()
+    {
+        if ( bodyScroll == null || scrollContent == null ) return 0;
+        return Math.max( 0, scrollContent.getHeight() - bodyScroll.getViewportBounds().getHeight() );
+    }
+
+    /** @return the scroll position in pixels, read from the scroll pane */
+    private double currentScrollOffset()
+    {
+        return bodyScroll.getVvalue() * scrollableHeight();
+    }
+
+    /** Puts the scroll pane back at {@link #scrollOffsetPx}, clamped to what the content allows. */
+    private void restoreScrollOffset()
+    {
+        if ( bodyScroll == null ) return;
+        double scrollable = scrollableHeight();
+        double offset = Math.min( Math.max( 0, scrollOffsetPx ), scrollable );
+        adjustingScroll = true;
+        try {
+            bodyScroll.setVvalue( scrollable > 0 ? offset / scrollable : 0 );
+        }
+        finally {
+            adjustingScroll = false;
+        }
+        updateTabBarPin();
+    }
+
+    /**
+     * Scrolls to a pixel position after laying the content out, so a body that was just swapped
+     * in is measured first.
+     *
+     * @param offset the position, in pixels from the top
+     */
+    private void scrollToOffset( double offset )
+    {
+        if ( bodyScroll == null ) return;
+        bodyScroll.applyCss();
+        bodyScroll.layout();
+        updateBodyMinHeight();
+        bodyScroll.layout();
+        // Not clamped here: if the content is still short of it (a body still being measured), the
+        // position is reached as soon as the content has grown (see the height listener). The
+        // targets are never past the tab bar's place, which the body's minimum height keeps reachable.
+        scrollOffsetPx = Math.max( 0, offset );
+        restoreScrollOffset();
+    }
+
+    /** Moves the tab bar to the top of the scroll area once it has scrolled that far, and shows the
+     *  pinned row's close button and divider while it is there. */
+    private void updateTabBarPin()
+    {
+        if ( bodyScroll == null || tabBar == null ) return;
+        double pinAt = tabBar.getLayoutY();
+        double offset = currentScrollOffset();
+        tabBar.setTranslateY( DetailModalLayout.pinTranslation( offset, pinAt ) );
+        boolean pinned = DetailModalLayout.isPinned( offset, pinAt );
+        tabBarPinned = pinned;
+        if ( pinned != tabBar.getStyleClass().contains( "pinned" ) ) {
+            if ( pinned ) {
+                tabBar.getStyleClass().add( "pinned" );
+            }
+            else {
+                tabBar.getStyleClass().remove( "pinned" );
+            }
+        }
+        if ( pinnedClose != null ) {
+            pinnedClose.setVisible( pinned );
+        }
+    }
+
+    /**
+     * Whether the tab bar is pinned at the top of the scroll area. For tests.
+     *
+     * @return {@code true} while pinned
+     *
+     * @since 2026.11
+     */
+    boolean isTabBarPinned()
+    {
+        return tabBarPinned;
+    }
+
+    /**
+     * The scroll position in pixels. For tests.
+     *
+     * @return the position
+     *
+     * @since 2026.11
+     */
+    double scrollOffsetForTest()
+    {
+        return currentScrollOffset();
+    }
+
+    /**
+     * The tab bar's top within the scrolled content: the scroll position at which it pins. For
+     * tests.
+     *
+     * @return the position, in pixels
+     *
+     * @since 2026.11
+     */
+    double tabBarPinOffsetForTest()
+    {
+        return tabBar == null ? 0 : tabBar.getLayoutY();
+    }
+
+    /**
+     * Scrolls to a pixel position. For tests, which must not move the real mouse.
+     *
+     * @param offset the position
+     *
+     * @since 2026.11
+     */
+    void scrollToForTest( double offset )
+    {
+        scrollToOffset( offset );
+    }
+
+    /**
+     * Activates a tab by id. For tests.
+     *
+     * @param tabId the tab
+     *
+     * @since 2026.11
+     */
+    void selectTabForTest( String tabId )
+    {
+        if ( currentPack != null ) {
+            selectTab( tabId, currentPack, packGeneration, false );
+        }
+    }
+
+    /**
+     * Builds the segmented tab bar: one clickable {@link Label} per tab, styled as a connected
+     * button group, and at the far end a close button that shows while the bar is pinned.
      *
      * @param pack the pack being shown (passed to the section builders on activation)
      * @param tabs the ordered tab ids that apply to this pack
@@ -601,8 +839,9 @@ public class MCLauncherModpackDetailModal extends StackPane
     {
         HBox bar = new HBox( 2 );
         bar.getStyleClass().add( "modpackDetailTabBar" );
-        bar.setPadding( new Insets( 12, 24, 12, 24 ) );
+        bar.setPadding( new Insets( 12, 16, 12, 24 ) );
         bar.setAlignment( Pos.CENTER_LEFT );
+        java.util.List< Label > buttons = new java.util.ArrayList<>();
         for ( String tab : tabs ) {
             Label btn = new Label( tabLabel( tab ) );
             btn.getStyleClass().add( "modpackDetailTab" );
@@ -614,12 +853,34 @@ public class MCLauncherModpackDetailModal extends StackPane
                 btn.setContentDisplay( javafx.scene.control.ContentDisplay.RIGHT );
             }
             btn.setCursor( Cursor.HAND );
-            btn.setOnMouseClicked( e -> selectTab( tab, pack, gen ) );
+            btn.setOnMouseClicked( e -> selectTab( tab, pack, gen, false ) );
             tabButtons.put( tab, btn );
-            bar.getChildren().add( btn );
+            buttons.add( btn );
         }
+        // A narrow window (or a long translation) wraps the tabs onto a second row rather than
+        // cutting their labels short.
+        javafx.scene.layout.FlowPane group = new javafx.scene.layout.FlowPane( 2, 2 );
+        group.setAlignment( Pos.CENTER_LEFT );
+        group.setMinWidth( 0 );
+        group.getChildren().addAll( buttons );
+        HBox.setHgrow( group, Priority.ALWAYS );
         // Connected button group: round the outer ends, keep the inner corners tight.
-        SettingsNavTile.markGroupPositions( java.util.List.of( bar ) );
+        SettingsNavTile.markGroupPositions( java.util.List.of( group ) );
+
+        pinnedClose = new MFXButton( "" );
+        IconButtons.decorate( pinnedClose, LauncherIcons.CLOSE, LocalizationManager.get( "detailModal.close" ) );
+        pinnedClose.getStyleClass().add( "modpackDetailPinnedClose" );
+        pinnedClose.setMinWidth( Region.USE_PREF_SIZE );
+        pinnedClose.setVisible( false );
+        pinnedClose.setOnAction( e -> hide() );
+
+        bar.getChildren().addAll( group, pinnedClose );
+        // The row doesn't hand its width down when it asks the tabs for their height, so tell
+        // them where to wrap: the row's width less its padding and the close button.
+        group.prefWrapLengthProperty().bind( javafx.beans.binding.Bindings.createDoubleBinding(
+                () -> Math.max( 0, bar.getWidth() - bar.getInsets().getLeft() - bar.getInsets().getRight()
+                                   - pinnedClose.prefWidth( -1 ) - bar.getSpacing() ),
+                bar.widthProperty(), bar.insetsProperty() ) );
         return bar;
     }
 
@@ -627,24 +888,28 @@ public class MCLauncherModpackDetailModal extends StackPane
     private static String tabLabel( String tabId )
     {
         return switch ( tabId ) {
-            case TAB_CONTENT  -> LocalizationManager.get( "detailModal.tab.content" );
+            case TAB_MODS     -> LocalizationManager.get( "detailModal.tab.mods" );
+            case TAB_FILES    -> LocalizationManager.get( "detailModal.tab.files" );
             case TAB_ACTIVITY -> LocalizationManager.get( "detailModal.tab.activity" );
-            case TAB_ADVANCED -> LocalizationManager.get( "detailModal.tab.advanced" );
+            case TAB_SETTINGS -> LocalizationManager.get( "detailModal.tab.settings" );
             case TAB_PROBLEMS -> LocalizationManager.get( "detailModal.section.problems" );
             default           -> LocalizationManager.get( "detailModal.tab.overview" );
         };
     }
 
     /**
-     * Activates a tab: toggles the tab-bar {@code active} style, lazily builds the
-     * tab's body on first activation (rendered incrementally), and swaps it into
-     * the scroll area scrolled to the top.
+     * Activates a tab: toggles the tab-bar {@code active} style, lazily builds the tab's body on
+     * first activation (rendered incrementally), and swaps it in under the tab bar. The scroll
+     * position doesn't jump back over the hero: a pinned tab bar stays pinned (showing the new
+     * tab from its top), otherwise the area stays where it was.
      *
      * @param tabId the tab to activate
      * @param pack  the pack being shown
      * @param gen   the show generation; a mismatch (modal re-shown) is a no-op
+     * @param pin   {@code true} to scroll so the tab bar is pinned and the tab shows from its top,
+     *              whatever the position was
      */
-    private void selectTab( String tabId, GameModPack pack, int gen )
+    private void selectTab( String tabId, GameModPack pack, int gen, boolean pin )
     {
         if ( gen != packGeneration || bodyScroll == null ) return;
         for ( var entry : tabButtons.entrySet() ) {
@@ -658,39 +923,50 @@ public class MCLauncherModpackDetailModal extends StackPane
                 btn.getStyleClass().remove( "active" );
             }
         }
+        double pinAt = tabBar.getLayoutY();
+        double target = pin ? pinAt : DetailModalLayout.offsetAfterTabSwitch( scrollOffsetPx, pinAt );
         VBox tabBody = tabBodies.get( tabId );
-        if ( tabBody == null ) {
+        boolean fresh = tabBody == null;
+        if ( fresh ) {
             tabBody = new VBox( 16 );
-            tabBody.setPadding( new Insets( 16, 24, 20, 24 ) );
+            tabBody.setPadding( new Insets( 4, 24, 24, 24 ) );
             tabBody.getStyleClass().add( "modpackDetailBody" );
             tabBodies.put( tabId, tabBody );
-            renderSectionsIncrementally( tabBody, tabSectionBuilders( tabId, pack, tabBody ), gen );
         }
-        bodyScroll.setContent( tabBody );
-        bodyScroll.setVvalue( 0.0 );
+        bodyHolder.getChildren().setAll( tabBody );
+        scrollToOffset( target );
+        if ( fresh ) {
+            renderSectionsIncrementally( tabBody, tabSectionBuilders( tabId, pack, tabBody, gen ), gen );
+        }
     }
 
     /**
-     * Returns the ordered section builders for a tab, reusing the existing
-     * {@code build*Section} methods. None are removed from the modal — they are
-     * regrouped here: Overview = News / Links / Quick Actions / Stats; Content =
-     * the file browsers; Activity = Update Log / Crash History; Advanced = the
-     * verify controls. An empty tab gets a muted empty-state.
+     * Returns the ordered section builders for a tab, reusing the existing {@code build*Section}
+     * methods, grouped by task: Overview = What's new / Optional mods summary / News / Links /
+     * At a glance / Quick actions; Mods = Optional mods, then the installed mods; Worlds &amp; files
+     * = the file browsers; Activity = Update log / Crash history; Settings = Launch as / Game files
+     * / Official Minecraft Launcher. An empty tab gets a muted empty-state.
      *
      * @param tabId   the tab whose sections to assemble
      * @param pack    the pack being shown
      * @param tabBody the tab's body VBox (passed to section builders that need it)
+     * @param gen     the show generation
      *
      * @return the ordered, non-empty list of section suppliers
      */
     private java.util.List< java.util.function.Supplier< Node > > tabSectionBuilders(
-            String tabId, GameModPack pack, VBox tabBody )
+            String tabId, GameModPack pack, VBox tabBody, int gen )
     {
         java.util.List< java.util.function.Supplier< Node > > b = new java.util.ArrayList<>();
+        boolean optionalCapable = !pack.isVanillaVersion() && pack.getSettingsKey() != null;
         switch ( tabId ) {
             case TAB_OVERVIEW -> {
-                // News + Links lead (manifest-authored, the freshest "why I'm here"
-                // info), then quick actions and the at-a-glance stats.
+                // The pending update and the optional-mod choice lead (both hide until they know
+                // they apply), then the pack author's news and links, the stats, quick actions.
+                b.add( () -> buildWhatsNewSection( pack ) );
+                if ( optionalCapable && tabButtons.containsKey( TAB_MODS ) ) {
+                    b.add( () -> buildOptionalSummarySection( pack, gen ) );
+                }
                 java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.NewsItem > news;
                 try { news = pack.getVisibleNews(); }
                 catch ( Throwable t ) {
@@ -713,14 +989,22 @@ public class MCLauncherModpackDetailModal extends StackPane
                     final java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.LinkItem > fl = links;
                     b.add( () -> buildLinksSection( fl ) );
                 }
-                b.add( () -> buildQuickActionsSection( pack ) );
                 b.add( () -> buildStatsSection( pack ) );
+                b.add( () -> buildQuickActionsSection( pack ) );
             }
-            case TAB_CONTENT -> {
+            case TAB_MODS -> {
+                if ( optionalCapable ) {
+                    b.add( () -> buildOptionalModsSection( pack ) );
+                }
+                if ( pack.getPackRootFolder() != null ) {
+                    final Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
+                    b.add( () -> ModpackContentBrowser.buildModsSection( pack, this::buildSectionBox, tabBody, ownerStage ) );
+                }
+            }
+            case TAB_FILES -> {
                 final Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
                 b.add( () -> ModpackContentBrowser.buildWorldsSection( pack, this::buildSectionBox, ownerStage ) );
                 b.add( () -> ModpackContentBrowser.buildServersSection( pack, this::buildSectionBox ) );
-                b.add( () -> ModpackContentBrowser.buildModsSection( pack, this::buildSectionBox, tabBody, ownerStage ) );
                 b.add( () -> ModpackContentBrowser.buildScreenshotsSection( pack, this::buildSectionBox, this ) );
                 b.add( () -> ModpackContentBrowser.buildShaderPacksSection( pack, this::buildSectionBox ) );
                 b.add( () -> ModpackContentBrowser.buildResourcePacksSection( pack, this::buildSectionBox ) );
@@ -729,12 +1013,16 @@ public class MCLauncherModpackDetailModal extends StackPane
                 b.add( () -> buildUpdateLogSection( pack ) );
                 b.add( () -> ModpackContentBrowser.buildCrashHistorySection( pack, this::buildSectionBox, this ) );
             }
-            case TAB_ADVANCED -> {
-                // Optional mods come from the pack's manifest; a vanilla install has none.
-                if ( !pack.isVanillaVersion() && pack.getManifestUrl() != null && !pack.getManifestUrl().isBlank() ) {
-                    b.add( () -> buildOptionalModsSection( pack ) );
+            case TAB_SETTINGS -> {
+                b.add( () -> buildAccountSection( pack ) );
+                // Everything else verifies against, or is keyed by, the pack's manifest; a vanilla
+                // install has none, so it gets the account choice only.
+                if ( pack.getManifestUrl() != null && !pack.getManifestUrl().isBlank() ) {
+                    b.add( () -> buildGameFilesSection( pack ) );
+                    if ( pack.getPackRootFolder() != null ) {
+                        b.add( () -> buildOfficialLauncherSection( pack ) );
+                    }
                 }
-                b.add( () -> buildAdvancedSection( pack ) );
             }
             case TAB_PROBLEMS -> b.add( () -> buildProblemsList( currentProblems ) );
             default -> { }
@@ -784,25 +1072,14 @@ public class MCLauncherModpackDetailModal extends StackPane
         }.start();
     }
 
-    /**
-     * Appends body sections into the modal's already-rendered scroll
-     * area. Called via Platform.runLater from {@link #show} so the
-     * fade-in animation gets to start on this pulse and the heavy
-     * section construction lands on the next. Each content-browser
-     * section returns a placeholder + populates itself off the FX
-     * thread, so this call returns quickly even when there's a lot
-     * of data to scan.
-     *
-     * <p>If the modal was closed (or re-shown for a different pack)
-     * between {@link #show} scheduling this call and it actually
-     * running, bail — {@code currentBody} would point at a different
-     * pack's body or be null.</p>
-     */
     /** How many body sections to construct + mount per animation frame in
-     *  {@link #populateBodyContent}. Small enough that one frame's work stays
+     *  {@link #renderSectionsIncrementally}. Small enough that one frame's work stays
      *  inside the ~16 ms budget so the open fade can't stutter; large enough
      *  that the whole body still streams in within the fade's duration. */
     private static final int SECTIONS_PER_FRAME = 3;
+
+    /** The pack the modal is showing, for the test hooks. */
+    private GameModPack currentPack;
 
     /**
      * Deferred entry point (fired ~32 ms after {@link #show} so the empty
@@ -814,7 +1091,8 @@ public class MCLauncherModpackDetailModal extends StackPane
     private void populateBodyContent( GameModPack pack )
     {
         if ( !visibleState || bodyScroll == null ) return;
-        selectTab( TAB_OVERVIEW, pack, packGeneration );
+        currentPack = pack;
+        selectTab( TAB_OVERVIEW, pack, packGeneration, false );
     }
 
     /**
@@ -839,9 +1117,9 @@ public class MCLauncherModpackDetailModal extends StackPane
 
         StackPane hero = new StackPane();
         hero.getStyleClass().add( "modpackDetailHero" );
-        // Responsive height: the hero is sticky (never scrolls), so a fixed 320 would
-        // eat most of a short modal and crush the scrollable body below the tab bar to
-        // near-zero. Scale it with the modal card's height, clamped to
+        // Responsive height: the hero scrolls away, but a fixed 320 would fill most of a
+        // short modal's first screen and hide the tabs below the fold. Scale it with the
+        // modal card's height, clamped to
         // [HERO_MIN_HEIGHT, HERO_HEIGHT], so a small modal keeps a usable body while a
         // tall one still gets the full-size hero art.
         javafx.beans.binding.DoubleBinding heroHeight = javafx.beans.binding.Bindings
@@ -897,6 +1175,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         //      MOUSE_CLICKED — belt and suspenders.
         Label closeBtn = new Label( "✕" );
         closeBtn.getStyleClass().add( "modpackDetailClose" );
+        closeBtn.setAccessibleText( LocalizationManager.get( "detailModal.close" ) );
         closeBtn.setCursor( Cursor.HAND );
         closeBtn.setPickOnBounds( true );
         closeBtn.setOnMousePressed( e -> { e.consume(); hide(); } );
@@ -1596,13 +1875,133 @@ public class MCLauncherModpackDetailModal extends StackPane
     }
 
     /**
-     * Builds the Update Log section: a "what's new" pending-changes card (when an
-     * update is available) atop a chronological list of the most recent
+     * Where the Overview's "What's new" card gets the pending update's changes: {@code null} when
+     * no update is pending. Runs off the FX thread. Package-private so a snapshot test can show a
+     * pending update without an installed pack.
+     */
+    static java.util.function.Function< GameModPack,
+            com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.Result > pendingDiffSource =
+            pack -> pack.isUpdateAvailable()
+                    ? com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.compute( pack )
+                    : null;
+
+    /** Where the Optional mods section and summary get the pack's optional mods. Runs off the FX
+     *  thread. Package-private for the snapshot test. */
+    static java.util.function.Function< GameModPack,
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod > > optionalModsSource =
+            com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods::of;
+
+    /** Which of the pack's optional mods are on (their identity keys). Runs off the FX thread.
+     *  Package-private for the snapshot test, which must not read the player's stored choices. */
+    static java.util.function.BiFunction< GameModPack,
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod >,
+            java.util.Set< String > > optionalEnabledSource =
+            com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods::enabledKeys;
+
+    /**
+     * The Overview's "What's new" card for a pending update: what the update adds, updates and
+     * removes, from {@link #pendingDiffSource}. Hidden while the diff loads and when there is no
+     * update or nothing changes.
+     *
+     * @param pack the pack
+     *
+     * @return the card's container, hidden until it has something to show
+     *
+     * @since 2026.11
+     */
+    private Node buildWhatsNewSection( GameModPack pack )
+    {
+        VBox holder = new VBox();
+        holder.setVisible( false );
+        holder.setManaged( false );
+        final int gen = packGeneration;
+        SystemUtilities.spawnNewTask( () -> {
+            com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.Result diff = null;
+            try {
+                diff = pendingDiffSource.apply( pack );
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( LocalizationManager.format( "log.modpackDetail.pendingDiffFailed", t.getClass().getSimpleName() ) );
+            }
+            if ( diff == null || diff.isEmpty() ) {
+                return;
+            }
+            final com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.Result finalDiff = diff;
+            Platform.runLater( () -> {
+                if ( gen != packGeneration ) {
+                    return;
+                }
+                holder.getChildren().setAll( buildPendingChangesNode( pack, finalDiff ) );
+                holder.setVisible( true );
+                holder.setManaged( true );
+            } );
+        } );
+        return holder;
+    }
+
+    /**
+     * The Overview's Optional mods summary: how many optional mods the pack offers and how many are
+     * on, and a Choose button that opens the Mods tab at its Optional mods section. Hidden while
+     * loading and when the pack has no optional mods a client can turn on. The counts follow the
+     * Mods tab's toggles.
+     *
+     * @param pack the pack
+     * @param gen  the show generation
+     *
+     * @return the section, hidden until it knows the pack has optional mods
+     *
+     * @since 2026.11
+     */
+    private Node buildOptionalSummarySection( GameModPack pack, int gen )
+    {
+        VBox section = buildSectionBox( LocalizationManager.get( "detailModal.optionalSummary.title" ), true );
+        section.setVisible( false );
+        section.setManaged( false );
+        SystemUtilities.spawnNewTask( () -> {
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod > mods =
+                    optionalModsSource.apply( pack );
+            java.util.Set< String > enabled = optionalEnabledSource.apply( pack, mods );
+            DetailModalLayout.OptionalCounts counts = DetailModalLayout.optionalCounts( mods, enabled );
+            if ( counts.available() == 0 ) {
+                return;
+            }
+            Platform.runLater( () -> {
+                if ( gen != packGeneration ) {
+                    return;
+                }
+                Label summary = new Label();
+                summary.setWrapText( true );
+                summary.setMinWidth( 0 );
+                java.util.function.Consumer< java.util.Set< String > > update = on -> {
+                    DetailModalLayout.OptionalCounts now = DetailModalLayout.optionalCounts( mods, on );
+                    summary.setText( LocalizationManager.format( "detailModal.optionalSummary.counts",
+                                                                 now.available(), now.on() ) );
+                };
+                update.accept( enabled );
+                optionalSummaryUpdater = update;
+                MFXButton choose = new MFXButton( LocalizationManager.get( "detailModal.optionalSummary.choose" ) );
+                choose.getStyleClass().add( "modpackDetailSecondaryBtn" );
+                choose.setMinWidth( Region.USE_PREF_SIZE );
+                choose.setOnAction( e -> selectTab( TAB_MODS, pack, gen, true ) );
+                Region spacer = new Region();
+                HBox.setHgrow( spacer, Priority.ALWAYS );
+                HBox row = new HBox( 12, summary, spacer, choose );
+                row.setAlignment( Pos.CENTER_LEFT );
+                section.getChildren().add( row );
+                section.setVisible( true );
+                section.setManaged( true );
+            } );
+        } );
+        return section;
+    }
+
+    /**
+     * Builds the Update Log section: a chronological list of the most recent
      * {@link #MAX_LOG_ENTRIES_SHOWN} packVersion-change entries, with a "+N more"
-     * footer when the log is longer. Both the log read and the pending-update diff
-     * are file/manifest I/O, so the section mounts a spinner placeholder and fills
-     * in the rows off the FX thread. Empty logs show a vanilla- or modded-specific
-     * empty-state message.
+     * footer when the log is longer. The log read is file I/O, so the section mounts
+     * a spinner placeholder and fills in the rows off the FX thread. Empty logs show
+     * a vanilla- or modded-specific empty-state message. A pending update's changes
+     * are on the Overview tab (see {@link #buildWhatsNewSection}).
      *
      * @param pack the pack whose update log is rendered
      * @return the section {@link VBox}, initially showing a loading placeholder
@@ -1635,24 +2034,9 @@ public class MCLauncherModpackDetailModal extends StackPane
                 Logger.logWarningSilent( LocalizationManager.format( "log.modpackDetail.updateLogReadFailed", t.getClass().getSimpleName() ) );
                 entries = java.util.Collections.emptyList();
             }
-            // When an update is pending, diff the manifest's mods against what's installed so we can
-            // show an at-a-glance "what's new" summary. Best-effort; null when not applicable.
-            com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.Result diff = null;
-            try {
-                if ( pack.isUpdateAvailable() ) {
-                    diff = com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.compute( pack );
-                }
-            }
-            catch ( Throwable t ) {
-                Logger.logWarningSilent( LocalizationManager.format( "log.modpackDetail.pendingDiffFailed", t.getClass().getSimpleName() ) );
-            }
             final List< ModPackUpdateLog.Entry > finalEntries = entries;
-            final com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.Result finalDiff = diff;
             javafx.application.Platform.runLater( () -> {
                 section.getChildren().remove( placeholder );
-                if ( finalDiff != null && !finalDiff.isEmpty() ) {
-                    section.getChildren().add( buildPendingChangesNode( pack, finalDiff ) );
-                }
                 if ( finalEntries.isEmpty() ) {
                     Label empty = new Label(
                             pack.isVanillaVersion()
@@ -1692,15 +2076,9 @@ public class MCLauncherModpackDetailModal extends StackPane
             GameModPack pack,
             com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.Result diff )
     {
-        VBox box = new VBox( 4 );
-        box.getStyleClass().add( "modpackDetailSection" );
-        box.setPadding( new Insets( 10 ) );
-
-        Label header = new Label(
-                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
-                        "detailModal.whatsNew.header", pack.getPackVersion() == null ? "?" : pack.getPackVersion() ) );
-        header.getStyleClass().add( "modpackDetailContentName" );
-        box.getChildren().add( header );
+        // A section like the others on the Overview, titled "What's new in vX".
+        VBox box = buildSectionBox( LocalizationManager.format(
+                "detailModal.whatsNew.header", pack.getPackVersion() == null ? "?" : pack.getPackVersion() ), true );
 
         java.util.List< String > parts = new java.util.ArrayList<>();
         if ( diff.added() > 0 ) {
@@ -1779,33 +2157,6 @@ public class MCLauncherModpackDetailModal extends StackPane
     }
 
     /**
-     * Advanced section — currently houses the per-pack "Always verify game
-     * files on launch" toggle and the "Verify this pack now" button. Designed
-     * to grow over time as other per-pack power-user knobs (custom RAM,
-     * custom JVM args, etc.) land.
-     *
-     * <p>Starts expanded (it's the only section on the Advanced tab, so gating it
-     * behind a click is pointless), but still lazy-populates via
-     * {@link #registerOnFirstExpand} — which fires immediately for an
-     * already-expanded section, so the controls construct when the Advanced tab
-     * is first opened rather than at modal-open.
-     *
-     * @param pack the pack the advanced controls operate on
-     * @return the section {@link VBox}
-     */
-    private Node buildAdvancedSection( GameModPack pack )
-    {
-        // Expanded by default — Advanced is its own tab now, so there's no extra
-        // scroll to protect. The MFXComboBox / MFXToggleButton / MFXButton
-        // construction + ConfigManager reads still defer to the lazy-populate
-        // (fires on first expand, i.e. when the tab is first shown).
-        VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.advanced" ), true );
-
-        registerOnFirstExpand( section, () -> buildAdvancedSectionBody( section, pack ) );
-        return section;
-    }
-
-    /**
      * Optional mods section: each of the pack's {@code packOptionalMods} with its description and
      * a toggle. Toggling applies the mod's {@code requires} and {@code conflictsWith} (through
      * {@link com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods#toggle}), flips the
@@ -1823,15 +2174,18 @@ public class MCLauncherModpackDetailModal extends StackPane
         VBox section = buildSectionBox( LocalizationManager.get( "detailModal.section.optionalMods" ), true );
         section.setVisible( false );
         section.setManaged( false );
+        final int gen = packGeneration;
         SystemUtilities.spawnNewTask( () -> {
             java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod > mods =
-                    com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.of( pack );
+                    optionalModsSource.apply( pack );
             if ( mods.stream().noneMatch( com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod::isClientSide ) ) {
                 return;
             }
-            java.util.Set< String > enabled =
-                    com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.enabledKeys( pack, mods );
+            java.util.Set< String > enabled = optionalEnabledSource.apply( pack, mods );
             Platform.runLater( () -> {
+                if ( gen != packGeneration ) {
+                    return;
+                }
                 populateOptionalMods( section, pack, mods, enabled );
                 section.setVisible( true );
                 section.setManaged( true );
@@ -1898,6 +2252,10 @@ public class MCLauncherModpackDetailModal extends StackPane
                         result, mod.getDisplayName(), enable, LocalizationManager::format ) ) );
                 status.setVisible( true );
                 status.setManaged( true );
+                // The Overview's summary was built once; keep its "M on" in step.
+                if ( optionalSummaryUpdater != null ) {
+                    optionalSummaryUpdater.accept( result.enabled() );
+                }
             } );
 
             VBox row = new VBox( 2, toggle );
@@ -1919,16 +2277,20 @@ public class MCLauncherModpackDetailModal extends StackPane
     }
 
     /**
-     * The "Launch as" choice: which signed-in account this pack plays as. The first entry is
-     * the default account (no override); picking it clears the override. An override whose
-     * account has since been signed out shows as such, and launching then asks what to do
+     * The Settings tab's "Launch as" section: which signed-in account this pack plays as. The first
+     * entry is the default account (no override); picking it clears the override. An override
+     * whose account has since been signed out shows as such, and launching then asks what to do
      * (see {@code LauncherCore.resolveLaunchUser}).
      *
-     * @param section the Advanced section to append to
-     * @param pack    the pack whose override this edits
+     * @param pack the pack whose override this edits
+     *
+     * @return the section
+     *
+     * @since 2026.11
      */
-    private void buildAccountOverride( VBox section, GameModPack pack )
+    private Node buildAccountSection( GameModPack pack )
     {
+        VBox section = buildSectionBox( LocalizationManager.get( "modal.advanced.account.label" ), true );
         final String key = pack.getSettingsKey();
         final String DEFAULT_ID = "";
         var manager = com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.accounts();
@@ -1980,43 +2342,30 @@ public class MCLauncherModpackDetailModal extends StackPane
             }
         } );
 
-        Label label = new Label( LocalizationManager.get( "modal.advanced.account.label" ) );
-        label.getStyleClass().add( "type-body-small" );
         Label accountHint = new Label( LocalizationManager.get( "modal.advanced.account.hint" ) );
         accountHint.setWrapText( true );
-        accountHint.getStyleClass().add( "subtle" );
-        accountHint.getStyleClass().add( "type-label-small" );
-        section.getChildren().addAll( label, combo, accountHint );
+        accountHint.getStyleClass().addAll( "subtle", "type-label-small" );
+        section.getChildren().addAll( accountHint, combo );
+        return section;
     }
 
-    /** Body of the Advanced section. Extracted so it can be deferred
-     *  via {@link #registerOnFirstExpand} — the section header alone
-     *  is what renders at modal open, content only loads if the user
-     *  clicks to expand.
+    /**
+     * The Settings tab's "Game files" section: always verify on launch, the security scan
+     * frequency, the scan findings the pack's author has acknowledged, and Verify now. Each
+     * control carries its hint under it.
      *
-     *  @param section the already-constructed Advanced section the controls are
-     *                 appended to
-     *  @param pack    the pack the controls read from and write back to via
-     *                 {@link ConfigManager} */
-    private void buildAdvancedSectionBody( VBox section, GameModPack pack )
+     * @param pack the pack the controls read from and write back to via {@link ConfigManager}
+     *
+     * @return the section
+     *
+     * @since 2026.11
+     */
+    private Node buildGameFilesSection( GameModPack pack )
     {
-        Label hint = new Label( LocalizationManager.get( "modal.advanced.hint" ) );
-        hint.setWrapText( true );
-        hint.getStyleClass().add( "muted" );
-        hint.getStyleClass().add( "type-label-small" );
-        section.getChildren().add( hint );
+        VBox section = buildSectionBox( LocalizationManager.get( "detailModal.section.gameFiles" ), true );
 
-        buildAccountOverride( section, pack );
-
-        // Everything below verifies against, or is keyed by, the pack's manifest; a vanilla
-        // install has none, so it gets the account choice only.
-        if ( pack.getManifestUrl() == null || pack.getManifestUrl().isBlank() ) {
-            return;
-        }
-
-        // Toggle: always verify on launch.
-        // Stored per-pack-URL via ConfigManager. Default OFF — fast-path
-        // eligible — matches the design choice from the 3.3 question pass.
+        // Toggle: always verify on launch. Stored per pack; default off, so launches can take the
+        // fast path that skips re-hashing unchanged files.
         io.github.palexdev.materialfx.controls.MFXToggleButton alwaysVerifyToggle =
                 new io.github.palexdev.materialfx.controls.MFXToggleButton(
                         LocalizationManager.get( "modal.advanced.alwaysVerify" ) );
@@ -2025,17 +2374,23 @@ public class MCLauncherModpackDetailModal extends StackPane
         alwaysVerifyToggle.selectedProperty().addListener( ( obs, oldVal, newVal ) ->
                 ConfigManager.setAlwaysVerifyOnLaunch( pack.getManifestUrl(),
                                                        Boolean.TRUE.equals( newVal ) ) );
-        Label toggleHint = new Label( LocalizationManager.get( "modal.advanced.alwaysVerify.hint" ) );
-        toggleHint.setWrapText( true );
-        toggleHint.getStyleClass().add( "subtle" );
-        toggleHint.getStyleClass().add( "type-label-small" );
-        section.getChildren().add( alwaysVerifyToggle );
-        section.getChildren().add( toggleHint );
+        section.getChildren().add( settingBlock( alwaysVerifyToggle, null, "modal.advanced.alwaysVerify.hint" ) );
 
-        // Per-pack scan-frequency override. First entry maps to "null override"
-        // (== use global default); the rest map 1:1 to the enum values. Keyed
-        // by display label so user-facing copy can be edited without shifting
-        // indices in stored configs.
+        // Button: verify this pack now — a forced full verify in the background, shown in the
+        // launch progress window.
+        MFXButton verifyNowBtn = new MFXButton( LocalizationManager.get( "modal.advanced.verifyNow" ) );
+        verifyNowBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
+        verifyNowBtn.setMinHeight( 32 );
+        verifyNowBtn.setPrefHeight( 32 );
+        verifyNowBtn.setOnAction( e -> {
+            hide();
+            com.micatechnologies.minecraft.launcher.utilities.VerifyAction.runForPacks(
+                    java.util.List.of( pack ) );
+        } );
+        section.getChildren().add( settingBlock( verifyNowBtn, null, "modal.advanced.verifyNow.hint" ) );
+
+        // Per-pack scan-frequency override. First entry maps to "null override" (use the global
+        // default); the rest map 1:1 to the enum values.
         final String USE_GLOBAL = LocalizationManager.get( "modal.advanced.scanFreq.useGlobal" );
         io.github.palexdev.materialfx.controls.MFXComboBox< String > scanFreqCombo =
                 new io.github.palexdev.materialfx.controls.MFXComboBox<>();
@@ -2065,105 +2420,81 @@ public class MCLauncherModpackDetailModal extends StackPane
                 }
             }
         } );
-        Label scanFreqLabel = new Label( LocalizationManager.get( "modal.advanced.scanFreq.label" ) );
-        scanFreqLabel.getStyleClass().add( "type-body-small" );
-        Label scanFreqHint = new Label( LocalizationManager.get( "modal.advanced.scanFreq.hint" ) );
-        scanFreqHint.setWrapText( true );
-        scanFreqHint.getStyleClass().add( "subtle" );
-        scanFreqHint.getStyleClass().add( "type-label-small" );
-        section.getChildren().add( scanFreqLabel );
-        section.getChildren().add( scanFreqCombo );
-        section.getChildren().add( scanFreqHint );
+        section.getChildren().add( settingBlock( scanFreqCombo, "modal.advanced.scanFreq.label",
+                                                 "modal.advanced.scanFreq.hint" ) );
 
-        // Acknowledged scan findings — read-only view of what the pack's
-        // manifest silences. Surfaces in the UI so a user can see what the
-        // pack maintainer has chosen not to block on (and why) without
-        // having to read the raw JSON manifest. Skipped entirely when the
-        // pack has no acknowledgements — most packs won't.
+        // Acknowledged scan findings — read-only view of what the pack's manifest silences, so a
+        // player can see what the maintainer chose not to block on (and why). Most packs have none.
         java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.ScanAcknowledgement > acks =
                 pack.getPackScanAcknowledgements();
         if ( acks != null && !acks.isEmpty() ) {
             section.getChildren().add( buildAcknowledgementsList( acks ) );
         }
+        return section;
+    }
 
-        // Button: verify this pack now.
-        // Runs a force-FULL verify in the background using the new launch
-        // progress GUI for the per-step display.
-        MFXButton verifyNowBtn = new MFXButton( LocalizationManager.get( "modal.advanced.verifyNow" ) );
-        verifyNowBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
-        verifyNowBtn.setMinHeight( 32 );
-        verifyNowBtn.setPrefHeight( 32 );
-        verifyNowBtn.setOnAction( e -> {
+    /**
+     * The Settings tab's "Official Minecraft Launcher" section: add this pack to Mojang's launcher
+     * as a profile, or, once it has one, remove it. Only one of the two shows. Both go through the
+     * same helpers as Home's right-click menu.
+     *
+     * @param pack the pack
+     *
+     * @return the section
+     *
+     * @since 2026.11
+     */
+    private Node buildOfficialLauncherSection( GameModPack pack )
+    {
+        VBox section = buildSectionBox( LocalizationManager.get( "detailModal.section.officialLauncher" ), true );
+        boolean exported = com.micatechnologies.minecraft.launcher.game.modpack
+                .OfficialLauncherExporter.hasExportedProfile( pack );
+        MFXButton btn = new MFXButton( LocalizationManager.get(
+                exported ? "officialExport.remove.menuItem" : "officialExport.menuItem" ) );
+        btn.getStyleClass().add( "modpackDetailSecondaryBtn" );
+        btn.setMinHeight( 32 );
+        btn.setPrefHeight( 32 );
+        btn.setOnAction( e -> {
+            Stage owner = MCLauncherGuiController.getTopStageOrNull();
             hide();
-            com.micatechnologies.minecraft.launcher.utilities.VerifyAction.runForPacks(
-                    java.util.List.of( pack ) );
-        } );
-        Label verifyHint = new Label( LocalizationManager.get( "modal.advanced.verifyNow.hint" ) );
-        verifyHint.setWrapText( true );
-        verifyHint.getStyleClass().add( "subtle" );
-        verifyHint.getStyleClass().add( "type-label-small" );
-        HBox verifyRow = new HBox( 8, verifyNowBtn );
-        verifyRow.setAlignment( Pos.CENTER_LEFT );
-        section.getChildren().add( verifyRow );
-        section.getChildren().add( verifyHint );
-
-        // Button: Add to Official Minecraft Launcher.
-        // Creates / refreshes a Mojang-launcher profile for this pack so
-        // users can play from Minecraft's own UI. Detail-modal placement
-        // pairs with the main-GUI right-click menu item — both flows call
-        // through to the same handleAddToOfficialLauncher helper.
-        //
-        // Phase 5 partner: when a Mica-owned profile already exists for
-        // this pack, swap the Add button for a Remove button + helper text
-        // so the user can back out cleanly. We pick exactly one of the two
-        // to surface so the section doesn't grow visually busy.
-        if ( pack.getPackRootFolder() != null ) {
-            boolean exported = com.micatechnologies.minecraft.launcher.game.modpack
-                    .OfficialLauncherExporter.hasExportedProfile( pack );
-
             if ( exported ) {
-                MFXButton removeBtn = new MFXButton(
-                        LocalizationManager.get( "officialExport.remove.menuItem" ) );
-                removeBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
-                removeBtn.setMinHeight( 32 );
-                removeBtn.setPrefHeight( 32 );
-                removeBtn.setOnAction( e -> {
-                    Stage owner = MCLauncherGuiController.getTopStageOrNull();
-                    hide();
-                    MCLauncherMainGui.handleRemoveFromOfficialLauncher( pack, owner );
-                } );
-                Label removeHint = new Label(
-                        LocalizationManager.get( "modal.advanced.removeOfficial.hint" ) );
-                removeHint.setWrapText( true );
-                removeHint.getStyleClass().add( "subtle" );
-                removeHint.getStyleClass().add( "type-label-small" );
-                HBox removeRow = new HBox( 8, removeBtn );
-                removeRow.setAlignment( Pos.CENTER_LEFT );
-                section.getChildren().add( removeRow );
-                section.getChildren().add( removeHint );
+                MCLauncherMainGui.handleRemoveFromOfficialLauncher( pack, owner );
             }
             else {
-                MFXButton addToOfficialBtn = new MFXButton(
-                        LocalizationManager.get( "officialExport.menuItem" ) );
-                addToOfficialBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
-                addToOfficialBtn.setMinHeight( 32 );
-                addToOfficialBtn.setPrefHeight( 32 );
-                addToOfficialBtn.setOnAction( e -> {
-                    Stage owner = MCLauncherGuiController.getTopStageOrNull();
-                    hide();
-                    MCLauncherMainGui.handleAddToOfficialLauncher( pack, owner );
-                } );
-                Label addToOfficialHint = new Label(
-                        LocalizationManager.get( "modal.advanced.addOfficial.hint" ) );
-                addToOfficialHint.setWrapText( true );
-                addToOfficialHint.getStyleClass().add( "subtle" );
-                addToOfficialHint.getStyleClass().add( "type-label-small" );
-                HBox addToOfficialRow = new HBox( 8, addToOfficialBtn );
-                addToOfficialRow.setAlignment( Pos.CENTER_LEFT );
-                section.getChildren().add( addToOfficialRow );
-                section.getChildren().add( addToOfficialHint );
+                MCLauncherMainGui.handleAddToOfficialLauncher( pack, owner );
             }
+        } );
+        section.getChildren().add( settingBlock( btn, null,
+                exported ? "modal.advanced.removeOfficial.hint" : "modal.advanced.addOfficial.hint" ) );
+        return section;
+    }
+
+    /**
+     * One setting in a Settings-tab section: an optional label, the control, and its hint under it,
+     * kept together so the sections read as a list of settings.
+     *
+     * @param control  the control
+     * @param labelKey the label's key, or {@code null} when the control carries its own label
+     * @param hintKey  the hint's key
+     *
+     * @return the setting's block
+     */
+    private static VBox settingBlock( Node control, String labelKey, String hintKey )
+    {
+        VBox block = new VBox( 4 );
+        if ( labelKey != null ) {
+            Label label = new Label( LocalizationManager.get( labelKey ) );
+            label.getStyleClass().add( "type-body-small" );
+            block.getChildren().add( label );
         }
+        HBox controlRow = new HBox( control );
+        controlRow.setAlignment( Pos.CENTER_LEFT );
+        block.getChildren().add( controlRow );
+        Label hint = new Label( LocalizationManager.get( hintKey ) );
+        hint.setWrapText( true );
+        hint.getStyleClass().addAll( "subtle", "type-label-small" );
+        block.getChildren().add( hint );
+        return block;
     }
 
     /**
