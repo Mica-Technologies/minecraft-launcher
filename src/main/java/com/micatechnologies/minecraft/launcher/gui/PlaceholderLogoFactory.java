@@ -43,7 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Builds JavaFX {@link Image}s used as card logos for vanilla Minecraft and
- * the supported modloaders (Forge, NeoForge, Fabric) when no per-entry
+ * the supported modloaders (Forge, NeoForge, Fabric, Cleanroom) when no per-entry
  * artwork is available.
  *
  * <p>Two tiers of logo:</p>
@@ -88,6 +88,7 @@ public final class PlaceholderLogoFactory
     private static volatile Image forgePlaceholder;
     private static volatile Image neoForgePlaceholder;
     private static volatile Image fabricPlaceholder;
+    private static volatile Image cleanroomPlaceholder;
 
     /** Tracks loader-type keys with an in-flight download so concurrent card
      *  binds don't queue up duplicate fetches. */
@@ -134,6 +135,10 @@ public final class PlaceholderLogoFactory
      */
     public static Image resolveLogo( String loaderType, ImageReadyCallback onOfficialReady )
     {
+        // Cleanroom has no stable official logo URL: its tile is always drawn.
+        if ( ModPackConstants.MOD_LOADER_CLEANROOM.equals( loaderType ) ) {
+            return getCleanroomPlaceholder();
+        }
         // No official logo for vanilla — stay on the placeholder.
         if ( loaderType == null
                 || !( ModPackConstants.MOD_LOADER_FORGE.equals( loaderType )
@@ -253,8 +258,29 @@ public final class PlaceholderLogoFactory
     }
 
     /**
+     * Returns the canvas-rendered Cleanroom placeholder — a teal gradient with a
+     * white {@code "CR"} wordmark (Cleanroom has no stable official logo URL, so
+     * this tile is all it ever shows). Rendered once per JVM and cached;
+     * subsequent calls return the same {@link Image}.
+     *
+     * @return the Cleanroom placeholder image
+     *
+     * @since 2026.11
+     */
+    public static Image getCleanroomPlaceholder()
+    {
+        if ( cleanroomPlaceholder == null ) {
+            cleanroomPlaceholder = renderOnFxThread(
+                    new Stop[]{ new Stop( 0, Color.web( "#4fb3bf" ) ),
+                                 new Stop( 1, Color.web( "#1f6f7a" ) ) },
+                    "CR", Color.WHITE, 56 );
+        }
+        return cleanroomPlaceholder;
+    }
+
+    /**
      * Returns the synchronous canvas placeholder for {@code loaderType}.
-     * Recognises the Forge, NeoForge, and Fabric loader-type identifiers and
+     * Recognises the Forge, NeoForge, Fabric and Cleanroom loader-type identifiers and
      * falls back to the vanilla placeholder for {@code null} / unrecognised
      * values. Never performs I/O — the matching placeholder is rendered once
      * and cached.
@@ -270,6 +296,7 @@ public final class PlaceholderLogoFactory
             case ModPackConstants.MOD_LOADER_FORGE    -> getForgePlaceholder();
             case ModPackConstants.MOD_LOADER_NEOFORGE -> getNeoForgePlaceholder();
             case ModPackConstants.MOD_LOADER_FABRIC   -> getFabricPlaceholder();
+            case ModPackConstants.MOD_LOADER_CLEANROOM -> getCleanroomPlaceholder();
             default                                    -> getVanillaLogo();
         };
     }

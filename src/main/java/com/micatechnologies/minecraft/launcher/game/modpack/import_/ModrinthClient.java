@@ -170,6 +170,26 @@ public final class ModrinthClient
     // ===== search =====
 
     /**
+     * The Modrinth loader facet a pack's mods are searched and resolved with: the pack's own
+     * loader type, except Cleanroom, which runs Forge 1.12.2 mods (Modrinth has no Cleanroom
+     * loader) and so searches as {@code forge}.
+     *
+     * @param packLoaderType the pack's loader type ({@code forge} / {@code neoforge} /
+     *                       {@code fabric} / {@code cleanroom}, any case), or {@code null}
+     *
+     * @return the lower-cased Modrinth loader facet, or {@code null} for a {@code null} / blank
+     *         input
+     *
+     * @since 2026.11
+     */
+    public static String loaderFacetFor( String packLoaderType )
+    {
+        if ( packLoaderType == null || packLoaderType.isBlank() ) return null;
+        String lower = packLoaderType.trim().toLowerCase( java.util.Locale.ROOT );
+        return com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM.equals( lower ) ? com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE : lower;
+    }
+
+    /**
      * Searches Modrinth for <b>mods</b> matching {@code query}, optionally constrained to a
      * Minecraft version and mod loader so the results are actually installable into the pack.
      *

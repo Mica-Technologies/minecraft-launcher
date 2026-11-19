@@ -345,7 +345,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // case-insensitive matching against the constants on save/load.
         if ( packModLoaderTypeCombo != null ) {
             packModLoaderTypeCombo.setItems( javafx.collections.FXCollections.observableArrayList(
-                    "Forge", "NeoForge", "Fabric" ) );
+                    "Forge", "NeoForge", "Fabric", "Cleanroom" ) );
             packModLoaderTypeCombo.selectedItemProperty().addListener(
                     ( obs, oldV, newV ) -> {
                         // Update the picker button label to match the
@@ -737,7 +737,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     }
 
     /** Map a stored {@code packModLoader} identifier
-     *  (forge / neoforge / fabric) to the combo's display label.
+     *  (forge / neoforge / fabric / cleanroom) to the combo's display label.
      *  Defaults to {@code "Forge"} for unknown / missing values —
      *  matches the GameModPack back-compat behaviour. */
     private static String displayLabelForLoaderType( String stored )
@@ -746,8 +746,23 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         return switch ( stored.trim().toLowerCase( java.util.Locale.ROOT ) ) {
             case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_NEOFORGE -> "NeoForge";
             case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC   -> "Fabric";
+            case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM -> "Cleanroom";
             default -> "Forge";
         };
+    }
+
+    /** The Modrinth loader filter a pack's loader searches with: its own
+     *  lower-cased name, except Cleanroom, which runs Forge 1.12.2 mods and
+     *  so searches as {@code forge}.
+     *
+     *  @param loaderLabel the loader combo's display label, or {@code null}
+     *  @return the Modrinth loader facet, or {@code null} when no loader is set
+     *
+     *  @since 2026.11 */
+    static String modrinthLoaderFilterFor( String loaderLabel )
+    {
+        return com.micatechnologies.minecraft.launcher.game.modpack.import_.ModrinthClient
+                .loaderFacetFor( loaderLabel );
     }
 
     /** Inverse of {@link #displayLabelForLoaderType}. */
@@ -757,6 +772,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         return switch ( label ) {
             case "NeoForge" -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_NEOFORGE;
             case "Fabric"   -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC;
+            case "Cleanroom" -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM;
             default         -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE;
         };
     }
@@ -771,6 +787,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         if ( "NeoForge".equalsIgnoreCase( label ) ) {
             return LocalizationManager.get( "editor.loaderHint.neoforge" );
         }
+        if ( "Cleanroom".equalsIgnoreCase( label ) ) {
+            return LocalizationManager.get( "editor.loaderHint.cleanroom" );
+        }
         return LocalizationManager.get( "editor.loaderHint.forge" );
     }
 
@@ -784,6 +803,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         switch ( label ) {
             case "Fabric"   -> pickFabricVersion();
             case "NeoForge" -> pickNeoForgeVersion();
+            case "Cleanroom" -> pickCleanroomVersion();
             default         -> pickForgeVersion();
         }
     }
@@ -810,6 +830,56 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             }
             catch ( Exception ex ) {
                 updateStatus( LocalizationManager.format( "editor.status.hashComputeLoaderFailed", loaderLabel, ex.getMessage() ) );
+            }
+        } );
+    }
+
+    /**
+     * Opens a Cleanroom version picker dialog. Lists the
+     * CleanroomMC/Cleanroom GitHub releases that carry an installer JAR
+     * (newest first; every release targets Minecraft 1.12.2), then fills
+     * the URL field with the chosen installer and hashes it, the same way
+     * the Forge picker does.
+     *
+     * @since 2026.11
+     */
+    private void pickCleanroomVersion()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                updateStatus( LocalizationManager.get( "editor.status.fetchingCleanroom" ) );
+                List< com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion > versions =
+                        com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.fetchCleanroomVersions();
+                List< String > entries = new ArrayList<>();
+                Map< String, String > entryToUrl = new HashMap<>();
+                for ( var v : versions ) {
+                    String label = LocalizationManager.format( "editor.versionPick.cleanroom", v.loaderVersion() );
+                    entries.add( label );
+                    entryToUrl.put( label, v.installerUrl() );
+                }
+
+                GUIUtilities.JFXPlatformRun( () -> {
+                    ChoiceDialog< String > dialog = new ChoiceDialog<>(
+                            entries.isEmpty() ? null : entries.get( 0 ), entries );
+                    dialog.setTitle( LocalizationManager.get( "dialog.editor.pickCleanroom.title" ) );
+                    dialog.setHeaderText( LocalizationManager.get( "dialog.editor.pickCleanroom.header" ) );
+                    dialog.setContentText( LocalizationManager.get( "dialog.editor.pickCleanroom.contentLabel" ) );
+                    GUIUtilities.themeAlertChrome( dialog );
+                    dialog.showAndWait().ifPresent( selected -> {
+                        String url = entryToUrl.get( selected );
+                        if ( url != null ) {
+                            packForgeURLField.setText( url );
+                            packForgeHashField.setText( "" );
+                            updateStatus( LocalizationManager.get( "editor.status.cleanroomUrlSet" ) );
+                            computeAndPopulateHash( url, "Cleanroom" );
+                        }
+                    } );
+                } );
+            }
+            catch ( Exception ex ) {
+                Logger.logError( LocalizationManager.get( "log.editor.fetchCleanroomFailed" ) );
+                Logger.logThrowable( ex );
+                updateStatus( LocalizationManager.format( "editor.status.fetchCleanroomFailed", ex.getMessage() ) );
             }
         } );
     }
@@ -1178,10 +1248,17 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             loaderFilterCombo.getItems().addAll( "forge", "neoforge", "fabric", "quilt" );
             loaderFilterCombo.setPrefWidth( 150 );
             loaderFilterCombo.setMinHeight( 32 );
-            String packLoader = packModLoaderTypeCombo == null ? null : packModLoaderTypeCombo.getValue();
-            if ( packLoader != null && loaderFilterCombo.getItems().contains( packLoader.toLowerCase( java.util.Locale.ROOT ) ) ) {
-                loaderFilterCombo.selectItem( packLoader.toLowerCase( java.util.Locale.ROOT ) );
+            String packLoader = modrinthLoaderFilterFor(
+                    packModLoaderTypeCombo == null ? null : packModLoaderTypeCombo.getValue() );
+            if ( packLoader != null && loaderFilterCombo.getItems().contains( packLoader ) ) {
+                loaderFilterCombo.selectItem( packLoader );
                 loaderFilterCheck.setSelected( true );
+            }
+            // Cleanroom only runs Minecraft 1.12.2: pre-fill the version filter with it.
+            if ( "Cleanroom".equals( packModLoaderTypeCombo == null ? null : packModLoaderTypeCombo.getValue() )
+                    && !versionFilterCheck.isSelected() ) {
+                versionFilterField.setText( "1.12.2" );
+                versionFilterCheck.setSelected( true );
             }
             loaderFilterCombo.disableProperty().bind( loaderFilterCheck.selectedProperty().not() );
             HBox loaderBar = new HBox( 8, loaderFilterCheck, loaderFilterCombo );
@@ -1640,8 +1717,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // launcher builds reading the same manifest. Mirror the URL +
         // hash only when the loader is actually Forge — for Fabric /
         // NeoForge they'd be misleading.
-        boolean isForge = com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE
-                .equals( loaderType );
+        // Cleanroom names its installer there too (one installer for both sides).
+        boolean isForge = com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE.equals( loaderType )
+                || com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM.equals( loaderType );
         workingDocument.putString( "packForgeURL", isForge ? packForgeURLField.getText() : "" );
         workingDocument.putString( "packForgeHash", isForge ? packForgeHashField.getText() : "" );
         // Informational MC version field — round-trip through the

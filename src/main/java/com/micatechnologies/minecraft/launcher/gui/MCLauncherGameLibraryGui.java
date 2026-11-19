@@ -142,12 +142,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     private static final String TYPE_VANILLA_BETA     = "vanilla.beta";
     private static final String TYPE_VANILLA_ALPHA    = "vanilla.alpha";
     // Loader-version filters — show all available Forge / NeoForge /
-    // Fabric versions as installable "empty modpacks". Picking one
-    // and clicking Install writes a real local manifest (under
-    // imported-manifests/) so the result is a normal editable modpack.
+    // Fabric / Cleanroom versions as installable "empty modpacks".
+    // Picking one and clicking Install writes a real local manifest
+    // (under imported-manifests/) so the result is a normal editable
+    // modpack.
     private static final String TYPE_FORGE_VERSIONS    = "forge";
     private static final String TYPE_NEOFORGE_VERSIONS = "neoforge";
     private static final String TYPE_FABRIC_VERSIONS   = "fabric";
+    private static final String TYPE_CLEANROOM_VERSIONS = "cleanroom";
 
     /** Shared prefix of the TYPE_VANILLA_* ids. */
     private static final String TYPE_VANILLA_PREFIX = "vanilla.";
@@ -300,7 +302,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 TYPE_ALL, TYPE_MODPACKS,
                 TYPE_VANILLA_RELEASE, TYPE_VANILLA_SNAPSHOT,
                 TYPE_VANILLA_BETA, TYPE_VANILLA_ALPHA,
-                TYPE_FORGE_VERSIONS, TYPE_NEOFORGE_VERSIONS, TYPE_FABRIC_VERSIONS ) );
+                TYPE_FORGE_VERSIONS, TYPE_NEOFORGE_VERSIONS, TYPE_FABRIC_VERSIONS,
+                TYPE_CLEANROOM_VERSIONS ) );
         typeFilter.selectItem( TYPE_ALL );
         vm.setFilter( FILTER_TYPE, TYPE_ALL );
         typeFilter.setOnAction( e -> vm.setFilter( FILTER_TYPE, typeFilter.getValue() ) );
@@ -1505,6 +1508,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                                 com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.getNeoForgeVersions();
                         case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC ->
                                 com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.getFabricVersions();
+                        case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM ->
+                                com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.getCleanroomVersions();
                         default -> java.util.Collections.emptyList();
                     };
             int catalogIndex = 0;
@@ -1719,6 +1724,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             case TYPE_FORGE_VERSIONS    -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE;
             case TYPE_NEOFORGE_VERSIONS -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_NEOFORGE;
             case TYPE_FABRIC_VERSIONS   -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC;
+            case TYPE_CLEANROOM_VERSIONS -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM;
             default                      -> null;
         };
     }
@@ -1988,6 +1994,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE    -> "Forge";
                 case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_NEOFORGE -> "NeoForge";
                 case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC   -> "Fabric";
+                case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM -> "Cleanroom";
                 default                                                                                  -> v.loaderType();
             };
             List< String > chips = new ArrayList<>();

@@ -195,4 +195,28 @@ class LiveMcpLauncherActionsTest
                 OptionalModResolver.toggle( mods, Map.of(), "ghost.jar", true ), "Alto", "ghost.jar", true );
         assertFalse( refused.ok() );
     }
+
+    /**
+     * {@code create_modpack} accepts Cleanroom (any case) and, like the editor, names its installer
+     * in {@code packForgeURL} as well as {@code packModLoaderURL}; an unknown loader is refused with
+     * all four loaders named.
+     */
+    @Test
+    void createModpackAcceptsCleanroomAndNamesItsInstallerInPackForgeUrl()
+    {
+        String url = "https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-installer.jar";
+        ModPackDocument doc = ModPackDocument.blank();
+        assertNull( LiveMcpLauncherActions.applyLoader( doc, "Cleanroom", url ) );
+        assertEquals( "cleanroom", doc.getString( "packModLoader" ) );
+        assertEquals( url, doc.getString( "packModLoaderURL" ) );
+        assertEquals( url, doc.getString( "packForgeURL" ) );
+
+        ModPackDocument fabric = ModPackDocument.blank();
+        assertNull( LiveMcpLauncherActions.applyLoader( fabric, "fabric", "https://meta.fabricmc.net/x" ) );
+        assertEquals( "", fabric.getString( "packForgeURL" ), "only Cleanroom mirrors its URL" );
+
+        String refused = LiveMcpLauncherActions.applyLoader( ModPackDocument.blank(), "quilt", null );
+        assertNotNull( refused );
+        assertTrue( refused.contains( "cleanroom" ), refused );
+    }
 }

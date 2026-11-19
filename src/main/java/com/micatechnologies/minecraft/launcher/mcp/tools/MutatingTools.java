@@ -301,10 +301,11 @@ public final class MutatingTools
             JsonObject loader = new JsonObject();
             loader.addProperty( "type", "string" );
             loader.addProperty( "description",
-                                "Mod loader: forge, neoforge, or fabric. Defaults to forge." );
+                                "Mod loader: forge, neoforge, fabric, or cleanroom. Defaults to forge." );
             JsonObject loaderUrl = new JsonObject();
             loaderUrl.addProperty( "type", "string" );
-            loaderUrl.addProperty( "description", "URL of the mod loader installer." );
+            loaderUrl.addProperty( "description",
+                                   "URL of the mod loader installer (for cleanroom, the Cleanroom installer jar)." );
             schema.getAsJsonObject( "properties" ).add( "modLoader", loader );
             schema.getAsJsonObject( "properties" ).add( "modLoaderUrl", loaderUrl );
             return schema;
