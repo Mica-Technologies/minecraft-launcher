@@ -74,7 +74,9 @@ public final class ModrinthAddModDialog
             return;
         }
         // Resolve the pack's loader up-front; vanilla packs can't take loose mods.
-        final String loader = pack.getModLoaderType();
+        // Cleanroom packs search and resolve Forge mods (Modrinth has no Cleanroom loader).
+        final String loader = com.micatechnologies.minecraft.launcher.game.modpack.import_.ModrinthClient
+                .loaderFacetFor( pack.getModLoaderType() );
         if ( loader == null ) {
             NotificationManager.warn(
                     LocalizationManager.get( "addMod.vanilla.title" ),

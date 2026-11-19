@@ -151,6 +151,14 @@ public final class LoaderVersionManager
      *  until {@link #getFabricVersions()} runs its first network fetch. */
     private static List< LoaderVersion > fabricCache;
 
+    /** Lazily-populated cache of fetched Cleanroom versions; {@code null}
+     *  until {@link #getCleanroomVersions()} runs its first network fetch. */
+    private static List< LoaderVersion > cleanroomCache;
+
+    /** Cleanroom's GitHub releases (each carries
+     *  {@code cleanroom-<version>-installer.jar}). */
+    static final String CLEANROOM_RELEASES_URL = "https://api.github.com/repos/CleanroomMC/Cleanroom/releases";
+
     // ====================================================================
     // Forge
     // ====================================================================
@@ -402,6 +410,127 @@ public final class LoaderVersionManager
     }
 
     // ====================================================================
+    // Cleanroom
+    // ====================================================================
+
+    /**
+     * Fetch + cache the Cleanroom versions from the CleanroomMC/Cleanroom GitHub releases,
+     * newest first. Every Cleanroom release targets Minecraft 1.12.2 and is an alpha
+     * pre-release, so those are kept. A network or parse failure is logged silently and yields an
+     * empty list (not cached, so a later call retries).
+     *
+     * @return the cached, newest-first list of installable Cleanroom versions; never
+     *         {@code null}
+     *
+     * @since 2026.11
+     */
+    public static synchronized List< LoaderVersion > getCleanroomVersions()
+    {
+        if ( cleanroomCache != null ) return cleanroomCache;
+        try {
+            cleanroomCache = fetchCleanroomVersions();
+            return cleanroomCache;
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( LocalizationManager.get( "log.loaderVersionManager.fetchCleanroom" ), e );
+        }
+        return new ArrayList<>();
+    }
+
+    /**
+     * Fetches the Cleanroom versions from the CleanroomMC/Cleanroom GitHub releases, newest
+     * first, without caching (the modpack editor's version picker shows a fresh list and reports
+     * a failure to the user).
+     *
+     * @return the installable Cleanroom versions
+     *
+     * @throws IOException if the release list cannot be fetched or is not a release list (an API
+     *                     error such as a rate limit)
+     *
+     * @since 2026.11
+     */
+    public static List< LoaderVersion > fetchCleanroomVersions() throws IOException
+    {
+        String json = NetworkUtilities.downloadFileFromURL( CLEANROOM_RELEASES_URL );
+        List< LoaderVersion > parsed = parseCleanroomReleases( json );
+        if ( parsed == null ) {
+            throw new IOException( LocalizationManager.get( "log.loaderVersionManager.fetchCleanroom" ) );
+        }
+        return parsed;
+    }
+
+    /**
+     * Reads Cleanroom versions out of the GitHub releases API body, in feed order (newest
+     * first): every non-draft release that carries its installer at
+     * {@link #cleanroomInstallerUrl}. Only that URL, because a Browse install rebuilds it from the
+     * version.
+     *
+     * @param json the body of {@link #CLEANROOM_RELEASES_URL}
+     *
+     * @return the versions, or {@code null} when the body is not a release list (an API error
+     *         object, say, when rate-limited)
+     *
+     * @since 2026.11
+     */
+    static List< LoaderVersion > parseCleanroomReleases( String json )
+    {
+        JsonArray releases;
+        try {
+            JsonElement root = com.google.gson.JsonParser.parseString( json );
+            if ( !root.isJsonArray() ) {
+                return null;
+            }
+            releases = root.getAsJsonArray();
+        }
+        catch ( RuntimeException e ) {
+            return null;
+        }
+        List< LoaderVersion > out = new ArrayList<>();
+        for ( JsonElement el : releases ) {
+            if ( !el.isJsonObject() ) continue;
+            JsonObject release = el.getAsJsonObject();
+            if ( release.has( "draft" ) && release.get( "draft" ).isJsonPrimitive()
+                    && release.get( "draft" ).getAsBoolean() ) {
+                continue;
+            }
+            String tag = release.has( "tag_name" ) && release.get( "tag_name" ).isJsonPrimitive()
+                         ? release.get( "tag_name" ).getAsString().trim() : "";
+            if ( tag.isEmpty() || !release.has( "assets" ) || !release.get( "assets" ).isJsonArray() ) {
+                continue;
+            }
+            String want = cleanroomInstallerUrl( tag );
+            boolean listed = false;
+            for ( JsonElement asset : release.getAsJsonArray( "assets" ) ) {
+                if ( asset.isJsonObject() && asset.getAsJsonObject().has( "browser_download_url" )
+                        && want.equals( asset.getAsJsonObject().get( "browser_download_url" ).getAsString() ) ) {
+                    listed = true;
+                    break;
+                }
+            }
+            if ( listed ) {
+                out.add( new LoaderVersion( ModPackConstants.MOD_LOADER_CLEANROOM,
+                                            CleanroomProfile.MINECRAFT_VERSION, tag, want ) );
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Builds the URL of a Cleanroom release's installer JAR (its GitHub release asset).
+     *
+     * @param version the release tag (e.g. {@code 0.7.14-alpha})
+     *
+     * @return the {@code cleanroom-<version>-installer.jar} download URL
+     *
+     * @since 2026.11
+     */
+    static String cleanroomInstallerUrl( String version )
+    {
+        return "https://github.com/CleanroomMC/Cleanroom/releases/download/" + version
+                + "/cleanroom-" + version + "-installer.jar";
+    }
+
+    // ====================================================================
     // Install: write the manifest, register with GameModPackManager
     // ====================================================================
 
@@ -492,7 +621,7 @@ public final class LoaderVersionManager
      *
      * @since 2026.5
      */
-    private static JsonObject buildEmptyLoaderManifest( LoaderVersion v )
+    static JsonObject buildEmptyLoaderManifest( LoaderVersion v )
     {
         JsonObject m = new JsonObject();
         m.addProperty( "packName", v.displayName() );
@@ -514,10 +643,12 @@ public final class LoaderVersionManager
         // be a nice-to-have for offline integrity but isn't required
         // for the empty-pack workflow.
         m.addProperty( "packModLoaderHash", "" );
-        // Legacy back-compat fields. Only Forge mirrors them so a
+        // Legacy back-compat fields. Forge mirrors them so a
         // pre-multi-loader build reading this manifest still gets a
-        // sensible install path.
-        boolean isForge = ModPackConstants.MOD_LOADER_FORGE.equals( v.loaderType );
+        // sensible install path; Cleanroom names its installer there too
+        // (one installer for both sides).
+        boolean isForge = ModPackConstants.MOD_LOADER_FORGE.equals( v.loaderType )
+                || ModPackConstants.MOD_LOADER_CLEANROOM.equals( v.loaderType );
         m.addProperty( "packForgeURL", isForge ? v.installerUrl : "" );
         m.addProperty( "packForgeHash", "" );
         m.add( "packScanExclusions", new JsonArray() );
@@ -547,6 +678,7 @@ public final class LoaderVersionManager
             case "forge"    -> "https://files.minecraftforge.net";
             case "neoforge" -> "https://neoforged.net";
             case "fabric"   -> "https://fabricmc.net";
+            case "cleanroom" -> "https://github.com/CleanroomMC/Cleanroom";
             default          -> "https://minecraft.net";
         };
     }
@@ -569,6 +701,7 @@ public final class LoaderVersionManager
             case "forge"    -> "Forge";
             case "neoforge" -> "NeoForge";
             case "fabric"   -> "Fabric";
+            case "cleanroom" -> "Cleanroom";
             default          -> loaderType;
         };
     }

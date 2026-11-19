@@ -216,16 +216,9 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
         try {
             ModPackDocument document = ModPackDocument.blank();
             document.putString( ModPackDocument.KEY_PACK_NAME, name );
-            if ( modLoader != null && !modLoader.isBlank() ) {
-                String normalized = modLoader.trim().toLowerCase( Locale.ROOT );
-                if ( !isKnownLoader( normalized ) ) {
-                    return Outcome.failed( "Unknown mod loader \"" + modLoader
-                                                   + "\". Use forge, neoforge, or fabric." );
-                }
-                document.putString( "packModLoader", normalized );
-            }
-            if ( modLoaderUrl != null && !modLoaderUrl.isBlank() ) {
-                document.putString( "packModLoaderURL", modLoaderUrl.trim() );
+            String refused = applyLoader( document, modLoader, modLoaderUrl );
+            if ( refused != null ) {
+                return Outcome.failed( refused );
             }
             return installAuthored( document, "Created" );
         }
@@ -739,6 +732,37 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
     }
 
     /**
+     * Writes a new pack's mod loader into its document: the lower-cased loader type, and the
+     * installer URL in {@code packModLoaderURL} (a Cleanroom pack names its installer in
+     * {@code packForgeURL} too, one jar for both sides).
+     *
+     * @param document     the new pack's document
+     * @param modLoader    the requested loader, or {@code null} / blank for the default
+     * @param modLoaderUrl the installer URL, or {@code null} / blank to leave it unset
+     *
+     * @return {@code null} when written, or the message refusing an unknown loader
+     *
+     * @since 2026.11
+     */
+    static String applyLoader( ModPackDocument document, String modLoader, String modLoaderUrl )
+    {
+        if ( modLoader != null && !modLoader.isBlank() ) {
+            String normalized = modLoader.trim().toLowerCase( Locale.ROOT );
+            if ( !isKnownLoader( normalized ) ) {
+                return "Unknown mod loader \"" + modLoader + "\". Use forge, neoforge, fabric, or cleanroom.";
+            }
+            document.putString( "packModLoader", normalized );
+        }
+        if ( modLoaderUrl != null && !modLoaderUrl.isBlank() ) {
+            document.putString( "packModLoaderURL", modLoaderUrl.trim() );
+            if ( ModPackConstants.MOD_LOADER_CLEANROOM.equals( document.getString( "packModLoader" ) ) ) {
+                document.putString( "packForgeURL", modLoaderUrl.trim() );
+            }
+        }
+        return null;
+    }
+
+    /**
      * Reports whether a mod loader identifier is one the launcher understands.
      *
      * @param normalized the lower-cased identifier
@@ -749,6 +773,7 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
     {
         return ModPackConstants.MOD_LOADER_FORGE.equals( normalized )
                 || ModPackConstants.MOD_LOADER_NEOFORGE.equals( normalized )
-                || ModPackConstants.MOD_LOADER_FABRIC.equals( normalized );
+                || ModPackConstants.MOD_LOADER_FABRIC.equals( normalized )
+                || ModPackConstants.MOD_LOADER_CLEANROOM.equals( normalized );
     }
 }

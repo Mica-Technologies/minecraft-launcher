@@ -146,7 +146,7 @@ public interface McpLauncherActions
      *
      * @param name           the new pack's name
      * @param modLoader      the mod loader identifier ({@code forge} / {@code neoforge} /
-     *                       {@code fabric}), or {@code null} for the default
+     *                       {@code fabric} / {@code cleanroom}), or {@code null} for the default
      * @param modLoaderUrl   the loader installer URL, or {@code null} to leave it unset
      *
      * @return what happened
