@@ -253,6 +253,11 @@ Key methods:
   processor-library loader do the same. This stops a compromised mirror / corrupted
   transfer from being placed on the classpath, extracted, or executed.
 - **Classpath building** -- `LinkedHashSet` for deduplication
+- **Game side** -- libraries are resolved for the client or the server: an entry marked
+  `"side": "client"` or `"server"` (Cleanroom marks its natives client-only) is left out
+  on the other side. Mojang's client.json has no `side`.
+- **Derived paths** -- a download without `path` (Cleanroom's legacy natives classifiers
+  carry only `url` and `sha1`) gets the Maven path of the library name plus classifier
 - **Modern vs legacy detection:**
   - `hasModernArguments()` -- checks for `"arguments"` field (modern) vs
     `"minecraftArguments"` (legacy)
@@ -271,7 +276,12 @@ index from client.json. Assets are stored in `objects/{hash_prefix}/{full_hash}`
 
 `ManifestRuleUtilities` centralizes Mojang/Forge rule evaluation:
 
-- **OS matching** -- name (`windows`/`osx`/`linux`), version (regex), arch (regex)
+- **OS matching** -- name (`windows`/`osx`/`linux`), version (regex), arch (regex,
+  or the host's normalized name written out in full: `x64`, `arm64`, `x86`, which
+  Cleanroom's profile uses and no Java `os.arch` contains)
+- **Host seam** -- every check takes a `ManifestRuleUtilities.Host` (OS family,
+  `os.arch`, `os.version`); the one-argument forms use the running machine, so a
+  manifest can be resolved for any platform in tests
 - **Version range matching** -- `versionRange` with min/max for MC 26.1+ rule format;
   uses numeric component comparison
 - **Feature matching** -- all features expected `false` (no demo mode, etc.)
@@ -327,6 +337,46 @@ net.minecraftforge:forge:1.15.2-31.2.50:universal
 ```
 
 Supports `@ext` suffix for non-JAR artifacts (default extension is `jar`).
+
+## Cleanroom Integration
+
+Cleanroom is the Forge 1.12.2 fork on Java 25 and LWJGL 3. A pack names it with
+`"packModLoader": "cleanroom"` (any case) and puts the Cleanroom installer JAR in
+`packForgeURL` / `packForgeHash` (or `packModLoaderURL` / `packModLoaderHash`); one
+installer serves both sides and is kept at `bin/modpack.jar`.
+
+The installer carries a **standalone** `version.json` (no `inheritsFrom`; its own
+`javaVersion`, `assetIndex`, client and server downloads, and every library including
+LWJGL 3, its natives and LWJGLY) and an `install_profile.json` with zero processors.
+`GameModLoaderCleanroom` reads both into the pure `CleanroomProfile`, and
+`GameModLoader.getStandaloneVersionManifest()` hands the launch that profile **in place of**
+Mojang's 1.12.2 client.json (`GameLibraryManifest.standalone`, chosen by
+`GameModPack.getMinecraftLibraryManifest()`):
+
+- **Runtime** -- from the profile's `javaVersion` (`java-runtime-epsilon`, Java 25), for
+  the runtime check and the launch. Vanilla 1.12.2 would say `jre-legacy`.
+- **Libraries** -- only the profile's. No vanilla library is merged in, so LWJGL 2 never
+  reaches the classpath; Mojang's version manifest is not fetched.
+- **Loader classpath** -- the libraries the installer embeds (the universal jar: blank
+  `url`, under the installer's `maven/`), verified against the listed SHA-1 and kept
+  first. An installer missing one it lists is refused.
+- **Natives** -- `bin/natives` is emptied before extraction, so LWJGL 2 natives from an
+  earlier Forge launch of the pack cannot load; LWJGL 3's natives keep their directory
+  structure (`windows/x64/org/lwjgl/lwjgl.dll`).
+- **Minecraft version** -- the install profile's `minecraft` (`1.12.2`), never the
+  standalone id (`Cleanroom-0.7.14-alpha`), which is the loader version.
+- **Skipped** -- the LWJGL 2 ARM64 patch (and its JVM flags and mod disabling), Mojang's
+  1.12 log4j config file (the no-lookups flag is still set), the "Game patching" step, and
+  the main menu's idle client.json prefetch (`GameModPack.usesStandaloneLoaderProfile()`).
+- **macOS** -- the client gets `-XstartOnFirstThread`, as the installer's own launcher
+  profile does.
+- **Server** -- assembled natively, as the installer's `server` mode does it (the
+  installer is never run): the profile's libraries without the client-only natives, the
+  server jar from `downloads.server`, `serverMainClass`, and `--tweakClass` per
+  `serverTweakers` (`GameModLoader.getServerArguments()`).
+- **Official-launcher export** -- the installer runs as `client --dir <.minecraft> --no-gui
+  --yes --no-profile --java <java> --no-provision-java` (it has no `--installClient`); the
+  exported profile uses the Java 25 runtime and carries the profile's JVM arguments.
 
 ## Classpath Assembly
 
@@ -422,6 +472,8 @@ Forge modernity detected by presence of both base and universal JARs.
 |---|---|---|
 | `GameModPack` | `game/modpack/GameModPack.java` | Main orchestrator: classpath assembly, game launch |
 | `GameModLoaderForge` | `game/modpack/GameModLoaderForge.java` | Forge JAR extraction, library resolution, processor execution |
+| `GameModLoaderCleanroom` | `game/modpack/GameModLoaderCleanroom.java` | Cleanroom installer, embedded universal jar, standalone version profile |
+| `CleanroomProfile` | `game/modpack/CleanroomProfile.java` | Pure: Cleanroom's two profiles and the launch decisions that follow from them |
 | `GameVersionManifest` | `game/modpack/manifests/GameVersionManifest.java` | Mojang v2 version manifest, client.json caching |
 | `GameLibraryManifest` | `game/modpack/manifests/GameLibraryManifest.java` | Library filtering, downloads, classpath building |
 | `GameAssetManifest` | `game/modpack/manifests/GameAssetManifest.java` | Game resource (texture/sound) downloads |
