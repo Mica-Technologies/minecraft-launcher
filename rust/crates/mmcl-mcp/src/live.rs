@@ -689,6 +689,13 @@ pub(crate) fn describe_toggle(
                 change.name,
                 cause.unwrap_or("")
             ),
+            Reason::NoLongerNeeded => match cause {
+                Some(c) => format!(
+                    "Turned off \"{}\", which was only on because \"{c}\" needed it.",
+                    change.name
+                ),
+                None => format!("Turned off \"{}\".", change.name),
+            },
             _ => match cause {
                 Some(c) => format!("Turned off \"{}\", which requires \"{c}\".", change.name),
                 None => format!("Turned off \"{}\".", change.name),
@@ -928,6 +935,18 @@ mod tests {
         assert_eq!(
             o.message,
             "Turned \"AUSM\" on in \"Alto\". Also turned on \"Lib\", which \"AUSM\" requires. Turned off \"Fast\", which conflicts with \"AUSM\". Takes effect the next time the pack launches or syncs."
+        );
+        // Turning it off again names the requirement that goes off with it.
+        let on = toggle(&mods, &none, "ausm.jar", true);
+        let off = describe_toggle(
+            &toggle(&mods, &on.choices, "ausm.jar", false),
+            "Alto",
+            "AUSM",
+            false,
+        );
+        assert_eq!(
+            off.message,
+            "Turned \"AUSM\" off in \"Alto\". Turned off \"Lib\", which was only on because \"AUSM\" needed it. Takes effect the next time the pack launches or syncs."
         );
         let refused = describe_toggle(
             &toggle(&mods, &none, "ghost.jar", true),

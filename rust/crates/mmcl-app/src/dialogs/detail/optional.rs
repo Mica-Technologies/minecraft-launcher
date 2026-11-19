@@ -48,6 +48,7 @@ pub fn describe_toggle(
             Reason::RequiredBy if has_cause => "modal.optionalMods.reason.requiredBy",
             Reason::RequiredBy => "modal.optionalMods.reason.turnedOn",
             Reason::ConflictsWith => "modal.optionalMods.reason.conflictsWith",
+            Reason::NoLongerNeeded if has_cause => "modal.optionalMods.reason.noLongerNeeded",
             _ if has_cause => "modal.optionalMods.reason.requiresOff",
             _ => "modal.optionalMods.reason.turnedOff",
         };
@@ -160,6 +161,19 @@ mod tests {
         assert_eq!(
             describe_toggle(&r, "Fast Addon", false, &echo),
             ["modal.optionalMods.status.off|Fast Addon"]
+        );
+    }
+
+    #[test]
+    fn turning_a_mod_off_explains_the_requirements_that_went_off_with_it() {
+        let on = toggle(&mods(), &Choices::new(), "ausm.jar", true);
+        let off = toggle(&mods(), &on.choices, "ausm.jar", false);
+        assert_eq!(
+            describe_toggle(&off, "AUSM", false, &echo),
+            [
+                "modal.optionalMods.status.off|AUSM",
+                "modal.optionalMods.reason.noLongerNeeded|Lib|AUSM"
+            ]
         );
     }
 

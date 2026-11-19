@@ -24,6 +24,9 @@
 //! 4. Names in `requires` or `conflictsWith` that are not optional mods of the same pack are
 //!    ignored here (the editor refuses to save them).
 //!
+//! A toggle stores only the player's own pick for the mod switched (plus `false` for the mods it
+//! forces off); requirements it turns on follow from rule 2, so they go off again with it.
+//!
 //! A dedicated server has no player to choose: it ignores stored choices and installs exactly
 //! the mods that are both `serverReq` and `defaultEnabled` (and does not follow `requires`).
 //!
@@ -231,6 +234,9 @@ pub enum Reason {
     ConflictsWith,
     /// Turned off because it requires a mod that is now off.
     RequiresOff,
+    /// Turned off because it was on only while a mod that is now off needed it; it is back
+    /// to its own wish (the player's choice, else its default).
+    NoLongerNeeded,
     /// Refused: the mod needs a group of mods that conflict among themselves.
     Unsatisfiable,
     /// Refused: no optional mod has that name.
@@ -428,11 +434,14 @@ fn refused(reason: Reason, choices: Choices, enabled: IndexSet<String>) -> Toggl
 
 /// What turning one optional mod on or off does.
 ///
-/// Turning a mod on also turns on everything it requires (transitively) and turns off
-/// everything that conflicts with any of those, plus anything that needs a mod being turned
-/// off. Turning a mod off also turns off everything that needs it. Every switched mod is
-/// written into the returned choices explicitly, so a later toggle elsewhere does not quietly
-/// undo it. A group that conflicts with itself is refused and nothing changes.
+/// The returned choices store the player's own pick for the toggled mod. Turning a mod on
+/// also turns on everything it requires (transitively) without storing a choice for them: the
+/// resolver keeps them on while the mod is on, so turning it off again lets each fall back to
+/// its own wish (a requirement the player turned on stays on, one only this mod needed goes
+/// off, one another enabled mod needs stays on). Turning a mod on stores `false` for
+/// everything that conflicts with its group; turning a mod off (or forcing one off) also stores
+/// `false` for everything that needs it. A group that conflicts with itself is refused and
+/// nothing changes.
 pub fn toggle(mods: &[OptionalMod], choices: &Choices, local: &str, enable: bool) -> ToggleResult {
     let by_key = index(mods);
     let before = normalize_choices(choices);
@@ -467,10 +476,12 @@ pub fn toggle(mods: &[OptionalMod], choices: &Choices, local: &str, enable: bool
         return refused(Reason::Unsatisfiable, before, enabled_before);
     }
 
+    // Only the player's own pick is stored for the target. Its requirements are not: the
+    // resolver's requires closure keeps them on while the target is on, so turning it off
+    // again lets each fall back to its own wish. Mods forced off are stored off, or a wished-on
+    // one earlier in the manifest would pull its group (and a conflict) back on.
     let mut after = before.clone();
-    for k in &turn_on {
-        after.insert(k.clone(), true);
-    }
+    after.insert(target.clone(), enable);
     for k in &turn_off {
         after.insert(k.clone(), false);
     }
@@ -483,7 +494,15 @@ pub fn toggle(mods: &[OptionalMod], choices: &Choices, local: &str, enable: bool
         .iter()
         .filter(|(k, _)| **k != target)
         .filter(|(k, _)| enabled_before.contains(*k) != enabled_after.contains(*k))
-        .map(|(k, m)| explain(&by_key, k, m, enabled_after.contains(k), &enabled_after))
+        .map(|(k, m)| {
+            let states = States {
+                before: &enabled_before,
+                after: &enabled_after,
+                forced_off: &turn_off,
+                target: &target,
+            };
+            explain(&by_key, k, m, &states)
+        })
         .collect();
     ToggleResult {
         applied: true,
@@ -494,14 +513,26 @@ pub fn toggle(mods: &[OptionalMod], choices: &Choices, local: &str, enable: bool
     }
 }
 
+/// The states a toggle's changes are explained from.
+struct States<'a> {
+    /// The mods on before the toggle.
+    before: &'a IndexSet<String>,
+    /// The mods on after it.
+    after: &'a IndexSet<String>,
+    /// The mods the toggle stored off (conflicts and everything needing a mod turned off).
+    forced_off: &'a IndexSet<String>,
+    /// The toggled mod.
+    target: &'a str,
+}
+
 /// Why a mod switched.
 fn explain(
     by_key: &IndexMap<String, &OptionalMod>,
     key: &str,
     m: &OptionalMod,
-    is_on: bool,
-    enabled: &IndexSet<String>,
+    s: &States<'_>,
 ) -> Change {
+    let is_on = s.after.contains(key);
     let change = |reason, cause: String| Change {
         key: key.to_string(),
         name: m.display_name(),
@@ -510,7 +541,8 @@ fn explain(
         cause,
     };
     if is_on {
-        let cause = enabled
+        let cause = s
+            .after
             .iter()
             .filter_map(|other| by_key.get(other))
             .find(|c| keys_of(c.requires()).contains(key))
@@ -518,12 +550,32 @@ fn explain(
             .unwrap_or_default();
         return change(Reason::RequiredBy, cause);
     }
-    if let Some(other) = enabled.iter().find(|other| conflicts(by_key, key, other)) {
+    if let Some(other) = s.after.iter().find(|other| conflicts(by_key, key, other)) {
         return change(Reason::ConflictsWith, by_key[other].display_name());
+    }
+    if !s.forced_off.contains(key) {
+        // Not stored off: it was on only because a mod that is now off needed it, and its own
+        // wish is off. Name the toggled mod when it was the one that needed it.
+        let needed_it = |k: &&String| {
+            s.before.contains(*k)
+                && !s.after.contains(*k)
+                && by_key
+                    .get(*k)
+                    .is_some_and(|c| keys_of(c.requires()).contains(key))
+        };
+        let cause = s
+            .before
+            .iter()
+            .filter(needed_it)
+            .min_by_key(|k| k.as_str() != s.target)
+            .and_then(|k| by_key.get(k))
+            .map(|c| c.display_name())
+            .unwrap_or_default();
+        return change(Reason::NoLongerNeeded, cause);
     }
     let cause = keys_of(m.requires())
         .iter()
-        .filter(|r| !enabled.contains(*r))
+        .filter(|r| !s.after.contains(*r))
         .find_map(|r| by_key.get(r))
         .map(|r| r.display_name())
         .unwrap_or_default();

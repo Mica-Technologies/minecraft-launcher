@@ -1280,13 +1280,19 @@ choices. Setting an empty map removes the pack's entry (the section stays). Acce
 `defaultEnabled`; mods are visited in manifest order; a wished-on mod turns on with its whole
 `requires` closure (breadth-first); if that group conflicts (either direction) with a mod already
 on, or within itself, the whole group stays off (the earlier entry wins); unknown names are
-ignored. **Toggle** (`optional::toggle`): on → turn on its requires closure, turn off everything
-conflicting with the group; off → turn it off; either way also turn off every mod that needs a mod
-being turned off. Every switched mod is written into the choices explicitly (existing order, then
-the turned-on group, then the turned-off mods, as Java's `LinkedHashMap`). Each other mod that
-changed is reported with `RequiredBy` / `ConflictsWith` / `RequiresOff` and the cause's display
-name; a self-conflicting group (or one that needs what it conflicts with) is refused as
-`Unsatisfiable`, an unknown name as `Unknown`, and nothing is stored.
+ignored. **Toggle** (`optional::toggle`, owner decision): only the player's own pick for the
+toggled mod is stored. On → its requires closure turns on through resolution (not stored), and
+everything conflicting with the group is stored off; off → it is stored off; either way every mod
+that needs a mod being turned off is stored off too. So turning a mod off undoes the requirements
+it alone switched on: each falls back to its own wish (a stored `true` stays on, `defaultEnabled`
+decides otherwise), and one that another enabled mod needs stays on. Stored order: existing
+choices, then the toggled mod, then the turned-off mods (as Java's `LinkedHashMap`). Each other
+mod that changed is reported with `RequiredBy` / `ConflictsWith` / `RequiresOff` /
+`NoLongerNeeded` (went off because the mod that needed it is off now;
+`modal.optionalMods.reason.noLongerNeeded`) and the cause's display name; a self-conflicting group
+(or one that needs what it conflicts with) is refused as `Unsatisfiable`, an unknown name as
+`Unknown`, and nothing is stored. Choices stored by the earlier rule, which wrote every cascaded
+requirement as `true`, read as the player's own picks.
 
 **Sides.** A client installs the resolved mods that are client-side. A dedicated server ignores
 choices and installs exactly the optional mods with `serverReq && defaultEnabled`; it does not
