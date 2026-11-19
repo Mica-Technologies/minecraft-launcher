@@ -386,6 +386,80 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
     }
 
     /**
+     * Switches an optional mod through the same rules the detail dialog uses. Writes the player's
+     * config, not the manifest, so it does not go through {@link #editManifest}: a pack installed
+     * from a remote manifest has optional mods the player may switch too.
+     */
+    @Override
+    public Outcome setOptionalMod( String friendlyName, String localName, boolean enabled )
+    {
+        GameModPack pack = findPack( friendlyName );
+        if ( pack == null ) {
+            return Outcome.failed( "No modpack named \"" + friendlyName + "\" is installed." );
+        }
+        try {
+            List< com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod > mods =
+                    com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.of( pack );
+            String name = localName;
+            for ( var mod : mods ) {
+                if ( mod.key().equals( com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod.keyOf( localName ) ) ) {
+                    name = mod.getDisplayName();
+                    break;
+                }
+            }
+            var result = com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.toggle(
+                    pack, mods, localName, enabled );
+            return describeToggle( result, friendlyName, name, enabled );
+        }
+        catch ( Exception e ) {
+            Logger.logError( LocalizationManager.format( "log.mcpActions.setOptionalModFailed", friendlyName ) );
+            Logger.logThrowable( e );
+            return Outcome.failed( "The optional mod could not be changed." );
+        }
+    }
+
+    /**
+     * Words a toggle's outcome for a model: the mod's new state, every other optional mod that
+     * switched and why, and when it takes effect.
+     *
+     * @param result       the toggle's outcome
+     * @param friendlyName the pack
+     * @param name         the toggled mod's display name
+     * @param enabled      the requested state
+     *
+     * @return the outcome
+     */
+    static Outcome describeToggle( com.micatechnologies.minecraft.launcher.game.modpack.OptionalModResolver.ToggleResult result,
+                                   String friendlyName, String name, boolean enabled )
+    {
+        if ( !result.applied() ) {
+            return Outcome.failed( switch ( result.refusal() ) {
+                case UNKNOWN -> "\"" + friendlyName + "\" has no optional mod named \"" + name
+                        + "\". Nothing was changed.";
+                default -> "\"" + name + "\" cannot be turned on: the optional mods it requires conflict "
+                        + "with each other. Nothing was changed.";
+            } );
+        }
+        StringBuilder message = new StringBuilder();
+        message.append( "Turned \"" ).append( name ).append( "\" " ).append( enabled ? "on" : "off" )
+                .append( " in \"" ).append( friendlyName ).append( "\"." );
+        for ( var change : result.changes() ) {
+            message.append( ' ' );
+            String cause = change.cause() == null || change.cause().isEmpty() ? null : change.cause();
+            switch ( change.reason() ) {
+                case REQUIRED_BY -> message.append( "Also turned on \"" ).append( change.name() ).append( '"' )
+                        .append( cause != null ? ", which \"" + cause + "\" requires." : "." );
+                case CONFLICTS_WITH -> message.append( "Turned off \"" ).append( change.name() )
+                        .append( "\", which conflicts with \"" ).append( cause ).append( "\"." );
+                default -> message.append( "Turned off \"" ).append( change.name() ).append( '"' )
+                        .append( cause != null ? ", which requires \"" + cause + "\"." : "." );
+            }
+        }
+        message.append( " Takes effect the next time the pack launches or syncs." );
+        return Outcome.ok( message.toString() );
+    }
+
+    /**
      * One edit applied to a pack's manifest document.
      *
      * @since 3.0

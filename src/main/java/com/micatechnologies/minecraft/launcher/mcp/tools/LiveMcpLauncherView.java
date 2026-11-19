@@ -127,6 +127,36 @@ public final class LiveMcpLauncherView implements McpLauncherView
     }
 
     @Override
+    public List< OptionalModInfo > optionalModsOf( String friendlyName )
+    {
+        GameModPack pack = findPack( friendlyName );
+        if ( pack == null ) {
+            return null;
+        }
+        List< com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod > mods =
+                com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.of( pack );
+        java.util.Map< String, Boolean > choices =
+                com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.choicesFor( pack );
+        java.util.Set< String > enabled =
+                com.micatechnologies.minecraft.launcher.game.modpack.OptionalModResolver.resolveEnabled( mods, choices );
+        List< OptionalModInfo > infos = new java.util.ArrayList<>();
+        for ( var mod : mods ) {
+            Boolean choice = null;
+            for ( var entry : choices.entrySet() ) {
+                if ( com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod.keyOf( entry.getKey() )
+                        .equals( mod.key() ) ) {
+                    choice = entry.getValue();
+                }
+            }
+            infos.add( new OptionalModInfo( mod.getLocalName(), mod.getDisplayName(), mod.getDescription(),
+                                            enabled.contains( mod.key() ), mod.isDefaultEnabled(), choice,
+                                            mod.isClientSide(), mod.isServerSide(), mod.getRequires(),
+                                            mod.getConflictsWith() ) );
+        }
+        return infos;
+    }
+
+    @Override
     public CrashInfo latestCrashOf( String friendlyName )
     {
         GameModPack pack = findPack( friendlyName );

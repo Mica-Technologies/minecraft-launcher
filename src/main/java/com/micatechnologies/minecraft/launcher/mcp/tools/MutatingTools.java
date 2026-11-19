@@ -64,6 +64,7 @@ public final class MutatingTools
         registry.register( new ForkModpack( view, actions ) );
         registry.register( new AddModToModpack( view, actions ) );
         registry.register( new RemoveModFromModpack( view, actions ) );
+        registry.register( new SetOptionalMod( view, actions ) );
         registry.register( new UninstallModpack( view, actions ) );
         registry.register( new LaunchModpack( view, actions ) );
         registry.register( new StopGame( view, actions ) );
@@ -526,6 +527,117 @@ public final class MutatingTools
         }
     }
 
+    /**
+     * Turns one of a pack's optional mods on or off for the player. Same risk class as
+     * {@code add_mod_to_modpack}: it decides which jars the next sync installs.
+     */
+    private static final class SetOptionalMod extends ActionTool
+    {
+        SetOptionalMod( McpLauncherView view, McpLauncherActions actions ) { super( view, actions ); }
+
+        @Override
+        public String name() { return "set_optional_mod"; }
+
+        @Override
+        public String title() { return "Set optional mod"; }
+
+        @Override
+        public String description()
+        {
+            return "Turns one of a modpack's optional mods on or off for the player. Turning one on "
+                    + "also turns on the optional mods it requires and turns off the ones it conflicts "
+                    + "with; turning one off also turns off the ones that need it. The result names "
+                    + "every mod that changed. This is the player's setting, not a manifest edit, so it "
+                    + "works for any installed pack. It takes effect the next time the pack launches "
+                    + "or syncs, which downloads or removes the jars.";
+        }
+
+        @Override
+        public JsonObject inputSchema()
+        {
+            JsonObject schema = schemaOf( "friendlyName", "The modpack.",
+                                          "mod", "The optional mod's file name as list_optional_mods "
+                                                  + "reports it (localName), e.g. ausm.jar. A leading "
+                                                  + "mods/ is ignored." );
+            JsonObject enabled = new JsonObject();
+            enabled.addProperty( "type", "boolean" );
+            enabled.addProperty( "description", "true to turn the mod on, false to turn it off." );
+            schema.getAsJsonObject( "properties" ).add( "enabled", enabled );
+            schema.getAsJsonArray( "required" ).add( "enabled" );
+            return schema;
+        }
+
+        @Override
+        public McpRiskClass riskClass() { return McpRiskClass.MUTATING; }
+
+        @Override
+        public String validateBeforeApproval( JsonObject arguments )
+        {
+            String pack = stringArg( arguments, "friendlyName" );
+            String mod = stringArg( arguments, "mod" );
+            if ( pack.isEmpty() || mod.isEmpty() ) {
+                return "friendlyName, mod and enabled are all required.";
+            }
+            if ( enabledArg( arguments ) == null ) {
+                return "enabled must be true or false.";
+            }
+            if ( view.pack( pack ) == null ) {
+                return unknownPack( pack );
+            }
+            List< McpLauncherView.OptionalModInfo > mods = view.optionalModsOf( pack );
+            if ( mods == null || mods.isEmpty() ) {
+                return "\"" + pack + "\" has no optional mods.";
+            }
+            String wanted = ModPackDocument.normalizeModLocalPath( mod );
+            StringBuilder names = new StringBuilder();
+            for ( McpLauncherView.OptionalModInfo info : mods ) {
+                if ( info.localName().equalsIgnoreCase( wanted ) ) {
+                    return null;
+                }
+                names.append( names.length() == 0 ? "" : ", " ).append( info.localName() );
+            }
+            return "\"" + pack + "\" has no optional mod named \"" + mod + "\". Its optional mods are: "
+                    + names + ". Call list_optional_mods for details.";
+        }
+
+        @Override
+        public McpToolResult invoke( McpCallContext context, JsonObject arguments )
+        {
+            Boolean enabled = enabledArg( arguments );
+            return resultOf( actions.setOptionalMod( stringArg( arguments, "friendlyName" ),
+                                                     ModPackDocument.normalizeModLocalPath(
+                                                             stringArg( arguments, "mod" ) ),
+                                                     Boolean.TRUE.equals( enabled ) ) );
+        }
+
+        /**
+         * Reads the {@code enabled} argument, accepting a JSON boolean or the strings
+         * {@code "true"} / {@code "false"}.
+         *
+         * @param arguments the call arguments
+         *
+         * @return the value, or {@code null} when absent or anything else
+         */
+        private static Boolean enabledArg( JsonObject arguments )
+        {
+            if ( arguments == null || !arguments.has( "enabled" ) || !arguments.get( "enabled" ).isJsonPrimitive() ) {
+                return null;
+            }
+            var value = arguments.getAsJsonPrimitive( "enabled" );
+            if ( value.isBoolean() ) {
+                return value.getAsBoolean();
+            }
+            String text = value.getAsString().trim();
+            if ( "true".equalsIgnoreCase( text ) ) {
+                return Boolean.TRUE;
+            }
+            if ( "false".equalsIgnoreCase( text ) ) {
+                return Boolean.FALSE;
+            }
+            return null;
+        }
+    }
+
     /** Uninstalls a modpack and deletes its files. */
     private static final class UninstallModpack extends ActionTool
     {
@@ -934,7 +1046,7 @@ public final class MutatingTools
     public static List< String > toolNames()
     {
         return List.of( "install_modpack", "create_modpack", "fork_modpack", "add_mod_to_modpack",
-                        "remove_mod_from_modpack", "uninstall_modpack", "launch_modpack",
+                        "remove_mod_from_modpack", "set_optional_mod", "uninstall_modpack", "launch_modpack",
                         "stop_game" );
     }
 

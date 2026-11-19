@@ -92,6 +92,14 @@ class MutatingToolsTest
 
         @Override
         public List< RunningGame > runningGames() { return running; }
+
+        private final java.util.Map< String, List< OptionalModInfo > > optional = new java.util.HashMap<>();
+
+        @Override
+        public List< OptionalModInfo > optionalModsOf( String friendlyName )
+        {
+            return pack( friendlyName ) == null ? null : optional.getOrDefault( friendlyName, List.of() );
+        }
     }
 
     /** Hand-rolled actions that record what they were asked to do rather than doing it. */
@@ -160,6 +168,13 @@ class MutatingToolsTest
             performed.add( "removeMod:" + friendlyName + ":" + identifier );
             return nextOutcome;
         }
+
+        @Override
+        public Outcome setOptionalMod( String friendlyName, String localName, boolean enabled )
+        {
+            performed.add( "setOptionalMod:" + friendlyName + ":" + localName + ":" + enabled );
+            return nextOutcome;
+        }
     }
 
     @BeforeEach
@@ -211,6 +226,8 @@ class MutatingToolsTest
         assertEquals( McpRiskClass.MUTATING, registry.find( "fork_modpack" ).riskClass() );
         assertEquals( McpRiskClass.MUTATING, registry.find( "add_mod_to_modpack" ).riskClass() );
         assertEquals( McpRiskClass.MUTATING, registry.find( "remove_mod_from_modpack" ).riskClass() );
+        assertEquals( McpRiskClass.MUTATING, registry.find( "set_optional_mod" ).riskClass(),
+                      "same class as add_mod_to_modpack: it decides which jars the next sync installs" );
         assertEquals( McpRiskClass.DESTRUCTIVE, registry.find( "uninstall_modpack" ).riskClass() );
         assertEquals( McpRiskClass.EXECUTE, registry.find( "launch_modpack" ).riskClass() );
         assertEquals( McpRiskClass.EXECUTE, registry.find( "stop_game" ).riskClass() );
@@ -722,6 +739,67 @@ class MutatingToolsTest
     {
         actions.nextOutcome = null;
         assertTrue( invoke( "install_modpack", args( "url", "https://example.test/p.json" ) ).isError() );
+    }
+
+    // endregion
+
+    // region set_optional_mod
+
+    private void givePackOptionalMods()
+    {
+        view.optional.put( "Installed Pack", List.of(
+                new McpLauncherView.OptionalModInfo( "ausm.jar", "AUSM", "Shaders", false, false, null, true, false,
+                                                     List.of(), List.of() ),
+                new McpLauncherView.OptionalModInfo( "Lib.jar", "Lib", "", true, true, null, true, true,
+                                                     List.of(), List.of() ) ) );
+    }
+
+    private static JsonObject optionalArgs( String pack, String mod, Object enabled )
+    {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty( "friendlyName", pack );
+        arguments.addProperty( "mod", mod );
+        if ( enabled instanceof Boolean b ) {
+            arguments.addProperty( "enabled", b );
+        }
+        else if ( enabled != null ) {
+            arguments.addProperty( "enabled", enabled.toString() );
+        }
+        return arguments;
+    }
+
+    @Test
+    void setOptionalModAcceptsAKnownModInAnySpelling()
+    {
+        givePackOptionalMods();
+        assertNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "ausm.jar", true ) ) );
+        assertNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "mods/AUSM.jar", false ) ) );
+        assertNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "lib.jar", "false" ) ) );
+    }
+
+    @Test
+    void setOptionalModRefusesBeforeConsent()
+    {
+        givePackOptionalMods();
+        assertNotNull( validate( "set_optional_mod", optionalArgs( "Nope", "ausm.jar", true ) ), "unknown pack" );
+        assertNotNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "", true ) ), "no mod" );
+        assertNotNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "ausm.jar", null ) ),
+                       "no enabled" );
+        assertNotNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "ausm.jar", "maybe" ) ),
+                       "enabled not a boolean" );
+        String unknownMod = validate( "set_optional_mod", optionalArgs( "Installed Pack", "ghost.jar", true ) );
+        assertNotNull( unknownMod );
+        assertTrue( unknownMod.contains( "ausm.jar" ), "the refusal lists the real names: " + unknownMod );
+        assertNotNull( validate( "set_optional_mod", optionalArgs( "Not Installed", "ausm.jar", true ) ),
+                       "a pack without optional mods" );
+    }
+
+    @Test
+    void setOptionalModPassesTheNormalisedNameToTheAction()
+    {
+        givePackOptionalMods();
+        assertFalse( invoke( "set_optional_mod", optionalArgs( "Installed Pack", "mods/AUSM.jar", true ) ).isError() );
+        assertEquals( List.of( "setOptionalMod:Installed Pack:AUSM.jar:true" ), actions.performed );
     }
 
     // endregion
