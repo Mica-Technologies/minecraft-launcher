@@ -175,21 +175,49 @@ the manifest. Accessors: `ConfigManager.getOptionalModChoices` / `setOptionalMod
    defaults disagree, the mod listed earlier wins.
 4. Names that are not optional mods of the pack are ignored.
 
-A toggle (`OptionalModResolver.toggle`) keeps the stored choices consistent: turning a mod on also
-turns on what it requires and turns off what conflicts with any of those; turning a mod off (or
-having it turned off) also turns off every mod that needs it. Every switched mod is written into
-the choices explicitly, and the result lists each one with its reason (`REQUIRED_BY`,
-`CONFLICTS_WITH`, `REQUIRES_OFF`). A toggle whose group conflicts with itself is refused
-(`UNSATISFIABLE`) and stores nothing. Rules 2 and 3 therefore only matter when a manifest update
-adds a dependency or a conflict after the player chose.
+A toggle (`OptionalModResolver.toggle`) stores only what the player decided:
+
+- the toggled mod's own new state (`true` or `false`);
+- turning a mod on: `false` for every mod that conflicts with it or with anything it requires
+  (transitively), and for everything that needs one of those. The player chose this mod over them,
+  so turning it off again does not bring them back;
+- turning a mod off: `false` for every mod that needs it (transitively).
+
+Requirements a toggle turns on are **not** stored. Rule 2 keeps them on while a mod that needs them
+is on; once none is, each falls back to its own wish. So turning a mod on and then off again turns
+its requirements back off, unless the player turned one on themselves (stored `true`), it is
+`defaultEnabled`, or another mod that is on still needs it. Choices stored by builds before this
+rule hold cascaded `true`s for requirements; they read as the player's own picks and are not
+migrated.
+
+The result lists every other mod that switched, in manifest order, with a reason and a cause. Each
+cause is the first matching mod in manifest order:
+
+| Reason | When | Cause |
+|---|---|---|
+| `REQUIRED_BY` | turned on | first mod on afterwards that directly requires it |
+| `CONFLICT_CLEARED` | turned on, and nothing on requires it | first mod that was on, is off now and conflicts with it |
+| `CONFLICTS_WITH` | turned off | first mod on afterwards that conflicts with it |
+| `REQUIRES_OFF` | turned off and stored off by the toggle, with no conflict | first mod it directly requires that is off afterwards |
+| `NO_LONGER_REQUIRED` | turned off without being stored (it fell back to its wish) | first mod that was on, is off now and directly requires it |
+
+A mod turned on with no cause found is `REQUIRED_BY` with an empty cause. A mod stored off by the
+toggle is checked for `CONFLICTS_WITH`, then `REQUIRES_OFF`; one that fell back is checked for
+`NO_LONGER_REQUIRED`, then `CONFLICTS_WITH`; with no cause found either way it is `REQUIRES_OFF`
+with an empty cause. A toggle the rules cannot satisfy (the group it needs conflicts with itself,
+or the toggled mod would not end up in the requested state) is refused (`UNSATISFIABLE`) and
+stores nothing; an unknown name is refused as `UNKNOWN`. Rule 3 only bites when a manifest update
+adds a conflict after the player chose, or when defaults disagree.
 
 ### Sides
 
 A client installs the resolved mods that are client-side (`clientReq`). A dedicated server has no
-player to choose and no toggle UI: it ignores `optionalModsByPack` and installs exactly the
-optional mods that are both `serverReq: true` and `defaultEnabled: true`. It does not apply
-`requires` to pull in other mods, so a pack author who wants a server-side optional mod with a
-dependency marks both entries that way.
+player to choose and no toggle UI: it ignores `optionalModsByPack`. It starts from the optional
+mods that are both `serverReq: true` and `defaultEnabled: true`, in manifest order, and turns each
+on together with everything it `requires` (transitively, whatever their own `defaultEnabled`). The
+whole group is skipped when any mod in it is not `serverReq`, when two of its mods conflict, or when
+it conflicts (in either direction) with a mod already selected, so the earlier manifest entry wins,
+as on a client.
 
 ### Sync
 
