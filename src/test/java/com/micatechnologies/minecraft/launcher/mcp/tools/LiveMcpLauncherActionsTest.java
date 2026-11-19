@@ -17,6 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.mcp.tools;
 
+import com.micatechnologies.minecraft.launcher.game.modpack.ModPackDocument;
+import com.micatechnologies.minecraft.launcher.game.modpack.ModPackFileEntry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -25,6 +27,7 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for the containment rule in {@link LiveMcpLauncherActions} that decides which manifests
@@ -131,5 +134,37 @@ class LiveMcpLauncherActionsTest
         assertNull( LiveMcpLauncherActions.resolveAuthoredManifest( "file:not a uri", authored ) );
         assertNull( LiveMcpLauncherActions.resolveAuthoredManifest(
                 tempDir.resolve( "x.json" ).toUri().toString(), null ) );
+    }
+
+    // ---- add_mod_to_modpack hashes (issue 101) ------------------------------------------
+
+    private static final LiveMcpLauncherActions.ModHashes JAR =
+            new LiveMcpLauncherActions.ModHashes( "1".repeat( 40 ), "2".repeat( 64 ) );
+
+    @Test
+    void expectedHashesMustMatchTheDownloadedJar()
+    {
+        assertNull( LiveMcpLauncherActions.hashMismatch( JAR, null, null ), "nothing expected" );
+        assertNull( LiveMcpLauncherActions.hashMismatch( JAR, "1".repeat( 40 ), "2".repeat( 64 ) ) );
+        assertNotNull( LiveMcpLauncherActions.hashMismatch( JAR, null, "3".repeat( 64 ) ) );
+        assertNotNull( LiveMcpLauncherActions.hashMismatch( JAR, "3".repeat( 40 ), null ) );
+    }
+
+    /**
+     * The entry carries both hashes, SHA-256 first, and they survive the manifest's write, so
+     * the sync can verify the jar and replace an older file at the same path.
+     */
+    @Test
+    void anAddedModRecordsBothHashesInTheManifest()
+    {
+        ModPackDocument doc = ModPackDocument.blank();
+        assertTrue( doc.addMod( LiveMcpLauncherActions.modEntry( "JEI", "https://example.test/jei.jar",
+                                                                 "jei.jar", JAR ) ) );
+
+        ModPackFileEntry written = ModPackDocument.fromJson( doc.toPrettyJson() ).mods().get( 0 );
+        assertEquals( "jei.jar", written.getLocal() );
+        assertEquals( "sha256", written.getHashType() );
+        assertEquals( JAR.sha256(), written.getHash() );
+        assertEquals( JAR.sha1(), written.getExtraHash( "sha1" ) );
     }
 }

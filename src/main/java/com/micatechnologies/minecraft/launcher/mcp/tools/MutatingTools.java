@@ -149,6 +149,26 @@ public final class MutatingTools
         }
 
         /**
+         * Adds optional string properties to a schema built by {@link #schemaOf}.
+         *
+         * @param schema              the schema to extend
+         * @param nameThenDescription alternating property names and descriptions
+         *
+         * @return the same schema
+         */
+        protected static JsonObject withOptional( JsonObject schema, String... nameThenDescription )
+        {
+            JsonObject properties = schema.getAsJsonObject( "properties" );
+            for ( int i = 0; i + 1 < nameThenDescription.length; i += 2 ) {
+                JsonObject property = new JsonObject();
+                property.addProperty( "type", "string" );
+                property.addProperty( "description", nameThenDescription[ i + 1 ] );
+                properties.add( nameThenDescription[ i ], property );
+            }
+            return schema;
+        }
+
+        /**
          * Builds the "no such pack" message, naming the tool that lists them.
          *
          * @param friendlyName the name that was not found
@@ -385,17 +405,24 @@ public final class MutatingTools
         public String description()
         {
             return "Adds a mod to a modpack's manifest, to be downloaded on the next sync. "
-                    + "The remote URL must be https.";
+                    + "The remote URL must be https. The launcher downloads the jar once while "
+                    + "adding it and records its SHA-1 and SHA-256, so the sync verifies it and "
+                    + "replaces an older file at the same path.";
         }
 
         @Override
         public JsonObject inputSchema()
         {
-            return schemaOf( "friendlyName", "The modpack to edit.",
-                             "modName", "The mod's display name.",
-                             "remoteUrl", "The https URL to download the mod from.",
-                             "localPath", "Where it installs, relative to the pack root, "
-                                     + "e.g. mods/jei.jar" );
+            return withOptional( schemaOf( "friendlyName", "The modpack to edit.",
+                                           "modName", "The mod's display name.",
+                                           "remoteUrl", "The https URL to download the mod from.",
+                                           "localPath", "The jar's file name in the pack's mods "
+                                                   + "folder, e.g. jei.jar. A leading mods/ is "
+                                                   + "dropped; any other folder is refused." ),
+                                 "sha1", "Optional expected SHA-1 (hex). The add fails if the "
+                                         + "downloaded jar does not match.",
+                                 "sha256", "Optional expected SHA-256 (hex). The add fails if the "
+                                         + "downloaded jar does not match." );
         }
 
         @Override
@@ -425,6 +452,15 @@ public final class MutatingTools
                         + "Mod URLs must be well-formed https links.";
             }
             String rejection = rejectUnsafeLocalPath( localPath );
+            if ( rejection == null ) {
+                rejection = rejectModFolder( localPath );
+            }
+            if ( rejection == null ) {
+                rejection = rejectBadHex( "sha1", stringArg( arguments, "sha1" ), 40 );
+            }
+            if ( rejection == null ) {
+                rejection = rejectBadHex( "sha256", stringArg( arguments, "sha256" ), 64 );
+            }
             return rejection;
         }
 
@@ -434,7 +470,10 @@ public final class MutatingTools
             return resultOf( actions.addMod( stringArg( arguments, "friendlyName" ),
                                              stringArg( arguments, "modName" ),
                                              stringArg( arguments, "remoteUrl" ),
-                                             stringArg( arguments, "localPath" ) ) );
+                                             ModPackDocument.normalizeModLocalPath(
+                                                     stringArg( arguments, "localPath" ) ),
+                                             hexOrNull( stringArg( arguments, "sha1" ) ),
+                                             hexOrNull( stringArg( arguments, "sha256" ) ) ) );
         }
     }
 
@@ -811,6 +850,66 @@ public final class MutatingTools
             }
         }
         return null;
+    }
+
+    /**
+     * Refuses a mod path that would not land directly in the pack's {@code mods} folder.
+     * <p>
+     * A mod's {@code local} is resolved against {@code mods/}, and the sync's cleanup only
+     * looks at that folder's top level, so a mod in a subfolder would be neither loaded
+     * reliably nor removed when it leaves the pack. A leading {@code mods/} is accepted and
+     * dropped by {@link ModPackDocument#normalizeModLocalPath(String)}; anything still holding
+     * a folder after that (including {@code mods/mods/x.jar}) is refused, with where it would
+     * have landed.
+     *
+     * @param localPath the proposed path, already past {@link #rejectUnsafeLocalPath(String)}
+     *
+     * @return a rejection reason, or {@code null} when the path is a plain file name
+     */
+    static String rejectModFolder( String localPath )
+    {
+        String normalized = ModPackDocument.normalizeModLocalPath( localPath );
+        if ( normalized.isEmpty() ) {
+            return "localPath must name the jar, e.g. jei.jar.";
+        }
+        if ( normalized.contains( "/" ) ) {
+            return "localPath is the jar's file name inside the pack's mods folder, e.g. jei.jar. \""
+                    + localPath + "\" would install to mods/" + normalized
+                    + ", a subfolder the game does not load mods from.";
+        }
+        return null;
+    }
+
+    /**
+     * Refuses an optional hash argument that is not hex of the right length.
+     *
+     * @param name   the argument's name, for the message
+     * @param value  the value, {@code ""} when not given
+     * @param length the expected number of hex digits
+     *
+     * @return a rejection reason, or {@code null} when absent or well-formed
+     */
+    static String rejectBadHex( String name, String value, int length )
+    {
+        if ( value == null || value.isEmpty() ) {
+            return null;
+        }
+        if ( value.length() != length || !value.matches( "[0-9a-fA-F]+" ) ) {
+            return name + " must be " + length + " hex digits.";
+        }
+        return null;
+    }
+
+    /**
+     * Lower-cases an optional hex argument, mapping an empty one to {@code null}.
+     *
+     * @param value the value
+     *
+     * @return the lower-case value, or {@code null} when empty
+     */
+    private static String hexOrNull( String value )
+    {
+        return value == null || value.isEmpty() ? null : value.toLowerCase( java.util.Locale.ROOT );
     }
 
     /**
