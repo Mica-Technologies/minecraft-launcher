@@ -636,13 +636,45 @@ public class ModPackDocument
     }
 
     /**
+     * Normalises a mod's {@code local} path to the form the sync expects.
+     * <p>
+     * A mod's {@code local} is resolved against the pack's {@code mods} folder, not the pack
+     * root, so it is a bare file name such as {@code jei.jar}. Callers (and models) often write
+     * {@code mods/jei.jar} instead, which would land in {@code mods/mods/} where the game never
+     * loads it. This turns backslashes into slashes, trims, and drops a leading {@code ./} and
+     * one leading {@code mods/} (any case). It does not reject anything; callers decide whether
+     * a remaining folder is acceptable.
+     *
+     * @param local the path as given, may be {@code null}
+     *
+     * @return the normalised path, {@code ""} for {@code null}
+     *
+     * @since 2026.11
+     */
+    public static String normalizeModLocalPath( String local )
+    {
+        if ( local == null ) {
+            return "";
+        }
+        String path = local.trim().replace( '\\', '/' );
+        while ( path.startsWith( "./" ) ) {
+            path = path.substring( 2 );
+        }
+        if ( path.regionMatches( true, 0, "mods/", 0, 5 ) ) {
+            path = path.substring( 5 );
+        }
+        return path;
+    }
+
+    /**
      * Adds a mod, unless one is already installed to the same local path.
      * <p>
      * The local path is the identity that matters: two entries writing the same file would
-     * make the installed result depend on sync order. Comparison ignores case, because the
-     * launcher runs on Windows and macOS where the filesystem does too — treating
-     * {@code mods/JEI.jar} and {@code mods/jei.jar} as distinct would produce a manifest that
-     * behaves differently per platform.
+     * make the installed result depend on sync order. Both sides are compared after
+     * {@link #normalizeModLocalPath(String)}, so {@code mods/jei.jar} and {@code jei.jar}
+     * collide, and case is ignored because the launcher runs on Windows and macOS where the
+     * filesystem does too: treating {@code JEI.jar} and {@code jei.jar} as distinct would
+     * produce a manifest that behaves differently per platform.
      *
      * @param entry the mod to add
      *
@@ -656,9 +688,10 @@ public class ModPackDocument
         if ( entry == null || entry.getLocal().isBlank() ) {
             return false;
         }
+        String key = normalizeModLocalPath( entry.getLocal() );
         List< ModPackFileEntry > mods = mods();
         for ( ModPackFileEntry existing : mods ) {
-            if ( existing.getLocal().equalsIgnoreCase( entry.getLocal() ) ) {
+            if ( normalizeModLocalPath( existing.getLocal() ).equalsIgnoreCase( key ) ) {
                 return false;
             }
         }
