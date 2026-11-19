@@ -13,7 +13,8 @@
 //!    count) and the problems banner;
 //! 3. the **tabs**: Overview (news, quick actions, stats), Problems, Content (worlds, servers,
 //!    mods, screenshots, shader packs, resource packs), Activity (update log, crash history),
-//!    Advanced (launch account, always verify, scan frequency, verify now, official launcher);
+//!    Advanced (optional mods, launch account, always verify, scan frequency, verify now,
+//!    official launcher);
 //! 4. the **action row**: Play and Website.
 //!
 //! Tab bodies are built when first shown; each section box collapses, and folder listings run
@@ -23,6 +24,7 @@
 pub mod content;
 pub mod hooks;
 pub mod model;
+pub mod optional;
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -37,8 +39,8 @@ use gpui::{
 use gpui_component::WindowExt as _;
 use gpui_component::checkbox::Checkbox;
 use mmcl_engine::{
-    AccountView, CrashActionResult, CrashView, Engine, ExportRequest, LaunchOptions, PackDetails,
-    PackId, PackSummary, ScanFrequency, ServerView,
+    AccountView, CrashActionResult, CrashView, Engine, ExportRequest, LaunchOptions,
+    OptionalModsView, PackDetails, PackId, PackSummary, ScanFrequency, ServerView,
 };
 use mmcl_i18n::{t, tf};
 use mmcl_ui::screens::home_browse::{self as hb, backend::backend, controls, cycle, visuals};
@@ -97,6 +99,11 @@ pub struct DetailModal {
     account_override: Option<String>,
     always_verify: bool,
     scan_frequency: String,
+    /// The pack's optional mods and the player's choices; `None` while loading or for a pack
+    /// without a manifest.
+    optional_mods: Option<OptionalModsView>,
+    /// What the last optional-mod toggle did, one sentence per line.
+    optional_status: Vec<String>,
     problems: Vec<ProblemView>,
     tab: Tab,
     expanded: HashSet<Section>,
@@ -128,6 +135,8 @@ impl DetailModal {
             account_override,
             always_verify: false,
             scan_frequency: String::new(),
+            optional_mods: None,
+            optional_status: Vec::new(),
             problems: Vec::new(),
             tab: Tab::Overview,
             expanded: HashSet::new(),
@@ -145,7 +154,7 @@ impl DetailModal {
             _cycle: cycle::subscribe(cx),
         };
         for tab in [Tab::Overview, Tab::Content, Tab::Activity, Tab::Advanced] {
-            for s in model::sections(tab, true) {
+            for s in model::sections(tab, true, true) {
                 if s.starts_expanded() {
                     this.expanded.insert(s);
                 }
@@ -153,7 +162,40 @@ impl DetailModal {
         }
         this.expanded.insert(Section::Problems);
         this.load_details(cx);
+        this.load_optional_mods(cx);
         this
+    }
+
+    /// Loads the pack's optional mods off the UI thread (a stub pack's manifest is read from
+    /// the cache). Packs without a manifest have none.
+    fn load_optional_mods(&mut self, cx: &mut Context<Self>) {
+        let has_manifest = self
+            .summary
+            .manifest_url
+            .as_deref()
+            .is_some_and(|u| !u.trim().is_empty());
+        if self.summary.is_vanilla || !has_manifest {
+            return;
+        }
+        let (engine, id) = (self.engine.clone(), self.id.clone());
+        cx.spawn(async move |this, cx| {
+            let view = cx
+                .background_spawn(async move { engine.optional_mods(&id) })
+                .await;
+            let _ = this.update(cx, |v, cx| {
+                v.optional_mods = view;
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Whether the pack has optional mods a player can switch (a server-only one is never
+    /// installed on a client, so it gets no switch).
+    fn has_optional_mods(&self) -> bool {
+        self.optional_mods
+            .as_ref()
+            .is_some_and(|v| v.client_side().next().is_some())
     }
 
     fn load_details(&mut self, cx: &mut Context<Self>) {
@@ -224,7 +266,7 @@ impl DetailModal {
         self.tab = tab;
         self.scroll.set_offset(point(px(0.0), px(0.0)));
         let has_news = self.details().is_some_and(|d| !d.news.is_empty());
-        for s in model::sections(tab, has_news) {
+        for s in model::sections(tab, has_news, self.has_optional_mods()) {
             if self.expanded.contains(&s) {
                 self.ensure_section(s, cx);
             }
@@ -667,7 +709,7 @@ impl DetailModal {
 
     fn render_body(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let has_news = self.details().is_some_and(|d| !d.news.is_empty());
-        let sections = model::sections(self.tab, has_news);
+        let sections = model::sections(self.tab, has_news, self.has_optional_mods());
         let mut children: Vec<AnyElement> = Vec::new();
         if matches!(self.details, Load::Loading) && self.tab != Tab::Overview {
             children.push(loading_row("detail-loading", cx).into_any_element());
@@ -738,6 +780,7 @@ impl DetailModal {
             Section::UpdateLog => self.update_log(cx),
             Section::CrashHistory => self.crash_history(cx),
             Section::Advanced => self.advanced(cx),
+            Section::OptionalMods => self.optional_mods_section(cx),
             Section::Problems => self.problems_list(cx),
         }
     }
@@ -1645,6 +1688,69 @@ impl DetailModal {
             out.push(hint(t!(hint_key).into_owned(), cx).into_any_element());
         }
         out
+    }
+
+    /// The Optional mods section: a hint (changes apply on the next launch), one switch per
+    /// client-side optional mod with its description and its Needs / Can't be used with
+    /// notes, and a status line explaining what the last toggle changed and why.
+    fn optional_mods_section(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let Some(view) = &self.optional_mods else {
+            return Vec::new();
+        };
+        let mut out: Vec<AnyElement> =
+            vec![hint(t!("modal.optionalMods.hint").into_owned(), cx).into_any_element()];
+        let mut seen = HashSet::new();
+        for (i, m) in view.client_side().enumerate() {
+            let key = m.key();
+            if !seen.insert(key.clone()) {
+                continue;
+            }
+            let weak = cx.entity().downgrade();
+            let (local, name) = (m.local_name(), m.display_name());
+            out.push(
+                Switch::new(("detail-optional-mod", i))
+                    .label(name.clone())
+                    .checked(view.is_enabled(&key))
+                    .on_change(move |on, _, cx| {
+                        let (local, name) = (local.clone(), name.clone());
+                        let _ = weak.update(cx, |this, cx| {
+                            this.toggle_optional_mod(&local, &name, on, cx)
+                        });
+                    })
+                    .into_any_element(),
+            );
+            if !m.description().trim().is_empty() {
+                out.push(hint(m.description().to_string(), cx).into_any_element());
+            }
+            for line in optional::describe_relations(m, &view.mods, &optional::localize) {
+                out.push(muted(line, cx).into_any_element());
+            }
+        }
+        for line in &self.optional_status {
+            out.push(body(line.clone(), cx).into_any_element());
+        }
+        out
+    }
+
+    /// Switches one optional mod with its requires / conflicts applied, stores the choice at
+    /// once, flips the other switches to match and says what changed and why. A refused
+    /// toggle changes nothing.
+    fn toggle_optional_mod(&mut self, local: &str, name: &str, on: bool, cx: &mut Context<Self>) {
+        match self.engine.set_optional_mod(&self.id, local, on) {
+            Ok(result) => {
+                if let Some(view) = self.optional_mods.as_mut()
+                    && result.applied
+                {
+                    view.enabled = result.enabled.clone();
+                    view.choices =
+                        mmcl_engine::optional::to_stored_choices(&view.mods, &result.choices);
+                }
+                self.optional_status =
+                    optional::describe_toggle(&result, name, on, &optional::localize);
+            }
+            Err(e) => notify::warn(&t!("dialog.alert.warning.title"), &e.message()),
+        }
+        cx.notify();
     }
 
     fn set_account(&mut self, picked: String, cx: &mut Context<Self>) {

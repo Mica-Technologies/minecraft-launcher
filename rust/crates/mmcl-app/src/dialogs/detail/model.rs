@@ -97,6 +97,9 @@ pub enum Section {
     UpdateLog,
     CrashHistory,
     Advanced,
+    /// The pack's optional mods, each with a switch (only for packs that have client-side
+    /// ones).
+    OptionalMods,
     Problems,
 }
 
@@ -116,6 +119,7 @@ impl Section {
             Section::UpdateLog => "detailModal.section.updateLog",
             Section::CrashHistory => "detailModal.section.crashHistory",
             Section::Advanced => "detailModal.section.advanced",
+            Section::OptionalMods => "detailModal.section.optionalMods",
             Section::Problems => "detailModal.section.problems",
         }
     }
@@ -131,8 +135,9 @@ impl Section {
     }
 }
 
-/// The sections of a tab, in order. News appears only with news.
-pub fn sections(tab: Tab, has_news: bool) -> Vec<Section> {
+/// The sections of a tab, in order. News appears only with news; Optional mods, ahead of the
+/// other advanced settings, only for a pack with client-side optional mods.
+pub fn sections(tab: Tab, has_news: bool, has_optional: bool) -> Vec<Section> {
     match tab {
         Tab::Overview => {
             let mut v = Vec::new();
@@ -153,6 +158,7 @@ pub fn sections(tab: Tab, has_news: bool) -> Vec<Section> {
             Section::ResourcePacks,
         ],
         Tab::Activity => vec![Section::UpdateLog, Section::CrashHistory],
+        Tab::Advanced if has_optional => vec![Section::OptionalMods, Section::Advanced],
         Tab::Advanced => vec![Section::Advanced],
     }
 }
@@ -658,13 +664,22 @@ pub(crate) mod tests {
     #[test]
     fn overview_shows_news_only_with_news() {
         assert_eq!(
-            sections(Tab::Overview, false),
+            sections(Tab::Overview, false, false),
             vec![Section::QuickActions, Section::Stats]
         );
-        assert_eq!(sections(Tab::Overview, true)[0], Section::News);
-        assert_eq!(sections(Tab::Content, false).len(), 6);
+        assert_eq!(sections(Tab::Overview, true, false)[0], Section::News);
+        assert_eq!(sections(Tab::Content, false, false).len(), 6);
         assert!(!Section::Mods.starts_expanded());
         assert!(Section::Worlds.starts_expanded());
+        assert_eq!(
+            sections(Tab::Advanced, false, false),
+            vec![Section::Advanced]
+        );
+        assert_eq!(
+            sections(Tab::Advanced, false, true),
+            vec![Section::OptionalMods, Section::Advanced]
+        );
+        assert!(Section::OptionalMods.starts_expanded());
     }
 
     #[test]
