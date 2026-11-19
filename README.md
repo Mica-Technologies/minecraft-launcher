@@ -2,7 +2,7 @@
 
 A cross-platform modpack launcher for Minecraft. Modpacks are defined as JSON files hosted on the internet; the launcher fetches the manifest, downloads the required modloader + mods + configs + assets, verifies them by SHA-1, and launches the game. Runs on Windows, macOS, and Linux as a client (GUI) or in headless server mode.
 
-Supports **Forge**, **NeoForge**, **Fabric**, and vanilla Mojang versions. Imports Modrinth `.mrpack` files, MultiMC / Prism Launcher instance folders, and Mica-format ZIP exports.
+Supports **Forge**, **NeoForge**, **Fabric**, **Cleanroom**, and vanilla Mojang versions. Imports Modrinth `.mrpack` files, MultiMC / Prism Launcher instance folders, and Mica-format ZIP exports.
 
 ## Installing & Running
 
@@ -42,7 +42,7 @@ The Library screen's bottom bar has three add paths:
 
 ## Creating a Modpack
 
-A modpack is a single JSON file hosted at a stable URL. Pack manifests can target Forge, NeoForge, Fabric, or vanilla Mojang versions; the launcher picks the right loader pipeline from the `packModLoader` field.
+A modpack is a single JSON file hosted at a stable URL. Pack manifests can target Forge, NeoForge, Fabric, Cleanroom, or vanilla Mojang versions; the launcher picks the right loader pipeline from the `packModLoader` field.
 
 ### Basic Forge example
 
@@ -69,12 +69,13 @@ A modpack is a single JSON file hosted at a stable URL. Pack manifests can targe
 }
 ```
 
-### Fabric / NeoForge
+### Fabric / NeoForge / Cleanroom
 
 Swap `packModLoader` and point `packModLoaderURL` at the loader's installer / profile artifact:
 
 - **Forge**: `"packModLoader": "forge"`, `packModLoaderURL` → Forge installer JAR (Maven Central `net.minecraftforge:forge:<mc>-<ver>:installer`)
 - **NeoForge**: `"packModLoader": "neoforge"`, `packModLoaderURL` → NeoForge installer JAR (Maven `net.neoforged:neoforge:<ver>:installer`)
+- **Cleanroom** (Forge 1.12.2 fork on Java 25): `"packModLoader": "cleanroom"`, `packForgeURL` / `packForgeHash` → the Cleanroom installer JAR from the [CleanroomMC/Cleanroom](https://github.com/CleanroomMC/Cleanroom) GitHub releases (one installer for both sides). Its own version profile replaces the vanilla 1.12.2 one, so the pack runs on Java 25 with LWJGL 3.
 - **Fabric**: `"packModLoader": "fabric"`, `packModLoaderURL` → Fabric profile JSON (e.g. `https://meta.fabricmc.net/v2/versions/loader/<mc>/<loader>/profile/json`). `packModLoaderHash` may be left blank for Fabric — the profile JSON is content-versioned by Fabric.
 
 Legacy Forge-only packs that still use `packForgeURL` + `packForgeHash` keep working — the launcher falls back to those when `packModLoader*` is absent.
@@ -117,7 +118,7 @@ The launcher surfaces a "Pack default" row with an **Auto-join on play** checkbo
 | `packMinRAMGB` | yes | Minimum RAM (GB). Launcher refuses to start the pack when max-RAM setting is below this. |
 | `packUnstable` | no | `true` flags the pack as beta / pre-release. Surfaced as a "Beta" chip in the UI. |
 | `packCustomDiscordRpc` | no | `true` suppresses the launcher's Discord rich-presence so the pack can drive its own. |
-| `packModLoader` | yes¹ | One of `"forge"`, `"neoforge"`, `"fabric"`. Defaults to `forge` for back-compat with pre-multi-loader manifests. |
+| `packModLoader` | yes¹ | One of `"forge"`, `"neoforge"`, `"fabric"`, `"cleanroom"`. Defaults to `forge` for back-compat with pre-multi-loader manifests. |
 | `packModLoaderURL` | yes¹ | Loader installer / profile URL — see modloader notes above. Falls back to `packForgeURL` if absent. |
 | `packModLoaderHash` | yes¹ | SHA-1 of the loader installer. Falls back to `packForgeHash`. May be blank for Fabric. |
 | `packForgeURL` | legacy | Pre-multi-loader Forge installer URL. Still honoured as a fallback. |
