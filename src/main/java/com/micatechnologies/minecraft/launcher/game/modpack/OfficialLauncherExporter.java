@@ -439,13 +439,17 @@ public final class OfficialLauncherExporter
         // launcher couldn't resolve, surfacing as "failed to find
         // assets" on first launch.
         //
+        // Cleanroom likewise: its loader version is the version.json id
+        // ("Cleanroom-0.7.14-alpha"), the folder its installer writes.
+        //
         // Fabric is the odd one out: its loader version is just the
         // loader number ("0.16.10"), parsed out of the profile JSON's
         // id ("fabric-loader-0.16.10-1.21.5"). Reconstruct the full id
         // here from loaderVersion + mcVersion.
         return switch ( loaderType ) {
             case ModPackConstants.MOD_LOADER_FORGE,
-                 ModPackConstants.MOD_LOADER_NEOFORGE ->
+                 ModPackConstants.MOD_LOADER_NEOFORGE,
+                 ModPackConstants.MOD_LOADER_CLEANROOM ->
                     loaderVersion;
             case ModPackConstants.MOD_LOADER_FABRIC ->
                     "fabric-loader-" + loaderVersion + "-" + mcVersion;
@@ -794,6 +798,20 @@ public final class OfficialLauncherExporter
         if ( customArgs != null && !customArgs.isBlank() ) {
             args.append( ' ' ).append( customArgs.trim() );
         }
+        // Cleanroom: the installer runs with --no-profile, so the JVM arguments it would have put
+        // in its own launcher profile (the install profile's jvmArgs, and -XstartOnFirstThread on
+        // macOS, which LWJGL 3 needs there) go into this one.
+        if ( pack.usesStandaloneLoaderProfile() ) {
+            try {
+                String loaderJvmArgs = pack.getModLoader().getJvmArguments();
+                if ( loaderJvmArgs != null && !loaderJvmArgs.isBlank() ) {
+                    args.append( ' ' ).append( loaderJvmArgs.trim() );
+                }
+            }
+            catch ( Exception ignored ) {
+                // The loader was already resolved to compute the version id; nothing to add.
+            }
+        }
         profile.addProperty( "javaArgs", args.toString() );
 
         // Icon: base64-encode the pack logo at 64×64 if we have one.
@@ -846,8 +864,37 @@ public final class OfficialLauncherExporter
         catch ( Exception e ) {
             return null;
         }
-        String component = pickRuntimeComponent( mcVersion );
-        return findInstalledRuntimeBaseDir( component );
+        String standaloneComponent = null;
+        if ( pack.usesStandaloneLoaderProfile() ) {
+            // A standalone loader profile (Cleanroom: Java 25) names its own runtime; the
+            // Minecraft-version heuristic would pick Java 8 for 1.12.2. The profile is read from
+            // the installer, which getMinecraftVersion() above has already verified.
+            try {
+                standaloneComponent = pack.getMinecraftLibraryManifest().getRequiredRuntimeComponent();
+            }
+            catch ( Exception e ) {
+                return null;
+            }
+        }
+        return findInstalledRuntimeBaseDir( exportRuntimeComponent( mcVersion, standaloneComponent ) );
+    }
+
+    /** Picks the runtime component an exported profile runs on: the one a
+     *  standalone loader profile names (Cleanroom's {@code java-runtime-epsilon}),
+     *  else the {@linkplain #pickRuntimeComponent Minecraft-version heuristic}.
+     *
+     *  @param mcVersion           the pack's Minecraft version
+     *  @param standaloneComponent the runtime component of the pack's standalone
+     *                             loader profile, or {@code null} when it has none
+     *  @return the runtime component name
+     *
+     *  @since 2026.11 */
+    static String exportRuntimeComponent( String mcVersion, String standaloneComponent )
+    {
+        if ( standaloneComponent != null && !standaloneComponent.isBlank() ) {
+            return standaloneComponent;
+        }
+        return pickRuntimeComponent( mcVersion );
     }
 
     /** Maps an MC version string to the Mojang runtime component name

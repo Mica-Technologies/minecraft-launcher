@@ -32,6 +32,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -40,7 +41,7 @@ import java.util.concurrent.TimeUnit;
  * directory isn't installed yet, this helper drives the loader's
  * installer headlessly so the export profile works on first click
  * instead of showing the user a "Version not found" red entry until
- * they manually run the Forge / NeoForge / Fabric installer.
+ * they manually run the Forge / NeoForge / Cleanroom / Fabric installer.
  *
  * <h3>Per-loader install strategy</h3>
  *
@@ -52,6 +53,11 @@ import java.util.concurrent.TimeUnit;
  *       process's stderr so the user can see exactly which version
  *       refused. We spawn the same JVM Mica is running under via
  *       {@code java.home}, so no separate JRE install is required.</li>
+ *   <li><b>Cleanroom</b> — its installer JAR is mode-based and has no
+ *       {@code --installClient}; it runs as {@code client --dir <minecraft-dir>
+ *       --no-gui --yes --no-profile --java <java> --no-provision-java} on the
+ *       same JVM (Java 25 or newer, as Cleanroom needs). See
+ *       {@link #installerCommand}.</li>
  *   <li><b>Fabric</b> — Fabric is a runtime loader; the "install" is
  *       just dropping the profile JSON under
  *       {@code versions/<id>/<id>.json}. Mica already knows the JSON
@@ -158,7 +164,8 @@ public final class LoaderInstallerRunner
 
         return switch ( loaderType ) {
             case ModPackConstants.MOD_LOADER_FORGE,
-                 ModPackConstants.MOD_LOADER_NEOFORGE -> runInstallerJar( pack, dotMc );
+                 ModPackConstants.MOD_LOADER_NEOFORGE,
+                 ModPackConstants.MOD_LOADER_CLEANROOM -> runInstallerJar( pack, dotMc, loaderType );
             case ModPackConstants.MOD_LOADER_FABRIC   -> writeFabricProfileJson( pack, dotMc );
             default -> Result.failure( LocalizationManager.format( "officialExport.loader.unsupportedType",
                                                                    loaderType ) );
@@ -175,11 +182,15 @@ public final class LoaderInstallerRunner
      *  and confirming the expected version directory was created before reporting
      *  success.
      *
-     *  @param pack  the pack whose loader installer to run
-     *  @param dotMc the Mojang launcher data folder to install into
+     *  <p>Cleanroom's installer takes a mode instead of {@code --installClient}
+     *  (see {@link #installerCommand}).</p>
+     *
+     *  @param pack       the pack whose loader installer to run
+     *  @param dotMc      the Mojang launcher data folder to install into
+     *  @param loaderType the pack's loader type
      *  @return a {@link Result} reflecting the install outcome (including
      *          timeout, non-zero exit, or a missing version directory) */
-    private static Result runInstallerJar( GameModPack pack, Path dotMc )
+    private static Result runInstallerJar( GameModPack pack, Path dotMc, String loaderType )
     {
         // Resolve the installer JAR through the pack's managed loader file,
         // the same https + declared-hash path a launch uses. Never fetched
@@ -198,13 +209,9 @@ public final class LoaderInstallerRunner
         // skip the Swing UI, doing the install + writing
         // .minecraft/versions/<id>/<id>.json on success.
         Path javaExe = currentJavaExecutable();
-        ProcessBuilder pb = new ProcessBuilder(
-                javaExe.toString(),
-                "-jar",
-                installerJar.getAbsolutePath(),
-                "--installClient",
-                dotMc.toAbsolutePath().toString()
-        );
+        ProcessBuilder pb = new ProcessBuilder( installerCommand(
+                loaderType, javaExe.toString(), installerJar.getAbsolutePath(),
+                dotMc.toAbsolutePath().toString() ) );
         pb.redirectErrorStream( false );
 
         Process started = null;
@@ -290,6 +297,34 @@ public final class LoaderInstallerRunner
             }
             return Result.failure( LocalizationManager.get( "officialExport.loader.interrupted" ) );
         }
+    }
+
+    /** The command line that installs a loader's client into a Minecraft
+     *  Launcher data folder with the installer JAR at {@code installer}, run on
+     *  {@code java}.
+     *
+     *  <ul>
+     *    <li>Forge / NeoForge: {@code --installClient <dotMc>}.</li>
+     *    <li>Cleanroom: its installer is mode-based ({@code client | server | mmc},
+     *        no {@code --installClient}): {@code client --dir <dotMc> --no-gui --yes
+     *        --no-profile --java <java> --no-provision-java}. The {@code --java} it
+     *        is given is the JVM that runs it (the launcher's own, Java 25 or
+     *        newer as Cleanroom needs), so it never downloads a second Java.</li>
+     *  </ul>
+     *
+     *  @param loaderType the pack's loader type
+     *  @param java       the Java executable that runs the installer
+     *  @param installer  the installer JAR
+     *  @param dotMc      the Minecraft Launcher data folder
+     *  @return the command line
+     *
+     *  @since 2026.11 */
+    static List< String > installerCommand( String loaderType, String java, String installer, String dotMc )
+    {
+        if ( ModPackConstants.MOD_LOADER_CLEANROOM.equals( loaderType ) ) {
+            return CleanroomProfile.installerCommand( java, installer, dotMc );
+        }
+        return List.of( java, "-jar", installer, "--installClient", dotMc );
     }
 
     /** Returns the loader installer JAR file, verified the same way a launch
