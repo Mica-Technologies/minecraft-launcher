@@ -46,7 +46,7 @@ Code (paths relative to `src/main/java/com/micatechnologies/minecraft/launcher/`
 | `MCLauncherMainGui` | `gui/mainGUI.fxml` | Home: installed packs as hero cards, account header, running-games button |
 | `MCLauncherGameLibraryGui` | `gui/gameLibraryGUI.fxml` | Browse: install / uninstall modpacks and vanilla versions, add by URL, import zip / Prism |
 | `MCLauncherSettingsGui` | `gui/settingsGUI.fxml` | Settings, in ten categories (Account, Game, Appearance, Advanced, Network, Security, System, Discord, RGB, About) |
-| `MCLauncherModPackEditorGui` | `gui/modpackEditorGUI.fxml` | Create, edit and export modpack JSON definitions |
+| `MCLauncherModPackEditorGui` | `gui/modpackEditorGUI.fxml` | Create, edit and export modpack JSON definitions. One tab per `ModPackDocument.FileList`, including **Optional mods** (extra Description / On by default / Requires / Conflicts with columns; saving is refused while `validateOptionalMods` reports problems) |
 | `MCLauncherRuntimeGui` | `gui/runtimeManagementGUI.fxml` | List, refresh and delete installed Java runtimes |
 | `MCLauncherLoginGui` | `gui/loginGUI.fxml` | First-run / signed-out Microsoft sign-in |
 | `MCLauncherProgressGui` | `gui/progressGUI.fxml` | Generic three-label progress screen (startup sign-in, runtime work) |
@@ -293,7 +293,7 @@ problems, a Problems banner. A pack with a launch-account override gets a "Plays
 | Overview | always | News, Links, Quick Actions, Stats |
 | Content | the pack has an install folder | Worlds / Servers / Mods / Screenshots / Shader / Resource packs browsers (`ModpackContentBrowser`), Modrinth add |
 | Activity | the pack has an install folder | Update Log, Crash History |
-| Advanced | `pack.getSettingsKey() != null` (a manifest or a vanilla version) | **Launch as** account choice, plus manifest-only verify controls |
+| Advanced | `pack.getSettingsKey() != null` (a manifest or a vanilla version) | **Optional mods** (packs that have any), **Launch as** account choice, plus manifest-only verify controls |
 
 **Launch as** (`buildAccountOverride`) is an `MFXComboBox` of account uuids:
 - The first entry is the default account (no override). Choosing it calls `ConfigManager.setAccountOverrideForPack( key, null )`.
@@ -302,6 +302,23 @@ problems, a Problems banner. A pack with a launch-account override gets a "Plays
 
 Vanilla versions get only this control. Packs with a manifest also get the verify toggles and
 "Verify now" (`VerifyAction`).
+
+**Optional mods** (`buildOptionalModsSection`) lists the pack's `packOptionalMods` (see
+`GAME_LAUNCH_SYSTEM.md`, Optional Mods). The list may need the manifest read from disk when the pack
+is a stub, so it loads off the FX thread (`OptionalMods.of`) and the section stays hidden until it
+knows the pack has optional mods. Each mod is an `MFXToggleButton` labelled with its name, its
+description, and muted "Needs: ..." / "Can't be used with: ..." notes (conflicts are shown from both
+sides). A toggle calls `OptionalMods.toggle`, which applies `requires` / `conflictsWith` and stores
+the choice at once. The section then sets every toggle from the result under a re-entrancy guard,
+so the programmatic flips are not treated as player toggles, and shows a status line built by
+`OptionalModMessages.describeToggle`: the mod's new state (installed or removed the next time the
+pack launches) and one line per other mod that switched, with the reason. A refused toggle reverts
+and says nothing changed. Styling reuses the existing token-driven classes (`muted`, `subtle`,
+`type-label-small`, `type-body-small`).
+
+The Activity tab's pending-update card (`buildPendingChangesNode`) tags changes to optional mods the
+player has on with "(optional)" and adds a "New optional mods, off until you turn them on" line from
+`PendingUpdateDiff.Result.newOptionalNames()`.
 
 ## Theming
 
