@@ -206,6 +206,10 @@ impl Engine {
         let Some(pack) = self.any_pack(id) else {
             return false;
         };
+        // A standalone loader profile (Cleanroom) replaces the vanilla client.json at launch.
+        if mmcl_launch::loader::pack_loader_is_standalone(&pack) {
+            return false;
+        }
         let Some(mc) = pack
             .minecraft_version_hint()
             .filter(|v| !v.trim().is_empty())

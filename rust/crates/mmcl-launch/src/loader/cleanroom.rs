@@ -26,9 +26,10 @@ use std::sync::Arc;
 use futures::future::BoxFuture;
 use mmcl_i18n::{t, tf};
 use mmcl_modpack::ManagedFile;
-use mmcl_mojang::ClientJson;
 use mmcl_mojang::cleanroom_profile::{CleanroomProfile, cleanroom_minecraft_version};
 use mmcl_mojang::forge_profile::ForgeVersionManifest;
+use mmcl_mojang::host::Os;
+use mmcl_mojang::{ClientJson, HostInfo};
 use mmcl_progress::ProgressSink;
 use parking_lot::Mutex;
 use serde_json::{Map, Value};
@@ -163,6 +164,7 @@ impl State {
 /// A Cleanroom loader.
 pub struct CleanroomLoader {
     installer: ManagedFile,
+    host: HostInfo,
     state: Mutex<Arc<State>>,
 }
 
@@ -186,6 +188,7 @@ impl CleanroomLoader {
         let install = blocking(move || read_install(&p)).await??;
         Ok(CleanroomLoader {
             state: Mutex::new(Arc::new(State::of(install)?)),
+            host: run.env.host.clone(),
             installer,
         })
     }
@@ -328,11 +331,13 @@ impl ModLoader for CleanroomLoader {
         self.state().minecraft_arguments.clone()
     }
     fn jvm_arguments(&self) -> Vec<String> {
-        self.state()
+        let profile = self
+            .state()
             .profile
             .as_ref()
             .map(CleanroomProfile::jvm_args)
-            .unwrap_or_default()
+            .unwrap_or_default();
+        client_jvm_args(profile, &self.host)
     }
     fn main_class(&self) -> String {
         self.state().main_class.clone()
@@ -368,6 +373,17 @@ impl ModLoader for CleanroomLoader {
     fn installer_file(&self) -> Option<&ManagedFile> {
         Some(&self.installer)
     }
+}
+
+/// The client JVM arguments, as the installer writes them into a launcher profile: the
+/// profile's `jvmArgs`, plus `-XstartOnFirstThread` on macOS (LWJGL 3 must own the main
+/// thread there, and the standalone `version.json` has no `arguments.jvm` to say so).
+pub fn client_jvm_args(mut profile_args: Vec<String>, host: &HostInfo) -> Vec<String> {
+    const FIRST_THREAD: &str = "-XstartOnFirstThread";
+    if host.os == Os::MacOs && !profile_args.iter().any(|a| a == FIRST_THREAD) {
+        profile_args.push(FIRST_THREAD.to_string());
+    }
+    profile_args
 }
 
 /// Empties `bin/natives` (an earlier Forge launch of the same pack leaves LWJGL 2 natives

@@ -191,8 +191,9 @@ pub mod loaders {
     }
 
     /// Cleanroom versions from the GitHub releases API, newest first: every non-draft release
-    /// with a `*-installer.jar` asset (Cleanroom's releases are all alpha pre-releases, so
-    /// those are kept). `None` when the body is not a release list.
+    /// that carries the installer at [`cleanroom_installer_url`] (Cleanroom's releases are all
+    /// alpha pre-releases, so those are kept). Only that URL, because Browse rebuilds it from
+    /// the version when it installs. `None` when the body is not a release list.
     pub fn parse_cleanroom_releases(json: &str) -> Option<Vec<LoaderVersion>> {
         let releases: Vec<Value> = serde_json::from_str(json).ok()?;
         Some(
@@ -201,21 +202,15 @@ pub mod loaders {
                 .filter(|r| r.get("draft").and_then(Value::as_bool) != Some(true))
                 .filter_map(|r| {
                     let tag = r.get("tag_name").and_then(Value::as_str)?.trim();
-                    let url = r
-                        .get("assets")?
-                        .as_array()?
-                        .iter()
-                        .filter(|a| {
-                            a.get("name")
-                                .and_then(Value::as_str)
-                                .is_some_and(|n| n.ends_with("-installer.jar"))
-                        })
-                        .find_map(|a| a.get("browser_download_url").and_then(Value::as_str))?;
-                    (!tag.is_empty() && url.starts_with("https://")).then(|| LoaderVersion {
+                    let want = cleanroom_installer_url(tag);
+                    let listed = r.get("assets")?.as_array()?.iter().any(|a| {
+                        a.get("browser_download_url").and_then(Value::as_str) == Some(&want)
+                    });
+                    (!tag.is_empty() && listed).then(|| LoaderVersion {
                         loader_type: "cleanroom".into(),
                         mc_version: CLEANROOM_MC_VERSION.into(),
                         loader_version: tag.to_string(),
-                        installer_url: url.to_string(),
+                        installer_url: want,
                     })
                 })
                 .collect(),
@@ -483,7 +478,9 @@ pub mod loaders {
                 {"name":"cleanroom-0.8.0-alpha-installer.jar","browser_download_url":"https://x/i.jar"}]},
               {"tag_name":"0.7.13-alpha","assets":[{"name":"notes.txt","browser_download_url":"https://x/n"}]},
               {"tag_name":"0.7.12-alpha","assets":[
-                {"name":"cleanroom-0.7.12-alpha-installer.jar","browser_download_url":"http://insecure/i.jar"}]}
+                {"name":"cleanroom-0.7.12-alpha-installer.jar","browser_download_url":"http://insecure/i.jar"}]},
+              {"tag_name":"0.7.11","assets":[
+                {"name":"Cleanroom-0.7.11-installer.jar","browser_download_url":"https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.11/Cleanroom-0.7.11-installer.jar"}]}
             ]"#;
             let v = parse_cleanroom_releases(j).unwrap();
             assert_eq!(v.len(), 1);

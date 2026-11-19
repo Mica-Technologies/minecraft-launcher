@@ -247,6 +247,24 @@ fn server_facts_mirror_the_installer_server_mode() {
 }
 
 #[test]
+fn macos_clients_start_on_the_first_thread_like_the_installer_profile() {
+    let profile = real_state().profile.unwrap().jvm_args();
+    assert!(client_jvm_args(profile.clone(), &presets::windows_x64()).is_empty());
+    assert!(client_jvm_args(profile.clone(), &presets::linux_x64()).is_empty());
+    for mac in [presets::mac_arm(), presets::mac_intel()] {
+        assert_eq!(
+            client_jvm_args(profile.clone(), &mac),
+            ["-XstartOnFirstThread"]
+        );
+    }
+    // Never twice.
+    assert_eq!(
+        client_jvm_args(vec!["-XstartOnFirstThread".into()], &presets::mac_arm()),
+        ["-XstartOnFirstThread"]
+    );
+}
+
+#[test]
 fn a_profile_less_installer_still_names_its_server_facts() {
     let install = parse_install(Some(VERSION_JSON_0_7_14.as_bytes()), Some(b"not json")).unwrap();
     assert!(install.profile.is_none());
