@@ -36,6 +36,15 @@ pub struct EditorRow {
     pub extra_hashes: BTreeMap<String, String>,
     /// The last URL check, if any.
     pub url_status: Option<UrlCheck>,
+    /// Optional mods only: the text shown to the player next to the toggle.
+    pub description: String,
+    /// Optional mods only: on for a player who has not chosen.
+    pub default_enabled: bool,
+    /// Optional mods only: the `local` names this mod requires, comma-separated as typed.
+    pub requires: String,
+    /// Optional mods only: the `local` names that must be off while this mod is on,
+    /// comma-separated as typed.
+    pub conflicts_with: String,
 }
 
 impl Default for EditorRow {
@@ -51,12 +60,27 @@ impl Default for EditorRow {
             modrinth_slug: String::new(),
             extra_hashes: BTreeMap::new(),
             url_status: None,
+            description: String::new(),
+            default_enabled: false,
+            requires: String::new(),
+            conflicts_with: String::new(),
         }
     }
 }
 
+/// Splits a comma- or semicolon-separated list of names as typed into a cell: trimmed, blanks
+/// dropped, in order (Java `ModPackEditorFileEntry.splitNames`).
+pub fn split_names(text: &str) -> Vec<String> {
+    text.split([',', ';'])
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
 impl EditorRow {
-    /// Copies every field of a document entry (all extra hashes and the slug).
+    /// Copies every field of a document entry (all extra hashes, the slug and the optional-mod
+    /// fields).
     pub fn from_entry(e: &FileEntry) -> EditorRow {
         EditorRow {
             name: e.name().to_string(),
@@ -69,10 +93,15 @@ impl EditorRow {
             modrinth_slug: e.modrinth_slug().to_string(),
             extra_hashes: e.extra_hashes().clone(),
             url_status: None,
+            description: e.description().to_string(),
+            default_enabled: e.default_enabled(),
+            requires: e.requires().join(", "),
+            conflicts_with: e.conflicts_with().join(", "),
         }
     }
 
-    /// The document entry for this row (`url_status` is not carried).
+    /// The document entry for this row (`url_status` is not carried). Which fields reach the
+    /// manifest is decided by the list it is written to.
     pub fn to_entry(&self) -> FileEntry {
         let mut e = FileEntry::new(
             self.name.clone(),
@@ -87,6 +116,10 @@ impl EditorRow {
         for (algo, value) in &self.extra_hashes {
             e.put_extra_hash(algo, Some(value));
         }
+        e.set_description(self.description.clone());
+        e.set_default_enabled(self.default_enabled);
+        e.set_requires(&split_names(&self.requires));
+        e.set_conflicts_with(&split_names(&self.conflicts_with));
         e
     }
 
@@ -131,6 +164,43 @@ mod tests {
             label: "OK".into(),
         });
         assert_eq!(row.to_entry(), e);
+    }
+
+    #[test]
+    fn optional_mod_fields_survive_the_editor_row() {
+        let mut e = FileEntry::new(
+            "AUSM",
+            "https://example.invalid/ausm.jar",
+            "ausm.jar",
+            "abc",
+            Some("sha256"),
+            true,
+            false,
+        );
+        e.put_extra_hash("sha1", Some("def"));
+        e.set_modrinth_slug("ausm");
+        e.set_description("Shader support");
+        e.set_default_enabled(true);
+        e.set_requires(&["lib.jar", "core.jar"]);
+        e.set_conflicts_with(&["fast.jar"]);
+        let row = EditorRow::from_entry(&e);
+        assert_eq!(row.requires, "lib.jar, core.jar");
+        let back = row.to_entry();
+        assert_eq!(back, e);
+        assert_eq!(back.description(), "Shader support");
+        assert!(back.default_enabled() && back.client_req() && !back.server_req());
+        assert_eq!(back.requires(), ["lib.jar", "core.jar"]);
+        assert_eq!(back.conflicts_with(), ["fast.jar"]);
+    }
+
+    #[test]
+    fn typed_name_lists_are_split_on_commas_and_semicolons() {
+        assert_eq!(
+            split_names(" a.jar ,b.jar;; c.jar, "),
+            ["a.jar", "b.jar", "c.jar"]
+        );
+        assert!(split_names("").is_empty());
+        assert!(split_names(" , ").is_empty());
     }
 
     #[test]

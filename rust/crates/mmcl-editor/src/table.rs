@@ -20,13 +20,21 @@ pub enum Column {
     Type,
     Client,
     Server,
+    /// Optional mods: the text shown to the player.
+    Description,
+    /// Optional mods: on for a player who has not chosen.
+    DefaultOn,
+    /// Optional mods: the file names it requires, comma-separated.
+    Requires,
+    /// Optional mods: the file names it conflicts with, comma-separated.
+    Conflicts,
     UrlStatus,
     Calc,
 }
 
 impl Column {
     /// Every column, left to right.
-    pub const ALL: [Column; 9] = [
+    pub const ALL: [Column; 13] = [
         Column::Name,
         Column::Remote,
         Column::Local,
@@ -34,18 +42,25 @@ impl Column {
         Column::Type,
         Column::Client,
         Column::Server,
+        Column::Description,
+        Column::DefaultOn,
+        Column::Requires,
+        Column::Conflicts,
         Column::UrlStatus,
         Column::Calc,
     ];
 
-    /// The columns a list shows: Name only for mods, Client/Server only for lists with side
-    /// flags.
+    /// The columns a list shows: Name only for mods and optional mods, Client/Server only for
+    /// lists with side flags, the optional-mod columns only for optional mods.
     pub fn shown_for(list: FileList) -> Vec<Column> {
         Column::ALL
             .into_iter()
             .filter(|c| match c {
                 Column::Name => list.has_name(),
                 Column::Client | Column::Server => list.has_side_flags(),
+                Column::Description | Column::DefaultOn | Column::Requires | Column::Conflicts => {
+                    list.is_optional()
+                }
                 _ => true,
             })
             .collect()
@@ -61,6 +76,10 @@ impl Column {
             Column::Type => "editor.column.type",
             Column::Client => "editor.column.client",
             Column::Server => "editor.column.server",
+            Column::Description => "editor.column.description",
+            Column::DefaultOn => "editor.column.defaultEnabled",
+            Column::Requires => "editor.column.requires",
+            Column::Conflicts => "editor.column.conflictsWith",
             Column::UrlStatus => "editor.column.urlStatus",
             Column::Calc => return None,
         })
@@ -75,6 +94,9 @@ impl Column {
             Column::Hash => (140.0, 80.0, None),
             Column::Type => (55.0, 45.0, Some(65.0)),
             Column::Client | Column::Server => (55.0, 50.0, Some(60.0)),
+            Column::Description => (200.0, 100.0, None),
+            Column::DefaultOn => (90.0, 60.0, Some(120.0)),
+            Column::Requires | Column::Conflicts => (140.0, 80.0, None),
             Column::UrlStatus => (70.0, 55.0, Some(90.0)),
             Column::Calc => (50.0, 45.0, Some(55.0)),
         }
@@ -89,13 +111,20 @@ impl Column {
     pub fn is_text(self) -> bool {
         matches!(
             self,
-            Column::Name | Column::Remote | Column::Local | Column::Hash | Column::Type
+            Column::Name
+                | Column::Remote
+                | Column::Local
+                | Column::Hash
+                | Column::Type
+                | Column::Description
+                | Column::Requires
+                | Column::Conflicts
         )
     }
 
     /// Whether the cell is a checkbox.
     pub fn is_check(self) -> bool {
-        matches!(self, Column::Client | Column::Server)
+        matches!(self, Column::Client | Column::Server | Column::DefaultOn)
     }
 
     /// A text cell's value.
@@ -106,6 +135,9 @@ impl Column {
             Column::Local => &row.local,
             Column::Hash => &row.hash,
             Column::Type => &row.hash_type,
+            Column::Description => &row.description,
+            Column::Requires => &row.requires,
+            Column::Conflicts => &row.conflicts_with,
             Column::UrlStatus => row.url_status.as_ref().map_or("", |s| s.label.as_str()),
             _ => "",
         }
@@ -272,7 +304,11 @@ impl FileTable {
 
     /// Appends a blank row and returns its id.
     pub fn add_row(&mut self) -> RowId {
-        self.push(EditorRow::default())
+        // Optional mods are client-only unless the author says otherwise.
+        self.push(EditorRow {
+            server_req: self.list.server_req_default(),
+            ..EditorRow::default()
+        })
     }
 
     /// Appends rows (Modrinth "Add selected").
@@ -493,6 +529,9 @@ impl FileTable {
             Column::Local => &mut row.local,
             Column::Hash => &mut row.hash,
             Column::Type => &mut row.hash_type,
+            Column::Description => &mut row.description,
+            Column::Requires => &mut row.requires,
+            Column::Conflicts => &mut row.conflicts_with,
             _ => return false,
         };
         if slot == value {
@@ -510,6 +549,7 @@ impl FileTable {
         let slot = match col {
             Column::Client => &mut row.client_req,
             Column::Server => &mut row.server_req,
+            Column::DefaultOn => &mut row.default_enabled,
             _ => return false,
         };
         let changed = *slot != value;
@@ -564,6 +604,7 @@ fn compare_by(col: Column, a: &EditorRow, b: &EditorRow) -> std::cmp::Ordering {
     match col {
         Column::Client => a.client_req.cmp(&b.client_req),
         Column::Server => a.server_req.cmp(&b.server_req),
+        Column::DefaultOn => a.default_enabled.cmp(&b.default_enabled),
         _ => col
             .text_of(a)
             .to_lowercase()
@@ -604,6 +645,20 @@ mod tests {
         let cfg = Column::shown_for(FileList::Configs);
         assert!(cfg.contains(&Column::Client) && !cfg.contains(&Column::Name));
         assert_eq!(Column::Calc.header_key(), None);
+        assert!(!mods.contains(&Column::Description));
+        let optional = Column::shown_for(FileList::OptionalMods);
+        for c in [
+            Column::Name,
+            Column::Client,
+            Column::Server,
+            Column::Description,
+            Column::DefaultOn,
+            Column::Requires,
+            Column::Conflicts,
+        ] {
+            assert!(optional.contains(&c), "{c:?}");
+        }
+        assert!(Column::DefaultOn.is_check() && Column::Requires.is_text());
     }
 
     #[test]

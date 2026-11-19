@@ -175,15 +175,24 @@ struct ResizeStart {
     width: f32,
 }
 
+/// The tab label key of a file list.
+fn list_tab_key(list: FileList) -> &'static str {
+    match list {
+        FileList::Mods => "editor.tab.mods",
+        FileList::OptionalMods => "editor.tab.optionalMods",
+        FileList::Configs => "editor.tab.configs",
+        FileList::ResourcePacks => "editor.tab.resources",
+        FileList::ShaderPacks => "editor.tab.shaders",
+        FileList::InitialFiles => "editor.tab.initialFiles",
+    }
+}
+
 /// Tab labels, Metadata first, then the lists in `FileList::ALL` order.
-const TAB_KEYS: [&str; 6] = [
-    "editor.tab.metadata",
-    "editor.tab.mods",
-    "editor.tab.configs",
-    "editor.tab.resources",
-    "editor.tab.shaders",
-    "editor.tab.initialFiles",
-];
+fn tab_keys() -> Vec<&'static str> {
+    std::iter::once("editor.tab.metadata")
+        .chain(FileList::ALL.into_iter().map(list_tab_key))
+        .collect()
+}
 
 /// Row height of the file tables (px).
 const ROW_HEIGHT: f32 = 32.0;
@@ -252,7 +261,7 @@ fn list_index(list: FileList) -> usize {
 }
 
 fn tab_name(list: FileList) -> String {
-    t!(TAB_KEYS[list_index(list) + 1]).into_owned()
+    t!(list_tab_key(list)).into_owned()
 }
 
 fn input(window: &mut Window, cx: &mut App, placeholder: &str) -> Entity<InputState> {
@@ -646,9 +655,36 @@ impl ModpackEditor {
         .detach();
     }
 
-    /// Save: collect, ask where (pre-filled), write pretty JSON.
+    /// Save: collect, ask where (pre-filled), write pretty JSON. Refused, with the problems
+    /// in a dialog, while the optional mods break their rules (a folder in a file name, a file
+    /// in both lists, one listed twice, or requires / conflicts naming itself or a file that is
+    /// not an optional mod).
     pub fn save_to_file(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.collect(cx);
+        let problems = self.model.optional_problems();
+        if !problems.is_empty() {
+            let spec = DialogSpec {
+                level: DialogLevel::Warning,
+                title: t!("dialog.editor.optionalInvalid.title")
+                    .into_owned()
+                    .into(),
+                header: Some(
+                    t!("dialog.editor.optionalInvalid.header")
+                        .into_owned()
+                        .into(),
+                ),
+                body: dialogs::sanitize_multiline(&problems.join("\n")).into(),
+                multiline: true,
+                buttons: vec![ok_button()],
+            };
+            let owner = Some(window.window_handle());
+            cx.spawn(async move |_, cx| {
+                dialogs::show(cx, spec, owner).await;
+            })
+            .detach();
+            self.set_status(t!("editor.status.optionalInvalid").into_owned(), cx);
+            return;
+        }
         let name = self.model.suggested_file_name();
         let dir = self
             .model
@@ -1917,66 +1953,86 @@ impl ModpackEditor {
                 .text_color(hsla(t.md_on_surface_variant))
                 .child(t!("editor.table.empty").into_owned())
         });
-        div().flex().flex_col().size_full().child(toolbar).child(
+        // What optional mods are and how Requires / Conflicts with are written.
+        let optional_hint = list.is_optional().then(|| {
             div()
-                .id(("editor-table", li))
-                .key_context(TABLE_KEY_CONTEXT)
-                .track_focus(&self.table_focus)
-                .aria_label(tab_name(list))
-                .on_action(cx.listener(|this, _: &SelectAllRows, _w, cx| {
-                    this.table_key(cx, |t| {
-                        t.select_all_shown();
-                        None
-                    })
-                }))
-                .on_action(cx.listener(|this, _: &SelectPrevRow, _w, cx| {
-                    this.table_key(cx, |t| t.move_lead(-1, false))
-                }))
-                .on_action(cx.listener(|this, _: &SelectNextRow, _w, cx| {
-                    this.table_key(cx, |t| t.move_lead(1, false))
-                }))
-                .on_action(cx.listener(|this, _: &ExtendPrevRow, _w, cx| {
-                    this.table_key(cx, |t| t.move_lead(-1, true))
-                }))
-                .on_action(cx.listener(|this, _: &ExtendNextRow, _w, cx| {
-                    this.table_key(cx, |t| t.move_lead(1, true))
-                }))
-                .on_action(cx.listener(|this, _: &SelectPageUp, _w, cx| {
-                    this.table_key(cx, |t| t.move_lead(-PAGE_ROWS, false))
-                }))
-                .on_action(cx.listener(|this, _: &SelectPageDown, _w, cx| {
-                    this.table_key(cx, |t| t.move_lead(PAGE_ROWS, false))
-                }))
-                .on_action(cx.listener(|this, _: &SelectFirstRow, _w, cx| {
-                    this.table_key(cx, |t| t.move_lead_to_edge(false, false))
-                }))
-                .on_action(cx.listener(|this, _: &SelectLastRow, _w, cx| {
-                    this.table_key(cx, |t| t.move_lead_to_edge(true, false))
-                }))
-                .on_action(cx.listener(|this, _: &ExtendFirstRow, _w, cx| {
-                    this.table_key(cx, |t| t.move_lead_to_edge(false, true))
-                }))
-                .on_action(cx.listener(|this, _: &ExtendLastRow, _w, cx| {
-                    this.table_key(cx, |t| t.move_lead_to_edge(true, true))
-                }))
-                .on_action(
-                    cx.listener(|this, _: &EditFocusedCell, w, cx| this.edit_focused_cell(w, cx)),
-                )
-                .on_action(cx.listener(|this, _: &NextCell, w, cx| this.step_cell(true, w, cx)))
-                .on_action(cx.listener(|this, _: &PrevCell, w, cx| this.step_cell(false, w, cx)))
-                .flex()
-                .flex_col()
-                .flex_1()
-                .mx(u(8.0))
-                .mb(u(8.0))
-                .border_1()
-                .border_color(hsla(t.md_outline_variant))
-                .rounded(u(mmcl_theme::shape::SMALL))
-                .overflow_hidden()
-                .child(header)
-                .children(empty)
-                .when(count > 0, |el| el.child(rows)),
-        )
+                .flex_none()
+                .px(u(8.0))
+                .pb(u(8.0))
+                .text_size(u(12.0))
+                .text_color(hsla(t.md_on_surface_variant))
+                .child(t!("editor.optional.hint").into_owned())
+        });
+        div()
+            .flex()
+            .flex_col()
+            .size_full()
+            .child(toolbar)
+            .children(optional_hint)
+            .child(
+                div()
+                    .id(("editor-table", li))
+                    .key_context(TABLE_KEY_CONTEXT)
+                    .track_focus(&self.table_focus)
+                    .aria_label(tab_name(list))
+                    .on_action(cx.listener(|this, _: &SelectAllRows, _w, cx| {
+                        this.table_key(cx, |t| {
+                            t.select_all_shown();
+                            None
+                        })
+                    }))
+                    .on_action(cx.listener(|this, _: &SelectPrevRow, _w, cx| {
+                        this.table_key(cx, |t| t.move_lead(-1, false))
+                    }))
+                    .on_action(cx.listener(|this, _: &SelectNextRow, _w, cx| {
+                        this.table_key(cx, |t| t.move_lead(1, false))
+                    }))
+                    .on_action(cx.listener(|this, _: &ExtendPrevRow, _w, cx| {
+                        this.table_key(cx, |t| t.move_lead(-1, true))
+                    }))
+                    .on_action(cx.listener(|this, _: &ExtendNextRow, _w, cx| {
+                        this.table_key(cx, |t| t.move_lead(1, true))
+                    }))
+                    .on_action(cx.listener(|this, _: &SelectPageUp, _w, cx| {
+                        this.table_key(cx, |t| t.move_lead(-PAGE_ROWS, false))
+                    }))
+                    .on_action(cx.listener(|this, _: &SelectPageDown, _w, cx| {
+                        this.table_key(cx, |t| t.move_lead(PAGE_ROWS, false))
+                    }))
+                    .on_action(cx.listener(|this, _: &SelectFirstRow, _w, cx| {
+                        this.table_key(cx, |t| t.move_lead_to_edge(false, false))
+                    }))
+                    .on_action(cx.listener(|this, _: &SelectLastRow, _w, cx| {
+                        this.table_key(cx, |t| t.move_lead_to_edge(true, false))
+                    }))
+                    .on_action(cx.listener(|this, _: &ExtendFirstRow, _w, cx| {
+                        this.table_key(cx, |t| t.move_lead_to_edge(false, true))
+                    }))
+                    .on_action(cx.listener(|this, _: &ExtendLastRow, _w, cx| {
+                        this.table_key(cx, |t| t.move_lead_to_edge(true, true))
+                    }))
+                    .on_action(
+                        cx.listener(|this, _: &EditFocusedCell, w, cx| {
+                            this.edit_focused_cell(w, cx)
+                        }),
+                    )
+                    .on_action(cx.listener(|this, _: &NextCell, w, cx| this.step_cell(true, w, cx)))
+                    .on_action(
+                        cx.listener(|this, _: &PrevCell, w, cx| this.step_cell(false, w, cx)),
+                    )
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .mx(u(8.0))
+                    .mb(u(8.0))
+                    .border_1()
+                    .border_color(hsla(t.md_outline_variant))
+                    .rounded(u(mmcl_theme::shape::SMALL))
+                    .overflow_hidden()
+                    .child(header)
+                    .children(empty)
+                    .when(count > 0, |el| el.child(rows)),
+            )
     }
 
     fn render_row(
@@ -2028,11 +2084,11 @@ impl ModpackEditor {
                         .into_any_element();
                 }
                 match c {
-                    Column::Client | Column::Server => {
-                        let value = if c == Column::Client {
-                            row.client_req
-                        } else {
-                            row.server_req
+                    Column::Client | Column::Server | Column::DefaultOn => {
+                        let value = match c {
+                            Column::Client => row.client_req,
+                            Column::Server => row.server_req,
+                            _ => row.default_enabled,
                         };
                         base.child(
                             Checkbox::new(("editor-check", rid * 16 + col_ix(c)))
@@ -2231,9 +2287,9 @@ impl Render for ModpackEditor {
                 cx.notify();
             }))
             .children(
-                TAB_KEYS
-                    .iter()
-                    .map(|k| Tab::new().label(t!(*k).into_owned())),
+                tab_keys()
+                    .into_iter()
+                    .map(|k| Tab::new().label(t!(k).into_owned())),
             );
         let body = if self.tab == 0 {
             self.render_metadata(cx).into_any_element()

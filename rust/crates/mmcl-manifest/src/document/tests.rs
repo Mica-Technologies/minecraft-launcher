@@ -66,6 +66,11 @@ fn blank_document_defaults() {
     assert_eq!(d.get_string("packModLoader"), "forge");
     assert!(d.json()[KEY_SCAN_EXCLUSIONS].is_array());
     for list in FileList::ALL {
+        if list.is_optional() {
+            // packOptionalMods is left out until a pack has an optional mod.
+            assert!(!d.json().contains_key(list.key()));
+            continue;
+        }
         assert!(
             d.json()[list.key()].is_array(),
             "{} should be an array",
@@ -674,6 +679,15 @@ fn file_list_shapes_match_the_manifest_format() {
     assert!(!FileList::ResourcePacks.has_side_flags());
     assert!(!FileList::ShaderPacks.has_side_flags());
     assert!(!FileList::InitialFiles.has_name() && FileList::InitialFiles.has_side_flags());
+    assert_eq!(FileList::OptionalMods.key(), "packOptionalMods");
+    assert!(FileList::OptionalMods.has_name() && FileList::OptionalMods.has_side_flags());
+    assert!(FileList::OptionalMods.is_optional() && !FileList::OptionalMods.server_req_default());
+    assert!(FileList::ALL.iter().filter(|l| l.is_optional()).count() == 1);
+    assert_eq!(
+        FileList::ALL[1],
+        FileList::OptionalMods,
+        "Java's enum order"
+    );
     for list in FileList::ALL {
         assert!(list.label_key().starts_with("editor.validate.label."));
     }

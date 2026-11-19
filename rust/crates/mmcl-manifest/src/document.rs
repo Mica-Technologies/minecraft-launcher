@@ -84,6 +84,11 @@ impl DocError {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum FileList {
     Mods,
+    /// `packOptionalMods`: mods each player switches on or off. Entries carry everything a
+    /// [`FileList::Mods`] entry does plus `description`, `defaultEnabled`, `requires` and
+    /// `conflictsWith`; an absent `serverReq` means false, and the key is left out of the
+    /// manifest while the list is empty.
+    OptionalMods,
     Configs,
     ResourcePacks,
     ShaderPacks,
@@ -92,8 +97,9 @@ pub enum FileList {
 
 impl FileList {
     /// Every list, in manifest order.
-    pub const ALL: [FileList; 5] = [
+    pub const ALL: [FileList; 6] = [
         FileList::Mods,
+        FileList::OptionalMods,
         FileList::Configs,
         FileList::ResourcePacks,
         FileList::ShaderPacks,
@@ -104,6 +110,7 @@ impl FileList {
     pub fn key(self) -> &'static str {
         match self {
             FileList::Mods => "packMods",
+            FileList::OptionalMods => "packOptionalMods",
             FileList::Configs => "packConfigs",
             FileList::ResourcePacks => "packResourcePacks",
             FileList::ShaderPacks => "packShaderPacks",
@@ -111,9 +118,9 @@ impl FileList {
         }
     }
 
-    /// Whether entries carry a `name` (mods only).
+    /// Whether entries carry a `name` (mods and optional mods).
     pub fn has_name(self) -> bool {
-        self == FileList::Mods
+        matches!(self, FileList::Mods | FileList::OptionalMods)
     }
 
     /// Whether entries carry `clientReq` / `serverReq`.
@@ -121,10 +128,23 @@ impl FileList {
         !matches!(self, FileList::ResourcePacks | FileList::ShaderPacks)
     }
 
+    /// Whether entries carry the optional-mod fields (`description`, `defaultEnabled`,
+    /// `requires`, `conflictsWith`): [`FileList::OptionalMods`] only.
+    pub fn is_optional(self) -> bool {
+        self == FileList::OptionalMods
+    }
+
+    /// The `serverReq` of an entry whose JSON has none: false for optional mods (client-only
+    /// unless the author says otherwise), true for every other list.
+    pub fn server_req_default(self) -> bool {
+        !self.is_optional()
+    }
+
     /// Localization key naming the list in validation messages.
     pub fn label_key(self) -> &'static str {
         match self {
             FileList::Mods => "editor.validate.label.mods",
+            FileList::OptionalMods => "editor.validate.label.optionalMods",
             FileList::Configs => "editor.validate.label.configs",
             FileList::ResourcePacks => "editor.validate.label.resourcePacks",
             FileList::ShaderPacks => "editor.validate.label.shaderPacks",
@@ -148,6 +168,14 @@ pub struct FileEntry {
     server_req: bool,
     modrinth_slug: String,
     extra_hashes: BTreeMap<String, String>,
+    /// Optional mods only: the text shown to the player next to the toggle.
+    description: String,
+    /// Optional mods only: on for a player who has not chosen.
+    default_enabled: bool,
+    /// Optional mods only: the `local` names that must be on with this one.
+    requires: Vec<String>,
+    /// Optional mods only: the `local` names that must be off while this one is on.
+    conflicts_with: Vec<String>,
 }
 
 impl Default for FileEntry {
@@ -162,8 +190,22 @@ impl Default for FileEntry {
             server_req: true,
             modrinth_slug: String::new(),
             extra_hashes: BTreeMap::new(),
+            description: String::new(),
+            default_enabled: false,
+            requires: Vec::new(),
+            conflicts_with: Vec::new(),
         }
     }
+}
+
+/// Trimmed, non-blank names.
+fn clean_names<S: AsRef<str>>(values: &[S]) -> Vec<String> {
+    values
+        .iter()
+        .map(|v| v.as_ref().trim())
+        .filter(|v| !v.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 impl FileEntry {
@@ -267,6 +309,37 @@ impl FileEntry {
     pub fn extra_hashes(&self) -> &BTreeMap<String, String> {
         &self.extra_hashes
     }
+
+    /// Optional mods: the description shown to the player (`""` for other lists).
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+    pub fn set_description(&mut self, v: impl Into<String>) {
+        self.description = v.into();
+    }
+    /// Optional mods: on for a player who has not chosen.
+    pub fn default_enabled(&self) -> bool {
+        self.default_enabled
+    }
+    pub fn set_default_enabled(&mut self, v: bool) {
+        self.default_enabled = v;
+    }
+    /// Optional mods: the `local` names this one requires.
+    pub fn requires(&self) -> &[String] {
+        &self.requires
+    }
+    /// Replaces `requires`; blank names are dropped and the rest trimmed.
+    pub fn set_requires<S: AsRef<str>>(&mut self, values: &[S]) {
+        self.requires = clean_names(values);
+    }
+    /// Optional mods: the `local` names that must be off while this one is on.
+    pub fn conflicts_with(&self) -> &[String] {
+        &self.conflicts_with
+    }
+    /// Replaces `conflictsWith`; blank names are dropped and the rest trimmed.
+    pub fn set_conflicts_with<S: AsRef<str>>(&mut self, values: &[S]) {
+        self.conflicts_with = clean_names(values);
+    }
 }
 
 /// Resolves a localization key and its arguments to display text. Production passes the
@@ -308,6 +381,26 @@ fn read_hash(obj: &Map<String, Value>, key: &str) -> Option<String> {
     (!v.trim().is_empty() && v != "-1").then_some(v)
 }
 
+/// An entry's array of names: primitives as text, trimmed, blanks and anything else skipped;
+/// empty when absent or not an array.
+fn name_array(obj: &Map<String, Value>, key: &str) -> Vec<String> {
+    match obj.get(key) {
+        Some(Value::Array(items)) => clean_names(
+            &items
+                .iter()
+                .filter(|v| !v.is_array() && !v.is_object())
+                .filter_map(coerce_string)
+                .collect::<Vec<_>>(),
+        ),
+        _ => Vec::new(),
+    }
+}
+
+/// The key optional-mod rules compare names by: normalised and lower-cased.
+fn name_key(local: &str) -> String {
+    normalize_mod_local_path(local).to_lowercase()
+}
+
 /// A headless, editable modpack manifest.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ModPackDocument {
@@ -343,7 +436,8 @@ impl ModPackDocument {
         ] {
             doc.insert(key.into(), value);
         }
-        for list in FileList::ALL {
+        // packOptionalMods is left out until the pack has an optional mod.
+        for list in FileList::ALL.into_iter().filter(|l| !l.is_optional()) {
             doc.insert(list.key().into(), Value::Array(Vec::new()));
         }
         ModPackDocument { doc }
@@ -479,6 +573,11 @@ impl ModPackDocument {
                 // editor always writes both flags back: reading `null` as true would turn a
                 // server-only mod into a client download on the next save.
                 let flag = |k: &str| !list.has_side_flags() || obj.get(k).is_none_or(coerce_bool);
+                // An optional mod is client-only unless its entry says otherwise.
+                let server_flag = !list.has_side_flags()
+                    || obj
+                        .get("serverReq")
+                        .map_or(list.server_req_default(), coerce_bool);
                 let sha1 = read_hash(obj, "sha1");
                 let md5 = read_hash(obj, "md5");
                 let sha256 = read_hash(obj, "sha256");
@@ -502,7 +601,7 @@ impl ModPackDocument {
                     hash,
                     Some(hash_type),
                     flag("clientReq"),
-                    flag("serverReq"),
+                    server_flag,
                 );
                 for (algo, value) in [("sha1", &sha1), ("md5", &md5), ("sha256", &sha256)] {
                     if hash_type != algo {
@@ -511,6 +610,16 @@ impl ModPackDocument {
                 }
                 if obj.contains_key("modrinthSlug") {
                     entry.set_modrinth_slug(text("modrinthSlug"));
+                }
+                if list.is_optional() {
+                    entry.set_description(text("description"));
+                    entry.set_default_enabled(
+                        obj.get("defaultEnabled")
+                            .and_then(element_bool)
+                            .unwrap_or(false),
+                    );
+                    entry.set_requires(&name_array(obj, "requires"));
+                    entry.set_conflicts_with(&name_array(obj, "conflictsWith"));
                 }
                 entry
             })
@@ -558,9 +667,27 @@ impl ModPackDocument {
                 if !e.modrinth_slug().is_empty() {
                     obj.insert("modrinthSlug".into(), Value::from(e.modrinth_slug()));
                 }
+                if list.is_optional() {
+                    obj.insert("description".into(), Value::from(e.description()));
+                    obj.insert("defaultEnabled".into(), Value::from(e.default_enabled()));
+                    for (key, names) in [
+                        ("requires", e.requires()),
+                        ("conflictsWith", e.conflicts_with()),
+                    ] {
+                        if !names.is_empty() {
+                            obj.insert(key.into(), Value::from(names.to_vec()));
+                        }
+                    }
+                }
                 Value::Object(obj)
             })
-            .collect();
+            .collect::<Vec<_>>();
+        if list.is_optional() && array.is_empty() {
+            // Leave the key out rather than writing an empty array, so saving a pack that has
+            // no optional mods does not add a key it never had.
+            self.doc.shift_remove(list.key());
+            return;
+        }
         self.doc.insert(list.key().into(), Value::Array(array));
     }
 
@@ -583,9 +710,14 @@ impl ModPackDocument {
         self.read_file_list(FileList::Mods)
     }
 
+    /// The optional mods (`packOptionalMods`), in manifest order.
+    pub fn optional_mods(&self) -> Vec<FileEntry> {
+        self.read_file_list(FileList::OptionalMods)
+    }
+
     /// Appends a mod unless its local path is blank or names (ignoring case) the same file as
-    /// an existing mod's, both compared after [`normalize_mod_local_path`] so `mods/jei.jar` and
-    /// `jei.jar` collide.
+    /// an existing mod's or optional mod's, both compared after [`normalize_mod_local_path`] so
+    /// `mods/jei.jar` and `jei.jar` collide: a file may be a mod or an optional mod, never both.
     pub fn add_mod(&mut self, entry: FileEntry) -> bool {
         if entry.local().trim().is_empty() {
             return false;
@@ -594,6 +726,7 @@ impl ModPackDocument {
         let mut mods = self.mods();
         if mods
             .iter()
+            .chain(self.optional_mods().iter())
             .any(|m| crate::eq_ignore_case(&normalize_mod_local_path(m.local()), &key))
         {
             return false;
@@ -733,8 +866,79 @@ impl ModPackDocument {
             }
         }
 
+        issues.extend(self.validate_optional_mods(resolve));
+
         if let Some(problem) = gson::compat_problems(&self.to_value()).into_iter().next() {
             issues.push(resolve("editor.validate.roundTripFailed", &[problem]));
+        }
+        issues
+    }
+
+    /// The optional-mod rules a pack must satisfy before it can be saved: every optional mod's
+    /// `local` is a plain file name (no folder, not even `mods/`), no file is both a mod and an
+    /// optional mod, no optional mod is listed twice, and every name in an optional mod's
+    /// `requires` or `conflictsWith` is another optional mod of this pack. Names are compared
+    /// after [`normalize_mod_local_path`], ignoring case. The editor refuses to save while this
+    /// returns anything.
+    pub fn validate_optional_mods(&self, resolve: MessageResolver<'_>) -> Vec<String> {
+        let mut issues = Vec::new();
+        let optional = self.optional_mods();
+        if optional.is_empty() {
+            return issues;
+        }
+        let required: std::collections::HashSet<String> =
+            self.mods().iter().map(|m| name_key(m.local())).collect();
+        let mut optional_keys = std::collections::HashSet::new();
+        let mut reported = std::collections::HashSet::new();
+        for m in &optional {
+            let key = name_key(m.local());
+            if key.is_empty() {
+                continue;
+            }
+            let shown = normalize_mod_local_path(m.local());
+            let plain = m.local().trim().replace('\\', "/");
+            if plain.contains('/') {
+                // The sync joins local to the mods folder as written, so mods/x.jar would
+                // install to mods/mods/x.jar, where the game does not load it.
+                let file = plain.rsplit('/').next().unwrap_or("").to_string();
+                issues.push(resolve(
+                    "editor.validate.optional.folder",
+                    &[m.local().trim().to_string(), file],
+                ));
+            }
+            if required.contains(&key) {
+                issues.push(resolve(
+                    "editor.validate.optional.inBothLists",
+                    std::slice::from_ref(&shown),
+                ));
+            }
+            if !optional_keys.insert(key.clone()) && reported.insert(key) {
+                issues.push(resolve("editor.validate.optional.duplicate", &[shown]));
+            }
+        }
+        for m in &optional {
+            let own_key = name_key(m.local());
+            let own_name = normalize_mod_local_path(m.local());
+            let lists = [
+                (m.requires(), "editor.validate.optional.unknownRequires"),
+                (
+                    m.conflicts_with(),
+                    "editor.validate.optional.unknownConflict",
+                ),
+            ];
+            for (names, unknown_key) in lists {
+                for name in names {
+                    let key = name_key(name);
+                    if key == own_key {
+                        issues.push(resolve(
+                            "editor.validate.optional.selfReference",
+                            std::slice::from_ref(&own_name),
+                        ));
+                    } else if !optional_keys.contains(&key) {
+                        issues.push(resolve(unknown_key, &[own_name.clone(), name.clone()]));
+                    }
+                }
+            }
         }
         issues
     }
@@ -792,5 +996,7 @@ pub fn first_line(text: Option<&str>) -> String {
         .to_string()
 }
 
+#[cfg(test)]
+mod optional_tests;
 #[cfg(test)]
 mod tests;

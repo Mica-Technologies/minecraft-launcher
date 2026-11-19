@@ -141,6 +141,13 @@ impl EditorModel {
             .collect()
     }
 
+    /// The optional-mod problems that block a save (`ModPackDocument::validate_optional_mods`),
+    /// after collecting the tables into the document. Empty means the save may go ahead.
+    pub fn optional_problems(&mut self) -> Vec<String> {
+        self.collect();
+        self.document.validate_optional_mods(&localize)
+    }
+
     /// The diff of the saved snapshot -> now; `None` when nothing changed.
     pub fn diff(&mut self) -> Option<String> {
         let current = self.current_json();
@@ -266,6 +273,37 @@ mod tests {
         assert!(!m.is_dirty());
         let mods = m.document.read_file_list(FileList::Mods);
         assert_eq!(mods[0].name(), "b");
+    }
+
+    #[test]
+    fn optional_mods_round_trip_and_bad_ones_block_the_save() {
+        let mut m = EditorModel::new();
+        let doc = ModPackDocument::from_json(
+            r#"{"packName":"P","packVersion":"1","packMods":[{"name":"J","remote":"r","local":"jei.jar"}],
+                "packOptionalMods":[{"name":"A","remote":"r","local":"ausm.jar","description":"d",
+                "requires":["lib.jar"]},{"name":"L","remote":"r","local":"lib.jar","defaultEnabled":true}]}"#,
+        )
+        .unwrap();
+        m.adopt(doc, None);
+        assert!(!m.is_dirty(), "an editor save keeps the optional list");
+        assert!(m.optional_problems().is_empty());
+
+        // A new optional row is client-only; a mod row is not.
+        let t = m.table_mut(FileList::OptionalMods);
+        let id = t.add_row();
+        assert!(!t.row(id).unwrap().server_req);
+        assert!(m.table(FileList::Mods).rows().all(|r| r.server_req));
+        let t = m.table_mut(FileList::OptionalMods);
+        t.set_text(id, crate::table::Column::Local, "mods/jei.jar");
+        t.set_text(id, crate::table::Column::Remote, "r");
+        t.set_text(id, crate::table::Column::Requires, "ghost.jar");
+        let problems = m.optional_problems();
+        assert_eq!(problems.len(), 3, "{problems:?}");
+
+        // A blank optional list leaves the key out.
+        let mut m = EditorModel::new();
+        assert!(m.optional_problems().is_empty());
+        assert!(!m.current_json().contains("packOptionalMods"));
     }
 
     #[test]
