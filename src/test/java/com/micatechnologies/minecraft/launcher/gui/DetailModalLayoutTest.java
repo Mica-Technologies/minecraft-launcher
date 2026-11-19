@@ -35,43 +35,36 @@ import static org.junit.jupiter.api.Assertions.*;
 class DetailModalLayoutTest
 {
     @Test
-    void installedModpackGetsEveryTaskTabInOrder()
+    void installedPackGetsEveryTaskTabInOrder()
     {
         assertEquals( List.of( TAB_OVERVIEW, TAB_MODS, TAB_FILES, TAB_ACTIVITY, TAB_SETTINGS ),
-                      tabsFor( false, false, true, true ) );
+                      tabsFor( false, true, true ) );
     }
 
     @Test
     void problemsFollowOverview()
     {
         assertEquals( List.of( TAB_OVERVIEW, TAB_PROBLEMS, TAB_MODS, TAB_FILES, TAB_ACTIVITY, TAB_SETTINGS ),
-                      tabsFor( true, false, true, true ) );
+                      tabsFor( true, true, true ) );
     }
 
     @Test
-    void vanillaInstallHasNoModsTab()
+    void packWithoutFolderGetsOverviewAndSettings()
     {
-        assertEquals( List.of( TAB_OVERVIEW, TAB_FILES, TAB_ACTIVITY, TAB_SETTINGS ),
-                      tabsFor( false, true, true, true ) );
-    }
-
-    @Test
-    void packWithoutFolderKeepsModsForItsOptionalModsAndSettings()
-    {
-        assertEquals( List.of( TAB_OVERVIEW, TAB_MODS, TAB_SETTINGS ), tabsFor( false, false, false, true ) );
+        assertEquals( List.of( TAB_OVERVIEW, TAB_SETTINGS ), tabsFor( false, false, true ) );
     }
 
     @Test
     void packWithNeitherFolderNorSettingsKeyIsOverviewOnly()
     {
-        assertEquals( List.of( TAB_OVERVIEW ), tabsFor( false, false, false, false ) );
-        assertEquals( List.of( TAB_OVERVIEW ), tabsFor( false, true, false, false ) );
+        assertEquals( List.of( TAB_OVERVIEW ), tabsFor( false, false, false ) );
+        assertEquals( List.of( TAB_OVERVIEW, TAB_PROBLEMS ), tabsFor( true, false, false ) );
     }
 
     @Test
     void packWithFolderButNoSettingsKeyHasNoSettingsTab()
     {
-        assertEquals( List.of( TAB_OVERVIEW, TAB_MODS, TAB_FILES, TAB_ACTIVITY ), tabsFor( false, false, true, false ) );
+        assertEquals( List.of( TAB_OVERVIEW, TAB_MODS, TAB_FILES, TAB_ACTIVITY ), tabsFor( false, true, false ) );
     }
 
     private static GameOptionalMod mod( String local, boolean client )

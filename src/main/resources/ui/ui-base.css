@@ -1033,11 +1033,11 @@
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 32, 0.30, 0, 12);
 }
 
-/* Hero image section at the top of the modal card. Top corners rounded to
- * match the card; bottom corners square so the image sits flush with the body. */
+/* Hero image section at the top of the modal card. Square: the scroll area's
+ * clip rounds the card's top corners, and the hero scrolls away under it. */
 .modpackDetailHero {
     -fx-background-color: -color-bg-soft;
-    -fx-background-radius: 28 28 0 0;
+    -fx-background-radius: 0;
     -fx-border-color: -color-border;
     -fx-border-width: 0 0 1 0;
 }
@@ -1046,7 +1046,7 @@
  * sit, so they read against bright pack imagery without darkening the entire
  * hero. */
 .modpackDetailHeroVeil {
-    -fx-background-radius: 28 28 0 0;
+    -fx-background-radius: 0;
     -fx-background-color:
         linear-gradient(to bottom right,
             rgba(0, 0, 0, 0.70) 0%,

@@ -100,7 +100,7 @@ import java.util.function.Supplier;
  *       <li><b>Overview</b> (default) — What's new (a pending update), the Optional mods
  *           summary with a Choose button, News, Links, At a glance (stats), Quick actions.</li>
  *       <li><b>Problems</b> — files re-downloaded on every launch (only when there are some).</li>
- *       <li><b>Mods</b> — the Optional mods switches, then the installed mods (modded packs).</li>
+ *       <li><b>Mods</b> — the Optional mods switches, then the installed mods (needs an install folder).</li>
  *       <li><b>Worlds &amp; files</b> — Worlds / Servers / Screenshots / Shader packs /
  *           Resource packs (only when the pack has an install folder).</li>
  *       <li><b>Activity</b> — Update log and Crash history.</li>
@@ -588,7 +588,7 @@ public class MCLauncherModpackDetailModal extends StackPane
             }
         }
 
-        java.util.List< String > tabs = DetailModalLayout.tabsFor( !currentProblems.isEmpty(), pack.isVanillaVersion(),
+        java.util.List< String > tabs = DetailModalLayout.tabsFor( !currentProblems.isEmpty(),
                                                                    pack.getPackRootFolder() != null,
                                                                    pack.getSettingsKey() != null );
         tabBar = buildTabBar( pack, tabs, gen );
@@ -656,6 +656,9 @@ public class MCLauncherModpackDetailModal extends StackPane
             if ( was.getHeight() == now.getHeight() ) {
                 return;
             }
+            // A wheel glide in progress keeps heading for the same pixel position.
+            double viewport = scroll.getViewportBounds().getHeight();
+            SmoothScroll.contentResized( scroll, was.getHeight() - viewport, now.getHeight() - viewport );
             restoreScrollOffset();
             if ( !contentResizing ) {
                 contentResizing = true;
@@ -1131,8 +1134,9 @@ public class MCLauncherModpackDetailModal extends StackPane
         hero.prefHeightProperty().bind( heroHeight );
         hero.maxHeightProperty().bind( heroHeight );
 
-        // Rounded-top clip so the hero image respects the modal card's corner radius.
-        Rectangle clip = ShapeScale.round( new Rectangle(), ShapeScale.EXTRA_LARGE );
+        // Square clip: the scroll area's own clip rounds the card's top corners. The hero is only
+        // as wide as the viewport, so rounding it too would leave a wedge beside the scrollbar.
+        Rectangle clip = new Rectangle();
         clip.widthProperty().bind( hero.widthProperty() );
         clip.heightProperty().bind( hero.heightProperty() );
         hero.setClip( clip );

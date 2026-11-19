@@ -31,6 +31,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.PixelReader;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
@@ -236,6 +237,32 @@ class DetailModalSnapshotFxTest
                 shoot( robot, theme[ 0 ] + "-" + tab );
             }
 
+            if ( "dark".equals( theme[ 0 ] ) ) {
+                // The mouse wheel (through SmoothScroll's glide) scrolls past the bar and pins it.
+                robot.interact( () -> modal.selectTabForTest( DetailModalLayout.TAB_OVERVIEW ) );
+                settle( 300 );
+                robot.interact( () -> modal.scrollToForTest( 0 ) );
+                settle( 300 );
+                robot.interact( () -> wheel( root.lookup( ".modpackDetailScrollContent" ), 8 ) );
+                settle( 900 );
+                double wheeled = fx( robot, modal::scrollOffsetForTest );
+                assertTrue( modal.isTabBarPinned(), () -> "the wheel scrolls the bar into its pinned place (offset "
+                                                          + wheeled + ")" );
+                assertBarAtViewportTop( robot, root );
+
+                // Resizing keeps a pinned bar pinned, including across the width where the tabs wrap.
+                for ( double[] size : new double[][]{ { 760, 820 }, { 1100, 600 }, { 1100, 820 } } ) {
+                    robot.interact( () -> {
+                        stage.setWidth( size[ 0 ] );
+                        stage.setHeight( size[ 1 ] );
+                    } );
+                    settle( 500 );
+                    assertTrue( modal.isTabBarPinned(), () -> "still pinned at " + size[ 0 ] + "x" + size[ 1 ] );
+                    assertBarAtViewportTop( robot, root );
+                }
+                shoot( robot, "dark-after-resize" );
+            }
+
             // An unpinned position survives a switch: no jump back over the hero.
             robot.interact( () -> modal.scrollToForTest( 60 ) );
             settle( 300 );
@@ -278,6 +305,19 @@ class DetailModalSnapshotFxTest
                                                   + settingsOffset + ", bar at " + settingsPinAt + ")" );
         assertBarAtViewportTop( robot, rootRef.get() );
         shoot( robot, "dark-minsize-settings" );
+
+        // The wheel right after opening a tab for the first time, while its sections still land:
+        // the glide must not stall at the top.
+        robot.interact( () -> modal.scrollToForTest( 0 ) );
+        settle( 300 );
+        robot.interact( () -> {
+            modal.selectTabForTest( DetailModalLayout.TAB_FILES );
+            wheel( rootRef.get().lookup( ".modpackDetailScrollContent" ), 6 );
+        } );
+        settle( 900 );
+        double glided = fx( robot, modal::scrollOffsetForTest );
+        assertTrue( glided > 200, () -> "the wheel moves a tab that is still loading (offset " + glided + ")" );
+        shoot( robot, "dark-minsize-files-wheel" );
         robot.interact( modal::dispose );
     }
 
@@ -325,6 +365,17 @@ class DetailModalSnapshotFxTest
             return new double[]{ viewport.localToScene( 0, 0 ).getY(), bar.localToScene( 0, 0 ).getY() };
         } );
         assertEquals( ys[ 0 ], ys[ 1 ], 1.0, "the pinned tab bar sits at the top of the scroll area" );
+    }
+
+    /** Wheel notches down, delivered as events on a node, so the real mouse never moves. */
+    private static void wheel( Node target, int notches )
+    {
+        for ( int i = 0; i < notches; i++ ) {
+            javafx.event.Event.fireEvent( target, new ScrollEvent(
+                    ScrollEvent.SCROLL, 20, 20, 20, 20, false, false, false, false, false, false,
+                    0, -40, 0, -40, ScrollEvent.HorizontalTextScrollUnits.NONE, 0,
+                    ScrollEvent.VerticalTextScrollUnits.NONE, 0, 0, null ) );
+        }
     }
 
     private static MFXButton findButton( StackPane root, String text )
