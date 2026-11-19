@@ -52,12 +52,14 @@ class OptionalModSyncTest
                 { "name": "AUSM", "remote": "https://example.invalid/ausm.jar", "local": "ausm.jar",
                   "sha256": "abc", "description": "Shader support", "requires": ["lib.jar"],
                   "conflictsWith": ["celeritas-extra.jar"] },
-                { "name": "Lib", "remote": "https://example.invalid/lib.jar", "local": "mods/lib.jar",
+                { "name": "Lib", "remote": "https://example.invalid/lib.jar", "local": "lib.jar",
                   "serverReq": true, "defaultEnabled": true },
                 { "name": "Extra", "remote": "https://example.invalid/x.jar", "local": "celeritas-extra.jar",
                   "clientReq": false, "serverReq": true },
                 { "name": "Dup", "remote": "https://example.invalid/jei2.jar", "local": "JEI.jar",
-                  "defaultEnabled": true }
+                  "defaultEnabled": true },
+                { "name": "Nested", "remote": "https://example.invalid/n.jar", "local": "mods/nested.jar",
+                  "defaultEnabled": true, "serverReq": true }
               ]
             }
             """;
@@ -80,7 +82,7 @@ class OptionalModSyncTest
     void theGsonModelAppliesOptionalSideDefaultsAndReadsTheExtraFields()
     {
         List< GameOptionalMod > optional = pack().getPackOptionalMods();
-        assertEquals( 4, optional.size() );
+        assertEquals( 5, optional.size() );
 
         GameOptionalMod ausm = optional.get( 0 );
         assertTrue( ausm.isClientSide(), "absent clientReq means client-side" );
@@ -92,12 +94,17 @@ class OptionalModSyncTest
         assertEquals( "AUSM", ausm.getDisplayName() );
 
         GameOptionalMod lib = optional.get( 1 );
-        assertEquals( "lib.jar", lib.getLocalName(), "a leading mods/ is not part of the name" );
+        assertEquals( "lib.jar", lib.getLocalName() );
+        assertTrue( lib.isPlainFileName() );
         assertTrue( lib.isServerSide() );
         assertTrue( lib.isDefaultEnabled() );
 
         GameOptionalMod extra = optional.get( 2 );
         assertFalse( extra.isClientSide() );
+
+        GameOptionalMod nested = optional.get( 4 );
+        assertEquals( "nested.jar", nested.getLocalName(), "a leading mods/ is not part of the name" );
+        assertFalse( nested.isPlainFileName() );
     }
 
     @Test
@@ -139,6 +146,14 @@ class OptionalModSyncTest
     }
 
     @Test
+    void anOptionalModWhoseFileNameHoldsAFolderIsNeverInstalled()
+    {
+        // mods/nested.jar would land in mods/mods/, where the game never loads it.
+        assertFalse( keys( GameModPackFileSync.modsForSide( pack(), GameMode.CLIENT, Map.of() ) ).contains( "nested.jar" ) );
+        assertFalse( keys( GameModPackFileSync.modsForSide( pack(), GameMode.SERVER, Map.of() ) ).contains( "nested.jar" ) );
+    }
+
+    @Test
     void noAuthoritativeModListMeansNoExpectedSet()
     {
         GameModPack stub = new GameModPack();
@@ -161,7 +176,7 @@ class OptionalModSyncTest
     @Test
     void enabledKeysFollowTheResolverForTheParsedList()
     {
-        assertEquals( Set.of( "lib.jar", "jei.jar" ),
+        assertEquals( Set.of( "lib.jar", "jei.jar", "nested.jar" ),
                       OptionalModResolver.resolveEnabled( pack().getPackOptionalMods(), Map.of() ) );
     }
 }

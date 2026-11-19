@@ -306,7 +306,7 @@ Vanilla versions get only this control. Packs with a manifest also get the verif
 **Optional mods** (`buildOptionalModsSection`) lists the pack's `packOptionalMods` (see
 `GAME_LAUNCH_SYSTEM.md`, Optional Mods). The list may need the manifest read from disk when the pack
 is a stub, so it loads off the FX thread (`OptionalMods.of`) and the section stays hidden until it
-knows the pack has optional mods. Each mod is an `MFXToggleButton` labelled with its name, its
+knows the pack has client-side optional mods (a server-only one gets no switch). Each mod is an `MFXToggleButton` labelled with its name, its
 description, and muted "Needs: ..." / "Can't be used with: ..." notes (conflicts are shown from both
 sides). A toggle calls `OptionalMods.toggle`, which applies `requires` / `conflictsWith` and stores
 the choice at once. The section then sets every toggle from the result under a re-entrancy guard,

@@ -95,6 +95,18 @@ class PendingUpdateDiffOptionalTest
     }
 
     @Test
+    void aServerOnlyOptionalModIsNeverOfferedToAClient() throws Exception
+    {
+        File[] onDisk = install( "jei.jar" );
+        GameOptionalMod serverOnly = new GameOptionalMod( "Srv", "https://example.invalid/srv.jar", "srv.jar", null,
+                                                          false, true, "", false, null, null );
+        PendingUpdateDiff.Result result = PendingUpdateDiff.compute( List.of( required( "jei.jar" ) ),
+                                                                     List.of( serverOnly ), Set.of(), Set.of(), onDisk );
+        assertTrue( result.newOptionalNames().isEmpty() );
+        assertTrue( result.isEmpty() );
+    }
+
+    @Test
     void anOptionalJarOnDiskIsNeverReportedRemoved() throws Exception
     {
         // Switched off since the last sync: the jar is still there and the sweep will remove it,

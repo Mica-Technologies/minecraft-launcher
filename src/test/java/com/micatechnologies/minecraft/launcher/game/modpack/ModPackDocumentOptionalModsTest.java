@@ -211,10 +211,24 @@ class ModPackDocumentOptionalModsTest
     {
         ModPackDocument doc = ModPackDocument.fromJson( MANIFEST );
         List< ModPackFileEntry > optional = doc.optionalMods();
-        optional.add( new ModPackFileEntry( "JEI", "https://example.invalid/jei.jar", "mods/JEI.jar", "", "sha1",
+        optional.add( new ModPackFileEntry( "JEI", "https://example.invalid/jei.jar", "JEI.jar", "", "sha1",
                                             true, false ) );
         doc.writeFileList( ModPackDocument.FileList.OPTIONAL_MODS, optional );
         assertEquals( List.of( "editor.validate.optional.inBothLists|JEI.jar" ),
+                      doc.validateOptionalMods( ModPackDocumentOptionalModsTest::echo ) );
+    }
+
+    @Test
+    void anOptionalModMustBeAPlainFileName()
+    {
+        ModPackDocument doc = ModPackDocument.fromJson( MANIFEST );
+        List< ModPackFileEntry > optional = doc.optionalMods();
+        optional.get( 1 ).setLocal( "mods/lib.jar" );
+        optional.get( 2 ).setLocal( "extras\\fast.jar" );
+        doc.writeFileList( ModPackDocument.FileList.OPTIONAL_MODS, optional );
+        assertEquals( List.of( "editor.validate.optional.folder|mods/lib.jar|lib.jar",
+                               "editor.validate.optional.folder|extras\\fast.jar|fast.jar",
+                               "editor.validate.optional.unknownConflict|ausm.jar|fast.jar" ),
                       doc.validateOptionalMods( ModPackDocumentOptionalModsTest::echo ) );
     }
 

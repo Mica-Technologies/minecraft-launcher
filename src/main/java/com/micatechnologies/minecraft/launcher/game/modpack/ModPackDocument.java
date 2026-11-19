@@ -1013,7 +1013,8 @@ public class ModPackDocument
     }
 
     /**
-     * Checks the optional-mod rules a pack must satisfy before it can be saved: no file is both
+     * Checks the optional-mod rules a pack must satisfy before it can be saved: every optional
+     * mod's {@code local} is a plain file name (no folder, not even {@code mods/}), no file is both
      * a mod and an optional mod, no optional mod is listed twice, and every name in an optional
      * mod's {@code requires} or {@code conflictsWith} is another optional mod of this pack.
      * Names are compared after {@link #normalizeModLocalPath(String)}, ignoring case.
@@ -1045,6 +1046,13 @@ public class ModPackDocument
                 continue;
             }
             String shown = normalizeModLocalPath( mod.getLocal() );
+            String plain = mod.getLocal().trim().replace( '\\', '/' );
+            if ( plain.contains( "/" ) ) {
+                // The sync joins local to the mods folder as written, so mods/x.jar would install
+                // to mods/mods/x.jar, where the game does not load it.
+                issues.add( resolver.resolve( "editor.validate.optional.folder", mod.getLocal().trim(),
+                                              plain.substring( plain.lastIndexOf( '/' ) + 1 ) ) );
+            }
             if ( required.contains( key ) ) {
                 issues.add( resolver.resolve( "editor.validate.optional.inBothLists", shown ) );
             }

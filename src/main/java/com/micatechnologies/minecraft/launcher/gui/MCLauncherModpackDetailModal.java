@@ -1826,7 +1826,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         SystemUtilities.spawnNewTask( () -> {
             java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod > mods =
                     com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.of( pack );
-            if ( mods.isEmpty() ) {
+            if ( mods.stream().noneMatch( com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod::isClientSide ) ) {
                 return;
             }
             java.util.Set< String > enabled =
@@ -1870,7 +1870,8 @@ public class MCLauncherModpackDetailModal extends StackPane
         final java.util.Map< String, io.github.palexdev.materialfx.controls.MFXToggleButton > toggles =
                 new java.util.LinkedHashMap<>();
         for ( var mod : mods ) {
-            if ( toggles.containsKey( mod.key() ) ) {
+            // A server-only optional mod is never installed on a client, so it gets no switch here.
+            if ( toggles.containsKey( mod.key() ) || !mod.isClientSide() ) {
                 continue;
             }
             io.github.palexdev.materialfx.controls.MFXToggleButton toggle =
