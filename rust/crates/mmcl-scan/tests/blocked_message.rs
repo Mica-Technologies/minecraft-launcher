@@ -6,7 +6,7 @@ use std::path::{MAIN_SEPARATOR, PathBuf};
 
 use mmcl_scan::{Finding, Kind, Results, ScanBlocked, Severity, clean_finding_line};
 
-const FOOTER: &str = "Remove or replace the flagged file(s) before launching again. If you trust this content, you can change this pack's Security Scan Frequency to \"Disabled\" in its Advanced settings to bypass the scan.";
+const FOOTER: &str = "Remove or replace the flagged file(s) before launching again. If you trust this content, you can change this pack's Security Scan Frequency to \"Disabled\" in its Settings tab, under \"Game files\", to bypass the scan.";
 
 fn english() {
     mmcl_i18n::set_locale(mmcl_i18n::Locale::en_us());
