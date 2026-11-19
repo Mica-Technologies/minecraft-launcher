@@ -849,14 +849,15 @@ fn optional_mods_are_switched_in_the_players_config_and_survive_mod_edits() {
     let r = e.set_optional_mod(&id, "mods/ausm.jar", true).unwrap();
     assert!(r.applied);
     assert_eq!(r.changes.len(), 2, "Lib on, Fast off");
-    // Stored under the pack's settings key, in the manifest's spelling.
+    // Stored under the pack's settings key, in the manifest's spelling: the player's pick and
+    // the mod it forced off, but not Lib, which is on only while AUSM needs it.
     let stored = e.config().optional_mod_choices(id.as_str());
     assert_eq!(
         stored
             .iter()
             .map(|(k, v)| (k.as_str(), *v))
             .collect::<Vec<_>>(),
-        [("AUSM.jar", true), ("lib.jar", true), ("fast.jar", false)]
+        [("AUSM.jar", true), ("fast.jar", false)]
     );
     let view = e.optional_mods(&id).unwrap();
     assert_eq!(
