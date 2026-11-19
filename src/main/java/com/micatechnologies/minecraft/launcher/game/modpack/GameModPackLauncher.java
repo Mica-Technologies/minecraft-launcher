@@ -620,7 +620,7 @@ class GameModPackLauncher
      *         with the redundant vanilla {@code bin/minecraft.jar} dropped when
      *         the loader supplies a patched client
      */
-    private static String mergeClasspathsLoaderPriority( String loaderClasspath,
+    static String mergeClasspathsLoaderPriority( String loaderClasspath,
                                                           String mcClasspath )
     {
         java.util.LinkedHashMap< String, String > byCoord = new java.util.LinkedHashMap<>();
@@ -878,7 +878,9 @@ class GameModPackLauncher
             }
             fileSync.fetchLatestMods();
             checkCancelled();
-            if ( Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
+            // A standalone loader profile (Cleanroom) runs LWJGL 3 on 1.12.2: no LWJGL 2 patch,
+            // so no mods to disable for it.
+            if ( !pack.usesStandaloneLoaderProfile() && Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
                 Lwjgl2ArmPatcher.disableIncompatibleMods(
                         pack.getPackRootFolder() + File.separator + "mods" );
             }
@@ -1365,63 +1367,20 @@ class GameModPackLauncher
         // Determine the required Java version from the Minecraft version manifest
         GameLibraryManifest libraryManifest = pack.getMinecraftLibraryManifest();
 
-        String minecraftMainClass;
-        String minecraftArgs = "";
-
-        if ( pack.isVanillaVersion() ) {
-            // Vanilla launch: use mainClass and args from the vanilla manifest
-            try {
-                minecraftMainClass = libraryManifest.getVanillaMainClass();
-                if ( minecraftMainClass == null ) {
-                    minecraftMainClass = "net.minecraft.client.main.Main";
-                }
-            }
-            catch ( Exception e ) {
-                minecraftMainClass = "net.minecraft.client.main.Main";
-            }
-
-            if ( GameModeManager.isClient() ) {
-                minecraftArgs = libraryManifest.getGameArguments();
-            }
+        String vanillaMainClass;
+        try {
+            vanillaMainClass = pack.isVanillaVersion() ? libraryManifest.getVanillaMainClass() : null;
         }
-        else {
-            // Modded launch — dispatch through the polymorphic modloader.
-            GameModLoader loader = pack.getModLoader();
-            if ( GameModeManager.isClient() ) {
-                minecraftMainClass = loader.getMinecraftMainClass();
-            }
-            else {
-                // Server-mode main class: prefer the loader's
-                // getServerMainClass() (legacy Forge ships
-                // ServerLaunchWrapper, Fabric ships FabricServerLauncher);
-                // fall back to the client main when the loader doesn't
-                // have a distinct server entry (modern Forge / NeoForge
-                // use the same BootstrapLauncher class differentiated
-                // by --launchTarget args).
-                String serverMain = loader.getServerMainClass();
-                minecraftMainClass = serverMain != null
-                        ? serverMain
-                        : loader.getMinecraftMainClass();
-            }
-
-            // Build game arguments: combine vanilla game args with the
-            // loader's extra game args.
-            if ( GameModeManager.isClient() ) {
-                String vanillaGameArgs = libraryManifest.getGameArguments();
-                String loaderGameArgs = loader.getMinecraftArguments();
-
-                if ( !loaderGameArgs.isEmpty() && !vanillaGameArgs.isEmpty() &&
-                        !loaderGameArgs.contains( "${auth_player_name}" ) ) {
-                    minecraftArgs = vanillaGameArgs + " " + loaderGameArgs;
-                }
-                else if ( !loaderGameArgs.isEmpty() ) {
-                    minecraftArgs = loaderGameArgs;
-                }
-                else {
-                    minecraftArgs = vanillaGameArgs;
-                }
-            }
+        catch ( Exception e ) {
+            vanillaMainClass = null;
         }
+        MainClassAndGameArgs mainAndArgs = mainClassAndGameArgs(
+                GameModeManager.isClient(),
+                vanillaMainClass,
+                GameModeManager.isClient() ? libraryManifest.getGameArguments() : "",
+                pack.isVanillaVersion() ? null : pack.getModLoader() );
+        String minecraftMainClass = mainAndArgs.mainClass();
+        String minecraftArgs = mainAndArgs.gameArgs();
         String runtimeComponent = libraryManifest.getRequiredRuntimeComponent();
         int requiredJavaMajorVersion = libraryManifest.getRequiredJavaMajorVersion();
         Logger.logStd( LocalizationManager.format( "log.gameModPackLauncher.versionRequiresRuntime",
@@ -1499,7 +1458,16 @@ class GameModPackLauncher
         // (CVE-2021-44228 / Log4Shell mitigation). These also use PatternLayout instead of XMLLayout
         // for the console appender, preventing XML clutter in stdout.
         // See: https://www.minecraft.net/en-us/article/important-message--security-vulnerability-java-edition
-        applyLog4jSecurityConfig( argv, pack.getMinecraftVersion() );
+        // A standalone loader profile (Cleanroom) declares no logging config and ships its own
+        // patched log4j, so Mojang's config file (which replaces the game's logging setup) is not
+        // applied to it; the no-lookups flag still is.
+        final boolean standaloneProfile = libraryManifest.isStandalone();
+        if ( standaloneProfile ) {
+            argv.add( "-Dlog4j2.formatMsgNoLookups=true" );
+        }
+        else {
+            applyLog4jSecurityConfig( argv, pack.getMinecraftVersion() );
+        }
 
         // Add natives path
         String nativesFolder = pack.getPackRootFolder() +
@@ -1524,7 +1492,7 @@ class GameModPackLauncher
         // natives folder instead of extracting x86_64 binaries from the classpath JARs.
         // Also disable the narrator (text2speech) which depends on JNA 4.4 that lacks ARM64 natives,
         // and force JNA to use the system-installed library if available.
-        if ( Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
+        if ( !standaloneProfile && Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
             argv.add( "-Dorg.lwjgl.librarypath=" + nativesFolder );
             argv.add( "-Dnet.java.games.input.librarypath=" + nativesFolder );
             argv.add( "-Djna.nosys=false" );
@@ -1719,6 +1687,78 @@ class GameModPackLauncher
         catch ( IOException e ) {
             throw new ModpackException( LocalizationManager.format( "launch.error.startFailed", extractMessage( e ) ), e );
         }
+    }
+
+    /**
+     * The main class and game arguments of a launch.
+     *
+     * @param mainClass the class the JVM starts
+     * @param gameArgs  the game arguments, space-separated (placeholders not yet substituted)
+     *
+     * @since 2026.11
+     */
+    record MainClassAndGameArgs( String mainClass, String gameArgs ) {}
+
+    /**
+     * Picks a launch's main class and game arguments. Pure, so the per-loader and per-side
+     * choices are tested without a pack.
+     *
+     * <ul>
+     *   <li>Vanilla: the manifest's main class (else {@code net.minecraft.client.main.Main}) and,
+     *       on a client, the manifest's game arguments.</li>
+     *   <li>Modded client: the loader's main class; the vanilla arguments followed by the
+     *       loader's, unless the loader's are a whole template of their own (they carry
+     *       {@code ${auth_player_name}}), which then stand alone.</li>
+     *   <li>Modded server: the loader's server main class (else its client one) and the loader's
+     *       {@linkplain GameModLoader#getServerArguments() server arguments} (Cleanroom's
+     *       {@code --tweakClass} per server tweaker; none for the other loaders).</li>
+     * </ul>
+     *
+     * @param client           whether this is a client launch
+     * @param vanillaMainClass the vanilla manifest's main class, or {@code null}
+     * @param vanillaGameArgs  the manifest's game arguments (empty on a server)
+     * @param loader           the pack's loader, or {@code null} for a vanilla pack
+     *
+     * @return the main class and game arguments
+     *
+     * @throws ModpackException if the loader cannot report its arguments
+     *
+     * @since 2026.11
+     */
+    static MainClassAndGameArgs mainClassAndGameArgs( boolean client, String vanillaMainClass,
+                                                      String vanillaGameArgs, GameModLoader loader )
+            throws ModpackException
+    {
+        String vanillaArgs = vanillaGameArgs == null ? "" : vanillaGameArgs;
+        if ( loader == null ) {
+            String main = vanillaMainClass != null ? vanillaMainClass : "net.minecraft.client.main.Main";
+            return new MainClassAndGameArgs( main, client ? vanillaArgs : "" );
+        }
+        if ( !client ) {
+            // Server-mode main class: prefer the loader's getServerMainClass() (legacy Forge
+            // ships ServerLaunchWrapper, Fabric ships FabricServerLauncher, Cleanroom its
+            // serverMainClass); fall back to the client main when the loader doesn't have a
+            // distinct server entry (modern Forge / NeoForge use the same BootstrapLauncher
+            // class differentiated by --launchTarget args).
+            String serverMain = loader.getServerMainClass();
+            String serverArgs = loader.getServerArguments();
+            return new MainClassAndGameArgs( serverMain != null ? serverMain : loader.getMinecraftMainClass(),
+                                             serverArgs == null ? "" : serverArgs );
+        }
+        // Build game arguments: combine vanilla game args with the loader's extra game args.
+        String loaderGameArgs = loader.getMinecraftArguments();
+        String args;
+        if ( !loaderGameArgs.isEmpty() && !vanillaArgs.isEmpty()
+                && !loaderGameArgs.contains( "${auth_player_name}" ) ) {
+            args = vanillaArgs + " " + loaderGameArgs;
+        }
+        else if ( !loaderGameArgs.isEmpty() ) {
+            args = loaderGameArgs;
+        }
+        else {
+            args = vanillaArgs;
+        }
+        return new MainClassAndGameArgs( loader.getMinecraftMainClass(), args );
     }
 
     /**

@@ -79,6 +79,82 @@ public class GameLibraryManifest extends ManagedGameFile
         super( remote, SystemUtilities.buildFilePath( parentModPack.getPackBinFolder(),
                                                       LocalPathConstants.MINECRAFT_LIBRARY_MANIFEST_FILE_NAME ) );
         this.parentModPack = parentModPack;
+        this.standaloneManifest = null;
+    }
+
+    /**
+     * A loader's standalone version profile (Cleanroom's {@code version.json}), used in place of
+     * the vanilla client.json; {@code null} for Mojang's client.json.
+     *
+     * @since 2026.11
+     */
+    private final JsonObject standaloneManifest;
+
+    /**
+     * Creates a manifest backed by a loader's standalone version profile instead of a downloaded
+     * client.json. Nothing is downloaded or read from {@code bin/libraries.manifest}; every getter
+     * (libraries and natives, Java runtime, asset index, client and server jar, arguments) reads
+     * the given profile.
+     *
+     * @param manifest      the standalone profile; owned by this instance from now on
+     * @param parentModPack parent mod pack
+     *
+     * @since 2026.11
+     */
+    private GameLibraryManifest( JsonObject manifest, GameModPack parentModPack ) {
+        super( "", SystemUtilities.buildFilePath( parentModPack.getPackBinFolder(),
+                                                  LocalPathConstants.MINECRAFT_LIBRARY_MANIFEST_FILE_NAME ) );
+        this.parentModPack = parentModPack;
+        this.standaloneManifest = manifest;
+    }
+
+    /**
+     * Creates a manifest backed by a loader's standalone version profile (see
+     * {@link com.micatechnologies.minecraft.launcher.game.modpack.GameModLoader#getStandaloneVersionManifest()}).
+     *
+     * @param manifest      the standalone profile; owned by the returned instance
+     * @param parentModPack parent mod pack
+     *
+     * @return the manifest
+     *
+     * @since 2026.11
+     */
+    public static GameLibraryManifest standalone( JsonObject manifest, GameModPack parentModPack ) {
+        return new GameLibraryManifest( manifest, parentModPack );
+    }
+
+    /**
+     * Returns whether this manifest is a loader's standalone version profile rather than Mojang's
+     * client.json. Such a profile brings its own LWJGL, so nothing keyed on vanilla's libraries
+     * (the LWJGL 2 ARM64 natives patch) applies, and the natives folder is emptied before its
+     * natives are extracted.
+     *
+     * @return {@code true} for a standalone profile
+     *
+     * @since 2026.11
+     */
+    public boolean isStandalone() {
+        return standaloneManifest != null;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>A standalone profile is returned as given: there is no file to download or read.</p>
+     */
+    @Override
+    public JsonObject readToJsonObject() throws ModpackException {
+        return standaloneManifest != null ? standaloneManifest : super.readToJsonObject();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>A standalone profile has no file: nothing to check or download.</p>
+     */
+    @Override
+    public boolean updateLocalFile( LaunchPrepareContext context ) throws ModpackException {
+        return standaloneManifest == null && super.updateLocalFile( context );
     }
 
     /**
@@ -154,9 +230,9 @@ public class GameLibraryManifest extends ManagedGameFile
      *
      * @since 2026.11
      */
-    static ArrayList< GameLibrary > extractLibraries( JsonObject libManifest,
-                                                      ManifestRuleUtilities.Host host,
-                                                      GameMode side ) throws ModpackException
+    public static ArrayList< GameLibrary > extractLibraries( JsonObject libManifest,
+                                                             ManifestRuleUtilities.Host host,
+                                                             GameMode side ) throws ModpackException
     {
         // Create list to return
         ArrayList< GameLibrary > libraries = new ArrayList<>();
@@ -387,6 +463,13 @@ public class GameLibraryManifest extends ManagedGameFile
                 File.separator +
                 ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER;
 
+        // A standalone profile brings its own LWJGL: natives an earlier vanilla or Forge launch of
+        // this pack left behind (LWJGL 2's lwjgl64.dll, OpenAL64.dll) must not be found, so the
+        // folder is emptied once, before any of this profile's natives are extracted into it.
+        if ( isStandalone() ) {
+            clearNativesFolder( Path.of( localNativePath ) );
+        }
+
         // Get list of libraries
         ArrayList< GameLibrary > libraries = getLibraries( side );
         if ( libraries.isEmpty() ) {
@@ -467,9 +550,11 @@ public class GameLibraryManifest extends ManagedGameFile
                                                                     String.valueOf( causeMessage( e ) ) ), e );
         }
 
-        // Patch LWJGL2 natives for ARM64 if needed (replaces x86_64 dylibs/JARs with ARM64 builds)
+        // Patch LWJGL2 natives for ARM64 if needed (replaces x86_64 dylibs/JARs with ARM64 builds).
+        // Only vanilla's LWJGL 2 natives: a standalone profile (Cleanroom) runs LWJGL 3 with its
+        // own ARM64 natives.
         String mcVersion = parentModPack.getMinecraftVersion();
-        if ( Lwjgl2ArmPatcher.isNeeded( mcVersion ) ) {
+        if ( !isStandalone() && Lwjgl2ArmPatcher.isNeeded( mcVersion ) ) {
             String nativesPath = parentModPack.getPackRootFolder() +
                     File.separator +
                     ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER;
@@ -964,5 +1049,29 @@ public class GameLibraryManifest extends ManagedGameFile
     {
         Throwable cause = e.getCause() != null ? e.getCause() : e;
         return cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
+    }
+
+    /**
+     * Empties a pack's natives folder (and creates it when absent), so natives an earlier launch
+     * of the pack extracted there cannot be loaded by the next one.
+     *
+     * @param nativesFolder the pack's {@code bin/natives} folder
+     *
+     * @throws ModpackException if the folder or something in it cannot be deleted
+     *
+     * @since 2026.11
+     */
+    static void clearNativesFolder( Path nativesFolder ) throws ModpackException
+    {
+        try {
+            File folder = nativesFolder.toFile();
+            if ( folder.exists() ) {
+                org.apache.commons.io.FileUtils.deleteDirectory( folder );
+            }
+            java.nio.file.Files.createDirectories( nativesFolder );
+        }
+        catch ( IOException e ) {
+            throw new ModpackException( LocalizationManager.get( "minecraft.error.nativeExtractFailed" ), e );
+        }
     }
 }
