@@ -479,7 +479,8 @@ public final class ReadOnlyTools
         {
             return "Lists a modpack's optional mods: mods the pack offers that each player switches "
                     + "on or off. For each: its file name (localName, the identifier set_optional_mod "
-                    + "takes), display name, description, whether it is on now, whether it is on by "
+                    + "takes), display name, description, whether it is on now (enabled), whether this "
+                    + "launcher installs it (installs: on and client-side), whether it is on by "
                     + "default, the player's own choice (on, off, or default when following the default), its sides, "
                     + "and the file names it requires and conflicts with.";
         }
@@ -505,6 +506,9 @@ public final class ReadOnlyTools
                 entry.addProperty( "name", mod.name() );
                 entry.addProperty( "description", mod.description() );
                 entry.addProperty( "enabled", mod.enabled() );
+                // "enabled" is the player's on/off state whatever the side; a server-only mod can
+                // be on and still never land in this launcher's mods folder.
+                entry.addProperty( "installs", mod.enabled() && mod.clientSide() );
                 entry.addProperty( "defaultEnabled", mod.defaultEnabled() );
                 entry.addProperty( "playerChoice", mod.playerChoice() == null ? "default"
                                                    : mod.playerChoice() ? "on" : "off" );

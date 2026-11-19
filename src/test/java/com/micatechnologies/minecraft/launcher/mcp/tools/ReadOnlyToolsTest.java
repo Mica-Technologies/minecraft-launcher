@@ -467,6 +467,21 @@ class ReadOnlyToolsTest
         JsonObject lib = result.getAsJsonArray( "optionalMods" ).get( 1 ).getAsJsonObject();
         assertEquals( "default", lib.get( "playerChoice" ).getAsString(), "no choice means following the default" );
         assertTrue( lib.get( "serverSide" ).getAsBoolean() );
+        assertTrue( ausm.get( "installs" ).getAsBoolean() );
+    }
+
+    /** A server-only mod can be on and still never be installed by this launcher. */
+    @Test
+    void aServerOnlyOptionalModIsOnButNotInstalledByTheLauncher()
+    {
+        view.packs.add( new McpLauncherView.PackSummary( "Alto", "1.0", "1.0", false, "forge", true, false ) );
+        view.optional = List.of(
+                new McpLauncherView.OptionalModInfo( "srv.jar", "Server tweak", "", true, true, null, false, true,
+                                                     List.of(), List.of() ) );
+        JsonObject srv = jsonOf( call( "list_optional_mods", packArgs( "Alto" ) ) ).getAsJsonArray( "optionalMods" )
+                                                                              .get( 0 ).getAsJsonObject();
+        assertTrue( srv.get( "enabled" ).getAsBoolean() );
+        assertFalse( srv.get( "installs" ).getAsBoolean() );
     }
 
     @Test
