@@ -718,6 +718,10 @@ public class ConfigManager
     public synchronized static String  getAccountOverrideForPack( String packKey ) { return ModPackConfig.getAccountOverrideForPack( packKey ); }
     /** Sets or clears a pack's account override. @param packKey the pack's settings key. @param uuid the account, or null for the default. @see ModPackConfig#setAccountOverrideForPack(String, String) @since 2026.10 */
     public synchronized static void    setAccountOverrideForPack( String packKey, String uuid ) { ModPackConfig.setAccountOverrideForPack( packKey, uuid ); }
+    /** @return the player's optional-mod choices for a pack (local name to on/off), never null. @param packKey the pack's settings key. @see ModPackConfig#getOptionalModChoices(String) @since 2026.11 */
+    public synchronized static java.util.Map< String, Boolean > getOptionalModChoices( String packKey ) { return ModPackConfig.getOptionalModChoices( packKey ); }
+    /** Replaces the player's optional-mod choices for a pack. @param packKey the pack's settings key. @param choices local name to on/off; empty or null clears them. @see ModPackConfig#setOptionalModChoices(String, java.util.Map) @since 2026.11 */
+    public synchronized static void    setOptionalModChoices( String packKey, java.util.Map< String, Boolean > choices ) { ModPackConfig.setOptionalModChoices( packKey, choices ); }
     /** @return whether the first-launch quick-start wizard has been completed. @see AppConfig#getQuickStartCompleted() @since 1.0 */
     public synchronized static boolean getQuickStartCompleted()         { return AppConfig.getQuickStartCompleted(); }
     /** Sets whether the first-launch quick-start wizard has been completed. @param v the new flag. @see AppConfig#setQuickStartCompleted(boolean) @since 1.0 */

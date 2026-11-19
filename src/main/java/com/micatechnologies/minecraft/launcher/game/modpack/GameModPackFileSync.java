@@ -30,7 +30,11 @@ import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.*;
 
 /**
@@ -64,6 +68,24 @@ class GameModPackFileSync
     private final DownloadTracker              downloadTracker;
 
     /**
+     * Sidecar in the pack root listing the identity keys of every optional mod the manifest
+     * declared at the last successful mod sync, one per line. {@link PendingUpdateDiff} reads it
+     * to tell an optional mod that is new in an update from one the player simply left off.
+     *
+     * @since 2026.11
+     */
+    static final String KNOWN_OPTIONAL_MODS_FILE = ".known_optional_mods";
+
+    /**
+     * The mods this sync installs and keeps on the current side: every {@code packMods} entry plus
+     * the optional mods that are on (see {@link OptionalModResolver#selectForSide}). {@code null}
+     * exactly when {@code packMods} is null, i.e. when there is no authoritative mod list.
+     *
+     * @since 2026.11
+     */
+    private final List< GameMod >              syncedMods;
+
+    /**
      * Creates a new file sync handler for the specified modpack.
      *
      * @param metadata         the modpack metadata (provides paths, file lists, etc.)
@@ -75,10 +97,18 @@ class GameModPackFileSync
         this.progressProvider = progressProvider;
         this.downloadTracker = ( progressProvider != null ) ? progressProvider.getDownloadTracker() : null;
 
+        // The player's optional-mod choices only matter on a client: a dedicated server has no one
+        // to choose, and installs only the optional mods that are server-side and on by default.
+        GameMode side = GameModeManager.getCurrentGameMode();
+        Map< String, Boolean > choices = side == GameMode.CLIENT && metadata instanceof GameModPack pack
+                                         ? OptionalMods.choicesFor( pack )
+                                         : Map.of();
+        this.syncedMods = modsForSide( metadata, side, choices );
+
         // Pre-count total files across all categories so the tracker shows accurate totals from the start
         if ( downloadTracker != null ) {
             long totalFiles = 0;
-            if ( metadata.packMods != null ) totalFiles += metadata.packMods.size();
+            if ( syncedMods != null ) totalFiles += syncedMods.size();
             if ( metadata.packConfigs != null ) totalFiles += metadata.packConfigs.size();
             if ( metadata.packResourcePacks != null && !GameModeManager.isServer() )
                 totalFiles += metadata.packResourcePacks.size();
@@ -149,8 +179,8 @@ class GameModPackFileSync
         // Build list of mod download tasks on the shared bounded download pool.
         // Guarded on non-empty rather than size() > 1: the old `> 1` test silently skipped the
         // entire download block for a single-mod pack, which then launched with that mod missing.
-        if ( !metadata.packMods.isEmpty() ) {
-            final int modCount = metadata.packMods.size();
+        if ( !syncedMods.isEmpty() ) {
+            final int modCount = syncedMods.size();
             // Mods download concurrently on the shared pool, so a per-mod "Downloading X"
             // detail line is last-writer-wins across ~16 threads — the name shown rarely
             // matches the file actually transferring (the "wrong mod name" bug, and the
@@ -163,7 +193,7 @@ class GameModPackFileSync
                 progressProvider.setCurrText( LocalizationManager.format( "fileSync.progress.downloadingMods", 0, modCount ) );
             }
             List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
-            for ( GameMod mod : metadata.packMods ) {
+            for ( GameMod mod : syncedMods ) {
                 Callable< Boolean > updateFileCallable = () -> {
                     mod.setLocalPathPrefix( modLocalPathPrefix );
                     if ( downloadTracker != null ) {
@@ -215,7 +245,7 @@ class GameModPackFileSync
         final GameMode currentMode = GameModeManager.getCurrentGameMode();
         final List< String > missingMods = new ArrayList<>();
         int requiredModCount = 0;
-        for ( GameMod mod : metadata.packMods ) {
+        for ( GameMod mod : syncedMods ) {
             if ( !mod.isRequiredFor( currentMode ) ) {
                 continue;
             }
@@ -232,6 +262,71 @@ class GameModPackFileSync
                     String.join( ", ", missingMods ) ) );
         }
         Logger.logDebug( LocalizationManager.format( "log.gameModPackFileSync.modCheckPassed", metadata.getPackName(), requiredModCount ) );
+        rememberOptionalMods();
+    }
+
+    /**
+     * Records which optional mods the manifest declared at this successful sync, so the next
+     * pending-update diff can tell a newly added optional mod from one the player left off. Best
+     * effort: a failed write only makes the next diff list existing optional mods as new.
+     */
+    private void rememberOptionalMods()
+    {
+        List< String > keys = new ArrayList<>();
+        for ( GameOptionalMod mod : metadata.getPackOptionalMods() ) {
+            if ( !mod.key().isEmpty() ) {
+                keys.add( mod.key() );
+            }
+        }
+        try {
+            PackDotFile.write( metadata.getPackRootFolder(), KNOWN_OPTIONAL_MODS_FILE, String.join( "\n", keys ) );
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackFileSync.knownOptionalWriteFailed",
+                                                                 metadata.getPackName() ) );
+        }
+    }
+
+    /**
+     * Lists the mods a sync installs and keeps on one side: every {@code packMods} entry, then the
+     * optional mods {@link OptionalModResolver#selectForSide} picks. An optional mod whose file is
+     * also a {@code packMods} entry is skipped (the manifest is invalid; the required entry wins).
+     * Side filtering of the {@code packMods} entries themselves stays with
+     * {@link GameMod#isRequiredFor}, as before.
+     *
+     * @param metadata the pack
+     * @param side     the side being synced
+     * @param choices  the player's optional-mod choices; ignored on a server
+     *
+     * @return the mods, or {@code null} when the pack has no authoritative mod list
+     *         ({@code packMods} is null)
+     *
+     * @since 2026.11
+     */
+    static List< GameMod > modsForSide( GameModPackMetadata metadata, GameMode side, Map< String, Boolean > choices )
+    {
+        if ( metadata.packMods == null ) {
+            return null;
+        }
+        List< GameMod > mods = new ArrayList<>( metadata.packMods );
+        List< GameOptionalMod > optional = metadata.getPackOptionalMods();
+        if ( optional.isEmpty() ) {
+            return mods;
+        }
+        Set< String > requiredNames = new HashSet<>();
+        for ( GameMod mod : metadata.packMods ) {
+            requiredNames.add( GameOptionalMod.keyOf( mod.getLocalFilePath() == null ? null
+                                                          : mod.getLocalFilePath().replace( '\\', '/' ) ) );
+        }
+        List< GameOptionalMod > selected = OptionalModResolver.selectForSide( optional, side, choices );
+        for ( GameOptionalMod mod : selected ) {
+            if ( !requiredNames.contains( mod.key() ) ) {
+                mods.add( mod );
+            }
+        }
+        Logger.logDebug( LocalizationManager.format( "log.gameModPackFileSync.optionalSelected", metadata.getPackName(),
+                                                     selected.size(), optional.size() ) );
+        return Collections.unmodifiableList( mods );
     }
 
     /**
@@ -432,15 +527,15 @@ class GameModPackFileSync
                 File.separator +
                 ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
-        // Build list of valid mods
+        // Build list of valid mods: the required mods for this side plus the optional mods that
+        // are on. An optional mod that is off is not in the list, so a jar left from when it was
+        // on is removed here like any other file that does not belong.
         ArrayList< String > validModPaths = new ArrayList<>();
-        if ( metadata.packMods != null ) {
-            for ( GameMod mod : metadata.packMods ) {
-                if ( ( GameModeManager.isClient() && mod.clientReq ) ||
-                        ( GameModeManager.isServer() && mod.serverReq ) ) {
-                    mod.setLocalPathPrefix( modLocalPathPrefix );
-                    validModPaths.add( mod.getFullLocalFilePath() );
-                }
+        for ( GameMod mod : syncedMods ) {
+            if ( ( GameModeManager.isClient() && mod.clientReq ) ||
+                    ( GameModeManager.isServer() && mod.serverReq ) ) {
+                mod.setLocalPathPrefix( modLocalPathPrefix );
+                validModPaths.add( mod.getFullLocalFilePath() );
             }
         }
 

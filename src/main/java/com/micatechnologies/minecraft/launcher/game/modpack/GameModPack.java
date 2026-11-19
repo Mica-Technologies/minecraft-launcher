@@ -1018,6 +1018,50 @@ public class GameModPack extends GameModPackMetadata
     }
 
     /**
+     * The fingerprint the verify fast path and the security-scan schedule compare between
+     * launches: {@link #getManifestContentSha256()}, extended with the optional mods that are on
+     * for the current side when there are any. A pack with no optional mods on keeps exactly its
+     * manifest hash, so existing installs see no change; switching an optional mod on or off
+     * changes the fingerprint, so the next launch hash-verifies every file and the scan sees the
+     * pack as changed.
+     *
+     * @return the fingerprint, or {@code null} when the pack has no manifest hash
+     *
+     * @since 2026.11
+     */
+    public String getVerifyFingerprint() {
+        com.micatechnologies.minecraft.launcher.utilities.objects.GameMode side =
+                com.micatechnologies.minecraft.launcher.config.GameModeManager.getCurrentGameMode();
+        java.util.Map< String, Boolean > choices =
+                side == com.micatechnologies.minecraft.launcher.utilities.objects.GameMode.CLIENT
+                ? OptionalMods.choicesFor( this ) : java.util.Map.of();
+        java.util.List< String > keys = new ArrayList<>();
+        for ( GameOptionalMod mod : OptionalModResolver.selectForSide( getPackOptionalMods(), side, choices ) ) {
+            keys.add( mod.key() );
+        }
+        return verifyFingerprint( manifestContentSha256, keys );
+    }
+
+    /**
+     * Combines a manifest hash with the keys of the optional mods that are on. Pure, for testing.
+     *
+     * @param manifestSha256 the manifest body hash, may be {@code null}
+     * @param enabledKeys    the identity keys of the optional mods that are on
+     *
+     * @return {@code manifestSha256} unchanged when it is {@code null} or no optional mod is on;
+     *         otherwise a SHA-256 over both, independent of the keys' order
+     *
+     * @since 2026.11
+     */
+    static String verifyFingerprint( String manifestSha256, java.util.Collection< String > enabledKeys ) {
+        if ( manifestSha256 == null || enabledKeys == null || enabledKeys.isEmpty() ) {
+            return manifestSha256;
+        }
+        java.util.List< String > sorted = new ArrayList<>( new java.util.TreeSet<>( enabledKeys ) );
+        return VerifyState.computeManifestSha256( manifestSha256 + "|optional:" + String.join( ",", sorted ) );
+    }
+
+    /**
      * Flag indicating this is a vanilla (non-Forge) Minecraft version.
      */
     private transient boolean vanillaVersion = false;
