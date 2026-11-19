@@ -21,10 +21,13 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+
+import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 
 /**
  * Computes a human-readable "what will this update change?" summary for a modpack with a pending
@@ -46,6 +49,13 @@ import java.util.Set;
  * manifest) can appear under "removed". It's intended as an at-a-glance hint, not an exact
  * transaction log — which is why the UI only surfaces it when an update is actually pending.</p>
  *
+ * <p><b>Optional mods.</b> Changes to the {@code packOptionalMods} the player has on are listed
+ * like any other mod change and tagged as optional ({@link Result#optionalNames()}). An optional
+ * mod that is off is never on disk, so its changes are hidden; one that is new since the last
+ * successful sync is listed as "available, off" ({@link Result#newOptionalNames()}). "New" is
+ * judged against the {@code .known_optional_mods} sidecar the sync writes, since the diff has no
+ * copy of the previous manifest. Optional jars never count as "removed".</p>
+ *
  * @since 2026.6
  */
 public final class PendingUpdateDiff
@@ -66,6 +76,10 @@ public final class PendingUpdateDiff
      * @param addedNames   version-stripped display names of the added mods
      * @param removedNames version-stripped display names of the removed mods
      * @param updatedNames version-stripped display names of the updated mods
+     * @param optionalNames    the names in {@code addedNames} / {@code updatedNames} that belong to
+     *                         optional mods the player has on, for an "optional" tag
+     * @param newOptionalNames display names of optional mods that are new since the last sync and
+     *                         off (available for the player to switch on)
      *
      * @since 2026.6
      */
@@ -75,18 +89,21 @@ public final class PendingUpdateDiff
             int updated,
             List< String > addedNames,
             List< String > removedNames,
-            List< String > updatedNames )
+            List< String > updatedNames,
+            Set< String > optionalNames,
+            List< String > newOptionalNames )
     {
         /**
          * Reports whether this diff contains no changes at all.
          *
-         * @return {@code true} when the added, removed, and updated counts are all zero
+         * @return {@code true} when the added, removed, and updated counts are all zero and no
+         *         new optional mod is available
          *
          * @since 2026.6
          */
         public boolean isEmpty()
         {
-            return added == 0 && removed == 0 && updated == 0;
+            return added == 0 && removed == 0 && updated == 0 && newOptionalNames.isEmpty();
         }
     }
 
@@ -109,20 +126,49 @@ public final class PendingUpdateDiff
             return empty();
         }
 
+        File modsDir = new File( pack.getPackRootFolder(), "mods" );
+        File[] onDisk = modsDir.listFiles( File::isFile );
+
+        // The summary is client-facing: an optional mod counts as "on" when the player's choice
+        // (or its default) installs it on this client.
+        List< GameOptionalMod > optional = pack.getPackOptionalMods();
+        Set< String > enabled = new HashSet<>();
+        for ( GameOptionalMod mod : OptionalModResolver.selectForSide( optional, GameMode.CLIENT,
+                                                                       OptionalMods.choicesFor( pack ) ) ) {
+            enabled.add( mod.key() );
+        }
+        List< String > known = PackDotFile.readLines( pack.getPackRootFolder(),
+                                                      GameModPackFileSync.KNOWN_OPTIONAL_MODS_FILE );
+        return compute( pack.packMods, optional, enabled, new HashSet<>( known ), onDisk );
+    }
+
+    /**
+     * The diff itself, over plain inputs so it can be tested without a pack folder.
+     *
+     * @param required    the manifest's {@code packMods}
+     * @param optional    the manifest's {@code packOptionalMods}
+     * @param enabledKeys identity keys of the optional mods installed on this client
+     * @param knownKeys   identity keys of the optional mods the manifest had at the last
+     *                    successful sync (empty when that was never recorded)
+     * @param onDisk      the files in the pack's {@code mods} folder; {@code null} reads as none
+     *
+     * @return the change summary, never {@code null}
+     *
+     * @since 2026.11
+     */
+    static Result compute( List< GameMod > required, List< GameOptionalMod > optional, Set< String > enabledKeys,
+                           Set< String > knownKeys, File[] onDisk )
+    {
         // Installed jars on disk, grouped by a stable, version-stripped key so a version bump of the
         // same mod groups with its manifest entry instead of reading as a remove + add pair.
         Map< String, File >   oldFileByKey    = new LinkedHashMap<>();   // key -> on-disk file
         Map< String, String > oldDisplayByKey = new LinkedHashMap<>();   // key -> display base name
-        File modsDir = new File( pack.getPackRootFolder(), "mods" );
-        File[] onDisk = modsDir.listFiles( f -> {
-            if ( !f.isFile() ) {
-                return false;
-            }
-            String n = f.getName().toLowerCase( Locale.ROOT );
-            return n.endsWith( ".jar" ) || n.endsWith( ".jar.disabled" );
-        } );
         if ( onDisk != null ) {
             for ( File f : onDisk ) {
+                String n = f.getName().toLowerCase( Locale.ROOT );
+                if ( !n.endsWith( ".jar" ) && !n.endsWith( ".jar.disabled" ) ) {
+                    continue;
+                }
                 String key = modKey( f.getName() );
                 oldFileByKey.putIfAbsent( key, f );
                 oldDisplayByKey.putIfAbsent( key, baseName( f.getName() ) );
@@ -131,9 +177,11 @@ public final class PendingUpdateDiff
 
         List< String > added = new ArrayList<>();
         List< String > updated = new ArrayList<>();
+        Set< String > optionalNames = new LinkedHashSet<>();
+        List< String > newOptional = new ArrayList<>();
         // Track which installed keys the manifest accounts for; whatever's left over is "removed".
         Set< String > newKeys = new HashSet<>();
-        for ( GameMod mod : pack.packMods ) {
+        for ( GameMod mod : required == null ? List.< GameMod >of() : required ) {
             String filename = safeFileName( mod );
             if ( filename == null ) {
                 continue;
@@ -146,17 +194,24 @@ public final class PendingUpdateDiff
             if ( !mod.clientReq ) {
                 continue;
             }
+            classify( mod, filename, oldFileByKey, added, updated );
+        }
 
-            File installed = oldFileByKey.get( key );
-            if ( installed == null ) {
-                added.add( baseName( filename ) );
+        for ( GameOptionalMod mod : optional == null ? List.< GameOptionalMod >of() : optional ) {
+            String filename = safeFileName( mod );
+            if ( filename == null ) {
+                continue;
             }
-            // Content-based change detection. matchesDeclaredHash hashes the installed bytes against
-            // the new manifest's declared hash; a mismatch is the only reliable "this mod actually
-            // changed" signal when filenames are stable across versions. It returns true (= no
-            // change reported) when the mod declares no usable hash, so we never cry wolf.
-            else if ( !safeMatchesDeclaredHash( mod, installed ) ) {
-                updated.add( baseName( filename ) );
+            // An optional jar is never "removed" by an update: when it is off, the player chose that.
+            newKeys.add( modKey( filename ) );
+            if ( enabledKeys != null && enabledKeys.contains( mod.key() ) ) {
+                String change = classify( mod, filename, oldFileByKey, added, updated );
+                if ( change != null ) {
+                    optionalNames.add( change );
+                }
+            }
+            else if ( knownKeys == null || !knownKeys.contains( mod.key() ) ) {
+                newOptional.add( mod.getDisplayName() );
             }
         }
 
@@ -166,7 +221,39 @@ public final class PendingUpdateDiff
                 removed.add( oldDisplayByKey.get( e.getKey() ) );
             }
         }
-        return new Result( added.size(), removed.size(), updated.size(), added, removed, updated );
+        return new Result( added.size(), removed.size(), updated.size(), added, removed, updated, optionalNames,
+                           newOptional );
+    }
+
+    /**
+     * Files one manifest mod as added or updated against what is installed.
+     *
+     * @param mod          the manifest mod
+     * @param filename     its file name
+     * @param oldFileByKey the installed jars by grouping key
+     * @param added        accumulator for added names
+     * @param updated      accumulator for updated names
+     *
+     * @return the display name it was filed under, or {@code null} when it is unchanged
+     */
+    private static String classify( GameMod mod, String filename, Map< String, File > oldFileByKey,
+                                    List< String > added, List< String > updated )
+    {
+        File installed = oldFileByKey.get( modKey( filename ) );
+        String name = baseName( filename );
+        if ( installed == null ) {
+            added.add( name );
+            return name;
+        }
+        // Content-based change detection. matchesDeclaredHash hashes the installed bytes against
+        // the new manifest's declared hash; a mismatch is the only reliable "this mod actually
+        // changed" signal when filenames are stable across versions. It returns true (= no
+        // change reported) when the mod declares no usable hash, so we never cry wolf.
+        if ( !safeMatchesDeclaredHash( mod, installed ) ) {
+            updated.add( name );
+            return name;
+        }
+        return null;
     }
 
     /**
@@ -195,7 +282,7 @@ public final class PendingUpdateDiff
      */
     private static Result empty()
     {
-        return new Result( 0, 0, 0, List.of(), List.of(), List.of() );
+        return new Result( 0, 0, 0, List.of(), List.of(), List.of(), Set.of(), List.of() );
     }
 
     /**
@@ -207,7 +294,14 @@ public final class PendingUpdateDiff
     private static String safeFileName( GameMod mod )
     {
         try {
-            return mod.getFileName();
+            // The manifest's local path, not getFileName(): that one joins the local-path prefix,
+            // which a pack that has not synced in this session has not set yet.
+            String local = mod.getLocalFilePath();
+            if ( local == null || local.isBlank() ) {
+                return null;
+            }
+            String normalized = local.replace( '\\', '/' );
+            return normalized.substring( normalized.lastIndexOf( '/' ) + 1 );
         }
         catch ( Throwable t ) {
             return null;

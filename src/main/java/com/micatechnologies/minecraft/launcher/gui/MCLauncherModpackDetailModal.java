@@ -729,7 +729,13 @@ public class MCLauncherModpackDetailModal extends StackPane
                 b.add( () -> buildUpdateLogSection( pack ) );
                 b.add( () -> ModpackContentBrowser.buildCrashHistorySection( pack, this::buildSectionBox, this ) );
             }
-            case TAB_ADVANCED -> b.add( () -> buildAdvancedSection( pack ) );
+            case TAB_ADVANCED -> {
+                // Optional mods come from the pack's manifest; a vanilla install has none.
+                if ( !pack.isVanillaVersion() && pack.getManifestUrl() != null && !pack.getManifestUrl().isBlank() ) {
+                    b.add( () -> buildOptionalModsSection( pack ) );
+                }
+                b.add( () -> buildAdvancedSection( pack ) );
+            }
             case TAB_PROBLEMS -> b.add( () -> buildProblemsList( currentProblems ) );
             default -> { }
         }
@@ -1709,13 +1715,17 @@ public class MCLauncherModpackDetailModal extends StackPane
             parts.add( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
                                .format( "detailModal.whatsNew.removed", diff.removed() ) );
         }
+        if ( !diff.newOptionalNames().isEmpty() ) {
+            parts.add( LocalizationManager.format( "detailModal.whatsNew.newOptional", diff.newOptionalNames().size() ) );
+        }
         Label summary = new Label( String.join( "  ·  ", parts ) );
         summary.setWrapText( true );
         box.getChildren().add( summary );
 
-        addExampleNames( box, "detailModal.whatsNew.addedNames", diff.addedNames() );
-        addExampleNames( box, "detailModal.whatsNew.updatedNames", diff.updatedNames() );
+        addExampleNames( box, "detailModal.whatsNew.addedNames", tagOptional( diff.addedNames(), diff.optionalNames() ) );
+        addExampleNames( box, "detailModal.whatsNew.updatedNames", tagOptional( diff.updatedNames(), diff.optionalNames() ) );
         addExampleNames( box, "detailModal.whatsNew.removedNames", diff.removedNames() );
+        addExampleNames( box, "detailModal.whatsNew.newOptionalNames", diff.newOptionalNames() );
 
         Label note = new Label( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
                                         .get( "detailModal.whatsNew.note" ) );
@@ -1723,6 +1733,23 @@ public class MCLauncherModpackDetailModal extends StackPane
         note.setWrapText( true );
         box.getChildren().add( note );
         return box;
+    }
+
+    /** Marks the names that belong to optional mods the player has on, e.g. "AUSM (optional)".
+     *
+     *  @param names    the category's names
+     *  @param optional the names to tag
+     *  @return the names with the optional ones tagged, in order */
+    private static java.util.List< String > tagOptional( java.util.List< String > names, java.util.Set< String > optional )
+    {
+        if ( names == null || optional == null || optional.isEmpty() ) {
+            return names;
+        }
+        java.util.List< String > tagged = new java.util.ArrayList<>( names.size() );
+        for ( String name : names ) {
+            tagged.add( optional.contains( name ) ? LocalizationManager.format( "detailModal.whatsNew.optionalTag", name ) : name );
+        }
+        return tagged;
     }
 
     /** Appends a muted "Added: a, b, c (+N more)" line for one diff category, capped to keep the
@@ -1776,6 +1803,118 @@ public class MCLauncherModpackDetailModal extends StackPane
 
         registerOnFirstExpand( section, () -> buildAdvancedSectionBody( section, pack ) );
         return section;
+    }
+
+    /**
+     * Optional mods section: each of the pack's {@code packOptionalMods} with its description and
+     * a toggle. Toggling applies the mod's {@code requires} and {@code conflictsWith} (through
+     * {@link com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods#toggle}), flips the
+     * other toggles to match, and says which other mods changed and why. Changes are stored at once
+     * and take effect on the next launch.
+     *
+     * <p>The list may need the manifest read from disk (a stub pack), so it loads off the FX
+     * thread; the section stays hidden until it knows the pack has optional mods.
+     *
+     * @param pack the pack whose optional mods are shown
+     * @return the section, hidden while loading and when the pack has no optional mods
+     */
+    private Node buildOptionalModsSection( GameModPack pack )
+    {
+        VBox section = buildSectionBox( LocalizationManager.get( "detailModal.section.optionalMods" ), true );
+        section.setVisible( false );
+        section.setManaged( false );
+        SystemUtilities.spawnNewTask( () -> {
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod > mods =
+                    com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.of( pack );
+            if ( mods.isEmpty() ) {
+                return;
+            }
+            java.util.Set< String > enabled =
+                    com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.enabledKeys( pack, mods );
+            Platform.runLater( () -> {
+                populateOptionalMods( section, pack, mods, enabled );
+                section.setVisible( true );
+                section.setManaged( true );
+            } );
+        } );
+        return section;
+    }
+
+    /**
+     * Fills the Optional mods section: a hint, one toggle per mod with its description and its
+     * requirement and conflict notes, and a status line that explains the last change.
+     *
+     * @param section the section to fill
+     * @param pack    the pack
+     * @param mods    the pack's optional mods, in manifest order
+     * @param enabled the identity keys of the mods that are on now
+     */
+    private void populateOptionalMods( VBox section, GameModPack pack,
+                                       java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod > mods,
+                                       java.util.Set< String > enabled )
+    {
+        Label hint = new Label( LocalizationManager.get( "modal.optionalMods.hint" ) );
+        hint.setWrapText( true );
+        hint.getStyleClass().addAll( "muted", "type-label-small" );
+        section.getChildren().add( hint );
+
+        Label status = new Label();
+        status.setWrapText( true );
+        status.getStyleClass().add( "type-body-small" );
+        status.setVisible( false );
+        status.setManaged( false );
+
+        // Toggles flip each other (requires / conflicts), so programmatic updates run under a
+        // guard that keeps their listeners from treating them as player toggles.
+        final boolean[] updating = { false };
+        final java.util.Map< String, io.github.palexdev.materialfx.controls.MFXToggleButton > toggles =
+                new java.util.LinkedHashMap<>();
+        for ( var mod : mods ) {
+            if ( toggles.containsKey( mod.key() ) ) {
+                continue;
+            }
+            io.github.palexdev.materialfx.controls.MFXToggleButton toggle =
+                    new io.github.palexdev.materialfx.controls.MFXToggleButton( mod.getDisplayName() );
+            toggle.setSelected( enabled.contains( mod.key() ) );
+            toggles.put( mod.key(), toggle );
+            toggle.selectedProperty().addListener( ( obs, oldVal, newVal ) -> {
+                if ( updating[ 0 ] ) {
+                    return;
+                }
+                boolean enable = Boolean.TRUE.equals( newVal );
+                var result = com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.toggle(
+                        pack, mods, mod.getLocalName(), enable );
+                updating[ 0 ] = true;
+                try {
+                    for ( var entry : toggles.entrySet() ) {
+                        entry.getValue().setSelected( result.enabled().contains( entry.getKey() ) );
+                    }
+                }
+                finally {
+                    updating[ 0 ] = false;
+                }
+                status.setText( String.join( "\n", OptionalModMessages.describeToggle(
+                        result, mod.getDisplayName(), enable, LocalizationManager::format ) ) );
+                status.setVisible( true );
+                status.setManaged( true );
+            } );
+
+            VBox row = new VBox( 2, toggle );
+            if ( !mod.getDescription().isBlank() ) {
+                Label description = new Label( mod.getDescription() );
+                description.setWrapText( true );
+                description.getStyleClass().addAll( "subtle", "type-label-small" );
+                row.getChildren().add( description );
+            }
+            for ( String line : OptionalModMessages.describeRelations( mod, mods, LocalizationManager::format ) ) {
+                Label relation = new Label( line );
+                relation.setWrapText( true );
+                relation.getStyleClass().addAll( "muted", "type-label-small" );
+                row.getChildren().add( relation );
+            }
+            section.getChildren().add( row );
+        }
+        section.getChildren().add( status );
     }
 
     /**
