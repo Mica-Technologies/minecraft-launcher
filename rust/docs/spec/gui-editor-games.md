@@ -1471,7 +1471,15 @@ older generation abandons itself; every async section checks "still shown".
    `detailModal.tab.empty`.
    * Overview: News (pack's visible news), Links, Quick actions, Stats.
    * Content: Worlds, Servers, Mods, Screenshots, Shader packs, Resource packs (§9.6).
-   * Activity: Update log (last **12** entries + "+N more"), Crash history.
+   * Activity: Update log (last **12** entries + "+N more"), Crash history. While an update is
+     pending (`PackDetails::pending_update`, from `mmcl_modpack::diff::pending_update_diff` with
+     the player's optional-mod choices, computed off the async threads), a "What's new" card
+     (`modpackDetailSection`, `model::whats_new`) sits atop the update log, even when the log is
+     empty: `detailModal.whatsNew.header` with the manifest's version (`?` when missing), the
+     non-zero counts (`added`, `updated`, `removed`, `newOptional`) joined with `"  ·  "`, muted
+     `addedNames` / `updatedNames` / `removedNames` / `newOptionalNames` lines (at most 6 names,
+     then `more`; enabled optional mods in added/updated tagged `optionalTag`), and the muted
+     `note`.
    * Advanced: §9.4. Problems: the audit problem list.
 4. **Body** scroll (smooth scroll, vertical only).
 5. **Action row** (padding 14/24/18/24, spacing 10, buttons 42 high): `Play`

@@ -1323,8 +1323,8 @@ had optional mods (the file exists). Same name and format as Java.
 listed like other mod changes and named in `optional_names` (for an "(optional)" tag); a client-side
 optional mod that is off and not in the sidecar is listed in `new_optional_names` ("new optional
 mods, off until you turn them on"); changes to optional mods that are off are hidden, and an optional
-jar is never reported as removed. The Rust UI does not render the pending-update card yet, so these
-fields have no screen.
+jar is never reported as removed. The detail dialog's "What's new" card renders it
+(`PackDetails::pending_update`; gui-editor-games §9).
 
 **Editor document.** `FileList::OptionalMods` (second in `FileList::ALL`, as Java's enum) reads and
 writes the list with `description` and `defaultEnabled` always written and `requires` /

@@ -40,7 +40,8 @@ use gpui_component::WindowExt as _;
 use gpui_component::checkbox::Checkbox;
 use mmcl_engine::{
     AccountView, CrashActionResult, CrashView, Engine, ExportRequest, LaunchOptions,
-    OptionalModsView, PackDetails, PackId, PackSummary, ScanFrequency, ServerView,
+    OptionalModsView, PackDetails, PackId, PackSummary, PendingUpdateView, ScanFrequency,
+    ServerView,
 };
 use mmcl_i18n::{t, tf};
 use mmcl_ui::screens::home_browse::{self as hb, backend::backend, controls, cycle, visuals};
@@ -1425,7 +1426,30 @@ impl DetailModal {
         ]
     }
 
+    /// The update log, with the "What's new" card on top while an update is pending.
     fn update_log(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let mut out = Vec::new();
+        if let Some(p) = self.details().and_then(|d| d.pending_update.as_ref()) {
+            out.push(self.whats_new_card(p, cx));
+        }
+        out.extend(self.update_log_entries(cx));
+        out
+    }
+
+    /// The "What's new" card (Java `buildPendingChangesNode`): the new version, the counts, a
+    /// few example names per kind and the note that it is approximate.
+    fn whats_new_card(&self, p: &PendingUpdateView, cx: &mut Context<Self>) -> AnyElement {
+        let w = model::whats_new(&self.summary.version, p);
+        card(cx)
+            .gap(u(4.0))
+            .child(title(w.header, cx))
+            .child(body(w.summary, cx))
+            .children(w.lines.into_iter().map(|l| muted(l, cx)))
+            .child(muted(w.note, cx))
+            .into_any_element()
+    }
+
+    fn update_log_entries(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let Some(d) = self.details() else {
             return vec![match self.details {
                 Load::Loading => loading_row("log-loading", cx).into_any_element(),

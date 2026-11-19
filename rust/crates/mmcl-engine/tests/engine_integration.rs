@@ -824,6 +824,54 @@ fn idle_prefetch_and_page_retry_are_quiet_without_work() {
 }
 
 #[test]
+fn pack_details_carry_the_pending_update_only_while_an_update_is_pending() {
+    let h = harness_with(GameMode::Client, Some(Arc::new(JarHttp)));
+    let id = create(&h, "Pending Pack");
+    let e = h.engine.clone();
+    let root = e
+        .pack_folder(&id, mmcl_engine::PackFolder::Root)
+        .expect("installed");
+    std::fs::create_dir_all(root.join("mods")).unwrap();
+    std::fs::write(root.join("mods").join("oldmod-1.0.jar"), "x").unwrap();
+    std::fs::write(root.join(".installed_version"), "1.0").unwrap();
+    let manifest = e.pack_manifest_text(&id).expect("authored manifest");
+    let mut doc: serde_json::Value = serde_json::from_str(&manifest).unwrap();
+    doc["packVersion"] = serde_json::json!("2.0");
+    doc["packMods"] = serde_json::json!([
+        {"name": "New", "remote": "https://example.invalid/newmod-1.0.jar",
+         "local": "newmod-1.0.jar", "clientReq": true}
+    ]);
+    doc["packOptionalMods"] = serde_json::json!([
+        {"name": "AUSM", "remote": "https://example.invalid/ausm.jar", "local": "ausm.jar"}
+    ]);
+    let (i, text) = (id.clone(), doc.to_string());
+    h.run(move |e| Box::pin(async move { e.save_manifest(&i, &text).await }))
+        .unwrap();
+
+    let i = id.clone();
+    let details = h
+        .run(move |e| Box::pin(async move { e.pack_details(&i).await }))
+        .unwrap();
+    assert!(details.summary.update_available);
+    let p = details.pending_update.expect("an update is pending");
+    assert_eq!(p.added, ["newmod"]);
+    assert_eq!(p.removed, ["oldmod"]);
+    assert_eq!(p.new_optional_names, ["AUSM"]);
+
+    // Once the installed version catches up there is nothing to show.
+    std::fs::write(root.join(".installed_version"), "2.0").unwrap();
+    let (i, text) = (id.clone(), doc.to_string());
+    h.run(move |e| Box::pin(async move { e.save_manifest(&i, &text).await }))
+        .unwrap();
+    let i = id.clone();
+    let details = h
+        .run(move |e| Box::pin(async move { e.pack_details(&i).await }))
+        .unwrap();
+    assert!(!details.summary.update_available);
+    assert_eq!(details.pending_update, None);
+}
+
+#[test]
 fn optional_mods_are_switched_in_the_players_config_and_survive_mod_edits() {
     let h = harness_with(GameMode::Client, Some(Arc::new(JarHttp)));
     let id = create(&h, "Optional Pack");

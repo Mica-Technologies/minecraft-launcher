@@ -4,8 +4,8 @@
 //! the update log, the Advanced tab's options and the export choices.
 
 use mmcl_engine::{
-    AccountStatus, AccountView, ExportModeView, PackDetails, PackId, PackSummary, ScanFrequency,
-    ServerView, UpdateLogView,
+    AccountStatus, AccountView, ExportModeView, PackDetails, PackId, PackSummary,
+    PendingUpdateView, ScanFrequency, ServerView, UpdateLogView,
 };
 use mmcl_i18n::{t, tf};
 
@@ -346,6 +346,93 @@ pub fn update_log(entries: &[UpdateLogView], vanilla: bool) -> UpdateLogDisplay 
     UpdateLogDisplay::Entries(shown, more)
 }
 
+/// How many names a "What's new" line lists before "(+N more)".
+pub const WHATS_NEW_NAME_CAP: usize = 6;
+
+/// The text of the "What's new" card (Java `buildPendingChangesNode`) shown atop the update
+/// log while an update is pending.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WhatsNew {
+    /// "What's new in v1.2".
+    pub header: String,
+    /// The counts: "3 added  ·  1 updated  ·  2 new optional".
+    pub summary: String,
+    /// The muted example-name lines: added, updated, removed, new optional mods.
+    pub lines: Vec<String>,
+    /// The muted footnote: an approximation, applied on the next launch.
+    pub note: String,
+}
+
+/// The "What's new" card for a pack whose manifest is at `version`. Added and updated names
+/// that are optional mods the player has on carry "(optional)"; removed names never do (an
+/// optional jar is never reported removed), and new optional mods are listed apart.
+pub fn whats_new(version: &str, d: &PendingUpdateView) -> WhatsNew {
+    let version = if version.trim().is_empty() {
+        "?"
+    } else {
+        version
+    };
+    let mut parts = Vec::new();
+    for (key, list) in [
+        ("detailModal.whatsNew.added", &d.added),
+        ("detailModal.whatsNew.updated", &d.updated),
+        ("detailModal.whatsNew.removed", &d.removed),
+        ("detailModal.whatsNew.newOptional", &d.new_optional_names),
+    ] {
+        if !list.is_empty() {
+            parts.push(tf!(key, list.len() as i64));
+        }
+    }
+    let tag = |names: &[String]| -> Vec<String> {
+        names
+            .iter()
+            .map(|n| {
+                if d.optional_names.contains(n) {
+                    tf!("detailModal.whatsNew.optionalTag", n.as_str())
+                } else {
+                    n.clone()
+                }
+            })
+            .collect()
+    };
+    let lines = [
+        ("detailModal.whatsNew.addedNames", tag(&d.added)),
+        ("detailModal.whatsNew.updatedNames", tag(&d.updated)),
+        ("detailModal.whatsNew.removedNames", d.removed.clone()),
+        (
+            "detailModal.whatsNew.newOptionalNames",
+            d.new_optional_names.clone(),
+        ),
+    ]
+    .into_iter()
+    .filter(|(_, names)| !names.is_empty())
+    .map(|(key, names)| tf!(key, example_names(&names).as_str()))
+    .collect();
+    WhatsNew {
+        header: tf!("detailModal.whatsNew.header", version),
+        summary: parts.join("  \u{b7}  "),
+        lines,
+        note: t!("detailModal.whatsNew.note").into_owned(),
+    }
+}
+
+/// Up to [`WHATS_NEW_NAME_CAP`] names joined with ", ", then " (+N more)" when longer.
+fn example_names(names: &[String]) -> String {
+    let mut joined = names
+        .iter()
+        .take(WHATS_NEW_NAME_CAP)
+        .map(String::as_str)
+        .collect::<Vec<_>>()
+        .join(", ");
+    if names.len() > WHATS_NEW_NAME_CAP {
+        joined.push_str(&tf!(
+            "detailModal.whatsNew.more",
+            (names.len() - WHATS_NEW_NAME_CAP) as i64
+        ));
+    }
+    joined
+}
+
 /// The "Launch as" options `(id, label)`: `""` (the default account), every account, and the
 /// stored override when it no longer exists.
 pub fn account_options(
@@ -612,6 +699,7 @@ pub(crate) mod tests {
             loader_version: Some("1.20.1-47.2.0".into()),
             news: vec![],
             update_log: vec![],
+            pending_update: None,
             servers: vec![],
             default_server: None,
             account_override: None,
@@ -771,6 +859,84 @@ pub(crate) mod tests {
             }
             other => panic!("{other:?}"),
         }
+    }
+
+    fn names(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn whats_new_counts_each_kind_and_tags_optional_mods() {
+        let d = PendingUpdateView {
+            added: names(&["newmod", "lib"]),
+            updated: names(&["jei"]),
+            removed: names(&["old"]),
+            optional_names: names(&["lib"]),
+            new_optional_names: names(&["AUSM"]),
+        };
+        let w = whats_new("1.2", &d);
+        assert_eq!(w.header, tf!("detailModal.whatsNew.header", "1.2"));
+        assert_eq!(
+            w.summary,
+            [
+                tf!("detailModal.whatsNew.added", 2i64),
+                tf!("detailModal.whatsNew.updated", 1i64),
+                tf!("detailModal.whatsNew.removed", 1i64),
+                tf!("detailModal.whatsNew.newOptional", 1i64),
+            ]
+            .join("  \u{b7}  ")
+        );
+        let lib = tf!("detailModal.whatsNew.optionalTag", "lib");
+        assert_eq!(
+            w.lines,
+            [
+                tf!(
+                    "detailModal.whatsNew.addedNames",
+                    format!("newmod, {lib}").as_str()
+                ),
+                tf!("detailModal.whatsNew.updatedNames", "jei"),
+                tf!("detailModal.whatsNew.removedNames", "old"),
+                tf!("detailModal.whatsNew.newOptionalNames", "AUSM"),
+            ]
+        );
+        assert_eq!(w.note, t!("detailModal.whatsNew.note"));
+    }
+
+    #[test]
+    fn whats_new_leaves_out_empty_kinds_and_names_a_missing_version() {
+        let d = PendingUpdateView {
+            new_optional_names: names(&["AUSM"]),
+            ..Default::default()
+        };
+        let w = whats_new(" ", &d);
+        assert_eq!(w.header, tf!("detailModal.whatsNew.header", "?"));
+        assert_eq!(w.summary, tf!("detailModal.whatsNew.newOptional", 1i64));
+        assert_eq!(
+            w.lines,
+            [tf!("detailModal.whatsNew.newOptionalNames", "AUSM")]
+        );
+    }
+
+    #[test]
+    fn whats_new_caps_each_line_at_six_names() {
+        let many = names(&["a", "b", "c", "d", "e", "f", "g", "h"]);
+        let d = PendingUpdateView {
+            removed: many,
+            ..Default::default()
+        };
+        let more = tf!("detailModal.whatsNew.more", 2i64);
+        assert_eq!(
+            whats_new("2", &d).lines,
+            [tf!(
+                "detailModal.whatsNew.removedNames",
+                format!("a, b, c, d, e, f{more}").as_str()
+            )]
+        );
+        // The English "more" keeps its escaped leading space.
+        assert_eq!(
+            mmcl_i18n::english("detailModal.whatsNew.more"),
+            Some(" (+{0} more)")
+        );
     }
 
     #[test]

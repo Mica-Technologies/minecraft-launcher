@@ -809,6 +809,11 @@ impl Engine {
                 }
                 mmcl_modpack::export::ExportMode::ExportZip => ExportModeView::ExportZip,
             };
+        let pending_update = if summary.update_available {
+            self.pending_update(&pack).await
+        } else {
+            None
+        };
         Ok(PackDetails {
             root: pack.pack_root(),
             loader_name,
@@ -831,6 +836,7 @@ impl Engine {
                     version: e.new.clone(),
                 })
                 .collect(),
+            pending_update,
             servers: pack.server_favorites().iter().map(to_server).collect(),
             default_server: pack.default_server().as_ref().map(to_server),
             account_override: self.inner.config.account_override_for_pack(&key),
@@ -844,6 +850,30 @@ impl Engine {
             export_mode,
             summary,
         })
+    }
+
+    /// What `pack`'s pending update would change in its mods, judged with the player's
+    /// optional-mod choices (Java `PendingUpdateDiff.compute`); `None` when it changes nothing.
+    /// Best-effort: it lists `mods/` and hashes jars off the async threads, and a failure is
+    /// logged and reads as "nothing to show".
+    async fn pending_update(&self, pack: &Arc<GameModPack>) -> Option<PendingUpdateView> {
+        let choices = self.optional_choices_of(pack);
+        let p = pack.clone();
+        match tokio::task::spawn_blocking(move || {
+            mmcl_modpack::diff::pending_update_diff(&p, &choices)
+        })
+        .await
+        {
+            Ok(d) if !d.is_empty() => Some(d.into()),
+            Ok(_) => None,
+            Err(e) => {
+                mmcl_log::warn_silent(&mmcl_i18n::tf!(
+                    "log.modpackDetail.pendingDiffFailed",
+                    e.to_string()
+                ));
+                None
+            }
+        }
     }
 
     /// Installs (registers and loads) the pack at a manifest URL.

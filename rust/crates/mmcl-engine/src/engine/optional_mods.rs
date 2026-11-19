@@ -57,7 +57,7 @@ impl Engine {
     }
 
     /// The player's stored choices for `pack` (empty without a settings key).
-    fn optional_choices_of(&self, pack: &GameModPack) -> Choices {
+    pub(super) fn optional_choices_of(&self, pack: &GameModPack) -> Choices {
         pack.settings_key()
             .map(|k| self.inner.config.optional_mod_choices(&k))
             .unwrap_or_default()

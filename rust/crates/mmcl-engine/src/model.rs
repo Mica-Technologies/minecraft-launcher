@@ -198,6 +198,32 @@ pub struct UpdateLogView {
     pub when: String,
 }
 
+/// What a pending update would change in a pack's mods (Java `PendingUpdateDiff.Result`), by
+/// display base name: the detail dialog's "What's new" card.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct PendingUpdateView {
+    pub added: Vec<String>,
+    pub updated: Vec<String>,
+    /// Never lists an optional mod's jar: one the player turned off is not "removed".
+    pub removed: Vec<String>,
+    /// The names in `added` / `updated` that are optional mods the player has on.
+    pub optional_names: Vec<String>,
+    /// Client-side optional mods that are new since the last sync and off.
+    pub new_optional_names: Vec<String>,
+}
+
+impl From<mmcl_modpack::diff::UpdateDiff> for PendingUpdateView {
+    fn from(d: mmcl_modpack::diff::UpdateDiff) -> Self {
+        PendingUpdateView {
+            added: d.added,
+            updated: d.updated,
+            removed: d.removed,
+            optional_names: d.optional_names,
+            new_optional_names: d.new_optional_names,
+        }
+    }
+}
+
 /// A saved server of a pack.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ServerView {
@@ -216,6 +242,9 @@ pub struct PackDetails {
     pub loader_version: Option<String>,
     pub news: Vec<PackNewsView>,
     pub update_log: Vec<UpdateLogView>,
+    /// What the pending update would change, when an update is pending and it changes
+    /// something (or offers new optional mods); `None` otherwise.
+    pub pending_update: Option<PendingUpdateView>,
     pub servers: Vec<ServerView>,
     pub default_server: Option<ServerView>,
     /// The account UUID this pack launches as (its override), if set.
