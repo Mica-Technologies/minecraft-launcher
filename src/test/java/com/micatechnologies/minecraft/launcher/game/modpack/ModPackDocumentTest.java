@@ -101,6 +101,11 @@ class ModPackDocumentTest
     {
         ModPackDocument doc = ModPackDocument.blank();
         for ( ModPackDocument.FileList list : ModPackDocument.FileList.values() ) {
+            if ( list.isOptional() ) {
+                // packOptionalMods is left out until a pack has an optional mod.
+                assertFalse( doc.json().has( list.getKey() ) );
+                continue;
+            }
             assertTrue( doc.json().get( list.getKey() ).isJsonArray(),
                         list.getKey() + " should be an array" );
             assertTrue( doc.readFileList( list ).isEmpty(), list.getKey() + " should be empty" );

@@ -434,10 +434,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             }
         } );
 
-        // Create file list tabs (all 5 types)
+        // Create file list tabs (one per ModPackDocument.FileList)
         // The FileList is the tab's identity; the name is display text only.
         Tab modsTab = createFileListTab( LocalizationManager.get( "editor.tab.mods" ), ModPackDocument.FileList.MODS );
         editorTabPane.getTabs().add( modsTab );
+        editorTabPane.getTabs().add( createFileListTab( LocalizationManager.get( "editor.tab.optionalMods" ),
+                                                        ModPackDocument.FileList.OPTIONAL_MODS ) );
         editorTabPane.getTabs().add( createFileListTab( LocalizationManager.get( "editor.tab.configs" ),
                                                         ModPackDocument.FileList.CONFIGS ) );
         editorTabPane.getTabs().add( createFileListTab( LocalizationManager.get( "editor.tab.resources" ),
@@ -681,6 +683,20 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     {
         GUIUtilities.JFXPlatformRun( () -> {
             collectFieldsToDocument();
+            // Optional mods must name only optional mods of this pack in requires/conflictsWith,
+            // and a file may not be both a mod and an optional mod. Refuse the save until fixed.
+            List< String > optionalProblems = workingDocument.validateOptionalMods( MCLauncherModPackEditorGui::localize );
+            if ( !optionalProblems.isEmpty() ) {
+                javafx.scene.control.Alert alert =
+                        new javafx.scene.control.Alert( javafx.scene.control.Alert.AlertType.WARNING );
+                alert.setTitle( LocalizationManager.get( "dialog.editor.optionalInvalid.title" ) );
+                alert.setHeaderText( LocalizationManager.get( "dialog.editor.optionalInvalid.header" ) );
+                alert.setContentText( String.join( "\n", optionalProblems ) );
+                GUIUtilities.themeAlertChrome( alert );
+                alert.showAndWait();
+                updateStatus( LocalizationManager.get( "editor.status.optionalInvalid" ) );
+                return;
+            }
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle( LocalizationManager.get( "dialog.fileChooser.saveModpack.title" ) );
             // Save defaults to the canonical .mmcjson extension so new files get the unique
@@ -1744,6 +1760,10 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             table.getColumns().add( serverCol );
         }
 
+        if ( list.isOptional() ) {
+            addOptionalModColumns( table );
+        }
+
         // URL-check status column (read-only, transient). Populated by the "Check URLs"
         // toolbar action; blank until a check is run. Never persisted to the document.
         TableColumn< ModPackEditorFileEntry, ModPackEditorFileEntry.UrlCheck > urlStatusCol =
@@ -1860,6 +1880,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         MFXButton addBtn = new MFXButton( LocalizationManager.get( "common.button.add" ) );
         addBtn.setOnAction( e -> {
             ModPackEditorFileEntry newEntry = new ModPackEditorFileEntry();
+            // Optional mods are client-only unless the author says otherwise.
+            newEntry.setServerReq( list.serverReqDefault() );
             data.add( newEntry );
         } );
 
@@ -1948,10 +1970,65 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         BorderPane content = new BorderPane();
         content.setTop( toolbar );
         content.setCenter( table );
+        if ( list.isOptional() ) {
+            Label optionalHint = new Label( LocalizationManager.get( "editor.optional.hint" ) );
+            optionalHint.setWrapText( true );
+            optionalHint.getStyleClass().addAll( "muted", "type-label-small" );
+            optionalHint.setPadding( new Insets( 0, 8, 8, 8 ) );
+            javafx.scene.layout.VBox top = new javafx.scene.layout.VBox( toolbar, optionalHint );
+            content.setTop( top );
+        }
 
         Tab tab = new Tab( tabName, content );
         tab.setClosable( false );
         return tab;
+    }
+
+    /**
+     * Adds the optional-mod columns to the Optional mods table: the description shown to the
+     * player, whether the mod is on by default, and the comma-separated file names it requires
+     * and conflicts with. The names are checked when saving
+     * ({@link ModPackDocument#validateOptionalMods}).
+     *
+     * @param table the Optional mods table
+     */
+    private static void addOptionalModColumns( TableView< ModPackEditorFileEntry > table )
+    {
+        TableColumn< ModPackEditorFileEntry, String > descCol =
+                new TableColumn<>( LocalizationManager.get( "editor.column.description" ) );
+        descCol.setCellValueFactory( c -> c.getValue().descriptionProperty() );
+        descCol.setCellFactory( TextFieldTableCell.forTableColumn() );
+        descCol.setOnEditCommit( e -> e.getRowValue().descriptionProperty().set( e.getNewValue() ) );
+        descCol.setPrefWidth( 200 );
+        descCol.setMinWidth( 100 );
+        table.getColumns().add( descCol );
+
+        TableColumn< ModPackEditorFileEntry, Boolean > defaultCol =
+                new TableColumn<>( LocalizationManager.get( "editor.column.defaultEnabled" ) );
+        defaultCol.setCellValueFactory( c -> c.getValue().defaultEnabledProperty() );
+        defaultCol.setCellFactory( CheckBoxTableCell.forTableColumn( defaultCol ) );
+        defaultCol.setPrefWidth( 90 );
+        defaultCol.setMinWidth( 60 );
+        defaultCol.setMaxWidth( 120 );
+        table.getColumns().add( defaultCol );
+
+        TableColumn< ModPackEditorFileEntry, String > requiresCol =
+                new TableColumn<>( LocalizationManager.get( "editor.column.requires" ) );
+        requiresCol.setCellValueFactory( c -> c.getValue().requiresProperty() );
+        requiresCol.setCellFactory( TextFieldTableCell.forTableColumn() );
+        requiresCol.setOnEditCommit( e -> e.getRowValue().requiresProperty().set( e.getNewValue() ) );
+        requiresCol.setPrefWidth( 140 );
+        requiresCol.setMinWidth( 80 );
+        table.getColumns().add( requiresCol );
+
+        TableColumn< ModPackEditorFileEntry, String > conflictsCol =
+                new TableColumn<>( LocalizationManager.get( "editor.column.conflictsWith" ) );
+        conflictsCol.setCellValueFactory( c -> c.getValue().conflictsWithProperty() );
+        conflictsCol.setCellFactory( TextFieldTableCell.forTableColumn() );
+        conflictsCol.setOnEditCommit( e -> e.getRowValue().conflictsWithProperty().set( e.getNewValue() ) );
+        conflictsCol.setPrefWidth( 140 );
+        conflictsCol.setMinWidth( 80 );
+        table.getColumns().add( conflictsCol );
     }
 
     /**
@@ -1983,7 +2060,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             return;
         }
         for ( ModPackFileEntry entry : workingDocument.readFileList( list ) ) {
-            data.add( toEditorEntry( entry ) );
+            data.add( ModPackEditorFileEntry.fromDocumentEntry( entry ) );
         }
     }
 
@@ -2013,52 +2090,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         }
         List< ModPackFileEntry > entries = new ArrayList<>( data.size() );
         for ( ModPackEditorFileEntry row : data ) {
-            entries.add( toDocumentEntry( row ) );
+            entries.add( row.toDocumentEntry() );
         }
         workingDocument.writeFileList( list, entries );
-    }
-
-    /**
-     * Adapts a headless manifest entry into the JavaFX-property-backed row the editor's tables
-     * bind to, carrying over every preserved non-primary hash.
-     *
-     * @param source the manifest entry to adapt
-     *
-     * @return an equivalent editor row
-     */
-    private static ModPackEditorFileEntry toEditorEntry( ModPackFileEntry source )
-    {
-        ModPackEditorFileEntry row = new ModPackEditorFileEntry( source.getName(), source.getRemote(),
-                                                                 source.getLocal(), source.getHash(),
-                                                                 source.getHashType(), source.isClientReq(),
-                                                                 source.isServerReq() );
-        for ( Map.Entry< String, String > extra : source.getExtraHashes().entrySet() ) {
-            row.putExtraHash( extra.getKey(), extra.getValue() );
-        }
-        row.setModrinthSlug( source.getModrinthSlug() );
-        return row;
-    }
-
-    /**
-     * Adapts an editor row back into a headless manifest entry. The inverse of
-     * {@link #toEditorEntry}; the transient URL-check status is a view concern and is not
-     * carried over.
-     *
-     * @param source the editor row to adapt
-     *
-     * @return an equivalent manifest entry
-     */
-    private static ModPackFileEntry toDocumentEntry( ModPackEditorFileEntry source )
-    {
-        ModPackFileEntry entry = new ModPackFileEntry( source.getName(), source.getRemote(),
-                                                       source.getLocal(), source.getHash(),
-                                                       source.getHashType(), source.isClientReq(),
-                                                       source.isServerReq() );
-        for ( Map.Entry< String, String > extra : source.getExtraHashes().entrySet() ) {
-            entry.putExtraHash( extra.getKey(), extra.getValue() );
-        }
-        entry.setModrinthSlug( source.getModrinthSlug() );
-        return entry;
     }
 
     // endregion

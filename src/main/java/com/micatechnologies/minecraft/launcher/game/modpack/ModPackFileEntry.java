@@ -17,14 +17,16 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
  * A single entry in one of a modpack manifest's file lists ({@code packMods}, {@code packConfigs},
- * {@code packResourcePacks}, {@code packShaderPacks}, {@code packInitialFiles}).
+ * {@code packResourcePacks}, {@code packShaderPacks}, {@code packInitialFiles}, {@code packOptionalMods}).
  * <p>
  * This is the headless counterpart of the editor's JavaFX-property-backed
  * {@code gui.ModPackEditorFileEntry}. It carries exactly the state that round-trips through the
@@ -79,6 +81,18 @@ public class ModPackFileEntry
      * cycle so a manifest carrying both a sha1 and a sha256 still carries both after a save.
      */
     private final Map< String, String > extraHashes = new HashMap<>();
+
+    /** Optional mods only: the short text shown to the player next to the toggle. */
+    private String description = "";
+
+    /** Optional mods only: whether the mod is on for a player who has not chosen. */
+    private boolean defaultEnabled = false;
+
+    /** Optional mods only: the {@code local} names of other optional mods that must be on with this one. */
+    private final List< String > requires = new ArrayList<>();
+
+    /** Optional mods only: the {@code local} names of other optional mods that must be off while this is on. */
+    private final List< String > conflictsWith = new ArrayList<>();
 
     /**
      * Constructs an empty entry with the default hash type ({@code sha1}) and both requirement
@@ -311,5 +325,97 @@ public class ModPackFileEntry
     public Map< String, String > getExtraHashes()
     {
         return Collections.unmodifiableMap( extraHashes );
+    }
+
+    /**
+     * Returns the optional mod's description. Empty for every other list.
+     *
+     * @return the description, never {@code null}
+     *
+     * @since 2026.11
+     */
+    public String getDescription() { return description; }
+
+    /**
+     * Sets the optional mod's description.
+     *
+     * @param value the description; {@code null} is coalesced to {@code ""}
+     *
+     * @since 2026.11
+     */
+    public void setDescription( String value ) { this.description = value == null ? "" : value; }
+
+    /**
+     * Reports whether the optional mod is on for a player who has not chosen.
+     *
+     * @return the {@code defaultEnabled} flag; {@code false} for every other list
+     *
+     * @since 2026.11
+     */
+    public boolean isDefaultEnabled() { return defaultEnabled; }
+
+    /**
+     * Sets whether the optional mod is on for a player who has not chosen.
+     *
+     * @param value the new flag
+     *
+     * @since 2026.11
+     */
+    public void setDefaultEnabled( boolean value ) { this.defaultEnabled = value; }
+
+    /**
+     * Returns the {@code local} names of the optional mods this one requires.
+     *
+     * @return an unmodifiable copy, never {@code null}
+     *
+     * @since 2026.11
+     */
+    public List< String > getRequires() { return List.copyOf( requires ); }
+
+    /**
+     * Replaces the {@code local} names of the optional mods this one requires. Blank names are
+     * dropped and the rest trimmed.
+     *
+     * @param values the names; {@code null} clears the list
+     *
+     * @since 2026.11
+     */
+    public void setRequires( List< String > values ) { replaceNames( requires, values ); }
+
+    /**
+     * Returns the {@code local} names of the optional mods that must be off while this one is on.
+     *
+     * @return an unmodifiable copy, never {@code null}
+     *
+     * @since 2026.11
+     */
+    public List< String > getConflictsWith() { return List.copyOf( conflictsWith ); }
+
+    /**
+     * Replaces the {@code local} names of the optional mods that must be off while this one is on.
+     * Blank names are dropped and the rest trimmed.
+     *
+     * @param values the names; {@code null} clears the list
+     *
+     * @since 2026.11
+     */
+    public void setConflictsWith( List< String > values ) { replaceNames( conflictsWith, values ); }
+
+    /**
+     * Replaces a name list's contents with the trimmed, non-blank values.
+     *
+     * @param target the list to fill
+     * @param values the new values; {@code null} clears
+     */
+    private static void replaceNames( List< String > target, List< String > values )
+    {
+        target.clear();
+        if ( values != null ) {
+            for ( String value : values ) {
+                if ( value != null && !value.isBlank() ) {
+                    target.add( value.trim() );
+                }
+            }
+        }
     }
 }
