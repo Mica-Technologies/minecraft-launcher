@@ -829,6 +829,37 @@ impl Engine {
                     url: n.url.clone(),
                 })
                 .collect(),
+            links: pack
+                .manifest()
+                .visible_links()
+                .into_iter()
+                .filter_map(|l| {
+                    Some(PackLinkView {
+                        title: l.title()?,
+                        url: l.url()?,
+                        description: l.description(),
+                    })
+                })
+                .collect(),
+            scan_acknowledgements: pack
+                .manifest()
+                .scan_acknowledgements()
+                .iter()
+                .map(|a| {
+                    let set = |s: &Option<String>| {
+                        s.as_deref()
+                            .map(str::trim)
+                            .filter(|s| !s.is_empty())
+                            .map(str::to_string)
+                    };
+                    ScanAckView {
+                        kind: set(&a.kind),
+                        locator: set(&a.locator),
+                        reason: set(&a.reason),
+                        file_sha256: set(&a.file_sha256),
+                    }
+                })
+                .collect(),
             update_log: mmcl_modpack::update_log::read_entries(&pack)
                 .into_iter()
                 .map(|e| UpdateLogView {

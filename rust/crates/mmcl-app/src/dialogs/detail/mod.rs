@@ -4,22 +4,28 @@
 //! gui-editor-games §9), opened by a single click on a pack card.
 //!
 //! An in-window modal over the main window: a dimmed backdrop (click it, press Esc or the ✕
-//! to close) and a card at 90 % of the window (600 x 480 to 1400 x 1000) with
+//! to close) and a card at 90 % of the window (600 x 480 to 1400 x 1000). One scroll area
+//! holds everything but the action row:
 //!
 //! 1. the **hero**: pack art (background or gradient from the logo), Beta / Recently updated
 //!    badges, the logo, name and last-played line, ◀ ▶ through the showcase images (and a click
 //!    on the logo), and the close button;
 //! 2. the **chips** (plays as, Vanilla, Minecraft, loader, pack version, minimum RAM, mod
 //!    count) and the problems banner;
-//! 3. the **tabs**: Overview (news, quick actions, stats), Problems, Content (worlds, servers,
-//!    mods, screenshots, shader packs, resource packs), Activity (update log, crash history),
-//!    Advanced (optional mods, launch account, always verify, scan frequency, verify now,
-//!    official launcher);
-//! 4. the **action row**: Play and Website.
+//! 3. the **tab bar**, which pins to the top of the scroll area once it gets there (a copy drawn
+//!    over the area, with a card-surface background, a shadow and a ✕ at its end): Overview
+//!    (what's new, optional mods summary, news, links, at a glance, quick actions), Problems,
+//!    Mods (optional mods, installed mods), Worlds & files (worlds, servers, screenshots, shader
+//!    packs, resource packs), Activity (update log, crash history), Settings (launch as, game
+//!    files, official Minecraft Launcher);
+//! 4. the active tab's **body**, at least a viewport (less the tab bar) tall so any tab can
+//!    reach the pinned position.
 //!
-//! Tab bodies are built when first shown; each section box collapses, and folder listings run
-//! on the background executor the first time their section is open. The screenshot viewer and
-//! the crash viewer open over the card.
+//! The **action row** (Play and Website) stays fixed below the scroll area. Switching tabs keeps
+//! a pinned bar pinned (showing the new tab from its top) and otherwise keeps the position; the
+//! offset is in pixels, so sections that load later never move what is on screen. Each section
+//! box collapses, and folder listings run on the background executor the first time their
+//! section is open. The screenshot viewer and the crash viewer open over the card.
 
 pub mod content;
 pub mod hooks;
@@ -34,14 +40,14 @@ use gpui::{
     AnyElement, App, AppContext as _, ClipboardItem, Context, Entity, FontWeight, Image,
     ImageSource, InteractiveElement as _, IntoElement, ObjectFit, ParentElement, Render,
     ScrollHandle, SharedString, StatefulInteractiveElement as _, Styled, StyledImage as _, Window,
-    div, img, point, prelude::FluentBuilder as _, px,
+    canvas, div, img, point, prelude::FluentBuilder as _, px,
 };
 use gpui_component::WindowExt as _;
 use gpui_component::checkbox::Checkbox;
+use gpui_component::scroll::ScrollableElement as _;
 use mmcl_engine::{
     AccountView, CrashActionResult, CrashView, Engine, ExportRequest, LaunchOptions,
-    OptionalModsView, PackDetails, PackId, PackSummary, PendingUpdateView, ScanFrequency,
-    ServerView,
+    OptionalModsView, PackDetails, PackId, PackSummary, ScanFrequency, ServerView,
 };
 use mmcl_i18n::{t, tf};
 use mmcl_ui::screens::home_browse::{self as hb, backend::backend, controls, cycle, visuals};
@@ -55,7 +61,9 @@ use mmcl_ui_kit::{
 
 use self::content::{ContentKind, Entry, ToggleError};
 use self::hooks::{ModUpdate, ProblemView, UpdateStatus};
-use self::model::{ExportChoice, QuickAction, Section, Tab, UpdateLogDisplay};
+use self::model::{
+    ExportChoice, OptionalCounts, QuickAction, Section, SectionFacts, Tab, UpdateLogDisplay,
+};
 use super::widgets::{
     Pill, Tone, body, card, chip, hint, loading_row, mono, muted, section_box, tinted_chip, title,
 };
@@ -90,6 +98,43 @@ enum ModRowState {
     UpdateFailed,
 }
 
+/// The scroll area's child that is the tab bar: hero, chips, tab bar, body.
+const TAB_BAR_ITEM: usize = 2;
+
+/// The scroll area as last laid out, in px: the offset (0 = top), where the tab bar sits in the
+/// content, its height and the viewport's height. Zero until the first layout.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+struct ScrollMeasure {
+    offset: f32,
+    pin_at: f32,
+    bar_h: f32,
+    viewport_h: f32,
+}
+
+impl ScrollMeasure {
+    /// Reads the scroll handle (the previous frame's layout).
+    fn of(handle: &ScrollHandle) -> Self {
+        let viewport = handle.bounds();
+        let max = f32::from(handle.max_offset().y).max(0.0);
+        // A wheel delta is clamped only when the area is next laid out.
+        let offset = (-f32::from(handle.offset().y)).clamp(0.0, max);
+        let bar = handle.bounds_for_item(TAB_BAR_ITEM);
+        ScrollMeasure {
+            offset,
+            pin_at: bar.map_or(0.0, |b| f32::from(b.top() - viewport.top())),
+            bar_h: bar.map_or(0.0, |b| f32::from(b.size.height)),
+            viewport_h: f32::from(viewport.size.height),
+        }
+    }
+
+    /// Whether the layout (not the offset) is the same as `other`'s, to half a pixel.
+    fn same_layout(&self, other: &Self) -> bool {
+        (self.pin_at - other.pin_at).abs() < 0.5
+            && (self.bar_h - other.bar_h).abs() < 0.5
+            && (self.viewport_h - other.viewport_h).abs() < 0.5
+    }
+}
+
 /// The modal's view.
 pub struct DetailModal {
     engine: Engine,
@@ -107,7 +152,8 @@ pub struct DetailModal {
     optional_status: Vec<String>,
     problems: Vec<ProblemView>,
     tab: Tab,
-    expanded: HashSet<Section>,
+    /// Sections the player collapsed (every section starts expanded).
+    collapsed: HashSet<Section>,
     lists: HashMap<ContentKind, Load<Vec<Entry>>>,
     sizes: HashMap<PathBuf, u64>,
     mod_busy: HashSet<PathBuf>,
@@ -118,7 +164,11 @@ pub struct DetailModal {
     hero_offset: i64,
     overlay: Option<Overlay>,
     news_marked: bool,
+    /// The one scroll area (hero, chips, tab bar, body).
     scroll: ScrollHandle,
+    /// The tab bar's place in the content when last rendered, to keep a pinned body steady when
+    /// it moves.
+    pin_at: f32,
     _cycle: cycle::CycleSubscription,
 }
 
@@ -140,7 +190,7 @@ impl DetailModal {
             optional_status: Vec::new(),
             problems: Vec::new(),
             tab: Tab::Overview,
-            expanded: HashSet::new(),
+            collapsed: HashSet::new(),
             lists: HashMap::new(),
             sizes: HashMap::new(),
             mod_busy: HashSet::new(),
@@ -152,16 +202,9 @@ impl DetailModal {
             overlay: None,
             news_marked: false,
             scroll: ScrollHandle::new(),
+            pin_at: 0.0,
             _cycle: cycle::subscribe(cx),
         };
-        for tab in [Tab::Overview, Tab::Content, Tab::Activity, Tab::Advanced] {
-            for s in model::sections(tab, true, true) {
-                if s.starts_expanded() {
-                    this.expanded.insert(s);
-                }
-            }
-        }
-        this.expanded.insert(Section::Problems);
         this.load_details(cx);
         this.load_optional_mods(cx);
         this
@@ -191,12 +234,38 @@ impl DetailModal {
         .detach();
     }
 
-    /// Whether the pack has optional mods a player can switch (a server-only one is never
-    /// installed on a client, so it gets no switch).
-    fn has_optional_mods(&self) -> bool {
-        self.optional_mods
-            .as_ref()
-            .is_some_and(|v| v.client_side().next().is_some())
+    /// How many optional mods a player can switch (a server-only one is never installed on a
+    /// client, so it gets no switch) and how many of them are on.
+    fn optional_counts(&self) -> OptionalCounts {
+        match &self.optional_mods {
+            Some(v) => {
+                model::optional_counts(v.mods.iter().map(|m| (m.key(), m.is_client_side())), |k| {
+                    v.is_enabled(k)
+                })
+            }
+            None => OptionalCounts::default(),
+        }
+    }
+
+    /// What decides which sections the tabs show.
+    fn section_facts(&self) -> SectionFacts {
+        let d = self.details();
+        let optional = self.optional_counts().available > 0;
+        // Optional mods come from a modded pack's manifest; the summary points at the Mods tab.
+        let optional_capable = !self.summary.is_vanilla && model::has_settings_key(&self.id);
+        SectionFacts {
+            pending_update: d.is_some_and(|d| d.pending_update.is_some()),
+            optional_summary: optional && optional_capable && self.tabs().contains(&Tab::Mods),
+            news: d.is_some_and(|d| !d.news.is_empty()),
+            links: d.is_some_and(|d| !d.links.is_empty()),
+            optional_mods: optional,
+            manifest: self
+                .summary
+                .manifest_url
+                .as_deref()
+                .is_some_and(|u| !u.trim().is_empty()),
+            root: d.is_some(),
+        }
     }
 
     fn load_details(&mut self, cx: &mut Context<Self>) {
@@ -257,18 +326,26 @@ impl DetailModal {
 
     fn tabs(&self) -> Vec<Tab> {
         model::tabs(
-            self.problems.len(),
+            !self.problems.is_empty(),
             self.root().is_some(),
             model::has_settings_key(&self.id) && self.summary.installed,
         )
     }
 
-    fn select_tab(&mut self, tab: Tab, cx: &mut Context<Self>) {
+    /// Activates a tab. The scroll position never jumps back over the hero: a pinned tab bar
+    /// stays pinned (the new tab shows from its top), otherwise the area stays where it was.
+    /// `pin` scrolls to the pinned position whatever the position was (Choose, Review).
+    fn select_tab(&mut self, tab: Tab, pin: bool, cx: &mut Context<Self>) {
         self.tab = tab;
-        self.scroll.set_offset(point(px(0.0), px(0.0)));
-        let has_news = self.details().is_some_and(|d| !d.news.is_empty());
-        for s in model::sections(tab, has_news, self.has_optional_mods()) {
-            if self.expanded.contains(&s) {
+        let m = ScrollMeasure::of(&self.scroll);
+        let target = if pin {
+            m.pin_at
+        } else {
+            model::offset_after_tab_switch(m.offset, m.pin_at)
+        };
+        self.scroll.set_offset(point(px(0.0), px(-target)));
+        for s in model::sections(tab, self.section_facts()) {
+            if !self.collapsed.contains(&s) {
                 self.ensure_section(s, cx);
             }
         }
@@ -276,9 +353,10 @@ impl DetailModal {
     }
 
     fn toggle_section(&mut self, s: Section, cx: &mut Context<Self>) {
-        if !self.expanded.remove(&s) {
-            self.expanded.insert(s);
+        if self.collapsed.remove(&s) {
             self.ensure_section(s, cx);
+        } else {
+            self.collapsed.insert(s);
         }
         cx.notify();
     }
@@ -543,7 +621,7 @@ impl DetailModal {
                     IconButton::new(
                         "detail-close",
                         Icon::Close,
-                        t!("dialog.button.close").into_owned(),
+                        t!("detailModal.close").into_owned(),
                     )
                     .on_click(Self::close),
                 ),
@@ -606,7 +684,8 @@ impl DetailModal {
                             )
                             .height(28.0)
                             .on_click(move |_, cx| {
-                                let _ = review.update(cx, |v, cx| v.select_tab(Tab::Problems, cx));
+                                let _ = review
+                                    .update(cx, |v, cx| v.select_tab(Tab::Problems, true, cx));
                             }),
                         ),
                 )
@@ -614,28 +693,36 @@ impl DetailModal {
             .into_any_element()
     }
 
-    fn render_tabs(&self, cx: &mut Context<Self>) -> AnyElement {
+    /// The tab bar: the tabs (wrapping onto more rows in a narrow window rather than cutting
+    /// their labels short) and a close button at the far end. The copy in the scrolled content
+    /// keeps the close button's room but hides it; the `pinned` copy drawn over the top of the
+    /// scroll area shows it (the hero's own close button has scrolled away by then).
+    fn render_tab_bar(&self, pinned: bool, cx: &mut Context<Self>) -> AnyElement {
         let t = cx.tokens();
         let problems = self.problems.len();
-        div()
-            .flex_none()
+        let (tab_id, close_id) = if pinned {
+            ("detail-pinned-tab", "detail-pinned-close")
+        } else {
+            ("detail-tab", "detail-bar-close")
+        };
+        let close = IconButton::new(close_id, Icon::Close, t!("detailModal.close").into_owned())
+            .compact()
+            .on_click(Self::close);
+        let tabs = div()
+            .flex_1()
+            .min_w_0()
             .flex()
             .flex_wrap()
             .gap(u(4.0))
-            .py(u(12.0))
-            .px(u(24.0))
             .children(self.tabs().into_iter().enumerate().map(|(i, tab)| {
                 let weak = cx.entity().downgrade();
-                let mut pill = Pill::new(
-                    ("detail-tab", i),
-                    t!(tab.label_key()).into_owned(),
-                    Tone::Outline,
-                )
-                .height(34.0)
-                .selected(tab == self.tab)
-                .on_click(move |_, cx| {
-                    let _ = weak.update(cx, |v, cx| v.select_tab(tab, cx));
-                });
+                let mut pill =
+                    Pill::new((tab_id, i), t!(tab.label_key()).into_owned(), Tone::Outline)
+                        .height(34.0)
+                        .selected(tab == self.tab)
+                        .on_click(move |_, cx| {
+                            let _ = weak.update(cx, |v, cx| v.select_tab(tab, false, cx));
+                        });
                 if tab == Tab::Problems {
                     pill = pill.leading(
                         div()
@@ -648,7 +735,25 @@ impl DetailModal {
                     );
                 }
                 pill
-            }))
+            }));
+        div()
+            .w_full()
+            .flex()
+            .items_center()
+            .gap(u(8.0))
+            .py(u(12.0))
+            .pl(u(24.0))
+            .pr(u(16.0))
+            .child(tabs)
+            .child(if pinned {
+                close.into_any_element()
+            } else {
+                div()
+                    .flex_none()
+                    .invisible()
+                    .child(close)
+                    .into_any_element()
+            })
             .into_any_element()
     }
 
@@ -708,9 +813,14 @@ impl DetailModal {
     // -----------------------------------------------------------------------------------------
     // Sections
 
-    fn render_body(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
-        let has_news = self.details().is_some_and(|d| !d.news.is_empty());
-        let sections = model::sections(self.tab, has_news, self.has_optional_mods());
+    /// The active tab's body, at least `min_h` px tall.
+    fn render_body(
+        &mut self,
+        min_h: f32,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let sections = model::sections(self.tab, self.section_facts());
         let mut children: Vec<AnyElement> = Vec::new();
         if matches!(self.details, Load::Loading) && self.tab != Tab::Overview {
             children.push(loading_row("detail-loading", cx).into_any_element());
@@ -719,17 +829,25 @@ impl DetailModal {
             if s == Section::News {
                 self.mark_news_seen();
             }
-            let expanded = self.expanded.contains(&s);
+            let expanded = !self.collapsed.contains(&s);
             let weak = cx.entity().downgrade();
             let content = if expanded {
                 self.section_content(s, window, cx)
             } else {
                 Vec::new()
             };
+            let heading = match s {
+                Section::WhatsNew => self
+                    .details()
+                    .and_then(|d| d.pending_update.as_ref())
+                    .map(|p| model::whats_new(&self.summary.version, p).header)
+                    .unwrap_or_default(),
+                _ => t!(s.heading_key()).into_owned(),
+            };
             children.push(
                 section_box(
                     ("detail-section", s.ordinal()),
-                    t!(s.heading_key()).into_owned(),
+                    heading,
                     expanded,
                     move |_, cx| {
                         let _ = weak.update(cx, |v, cx| v.toggle_section(s, cx));
@@ -744,21 +862,15 @@ impl DetailModal {
             children.push(muted(t!("detailModal.tab.empty").into_owned(), cx).into_any_element());
         }
         div()
-            .id("detail-body")
-            .flex_1()
-            .min_h_0()
-            .overflow_y_scroll()
-            .track_scroll(&self.scroll)
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap(u(16.0))
-                    .pt(u(4.0))
-                    .px(u(24.0))
-                    .pb(u(20.0))
-                    .children(children),
-            )
+            .w_full()
+            .min_h(px(min_h))
+            .flex()
+            .flex_col()
+            .gap(u(16.0))
+            .pt(u(4.0))
+            .px(u(24.0))
+            .pb(u(24.0))
+            .children(children)
             .into_any_element()
     }
 
@@ -769,21 +881,103 @@ impl DetailModal {
         cx: &mut Context<Self>,
     ) -> Vec<AnyElement> {
         match s {
+            Section::WhatsNew => self.whats_new(cx),
+            Section::OptionalSummary => self.optional_summary(cx),
             Section::News => self.news(cx),
-            Section::QuickActions => self.quick_actions(cx),
+            Section::Links => self.links(cx),
             Section::Stats => self.stats(cx),
+            Section::QuickActions => self.quick_actions(cx),
+            Section::OptionalMods => self.optional_mods_section(cx),
+            Section::Mods => self.mods(window, cx),
             Section::Worlds => self.file_list(ContentKind::Worlds, true, cx),
             Section::Servers => self.servers(cx),
-            Section::Mods => self.mods(window, cx),
             Section::Screenshots => self.screenshots(cx),
             Section::ShaderPacks => self.file_list(ContentKind::ShaderPacks, false, cx),
             Section::ResourcePacks => self.file_list(ContentKind::ResourcePacks, false, cx),
             Section::UpdateLog => self.update_log(cx),
             Section::CrashHistory => self.crash_history(cx),
-            Section::Advanced => self.advanced(cx),
-            Section::OptionalMods => self.optional_mods_section(cx),
+            Section::LaunchAs => self.launch_as(cx),
+            Section::GameFiles => self.game_files(cx),
+            Section::OfficialLauncher => self.official_launcher(cx),
             Section::Problems => self.problems_list(cx),
         }
+    }
+
+    /// What a pending update changes (Java `buildPendingChangesNode`): the counts, a few example
+    /// names per kind and the note that it is approximate. The heading names the new version.
+    fn whats_new(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let Some(p) = self.details().and_then(|d| d.pending_update.as_ref()) else {
+            return Vec::new();
+        };
+        let w = model::whats_new(&self.summary.version, p);
+        let mut out = vec![body(w.summary, cx).into_any_element()];
+        out.extend(w.lines.into_iter().map(|l| muted(l, cx).into_any_element()));
+        out.push(muted(w.note, cx).into_any_element());
+        out
+    }
+
+    /// The Optional mods summary: how many there are and how many are on (following the Mods
+    /// tab's switches), and Choose, which opens the Mods tab pinned at its Optional mods.
+    fn optional_summary(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let c = self.optional_counts();
+        let weak = cx.entity().downgrade();
+        vec![
+            div()
+                .flex()
+                .items_center()
+                .gap(u(12.0))
+                .child(body(
+                    tf!(
+                        "detailModal.optionalSummary.counts",
+                        c.available as i64,
+                        c.on as i64
+                    ),
+                    cx,
+                ))
+                .child(div().flex_1())
+                .child(
+                    Pill::new(
+                        "detail-optional-choose",
+                        t!("detailModal.optionalSummary.choose").into_owned(),
+                        Tone::Tonal,
+                    )
+                    .height(32.0)
+                    .on_click(move |_, cx| {
+                        let _ = weak.update(cx, |v, cx| v.select_tab(Tab::Mods, true, cx));
+                    }),
+                )
+                .into_any_element(),
+        ]
+    }
+
+    /// The pack's links: each a compact card with a title that opens the URL and an optional
+    /// description.
+    fn links(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let Some(d) = self.details() else {
+            return Vec::new();
+        };
+        let primary = hsla(cx.tokens().md_primary);
+        d.links
+            .iter()
+            .enumerate()
+            .map(|(i, l)| {
+                let url = l.url.clone();
+                card(cx)
+                    .gap(u(2.0))
+                    .child(
+                        div()
+                            .id(("detail-link", i))
+                            .cursor_pointer()
+                            .text_size(u(14.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(primary)
+                            .child(l.title.clone())
+                            .on_click(move |_, _, cx| mmcl_ui_kit::open_external_url(cx, &url)),
+                    )
+                    .when_some(l.description.clone(), |el, d| el.child(hint(d, cx)))
+                    .into_any_element()
+            })
+            .collect()
     }
 
     fn news(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
@@ -923,11 +1117,35 @@ impl DetailModal {
             None | Some(Load::Loading) => {
                 Err(loading_row(("list-loading", kind as usize), cx).into_any_element())
             }
-            Some(Load::Ready(v)) if v.is_empty() => {
-                Err(muted(t!("detailModal.content.empty").into_owned(), cx).into_any_element())
-            }
+            Some(Load::Ready(v)) if v.is_empty() => Err(self.empty_state(kind, cx)),
             Some(Load::Ready(v)) => Ok(v.clone()),
         }
+    }
+
+    /// An empty folder listing: "Nothing here yet." and, for folders a player fills (worlds,
+    /// screenshots, mods, shader and resource packs), Open Folder, which creates the folder when
+    /// it does not exist yet.
+    fn empty_state(&self, kind: ContentKind, cx: &mut Context<Self>) -> AnyElement {
+        let label = muted(t!("detailModal.content.empty").into_owned(), cx);
+        let Some(root) = self.root().filter(|_| kind != ContentKind::CrashReports) else {
+            return label.into_any_element();
+        };
+        let dir = root.join(kind.folder());
+        div()
+            .flex()
+            .items_center()
+            .gap(u(8.0))
+            .child(label)
+            .child(
+                Pill::new(
+                    ("detail-empty-open", kind as usize),
+                    t!("detailModal.content.openFolder").into_owned(),
+                    Tone::Text,
+                )
+                .height(30.0)
+                .on_click(move |_, cx| hb::pack_actions::open_pack_folder(cx, &dir)),
+            )
+            .into_any_element()
     }
 
     fn meta_line(&self, e: &Entry) -> String {
@@ -1426,30 +1644,8 @@ impl DetailModal {
         ]
     }
 
-    /// The update log, with the "What's new" card on top while an update is pending.
+    /// The update log, newest first. A pending update's changes are on the Overview (What's new).
     fn update_log(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
-        let mut out = Vec::new();
-        if let Some(p) = self.details().and_then(|d| d.pending_update.as_ref()) {
-            out.push(self.whats_new_card(p, cx));
-        }
-        out.extend(self.update_log_entries(cx));
-        out
-    }
-
-    /// The "What's new" card (Java `buildPendingChangesNode`): the new version, the counts, a
-    /// few example names per kind and the note that it is approximate.
-    fn whats_new_card(&self, p: &PendingUpdateView, cx: &mut Context<Self>) -> AnyElement {
-        let w = model::whats_new(&self.summary.version, p);
-        card(cx)
-            .gap(u(4.0))
-            .child(title(w.header, cx))
-            .child(body(w.summary, cx))
-            .children(w.lines.into_iter().map(|l| muted(l, cx)))
-            .child(muted(w.note, cx))
-            .into_any_element()
-    }
-
-    fn update_log_entries(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let Some(d) = self.details() else {
             return vec![match self.details {
                 Load::Loading => loading_row("log-loading", cx).into_any_element(),
@@ -1592,15 +1788,14 @@ impl DetailModal {
         .detach();
     }
 
-    fn advanced(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
-        let mut out: Vec<AnyElement> =
-            vec![hint(t!("modal.advanced.hint").into_owned(), cx).into_any_element()];
-        // Launch as.
+    /// The Settings tab's "Launch as": which signed-in account this pack plays as. The first
+    /// option is the default account (no override).
+    fn launch_as(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let weak = cx.entity().downgrade();
         let options = model::account_options(&self.accounts, self.account_override.as_deref());
         let selected = self.account_override.clone().unwrap_or_default();
-        out.push(body(t!("modal.advanced.account.label").into_owned(), cx).into_any_element());
-        out.push(
+        vec![
+            hint(t!("modal.advanced.account.hint").into_owned(), cx).into_any_element(),
             div()
                 .flex()
                 .child(controls::combo(
@@ -1614,104 +1809,171 @@ impl DetailModal {
                     }),
                 ))
                 .into_any_element(),
-        );
-        out.push(hint(t!("modal.advanced.account.hint").into_owned(), cx).into_any_element());
-        let manifest = self
-            .summary
-            .manifest_url
-            .clone()
-            .filter(|u| !u.trim().is_empty());
-        if manifest.is_some() {
-            let weak = cx.entity().downgrade();
-            out.push(
-                Switch::new("detail-always-verify")
-                    .label(t!("modal.advanced.alwaysVerify").into_owned())
-                    .checked(self.always_verify)
-                    .on_change(move |v, _, cx| {
-                        let _ = weak.update(cx, |this, cx| this.set_always_verify(v, cx));
-                    })
-                    .into_any_element(),
-            );
-            out.push(
-                hint(t!("modal.advanced.alwaysVerify.hint").into_owned(), cx).into_any_element(),
-            );
-            let weak = cx.entity().downgrade();
-            out.push(body(t!("modal.advanced.scanFreq.label").into_owned(), cx).into_any_element());
-            out.push(
-                div()
-                    .flex()
-                    .child(controls::combo(
-                        "detail-scan-freq",
-                        model::scan_options(),
-                        &self.scan_frequency,
-                        280.0,
-                        t!("modal.advanced.scanFreq.label").into_owned(),
-                        Rc::new(move |picked: String, _, cx| {
-                            let _ = weak.update(cx, |v, cx| v.set_scan_frequency(picked, cx));
-                        }),
-                    ))
-                    .into_any_element(),
-            );
-            out.push(hint(t!("modal.advanced.scanFreq.hint").into_owned(), cx).into_any_element());
-            let summary = self.summary.clone();
-            out.push(
-                div()
-                    .flex()
-                    .child(
-                        Pill::new(
-                            "detail-verify",
-                            t!("modal.advanced.verifyNow").into_owned(),
-                            Tone::Tonal,
-                        )
-                        .height(32.0)
-                        .on_click(move |window, cx| {
-                            Self::close(window, cx);
-                            verify_now(&summary, cx);
-                        }),
-                    )
-                    .into_any_element(),
-            );
-            out.push(hint(t!("modal.advanced.verifyNow.hint").into_owned(), cx).into_any_element());
-        }
-        if let Some(root) = self.root() {
-            let summary = self.summary.clone();
-            let (label, hint_key, remove) = if self.engine.has_official_export(&self.id) {
-                (
-                    "officialExport.remove.menuItem",
-                    "modal.advanced.removeOfficial.hint",
-                    true,
-                )
-            } else {
-                (
-                    "officialExport.menuItem",
-                    "modal.advanced.addOfficial.hint",
-                    false,
-                )
-            };
-            out.push(
-                div()
-                    .flex()
-                    .child(
-                        Pill::new("detail-official", t!(label).into_owned(), Tone::Tonal)
-                            .height(32.0)
-                            .on_click(move |window, cx| {
-                                Self::close(window, cx);
-                                if remove {
-                                    hb::pack_actions::official_remove(
-                                        cx,
-                                        &summary,
-                                        Some(root.clone()),
-                                    );
-                                } else {
-                                    hb::pack_actions::official_export(cx, &summary);
-                                }
-                            }),
-                    )
-                    .into_any_element(),
-            );
-            out.push(hint(t!(hint_key).into_owned(), cx).into_any_element());
-        }
+        ]
+    }
+
+    /// The Settings tab's "Game files": always verify on launch, verify now, the scan frequency
+    /// and the scan findings the pack's author acknowledged, each control with its hint under it.
+    fn game_files(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let weak = cx.entity().downgrade();
+        let always = Switch::new("detail-always-verify")
+            .label(t!("modal.advanced.alwaysVerify").into_owned())
+            .checked(self.always_verify)
+            .on_change(move |v, _, cx| {
+                let _ = weak.update(cx, |this, cx| this.set_always_verify(v, cx));
+            })
+            .into_any_element();
+        let summary = self.summary.clone();
+        let verify = Pill::new(
+            "detail-verify",
+            t!("modal.advanced.verifyNow").into_owned(),
+            Tone::Tonal,
+        )
+        .height(32.0)
+        .on_click(move |window, cx| {
+            Self::close(window, cx);
+            verify_now(&summary, cx);
+        })
+        .into_any_element();
+        let weak = cx.entity().downgrade();
+        let scan = controls::combo(
+            "detail-scan-freq",
+            model::scan_options(),
+            &self.scan_frequency,
+            280.0,
+            t!("modal.advanced.scanFreq.label").into_owned(),
+            Rc::new(move |picked: String, _, cx| {
+                let _ = weak.update(cx, |v, cx| v.set_scan_frequency(picked, cx));
+            }),
+        )
+        .into_any_element();
+        let mut out = vec![
+            setting(always, None, "modal.advanced.alwaysVerify.hint", cx),
+            setting(verify, None, "modal.advanced.verifyNow.hint", cx),
+            setting(
+                scan,
+                Some("modal.advanced.scanFreq.label"),
+                "modal.advanced.scanFreq.hint",
+                cx,
+            ),
+        ];
+        out.extend(self.acknowledgements(cx));
         out
+    }
+
+    /// The read-only list of the manifest's acknowledged scan findings: rule kind, locator and
+    /// the author's reason per row, the file's SHA-256 in a tooltip. Nothing when there are none.
+    fn acknowledgements(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let acks = &self.details()?.scan_acknowledgements;
+        if acks.is_empty() {
+            return None;
+        }
+        let t = cx.tokens();
+        let rows = acks.iter().enumerate().map(|(i, a)| {
+            let kind = a
+                .kind
+                .clone()
+                .unwrap_or_else(|| t!("modal.ack.unknownRule").into_owned());
+            let reason = match &a.reason {
+                Some(r) => div()
+                    .text_size(u(12.0))
+                    .text_color(hsla(t.md_on_surface))
+                    .child(r.clone()),
+                None => div()
+                    .text_size(u(12.0))
+                    .italic()
+                    .text_color(hsla(t.color_text_muted))
+                    .child(t!("modal.ack.noReason").into_owned()),
+            };
+            div()
+                .id(("detail-scan-ack", i))
+                .flex()
+                .flex_col()
+                .gap(u(2.0))
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(u(8.0))
+                        .text_size(u(12.0))
+                        .child(
+                            div()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(hsla(t.md_on_surface))
+                                .child(kind),
+                        )
+                        .when_some(a.locator.clone(), |el, l| {
+                            el.child(div().text_color(hsla(t.color_text_muted)).child("\u{b7}"))
+                                .child(
+                                    div()
+                                        .min_w_0()
+                                        .text_color(hsla(t.color_text_muted))
+                                        .child(l),
+                                )
+                        }),
+                )
+                .child(reason)
+                .when_some(a.file_sha256.clone(), |el, sha| {
+                    el.launcher_tooltip(tf!("tooltip.modal.fileSha", sha))
+                })
+        });
+        Some(
+            div()
+                .flex()
+                .flex_col()
+                .gap(u(6.0))
+                .child(
+                    div()
+                        .text_size(u(13.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(hsla(t.md_on_surface))
+                        .child(t!("modal.ack.heading").into_owned()),
+                )
+                .child(hint(t!("modal.ack.intro").into_owned(), cx))
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(u(4.0))
+                        .pt(u(6.0))
+                        .children(rows),
+                )
+                .into_any_element(),
+        )
+    }
+
+    /// The Settings tab's "Official Minecraft Launcher": add this pack to Mojang's launcher as a
+    /// profile or, once it has one, remove it; only one of the two shows.
+    fn official_launcher(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let Some(root) = self.root() else {
+            return Vec::new();
+        };
+        let summary = self.summary.clone();
+        let (label, hint_key, remove) = if self.engine.has_official_export(&self.id) {
+            (
+                "officialExport.remove.menuItem",
+                "modal.advanced.removeOfficial.hint",
+                true,
+            )
+        } else {
+            (
+                "officialExport.menuItem",
+                "modal.advanced.addOfficial.hint",
+                false,
+            )
+        };
+        let button = Pill::new("detail-official", t!(label).into_owned(), Tone::Tonal)
+            .height(32.0)
+            .on_click(move |window, cx| {
+                Self::close(window, cx);
+                if remove {
+                    hb::pack_actions::official_remove(cx, &summary, Some(root.clone()));
+                } else {
+                    hb::pack_actions::official_export(cx, &summary);
+                }
+            })
+            .into_any_element();
+        vec![setting(button, None, hint_key, cx)]
     }
 
     /// The Optional mods section: a hint (changes apply on the next launch), one switch per
@@ -2142,13 +2404,81 @@ impl Render for DetailModal {
         let (_, card_h) =
             model::card_size((f32::from(vp.width) / scale, f32::from(vp.height) / scale));
         let hero_h = model::hero_height(card_h);
+
+        // The scroll area as last laid out. When the tab bar's place moved (the hero follows
+        // the window's height, the chips and Problems banner arrive late), a pinned bar stays
+        // pinned with the body under it where it was.
+        let mut m = ScrollMeasure::of(&self.scroll);
+        if (m.pin_at - self.pin_at).abs() > 0.01 {
+            let next = model::offset_after_pin_move(m.offset, self.pin_at, m.pin_at);
+            if next != m.offset {
+                self.scroll.set_offset(point(px(0.0), px(-next)));
+                m.offset = next;
+            }
+            self.pin_at = m.pin_at;
+        }
+        let pinned = model::is_pinned(m.offset, m.pin_at);
+        let body_min = if m.viewport_h > 0.0 {
+            model::body_min_height(m.viewport_h, m.bar_h)
+        } else {
+            0.0
+        };
+
         let hero = self.render_hero(hero_h, cx);
         let header = self.render_header(cx);
-        let tabs = self.render_tabs(cx);
-        let body = self.render_body(window, cx);
+        let bar = self.render_tab_bar(false, cx);
+        let body = self.render_body(body_min, window, cx);
+        let pinned_bar = pinned.then(|| self.render_tab_bar(true, cx));
         let actions = self.render_actions(cx);
         let overlay = self.render_overlay(cx);
         let t = cx.tokens();
+
+        // The scroll area's direct children are exactly hero, chips, tab bar and body (the tab
+        // bar is TAB_BAR_ITEM); the scrollbar layer comes after them.
+        let scroll = div()
+            .id("detail-scroll")
+            .size_full()
+            .overflow_y_scroll()
+            .track_scroll(&self.scroll)
+            .child(hero)
+            .child(header)
+            .child(div().w_full().when(pinned, |el| el.invisible()).child(bar))
+            .child(body)
+            .vertical_scrollbar(&self.scroll);
+        // Pinned: a copy of the tab bar over the top of the scroll area, on the card's surface
+        // with a shadow. It takes clicks but lets the wheel through to the area under it. The
+        // surface tokens are translucent in the Mica themes, so it is laid over the card's
+        // solid background to hide the body scrolling under it.
+        let pinned_bg = super::widgets::blend(
+            cx.launcher_theme().solid_bg(true),
+            hsla(t.md_surface_container_high),
+        );
+        let pinned_bar = pinned_bar.map(|bar| {
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .right_0()
+                .rounded_t(u(20.0))
+                .bg(pinned_bg)
+                .shadow_md()
+                .block_mouse_except_scroll()
+                .child(bar)
+        });
+        // The values above come from the previous frame's layout; when this frame's differs (a
+        // resize, content arriving), render once more so the pin and the body's height follow.
+        let handle = self.scroll.clone();
+        let recheck = canvas(
+            move |_, window, _| {
+                if !ScrollMeasure::of(&handle).same_layout(&m) {
+                    window.request_animation_frame();
+                }
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .size_0();
+
         nav_scope("pack-detail")
             .w_full()
             .h(u(card_h))
@@ -2158,13 +2488,36 @@ impl Render for DetailModal {
             .rounded(u(20.0))
             .text_color(hsla(t.color_text))
             .font_family(mmcl_ui_kit::fonts::UI_FAMILY)
-            .child(hero)
-            .child(header)
-            .child(tabs)
-            .child(body)
+            .child(
+                div()
+                    .relative()
+                    .flex_1()
+                    .min_h_0()
+                    .child(scroll)
+                    .children(pinned_bar),
+            )
             .child(actions)
+            .child(recheck)
             .children(overlay)
     }
+}
+
+/// One setting of a Settings-tab section: an optional label, the control and its hint under
+/// it, kept together so a section reads as a list of settings.
+fn setting(
+    control: AnyElement,
+    label_key: Option<&'static str>,
+    hint_key: &'static str,
+    cx: &App,
+) -> AnyElement {
+    div()
+        .flex()
+        .flex_col()
+        .gap(u(4.0))
+        .when_some(label_key, |el, k| el.child(body(t!(k).into_owned(), cx)))
+        .child(div().flex().items_center().child(control))
+        .child(hint(t!(hint_key).into_owned(), cx))
+        .into_any_element()
 }
 
 /// One content row: name (growing) and meta; callers append the buttons.

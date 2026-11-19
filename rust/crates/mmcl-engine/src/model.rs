@@ -191,6 +191,28 @@ pub struct PackNewsView {
     pub url: Option<String>,
 }
 
+/// A link of a pack (`packLinks`): only renderable ones (a title and an http(s) URL) are listed.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct PackLinkView {
+    pub title: String,
+    /// A validated `http`/`https` URL.
+    pub url: String,
+    pub description: Option<String>,
+}
+
+/// A scan finding the pack's author acknowledged (`packScanAcknowledgements`), shown read-only.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ScanAckView {
+    /// The rule kind; `None` when the manifest leaves it out.
+    pub kind: Option<String>,
+    /// The class.method or inner-jar path, when set.
+    pub locator: Option<String>,
+    /// Why the author silenced it, when given.
+    pub reason: Option<String>,
+    /// The acknowledged file's SHA-256, when set.
+    pub file_sha256: Option<String>,
+}
+
 /// One entry of the pack's update log (newest first).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct UpdateLogView {
@@ -241,6 +263,10 @@ pub struct PackDetails {
     pub loader_name: Option<String>,
     pub loader_version: Option<String>,
     pub news: Vec<PackNewsView>,
+    /// The pack's renderable links, in manifest order.
+    pub links: Vec<PackLinkView>,
+    /// The manifest's acknowledged scan findings, in manifest order.
+    pub scan_acknowledgements: Vec<ScanAckView>,
     pub update_log: Vec<UpdateLogView>,
     /// What the pending update would change, when an update is pending and it changes
     /// something (or offers new optional mods); `None` otherwise.

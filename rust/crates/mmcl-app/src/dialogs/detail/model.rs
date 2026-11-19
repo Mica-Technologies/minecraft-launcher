@@ -1,7 +1,9 @@
 // Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
 
-//! The pure parts of the pack detail modal: sizes, which tabs show, the chips, the stats rows,
-//! the update log, the Advanced tab's options and the export choices.
+//! The pure parts of the pack detail modal (Java `DetailModalLayout` and friends): sizes, which
+//! tabs and sections show, the Optional mods summary counts, the sticky tab bar's scroll
+//! arithmetic, the chips, the stats rows, the update log, the Settings tab's options and the
+//! export choices.
 
 use mmcl_engine::{
     AccountStatus, AccountView, ExportModeView, PackDetails, PackId, PackSummary,
@@ -37,14 +39,21 @@ pub fn hero_height(card_h: f32) -> f32 {
     (card_h * HERO_FRACTION).clamp(HERO_MIN, HERO_MAX)
 }
 
-/// One tab of the modal.
+/// One tab of the modal, grouped by task (Java `DetailModalLayout`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Tab {
+    /// What's new, the optional mods summary, news, links, at a glance, quick actions.
     Overview,
+    /// Files the launcher re-downloads on every launch.
     Problems,
-    Content,
+    /// Optional mods, then the installed mods.
+    Mods,
+    /// Worlds, servers, screenshots, shader packs, resource packs.
+    Files,
+    /// Update log and crash history.
     Activity,
-    Advanced,
+    /// Launch as, game files, the official Minecraft Launcher.
+    Settings,
 }
 
 impl Tab {
@@ -53,28 +62,100 @@ impl Tab {
         match self {
             Tab::Overview => "detailModal.tab.overview",
             Tab::Problems => "detailModal.section.problems",
-            Tab::Content => "detailModal.tab.content",
+            Tab::Mods => "detailModal.tab.mods",
+            Tab::Files => "detailModal.tab.files",
             Tab::Activity => "detailModal.tab.activity",
-            Tab::Advanced => "detailModal.tab.advanced",
+            Tab::Settings => "detailModal.tab.settings",
         }
     }
 }
 
-/// The tabs a pack shows: Overview always; Problems with problems; Content and Activity with an
-/// install folder; Advanced with a settings key.
-pub fn tabs(problem_count: usize, has_root: bool, has_settings_key: bool) -> Vec<Tab> {
+/// The tabs a pack shows, in order: Overview always, Problems after it when there are problems;
+/// Mods, Worlds & files and Activity need an install folder; Settings needs a settings key.
+pub fn tabs(has_problems: bool, has_root: bool, has_settings_key: bool) -> Vec<Tab> {
     let mut out = vec![Tab::Overview];
-    if problem_count > 0 {
+    if has_problems {
         out.push(Tab::Problems);
     }
     if has_root {
-        out.push(Tab::Content);
+        out.push(Tab::Mods);
+        out.push(Tab::Files);
         out.push(Tab::Activity);
     }
     if has_settings_key {
-        out.push(Tab::Advanced);
+        out.push(Tab::Settings);
     }
     out
+}
+
+/// The Optional mods summary's numbers: how many optional mods a player can switch here, and
+/// how many of those are on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct OptionalCounts {
+    pub available: usize,
+    pub on: usize,
+}
+
+/// Counts optional mods the way the Mods tab lists them: client-side ones only (a server-only
+/// mod gets no switch), each identity key once, and "on" within that set. `mods` yields each
+/// mod's identity key and whether it is client-side.
+pub fn optional_counts(
+    mods: impl IntoIterator<Item = (String, bool)>,
+    is_on: impl Fn(&str) -> bool,
+) -> OptionalCounts {
+    let mut seen = std::collections::HashSet::new();
+    let mut on = 0;
+    for (key, client_side) in mods {
+        if !client_side || !seen.insert(key.clone()) {
+            continue;
+        }
+        if is_on(&key) {
+            on += 1;
+        }
+    }
+    OptionalCounts {
+        available: seen.len(),
+        on,
+    }
+}
+
+/// How close (px) the scroll offset must be to the tab bar's place to count as pinned.
+pub const PIN_TOLERANCE: f32 = 0.5;
+
+/// Whether the tab bar is pinned at a scroll offset: the area has scrolled at least as far as
+/// the bar's place in the content (`pin_at`). A bar at the very top (nothing laid out yet) is
+/// not pinned.
+pub fn is_pinned(offset: f32, pin_at: f32) -> bool {
+    pin_at > 0.0 && offset >= pin_at - PIN_TOLERANCE
+}
+
+/// Where the scroll area goes after a tab switch: the pinned position when the bar was pinned
+/// (so the new tab shows from its top), otherwise where it was, so a switch never jumps back
+/// over the hero.
+pub fn offset_after_tab_switch(offset: f32, pin_at: f32) -> f32 {
+    if is_pinned(offset, pin_at) {
+        pin_at
+    } else {
+        offset.max(0.0)
+    }
+}
+
+/// Where the scroll area goes when the bar's place moves from `old_pin_at` to `new_pin_at` (the
+/// hero follows the window's height; chips and the Problems banner arrive late): a pinned bar
+/// stays pinned with the body under it where it was; otherwise the offset is kept.
+pub fn offset_after_pin_move(offset: f32, old_pin_at: f32, new_pin_at: f32) -> f32 {
+    if old_pin_at > 0.0 && new_pin_at > 0.0 && is_pinned(offset, old_pin_at) {
+        (offset + new_pin_at - old_pin_at).max(0.0)
+    } else {
+        offset
+    }
+}
+
+/// The body's minimum height: the viewport less the tab bar, rounded up plus a pixel (the
+/// viewport is snapped to whole pixels, the content is not), so any tab, however short, can
+/// scroll to the pinned position.
+pub fn body_min_height(viewport_h: f32, bar_h: f32) -> f32 {
+    ((viewport_h - bar_h).ceil() + 1.0).max(0.0)
 }
 
 /// Whether a pack id is a settings key (a manifest URL or `vanilla:`), not a `name:` fallback.
@@ -82,51 +163,60 @@ pub fn has_settings_key(id: &PackId) -> bool {
     !id.as_str().starts_with("name:")
 }
 
-/// A collapsible section of a tab.
+/// A collapsible section of a tab. Every section starts expanded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Section {
+    /// What a pending update changes; headed "What's new in vX".
+    WhatsNew,
+    /// How many optional mods there are and how many are on, with Choose.
+    OptionalSummary,
     News,
-    QuickActions,
+    Links,
     Stats,
+    QuickActions,
+    /// The pack's optional mods, each with a switch.
+    OptionalMods,
+    Mods,
     Worlds,
     Servers,
-    Mods,
     Screenshots,
     ShaderPacks,
     ResourcePacks,
     UpdateLog,
     CrashHistory,
-    Advanced,
-    /// The pack's optional mods, each with a switch (only for packs that have client-side
-    /// ones).
-    OptionalMods,
+    /// Which account the pack plays as.
+    LaunchAs,
+    /// Always verify, verify now, scan frequency, acknowledged scan findings.
+    GameFiles,
+    /// Add to or remove from the official Minecraft Launcher.
+    OfficialLauncher,
     Problems,
 }
 
 impl Section {
-    /// The heading key.
+    /// The heading key ([`Section::WhatsNew`] formats it with the pack's version).
     pub fn heading_key(self) -> &'static str {
         match self {
+            Section::WhatsNew => "detailModal.whatsNew.header",
+            Section::OptionalSummary => "detailModal.optionalSummary.title",
             Section::News => "detailModal.section.news",
-            Section::QuickActions => "detailModal.section.quickActions",
+            Section::Links => "detailModal.section.links",
             Section::Stats => "detailModal.section.stats",
+            Section::QuickActions => "detailModal.section.quickActions",
+            Section::OptionalMods => "detailModal.section.optionalMods",
+            Section::Mods => "detailModal.section.mods",
             Section::Worlds => "detailModal.section.worlds",
             Section::Servers => "detailModal.section.servers",
-            Section::Mods => "detailModal.section.mods",
             Section::Screenshots => "detailModal.section.screenshots",
             Section::ShaderPacks => "detailModal.section.shaderPacks",
             Section::ResourcePacks => "detailModal.section.resourcePacks",
             Section::UpdateLog => "detailModal.section.updateLog",
             Section::CrashHistory => "detailModal.section.crashHistory",
-            Section::Advanced => "detailModal.section.advanced",
-            Section::OptionalMods => "detailModal.section.optionalMods",
+            Section::LaunchAs => "modal.advanced.account.label",
+            Section::GameFiles => "detailModal.section.gameFiles",
+            Section::OfficialLauncher => "detailModal.section.officialLauncher",
             Section::Problems => "detailModal.section.problems",
         }
-    }
-
-    /// Whether it starts expanded (the mods list is built only when opened: it can be long).
-    pub fn starts_expanded(self) -> bool {
-        !matches!(self, Section::Mods)
     }
 
     /// A stable small number for element ids.
@@ -135,32 +225,75 @@ impl Section {
     }
 }
 
-/// The sections of a tab, in order. News appears only with news; Optional mods, ahead of the
-/// other advanced settings, only for a pack with client-side optional mods.
-pub fn sections(tab: Tab, has_news: bool, has_optional: bool) -> Vec<Section> {
+/// What decides which sections a tab shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SectionFacts {
+    /// An update is pending and changes something.
+    pub pending_update: bool,
+    /// The Overview's Optional mods summary applies: a modded pack with a Mods tab and at
+    /// least one optional mod a player can switch.
+    pub optional_summary: bool,
+    pub news: bool,
+    pub links: bool,
+    /// The pack has optional mods a player can switch.
+    pub optional_mods: bool,
+    /// The pack has a manifest URL (game files are verified against it).
+    pub manifest: bool,
+    /// The pack has an install folder.
+    pub root: bool,
+}
+
+/// The sections of a tab, in order: Overview = What's new, Optional mods summary, News, Links,
+/// At a glance, Quick actions; Mods = Optional mods, then Installed mods; Worlds & files = the
+/// folder browsers; Activity = Update log, Crash history; Settings = Launch as, Game files
+/// (with a manifest), Official Minecraft Launcher (with an install folder).
+pub fn sections(tab: Tab, f: SectionFacts) -> Vec<Section> {
+    let mut v = Vec::new();
     match tab {
         Tab::Overview => {
-            let mut v = Vec::new();
-            if has_news {
+            if f.pending_update {
+                v.push(Section::WhatsNew);
+            }
+            if f.optional_summary {
+                v.push(Section::OptionalSummary);
+            }
+            if f.news {
                 v.push(Section::News);
             }
-            v.push(Section::QuickActions);
+            if f.links {
+                v.push(Section::Links);
+            }
             v.push(Section::Stats);
-            v
+            v.push(Section::QuickActions);
         }
-        Tab::Problems => vec![Section::Problems],
-        Tab::Content => vec![
+        Tab::Problems => v.push(Section::Problems),
+        Tab::Mods => {
+            if f.optional_mods {
+                v.push(Section::OptionalMods);
+            }
+            if f.root {
+                v.push(Section::Mods);
+            }
+        }
+        Tab::Files => v.extend([
             Section::Worlds,
             Section::Servers,
-            Section::Mods,
             Section::Screenshots,
             Section::ShaderPacks,
             Section::ResourcePacks,
-        ],
-        Tab::Activity => vec![Section::UpdateLog, Section::CrashHistory],
-        Tab::Advanced if has_optional => vec![Section::OptionalMods, Section::Advanced],
-        Tab::Advanced => vec![Section::Advanced],
+        ]),
+        Tab::Activity => v.extend([Section::UpdateLog, Section::CrashHistory]),
+        Tab::Settings => {
+            v.push(Section::LaunchAs);
+            if f.manifest {
+                v.push(Section::GameFiles);
+            }
+            if f.root {
+                v.push(Section::OfficialLauncher);
+            }
+        }
     }
+    v
 }
 
 /// `%.0f` when whole, else `%.1f`; `None` when unset (0 or less).
@@ -349,8 +482,8 @@ pub fn update_log(entries: &[UpdateLogView], vanilla: bool) -> UpdateLogDisplay 
 /// How many names a "What's new" line lists before "(+N more)".
 pub const WHATS_NEW_NAME_CAP: usize = 6;
 
-/// The text of the "What's new" card (Java `buildPendingChangesNode`) shown atop the update
-/// log while an update is pending.
+/// The text of the Overview's "What's new" section (Java `buildPendingChangesNode`), shown
+/// while an update is pending; `header` is the section's heading.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WhatsNew {
     /// "What's new in v1.2".
@@ -698,6 +831,8 @@ pub(crate) mod tests {
             loader_name: Some("Forge".into()),
             loader_version: Some("1.20.1-47.2.0".into()),
             news: vec![],
+            links: vec![],
+            scan_acknowledgements: vec![],
             update_log: vec![],
             pending_update: None,
             servers: vec![],
@@ -731,43 +866,189 @@ pub(crate) mod tests {
         assert!((hero_height(720.0) - 259.2).abs() < 0.01);
     }
 
+    // Ports of Java `DetailModalLayoutTest`.
+
     #[test]
-    fn tabs_follow_the_pack() {
-        assert_eq!(tabs(0, false, false), vec![Tab::Overview]);
+    fn installed_pack_gets_every_task_tab_in_order() {
         assert_eq!(
-            tabs(2, true, true),
+            tabs(false, true, true),
+            vec![
+                Tab::Overview,
+                Tab::Mods,
+                Tab::Files,
+                Tab::Activity,
+                Tab::Settings
+            ]
+        );
+    }
+
+    #[test]
+    fn problems_follow_overview() {
+        assert_eq!(
+            tabs(true, true, true),
             vec![
                 Tab::Overview,
                 Tab::Problems,
-                Tab::Content,
+                Tab::Mods,
+                Tab::Files,
                 Tab::Activity,
-                Tab::Advanced
+                Tab::Settings
             ]
         );
-        assert_eq!(tabs(0, false, true), vec![Tab::Overview, Tab::Advanced]);
+    }
+
+    #[test]
+    fn pack_without_folder_gets_overview_and_settings() {
+        assert_eq!(tabs(false, false, true), vec![Tab::Overview, Tab::Settings]);
+    }
+
+    #[test]
+    fn pack_with_neither_folder_nor_settings_key_is_overview_only() {
+        assert_eq!(tabs(false, false, false), vec![Tab::Overview]);
+        assert_eq!(tabs(true, false, false), vec![Tab::Overview, Tab::Problems]);
+    }
+
+    #[test]
+    fn pack_with_folder_but_no_settings_key_has_no_settings_tab() {
+        assert_eq!(
+            tabs(false, true, false),
+            vec![Tab::Overview, Tab::Mods, Tab::Files, Tab::Activity]
+        );
         assert!(has_settings_key(&PackId::vanilla("1.20.1")));
         assert!(!has_settings_key(&PackId::new("name:Pack")));
     }
 
+    fn opt(key: &str, client: bool) -> (String, bool) {
+        (key.to_string(), client)
+    }
+
     #[test]
-    fn overview_shows_news_only_with_news() {
+    fn counts_only_client_side_mods_once_each() {
+        let mods = [
+            opt("a.jar", true),
+            opt("b.jar", true),
+            opt("server-only.jar", false),
+            opt("a.jar", true),
+        ];
+        let on = ["a.jar", "server-only.jar"];
+        let counts = optional_counts(mods, |k| on.contains(&k));
         assert_eq!(
-            sections(Tab::Overview, false, false),
-            vec![Section::QuickActions, Section::Stats]
+            counts,
+            OptionalCounts {
+                available: 2,
+                on: 1
+            }
         );
-        assert_eq!(sections(Tab::Overview, true, false)[0], Section::News);
-        assert_eq!(sections(Tab::Content, false, false).len(), 6);
-        assert!(!Section::Mods.starts_expanded());
-        assert!(Section::Worlds.starts_expanded());
+    }
+
+    #[test]
+    fn counts_tolerate_missing_inputs() {
         assert_eq!(
-            sections(Tab::Advanced, false, false),
-            vec![Section::Advanced]
+            optional_counts(Vec::new(), |_| true),
+            OptionalCounts::default()
         );
         assert_eq!(
-            sections(Tab::Advanced, false, true),
-            vec![Section::OptionalMods, Section::Advanced]
+            optional_counts([opt("a.jar", true)], |_| false),
+            OptionalCounts {
+                available: 1,
+                on: 0
+            }
         );
-        assert!(Section::OptionalMods.starts_expanded());
+    }
+
+    #[test]
+    fn tab_bar_pins_once_scrolled_to_it() {
+        assert!(!is_pinned(0.0, 300.0));
+        assert!(!is_pinned(299.0, 300.0));
+        assert!(is_pinned(299.6, 300.0));
+        assert!(is_pinned(300.0, 300.0));
+        assert!(is_pinned(900.0, 300.0));
+        // A bar at the very top of the content (no hero laid out yet) is not "pinned".
+        assert!(!is_pinned(0.0, 0.0));
+    }
+
+    #[test]
+    fn tab_switch_keeps_a_pinned_bar_pinned_at_the_new_tabs_top() {
+        assert_eq!(offset_after_tab_switch(1200.0, 300.0), 300.0);
+        assert_eq!(offset_after_tab_switch(300.0, 300.0), 300.0);
+    }
+
+    #[test]
+    fn tab_switch_leaves_an_unpinned_position_alone() {
+        assert_eq!(offset_after_tab_switch(0.0, 300.0), 0.0);
+        assert_eq!(offset_after_tab_switch(180.0, 300.0), 180.0);
+        assert_eq!(offset_after_tab_switch(-5.0, 300.0), 0.0);
+    }
+
+    #[test]
+    fn a_moved_tab_bar_keeps_a_pinned_body_in_place() {
+        // The hero grew by 40 px while pinned 200 px past the bar: still 200 px past it.
+        assert_eq!(offset_after_pin_move(500.0, 300.0, 340.0), 540.0);
+        // Not pinned: the offset is kept.
+        assert_eq!(offset_after_pin_move(100.0, 300.0, 340.0), 100.0);
+        // Nothing measured yet: kept.
+        assert_eq!(offset_after_pin_move(500.0, 0.0, 340.0), 500.0);
+    }
+
+    #[test]
+    fn the_body_is_tall_enough_to_reach_the_pinned_position() {
+        assert_eq!(body_min_height(600.0, 58.0), 543.0);
+        assert_eq!(body_min_height(600.4, 58.0), 544.0);
+        assert_eq!(body_min_height(30.0, 58.0), 0.0);
+    }
+
+    #[test]
+    fn sections_are_grouped_by_task() {
+        let none = SectionFacts::default();
+        assert_eq!(
+            sections(Tab::Overview, none),
+            vec![Section::Stats, Section::QuickActions]
+        );
+        let all = SectionFacts {
+            pending_update: true,
+            optional_summary: true,
+            news: true,
+            links: true,
+            optional_mods: true,
+            manifest: true,
+            root: true,
+        };
+        assert_eq!(
+            sections(Tab::Overview, all),
+            vec![
+                Section::WhatsNew,
+                Section::OptionalSummary,
+                Section::News,
+                Section::Links,
+                Section::Stats,
+                Section::QuickActions
+            ]
+        );
+        assert_eq!(
+            sections(Tab::Mods, all),
+            vec![Section::OptionalMods, Section::Mods]
+        );
+        assert_eq!(
+            sections(Tab::Mods, SectionFacts { root: true, ..none }),
+            vec![Section::Mods]
+        );
+        assert_eq!(sections(Tab::Files, none).len(), 5);
+        assert!(!sections(Tab::Files, none).contains(&Section::Mods));
+        assert_eq!(
+            sections(Tab::Activity, none),
+            vec![Section::UpdateLog, Section::CrashHistory]
+        );
+        assert_eq!(
+            sections(Tab::Settings, all),
+            vec![
+                Section::LaunchAs,
+                Section::GameFiles,
+                Section::OfficialLauncher
+            ]
+        );
+        // A vanilla install has no manifest: the account choice, and the official launcher
+        // once installed.
+        assert_eq!(sections(Tab::Settings, none), vec![Section::LaunchAs]);
     }
 
     #[test]
