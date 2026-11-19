@@ -401,7 +401,12 @@ Mojang's 1.12.2 client.json (`GameLibraryManifest.standalone`, chosen by
 - **Server** -- assembled natively, as the installer's `server` mode does it (the
   installer is never run): the profile's libraries without the client-only natives, the
   server jar from `downloads.server`, `serverMainClass`, and `--tweakClass` per
-  `serverTweakers` (`GameModLoader.getServerArguments()`).
+  `serverTweakers` (`GameModLoader.getServerArguments()`). The server also gets
+  `-Dfml.queryResult=confirm` (`GameModLoader.getServerJvmArguments()`), unless the pack or
+  config already sets `fml.queryResult`: a pack without Cleanroom's companion mods Fugue and
+  Scalar otherwise stops at a console prompt that nobody answers, the server watchdog kills it,
+  and the restart loop repeats. A warning is logged when it is added. Clients keep the prompt,
+  which the player answers in game.
 - **Official-launcher export** -- the installer runs as `client --dir <.minecraft> --no-gui
   --yes --no-profile --java <java> --no-provision-java` (it has no `--installClient`); the
   exported profile uses the Java 25 runtime and carries the profile's JVM arguments.

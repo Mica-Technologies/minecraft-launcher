@@ -1253,6 +1253,33 @@ class GameModPackLauncher
     }
 
     /**
+     * The loader's server JVM arguments that are not already set. A {@code -Dname=value}
+     * argument counts as set when any existing argument sets the same property, so an operator's
+     * own value in the pack's or config's JVM arguments wins.
+     *
+     * @param loaderArgs the loader's server JVM arguments
+     * @param argv       the command line so far
+     *
+     * @return the arguments to append, in order
+     *
+     * @since 2026.11
+     */
+    static List< String > serverJvmArgsToAdd( List< String > loaderArgs, List< String > argv )
+    {
+        List< String > add = new java.util.ArrayList<>();
+        for ( String arg : loaderArgs ) {
+            String key = arg.startsWith( "-D" ) && arg.contains( "=" ) ? arg.substring( 0, arg.indexOf( '=' ) + 1 )
+                                                                       : arg;
+            boolean present = argv.stream().anyMatch( a -> a.equals( arg ) || ( key.endsWith( "=" )
+                                                                                  && a.startsWith( key ) ) );
+            if ( !present ) {
+                add.add( arg );
+            }
+        }
+        return add;
+    }
+
+    /**
      * Parses an inherited {@code -Xms}/{@code -Xmx} JVM argument into a heap size in
      * megabytes, honoring the {@code g}/{@code m}/{@code k} unit suffix (case-insensitive).
      * A bare numeric value with no suffix is interpreted as bytes per the JVM convention.
@@ -1515,6 +1542,17 @@ class GameModPackLauncher
             String loaderJvmArgs = pack.getModLoader().getJvmArguments();
             if ( !loaderJvmArgs.isEmpty() ) {
                 argv.addAll( ProcessUtilities.splitCommandLine( loaderJvmArgs ) );
+            }
+        }
+        else if ( !pack.isVanillaVersion() && GameModeManager.isServer() ) {
+            // A dedicated server has nobody at its console (e.g. Cleanroom's prompt about missing
+            // companion mods would otherwise stall it until the watchdog kills it, in a loop).
+            List< String > serverJvmArgs = serverJvmArgsToAdd(
+                    ProcessUtilities.splitCommandLine( pack.getModLoader().getServerJvmArguments() ), argv );
+            if ( !serverJvmArgs.isEmpty() ) {
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackLauncher.serverJvmArgsAdded",
+                                                               String.join( " ", serverJvmArgs ) ) );
+                argv.addAll( serverJvmArgs );
             }
         }
 

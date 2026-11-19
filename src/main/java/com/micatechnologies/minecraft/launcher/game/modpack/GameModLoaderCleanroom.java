@@ -290,6 +290,21 @@ final class GameModLoaderCleanroom extends ManagedGameFile implements GameModLoa
         return String.join( " ", profile.serverGameArgs() );
     }
 
+    /** Answers Cleanroom's startup confirmation prompts on an unattended server. */
+    static final String SERVER_AUTO_CONFIRM = "-Dfml.queryResult=confirm";
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return {@code -Dfml.queryResult=confirm}, which answers Cleanroom's "Fugue and Scalar are
+     *         not installed" console prompt on a dedicated server
+     * @since 2026.11
+     */
+    @Override
+    public String getServerJvmArguments() {
+        return SERVER_AUTO_CONFIRM;
+    }
+
     /**
      * {@inheritDoc}
      *
