@@ -663,6 +663,14 @@ to match.
 6. **Manifest JVM args** (`arguments.jvm`, flattened, then split).
 7. **Loader JVM args**, only when modded **and client** (Forge/NeoForge module flags, e.g. `-p
    ${library_directory}/…${classpath_separator}…`, `--add-opens`, `-DignoreList=…`).
+   **Server mode instead:** the loader's server JVM args (`ModLoader::server_jvm_arguments`,
+   empty by default) that the command line so far doesn't already set
+   (`server_jvm_args_to_add`: a `-Dname=value` counts as set when any earlier token starts with
+   `-Dname=`, so the operator's own value in the config's JVM args wins). Cleanroom returns
+   `-Dfml.queryResult=confirm`: a pack without its companion mods Fugue and Scalar otherwise
+   stops at a console prompt that nobody answers, the server watchdog kills it, and the restart
+   loop repeats. A silent warning (`log.gameModPackLauncher.serverJvmArgsAdded`) names what was
+   added. Clients keep the prompt, which the player answers in game.
 8. If the manifest JVM args were empty (legacy ≤1.12): `-Djava.library.path=<natives>`, `-cp`,
    `<classpath>`.
 9. Main class.
@@ -776,6 +784,7 @@ all still hold.
 | `jvm_arguments()` | flatten `arguments.jvm` (re-reads the cached manifest) | flatten `arguments.jvm` |
 | `minecraft_main_class()` | `mainClass` | `mainClass` |
 | `server_main_class()` | `None` if main starts with `cpw.mods.modlauncher` or `cpw.mods.bootstraplauncher`, else `net.minecraftforge.fml.relauncher.ServerLaunchWrapper` | `net.fabricmc.loader.impl.launch.server.FabricServerLauncher` |
+| `server_jvm_arguments()` | none | none (Cleanroom: `-Dfml.queryResult=confirm`, see 7.4 step 7) |
 | `build_classpath(mode, progress)` | 8.2 | 8.5 |
 | `run_post_install_steps(mode, progress, component)` | 8.3 | no-op |
 

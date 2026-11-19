@@ -117,6 +117,13 @@ pub trait ModLoader: Send + Sync + fmt::Debug {
     fn server_arguments(&self) -> Vec<String> {
         Vec::new()
     }
+    /// Extra JVM arguments a dedicated server of this loader needs because nobody is at its
+    /// console (none by default). Cleanroom returns `-Dfml.queryResult=confirm`: without it, a
+    /// pack lacking Fugue and Scalar stops at a console prompt, the server watchdog kills it,
+    /// and the restart loop brings it back to the same prompt.
+    fn server_jvm_arguments(&self) -> Vec<String> {
+        Vec::new()
+    }
     /// The loader's standalone version profile, which the launch uses *instead of* the
     /// vanilla client.json (libraries and natives, Java runtime, assets, game jar). `None` for
     /// a loader that sits on top of vanilla.

@@ -300,6 +300,7 @@ fn base_inputs() -> ArgvInputs {
             "${classpath}".into(),
         ],
         loader_jvm: vec![],
+        server_jvm: vec![],
         classpath: "CP".into(),
         main_class: "net.minecraft.client.main.Main".into(),
         game_args: vec![
@@ -659,6 +660,51 @@ async fn cleanroom_client_prepare_uses_only_its_own_profile() {
     assert_eq!(args.iter().filter(|a| *a == "--username").count(), 1);
     assert!(args.contains(&"net.minecraftforge.fml.common.launcher.FMLTweaker".to_string()));
     assert!(l.jvm_arguments().is_empty());
+    // A client keeps Cleanroom's startup prompt, which the player answers in game.
+    let mut i = base_inputs();
+    i.server_jvm = l.server_jvm_arguments();
+    assert!(
+        !build_argv(&i).iter().any(|a| a.contains("fml.queryResult")),
+        "a client never gets the server's auto-confirm"
+    );
+}
+
+#[test]
+fn server_jvm_args_are_added_unless_the_operator_set_the_property() {
+    let loader = v(&["-Dfml.queryResult=confirm"]);
+    assert_eq!(
+        server_jvm_args_to_add(&loader, &v(&["java", "-Xmx2g"])),
+        loader
+    );
+    assert!(
+        server_jvm_args_to_add(&loader, &v(&["java", "-Dfml.queryResult=cancel"])).is_empty(),
+        "the operator's own value wins"
+    );
+    assert!(server_jvm_args_to_add(&loader, &v(&["-Dfml.queryResult=confirm"])).is_empty());
+    assert!(server_jvm_args_to_add(&[], &v(&["java"])).is_empty());
+    // A property that merely shares a prefix is a different property.
+    assert_eq!(
+        server_jvm_args_to_add(&loader, &v(&["-Dfml.queryResultX=1"])),
+        loader
+    );
+}
+
+#[test]
+fn a_server_command_line_keeps_the_operators_own_query_result() {
+    let mut i = base_inputs();
+    i.client = false;
+    i.server_jvm = v(&["-Dfml.queryResult=confirm"]);
+    let argv = build_argv(&i);
+    assert_eq!(
+        argv.iter()
+            .filter(|a| *a == "-Dfml.queryResult=confirm")
+            .count(),
+        1
+    );
+    i.custom_jvm_args = "-Dfml.queryResult=cancel".into();
+    let argv = build_argv(&i);
+    assert!(argv.contains(&"-Dfml.queryResult=cancel".to_string()));
+    assert!(!argv.contains(&"-Dfml.queryResult=confirm".to_string()));
 }
 
 #[tokio::test]
@@ -707,12 +753,17 @@ async fn cleanroom_server_prepare_mirrors_the_installer_server_mode() {
         max_ram_mb: 4096,
         natives: "/p/bin/natives".into(),
         manifest_jvm: p.library_manifest.client.jvm_arguments_vec(&fx.env.host),
+        server_jvm: l.server_jvm_arguments(),
         classpath: "CP".into(),
         main_class: main,
         game_args: args,
         ..Default::default()
     });
+    // Nobody is at a launcher-started server's console to answer Cleanroom's prompt about
+    // missing Fugue and Scalar: without this the watchdog kills it and the restart loop repeats.
+    assert_eq!(l.server_jvm_arguments(), ["-Dfml.queryResult=confirm"]);
     let at = argv.iter().position(|a| a == "-cp").unwrap();
+    assert!(argv[..at].contains(&"-Dfml.queryResult=confirm".to_string()));
     assert_eq!(
         &argv[at..],
         [

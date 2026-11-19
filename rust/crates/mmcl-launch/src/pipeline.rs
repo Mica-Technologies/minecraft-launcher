@@ -742,11 +742,33 @@ pub struct ArgvInputs {
     pub title: String,
     pub manifest_jvm: Vec<String>,
     pub loader_jvm: Vec<String>,
+    /// The loader's server JVM arguments ([`ModLoader::server_jvm_arguments`]); used only
+    /// when `client` is false, and only those the command line doesn't already set.
+    pub server_jvm: Vec<String>,
     pub classpath: String,
     pub main_class: String,
     pub game_args: Vec<String>,
     pub placeholders: IndexMap<&'static str, String>,
     pub quick_join: Option<ServerFavorite>,
+}
+
+/// The loader's server JVM arguments that `argv` doesn't already set, in order. A
+/// `-Dname=value` argument counts as set when any existing argument sets the same property, so
+/// an operator's own value in the pack's or config's JVM arguments wins.
+pub fn server_jvm_args_to_add(loader_args: &[String], argv: &[String]) -> Vec<String> {
+    loader_args
+        .iter()
+        .filter(|arg| {
+            let key = match arg.find('=') {
+                Some(eq) if arg.starts_with("-D") => Some(&arg[..=eq]),
+                _ => None,
+            };
+            !argv
+                .iter()
+                .any(|a| a == *arg || key.is_some_and(|k| a.starts_with(k)))
+        })
+        .cloned()
+        .collect()
 }
 
 /// Assembles the argv (spec 7.4, with the dock flags in the JVM section).
@@ -769,6 +791,18 @@ pub fn build_argv(i: &ArgvInputs) -> Vec<String> {
     argv.extend(i.manifest_jvm.iter().cloned());
     if !i.loader_jvm.is_empty() {
         argv.extend(i.loader_jvm.iter().cloned());
+    }
+    if !i.client {
+        // A dedicated server has nobody at its console (e.g. Cleanroom's prompt about missing
+        // companion mods would otherwise stall it until the watchdog kills it, in a loop).
+        let add = server_jvm_args_to_add(&i.server_jvm, &argv);
+        if !add.is_empty() {
+            mmcl_log::warn_silent(&tf!(
+                "log.gameModPackLauncher.serverJvmArgsAdded",
+                add.join(" ")
+            ));
+            argv.extend(add);
+        }
     }
     if i.manifest_jvm.is_empty() {
         argv.push(format!("-Djava.library.path={}", i.natives));
@@ -1015,6 +1049,10 @@ pub async fn launch(env: &LaunchEnv, req: LaunchRequest) -> Result<GameProcess> 
         manifest_jvm: lm.client.jvm_arguments_vec(&env.host),
         loader_jvm: match (&prepared.loader, client) {
             (Some(l), true) => l.jvm_arguments(),
+            _ => Vec::new(),
+        },
+        server_jvm: match (&prepared.loader, client) {
+            (Some(l), false) => l.server_jvm_arguments(),
             _ => Vec::new(),
         },
         classpath,

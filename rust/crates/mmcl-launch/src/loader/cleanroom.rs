@@ -161,6 +161,9 @@ impl State {
     }
 }
 
+/// Answers Cleanroom's startup confirmation prompts on an unattended server.
+pub const SERVER_AUTO_CONFIRM: &str = "-Dfml.queryResult=confirm";
+
 /// A Cleanroom loader.
 pub struct CleanroomLoader {
     installer: ManagedFile,
@@ -359,6 +362,11 @@ impl ModLoader for CleanroomLoader {
                 mmcl_mojang::cleanroom_profile::DEFAULT_SERVER_TWEAKER.to_string(),
             ],
         }
+    }
+    /// `-Dfml.queryResult=confirm`, which answers Cleanroom's "Fugue and Scalar are not
+    /// installed" console prompt on a dedicated server.
+    fn server_jvm_arguments(&self) -> Vec<String> {
+        vec![SERVER_AUTO_CONFIRM.to_string()]
     }
     fn standalone_manifest(&self) -> Option<Arc<ClientJson>> {
         Some(self.state().manifest.clone())
