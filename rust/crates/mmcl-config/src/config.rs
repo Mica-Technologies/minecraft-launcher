@@ -245,7 +245,10 @@ impl Config {
 
     init_string!(
         /// `theme`, not validated here (the GUI validates against [`ALLOWED_THEMES`]).
-        theme, set_theme, THEME_KEY, THEME_DEFAULT
+        theme,
+        set_theme,
+        THEME_KEY,
+        THEME_DEFAULT
     );
 
     /// `localeOverride`: a BCP-47 tag, blank meaning "detect from the OS". Never
@@ -261,23 +264,37 @@ impl Config {
 
     init_bool!(
         /// `wavyProgress`.
-        wavy_progress, set_wavy_progress, WAVY_PROGRESS_KEY, WAVY_PROGRESS_DEFAULT
+        wavy_progress,
+        set_wavy_progress,
+        WAVY_PROGRESS_KEY,
+        WAVY_PROGRESS_DEFAULT
     );
     init_bool!(
         /// `reduceMotion`.
-        reduce_motion, set_reduce_motion, REDUCE_MOTION_KEY, REDUCE_MOTION_DEFAULT
+        reduce_motion,
+        set_reduce_motion,
+        REDUCE_MOTION_KEY,
+        REDUCE_MOTION_DEFAULT
     );
     init_bool!(
         /// `packColors`.
-        pack_colors, set_pack_colors, PACK_COLORS_KEY, PACK_COLORS_DEFAULT
+        pack_colors,
+        set_pack_colors,
+        PACK_COLORS_KEY,
+        PACK_COLORS_DEFAULT
     );
     init_i32!(
         /// `uiScalePercent` (the UI offers [`UI_SCALE_OPTIONS`]).
-        ui_scale_percent, set_ui_scale_percent, UI_SCALE_KEY, UI_SCALE_DEFAULT
+        ui_scale_percent,
+        set_ui_scale_percent,
+        UI_SCALE_KEY,
+        UI_SCALE_DEFAULT
     );
     plain_bool!(
         /// `showPackBackgrounds`.
-        show_pack_backgrounds, set_show_pack_backgrounds, SHOW_PACK_BACKGROUNDS_KEY,
+        show_pack_backgrounds,
+        set_show_pack_backgrounds,
+        SHOW_PACK_BACKGROUNDS_KEY,
         SHOW_PACK_BACKGROUNDS_DEFAULT
     );
 
@@ -301,7 +318,9 @@ impl Config {
 
     plain_bool!(
         /// `imageCycleShuffle`.
-        image_cycle_shuffle, set_image_cycle_shuffle, IMAGE_CYCLE_SHUFFLE_KEY,
+        image_cycle_shuffle,
+        set_image_cycle_shuffle,
+        IMAGE_CYCLE_SHUFFLE_KEY,
         IMAGE_CYCLE_SHUFFLE_DEFAULT
     );
 
@@ -324,7 +343,9 @@ impl Config {
 
     init_bool!(
         /// `enhancedLogging`.
-        enhanced_logging, set_enhanced_logging, LOG_ENHANCED_ENABLE_KEY,
+        enhanced_logging,
+        set_enhanced_logging,
+        LOG_ENHANCED_ENABLE_KEY,
         LOG_ENHANCED_ENABLE_DEFAULT
     );
 
@@ -332,32 +353,45 @@ impl Config {
 
     init_bool!(
         /// `discordRpc`.
-        discord_rpc, set_discord_rpc, DISCORD_RPC_ENABLE_KEY, DISCORD_RPC_ENABLE_DEFAULT
+        discord_rpc,
+        set_discord_rpc,
+        DISCORD_RPC_ENABLE_KEY,
+        DISCORD_RPC_ENABLE_DEFAULT
     );
     init_bool!(
         /// `discordInvites`.
-        discord_invites, set_discord_invites, DISCORD_INVITES_ENABLE_KEY,
+        discord_invites,
+        set_discord_invites,
+        DISCORD_INVITES_ENABLE_KEY,
         DISCORD_INVITES_ENABLE_DEFAULT
     );
     init_bool!(
         /// `resizableWindows`.
-        resizable_windows, set_resizable_windows, RESIZE_WINDOWS_ENABLE_KEY,
+        resizable_windows,
+        set_resizable_windows,
+        RESIZE_WINDOWS_ENABLE_KEY,
         RESIZE_WINDOWS_ENABLE_DEFAULT
     );
     init_bool!(
         /// `inGameConsole` ("show console on launch").
-        in_game_console, set_in_game_console, INGAME_CONSOLE_ENABLE_KEY,
+        in_game_console,
+        set_in_game_console,
+        INGAME_CONSOLE_ENABLE_KEY,
         INGAME_CONSOLE_ENABLE_DEFAULT
     );
     init_bool!(
         /// `runningGamesDocked`.
-        running_games_docked, set_running_games_docked, RUNNING_GAMES_DOCKED_KEY,
+        running_games_docked,
+        set_running_games_docked,
+        RUNNING_GAMES_DOCKED_KEY,
         RUNNING_GAMES_DOCKED_DEFAULT
     );
     init_i32!(
         /// `runningGamesDockHeight` in permille of the window.
-        running_games_dock_height, set_running_games_dock_height,
-        RUNNING_GAMES_DOCK_HEIGHT_KEY, RUNNING_GAMES_DOCK_HEIGHT_DEFAULT
+        running_games_dock_height,
+        set_running_games_dock_height,
+        RUNNING_GAMES_DOCK_HEIGHT_KEY,
+        RUNNING_GAMES_DOCK_HEIGHT_DEFAULT
     );
 
     /// `consoleLogMaxLines`; 0 means unlimited.
@@ -401,33 +435,45 @@ impl Config {
 
     init_bool!(
         /// `launcherUpdateCheck`.
-        launcher_update_check, set_launcher_update_check, LAUNCHER_UPDATE_CHECK_KEY,
+        launcher_update_check,
+        set_launcher_update_check,
+        LAUNCHER_UPDATE_CHECK_KEY,
         LAUNCHER_UPDATE_CHECK_DEFAULT
     );
     init_bool!(
         /// `uriHandlerEnabled`: when false, neither argv nor IPC URIs are dispatched.
-        uri_handler_enabled, set_uri_handler_enabled, URI_HANDLER_ENABLED_KEY,
+        uri_handler_enabled,
+        set_uri_handler_enabled,
+        URI_HANDLER_ENABLED_KEY,
         URI_HANDLER_ENABLED_DEFAULT
     );
     init_bool!(
         /// `mcpServerEnabled`.
-        mcp_server_enabled, set_mcp_server_enabled, MCP_SERVER_ENABLED_KEY,
+        mcp_server_enabled,
+        set_mcp_server_enabled,
+        MCP_SERVER_ENABLED_KEY,
         MCP_SERVER_ENABLED_DEFAULT
     );
     init_bool!(
         /// `mcpAutoApproveReadOnly`.
-        mcp_auto_approve_read_only, set_mcp_auto_approve_read_only,
-        MCP_AUTO_APPROVE_READ_ONLY_KEY, MCP_AUTO_APPROVE_READ_ONLY_DEFAULT
+        mcp_auto_approve_read_only,
+        set_mcp_auto_approve_read_only,
+        MCP_AUTO_APPROVE_READ_ONLY_KEY,
+        MCP_AUTO_APPROVE_READ_ONLY_DEFAULT
     );
     init_string!(
         /// `mcpToolPolicies`: a JSON object as a string, `{tool: ALWAYS_ALLOW|ASK|DISABLED}`.
         /// An unreadable value means no policies (the MCP layer fails closed).
-        mcp_tool_policies, set_mcp_tool_policies, MCP_TOOL_POLICIES_KEY,
+        mcp_tool_policies,
+        set_mcp_tool_policies,
+        MCP_TOOL_POLICIES_KEY,
         MCP_TOOL_POLICIES_DEFAULT
     );
     init_bool!(
         /// `mcpAllowStateChanges`.
-        mcp_allow_state_changes, set_mcp_allow_state_changes, MCP_ALLOW_STATE_CHANGES_KEY,
+        mcp_allow_state_changes,
+        set_mcp_allow_state_changes,
+        MCP_ALLOW_STATE_CHANGES_KEY,
         MCP_ALLOW_STATE_CHANGES_DEFAULT
     );
 
@@ -449,24 +495,37 @@ impl Config {
 
     init_string!(
         /// `mcpToken`: the MCP bearer token (the reason the file is owner-only).
-        mcp_token, set_mcp_token, MCP_TOKEN_KEY, MCP_TOKEN_DEFAULT
+        mcp_token,
+        set_mcp_token,
+        MCP_TOKEN_KEY,
+        MCP_TOKEN_DEFAULT
     );
     init_string!(
         /// `defaultAccountUuid`.
-        default_account_uuid, set_default_account_uuid, DEFAULT_ACCOUNT_UUID_KEY, ""
+        default_account_uuid,
+        set_default_account_uuid,
+        DEFAULT_ACCOUNT_UUID_KEY,
+        ""
     );
     init_bool!(
         /// `quickStartCompleted`.
-        quick_start_completed, set_quick_start_completed, QUICK_START_COMPLETED_KEY, false
+        quick_start_completed,
+        set_quick_start_completed,
+        QUICK_START_COMPLETED_KEY,
+        false
     );
     init_bool!(
         /// `batteryThrottleEnable`.
-        battery_throttle, set_battery_throttle, BATTERY_THROTTLE_ENABLE_KEY,
+        battery_throttle,
+        set_battery_throttle,
+        BATTERY_THROTTLE_ENABLE_KEY,
         BATTERY_THROTTLE_ENABLE_DEFAULT
     );
     init_bool!(
         /// `lwjglArmPatch`.
-        lwjgl_arm_patch, set_lwjgl_arm_patch, LWJGL_ARM_PATCH_ENABLE_KEY,
+        lwjgl_arm_patch,
+        set_lwjgl_arm_patch,
+        LWJGL_ARM_PATCH_ENABLE_KEY,
         LWJGL_ARM_PATCH_ENABLE_DEFAULT
     );
 
@@ -474,7 +533,10 @@ impl Config {
 
     init_bool!(
         /// `rgbEnable`.
-        rgb_enable, set_rgb_enable, RGB_ENABLE_KEY, RGB_ENABLE_DEFAULT
+        rgb_enable,
+        set_rgb_enable,
+        RGB_ENABLE_KEY,
+        RGB_ENABLE_DEFAULT
     );
 
     /// `rgbBackend`: one of [`RGB_BACKENDS_ACCEPTED`], else `auto`.
@@ -501,47 +563,65 @@ impl Config {
 
     init_bool!(
         /// `rgbUsePackColors`.
-        rgb_use_pack_colors, set_rgb_use_pack_colors, RGB_USE_PACK_COLORS_KEY,
+        rgb_use_pack_colors,
+        set_rgb_use_pack_colors,
+        RGB_USE_PACK_COLORS_KEY,
         RGB_USE_PACK_COLORS_DEFAULT
     );
     init_bool!(
         /// `rgbHighlightKeys`.
-        rgb_highlight_keys, set_rgb_highlight_keys, RGB_HIGHLIGHT_KEYS_KEY,
+        rgb_highlight_keys,
+        set_rgb_highlight_keys,
+        RGB_HIGHLIGHT_KEYS_KEY,
         RGB_HIGHLIGHT_KEYS_DEFAULT
     );
     init_bool!(
         /// `rgbEnableOpenRGB`.
-        rgb_enable_open_rgb, set_rgb_enable_open_rgb, RGB_ENABLE_OPENRGB_KEY,
+        rgb_enable_open_rgb,
+        set_rgb_enable_open_rgb,
+        RGB_ENABLE_OPENRGB_KEY,
         RGB_ENABLE_OPENRGB_DEFAULT
     );
     init_bool!(
         /// `rgbEnableChromaNative`.
-        rgb_enable_chroma_native, set_rgb_enable_chroma_native, RGB_ENABLE_CHROMA_NATIVE_KEY,
+        rgb_enable_chroma_native,
+        set_rgb_enable_chroma_native,
+        RGB_ENABLE_CHROMA_NATIVE_KEY,
         RGB_ENABLE_CHROMA_NATIVE_DEFAULT
     );
     init_bool!(
         /// `rgbEnableChromaRest`.
-        rgb_enable_chroma_rest, set_rgb_enable_chroma_rest, RGB_ENABLE_CHROMA_REST_KEY,
+        rgb_enable_chroma_rest,
+        set_rgb_enable_chroma_rest,
+        RGB_ENABLE_CHROMA_REST_KEY,
         RGB_ENABLE_CHROMA_REST_DEFAULT
     );
     init_bool!(
         /// `rgbEnableWindowsDL`.
-        rgb_enable_windows_dl, set_rgb_enable_windows_dl, RGB_ENABLE_WINDOWS_DL_KEY,
+        rgb_enable_windows_dl,
+        set_rgb_enable_windows_dl,
+        RGB_ENABLE_WINDOWS_DL_KEY,
         RGB_ENABLE_WINDOWS_DL_DEFAULT
     );
     init_bool!(
         /// `rgbEnableCorsair`.
-        rgb_enable_corsair, set_rgb_enable_corsair, RGB_ENABLE_CORSAIR_KEY,
+        rgb_enable_corsair,
+        set_rgb_enable_corsair,
+        RGB_ENABLE_CORSAIR_KEY,
         RGB_ENABLE_CORSAIR_DEFAULT
     );
     init_bool!(
         /// `rgbEnableAsusAura`.
-        rgb_enable_asus_aura, set_rgb_enable_asus_aura, RGB_ENABLE_ASUS_AURA_KEY,
+        rgb_enable_asus_aura,
+        set_rgb_enable_asus_aura,
+        RGB_ENABLE_ASUS_AURA_KEY,
         RGB_ENABLE_ASUS_AURA_DEFAULT
     );
     init_bool!(
         /// `rgbMenuEffectEnable`.
-        rgb_menu_effect_enable, set_rgb_menu_effect_enable, RGB_MENU_EFFECT_ENABLE_KEY,
+        rgb_menu_effect_enable,
+        set_rgb_menu_effect_enable,
+        RGB_MENU_EFFECT_ENABLE_KEY,
         RGB_MENU_EFFECT_ENABLE_DEFAULT
     );
 
@@ -569,26 +649,40 @@ impl Config {
 
     init_bool!(
         /// `proxyEnable`.
-        proxy_enable, set_proxy_enable, PROXY_ENABLE_KEY, PROXY_ENABLE_DEFAULT
+        proxy_enable,
+        set_proxy_enable,
+        PROXY_ENABLE_KEY,
+        PROXY_ENABLE_DEFAULT
     );
     init_string!(
         /// `proxyHost`.
-        proxy_host, set_proxy_host, PROXY_HOST_KEY, PROXY_HOST_DEFAULT
+        proxy_host,
+        set_proxy_host,
+        PROXY_HOST_KEY,
+        PROXY_HOST_DEFAULT
     );
     init_i32!(
         /// `proxyPort` (not range-checked, like Java).
-        proxy_port, set_proxy_port, PROXY_PORT_KEY, PROXY_PORT_DEFAULT
+        proxy_port,
+        set_proxy_port,
+        PROXY_PORT_KEY,
+        PROXY_PORT_DEFAULT
     );
     init_string!(
         /// `proxyType`: `HTTP` or `SOCKS` (not validated, like Java).
-        proxy_type, set_proxy_type, PROXY_TYPE_KEY, PROXY_TYPE_DEFAULT
+        proxy_type,
+        set_proxy_type,
+        PROXY_TYPE_KEY,
+        PROXY_TYPE_DEFAULT
     );
 
     // ---- backups -------------------------------------------------------------------------
 
     plain_bool!(
         /// `backupAutoBeforeUpdate`.
-        backup_auto_before_update, set_backup_auto_before_update, BACKUP_AUTO_KEY,
+        backup_auto_before_update,
+        set_backup_auto_before_update,
+        BACKUP_AUTO_KEY,
         BACKUP_AUTO_DEFAULT
     );
 
@@ -618,7 +712,9 @@ impl Config {
 
     plain_bool!(
         /// `backupIncludeSaves`.
-        backup_include_saves, set_backup_include_saves, BACKUP_INCLUDE_SAVES_KEY,
+        backup_include_saves,
+        set_backup_include_saves,
+        BACKUP_INCLUDE_SAVES_KEY,
         BACKUP_INCLUDE_SAVES_DEFAULT
     );
 
@@ -907,7 +1003,10 @@ impl Config {
 
     plain_bool!(
         /// `auth.wam`: the user's opt-in for the Windows account broker.
-        auth_wam, set_auth_wam, AUTH_WAM_KEY, AUTH_WAM_DEFAULT
+        auth_wam,
+        set_auth_wam,
+        AUTH_WAM_KEY,
+        AUTH_WAM_DEFAULT
     );
 
     /// Whether WAM sign-in may be offered: opted in **and** a client ID of our own is set
