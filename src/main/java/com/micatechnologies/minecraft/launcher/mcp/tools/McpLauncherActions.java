@@ -168,18 +168,23 @@ public interface McpLauncherActions
     Outcome forkPack( String sourceFriendlyName, String newName );
 
     /**
-     * Adds a mod to a pack's manifest.
+     * Adds a mod to a pack's manifest, with its hashes recorded so the sync can verify the
+     * file (and replace an older one at the same path).
      *
      * @param friendlyName the pack to edit
      * @param modName      the mod's display name
      * @param remoteUrl    where to download it
-     * @param localPath    where it installs, relative to the pack root
+     * @param localPath    the jar's file name in the pack's {@code mods} folder, already
+     *                     normalised with {@code ModPackDocument.normalizeModLocalPath}
+     * @param sha1         the expected SHA-1 (lower-case hex), or {@code null} when not given
+     * @param sha256       the expected SHA-256 (lower-case hex), or {@code null} when not given
      *
      * @return what happened
      *
      * @since 3.0
      */
-    Outcome addMod( String friendlyName, String modName, String remoteUrl, String localPath );
+    Outcome addMod( String friendlyName, String modName, String remoteUrl, String localPath, String sha1,
+                    String sha256 );
 
     /**
      * Removes a mod from a pack's manifest.

@@ -147,9 +147,10 @@ class MutatingToolsTest
         }
 
         @Override
-        public Outcome addMod( String friendlyName, String modName, String remoteUrl, String localPath )
+        public Outcome addMod( String friendlyName, String modName, String remoteUrl, String localPath, String sha1,
+                               String sha256 )
         {
-            performed.add( "addMod:" + friendlyName + ":" + localPath );
+            performed.add( "addMod:" + friendlyName + ":" + localPath + ":" + sha1 + ":" + sha256 );
             return nextOutcome;
         }
 
@@ -294,13 +295,70 @@ class MutatingToolsTest
     @Test
     void aValidModAdditionPasses()
     {
-        assertNull( validate( "add_mod_to_modpack", modArgs( "mods/jei.jar" ) ) );
+        assertNull( validate( "add_mod_to_modpack", modArgs( "jei.jar" ) ) );
+    }
+
+    /**
+     * Issue 101: a mod's local path is resolved against the mods folder, so following the old
+     * description ("mods/jei.jar") put the jar in mods/mods/, where the game never loads it.
+     */
+    @Test
+    void aLeadingModsFolderIsDroppedBeforeTheActionRuns()
+    {
+        for ( String given : new String[]{ "mods/jei.jar", "MODS\\jei.jar", "./mods/jei.jar", " jei.jar " } ) {
+            actions.performed.clear();
+            assertNull( validate( "add_mod_to_modpack", modArgs( given ) ), given );
+            invoke( "add_mod_to_modpack", modArgs( given ) );
+            assertEquals( List.of( "addMod:Installed Pack:jei.jar:null:null" ), actions.performed, given );
+        }
+    }
+
+    @Test
+    void aModPathWithAnyOtherFolderIsRefused()
+    {
+        for ( String nested : new String[]{ "mods/mods/jei.jar", "sub/jei.jar", "mods/1.12.2/jei.jar",
+                                            "config/jei.jar" } ) {
+            String refusal = validate( "add_mod_to_modpack", modArgs( nested ) );
+            assertNotNull( refusal, nested );
+            assertTrue( refusal.contains( "mods/" ), "says where it would have landed: " + refusal );
+        }
+        assertNotNull( validate( "add_mod_to_modpack", modArgs( "mods/" ) ), "no file name left" );
+        assertTrue( actions.performed.isEmpty() );
+    }
+
+    @Test
+    void optionalHashesAreCheckedForShapeAndPassedLowerCase()
+    {
+        JsonObject arguments = modArgs( "jei.jar" );
+        arguments.addProperty( "sha1", "A".repeat( 40 ) );
+        arguments.addProperty( "sha256", "B".repeat( 64 ) );
+        assertNull( validate( "add_mod_to_modpack", arguments ) );
+        invoke( "add_mod_to_modpack", arguments );
+        assertEquals( List.of( "addMod:Installed Pack:jei.jar:" + "a".repeat( 40 ) + ":" + "b".repeat( 64 ) ),
+                      actions.performed );
+
+        for ( String[] bad : new String[][]{ { "sha1", "abc" }, { "sha1", "z".repeat( 40 ) },
+                                             { "sha256", "a".repeat( 40 ) } } ) {
+            JsonObject wrong = modArgs( "jei.jar" );
+            wrong.addProperty( bad[ 0 ], bad[ 1 ] );
+            assertNotNull( validate( "add_mod_to_modpack", wrong ), bad[ 0 ] + "=" + bad[ 1 ] );
+        }
+    }
+
+    @Test
+    void theSchemaKeepsTheHashesOptional()
+    {
+        JsonObject schema = registry.find( "add_mod_to_modpack" ).inputSchema();
+        assertTrue( schema.getAsJsonObject( "properties" ).has( "sha256" ) );
+        assertFalse( schema.getAsJsonArray( "required" ).toString().contains( "sha" ) );
+        assertFalse( schema.getAsJsonObject( "properties" ).getAsJsonObject( "localPath" ).get( "description" )
+                           .getAsString().contains( "mods/jei.jar" ), "the description no longer teaches mods/x.jar" );
     }
 
     @Test
     void aModUrlFacesTheSameInstallSourceGate()
     {
-        JsonObject arguments = modArgs( "mods/jei.jar" );
+        JsonObject arguments = modArgs( "jei.jar" );
         arguments.addProperty( "remoteUrl", "http://example.test/jei.jar" );
         assertNotNull( validate( "add_mod_to_modpack", arguments ) );
     }
@@ -342,7 +400,7 @@ class MutatingToolsTest
     @Test
     void addingToAnUnknownPackIsRefused()
     {
-        JsonObject arguments = modArgs( "mods/jei.jar" );
+        JsonObject arguments = modArgs( "jei.jar" );
         arguments.addProperty( "friendlyName", "Ghost Pack" );
         assertNotNull( validate( "add_mod_to_modpack", arguments ) );
     }

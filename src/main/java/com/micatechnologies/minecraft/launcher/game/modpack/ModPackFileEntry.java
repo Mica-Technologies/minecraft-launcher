@@ -52,7 +52,11 @@ public class ModPackFileEntry
     /** Remote URL the file is downloaded from. Required — an empty value is a validation issue. */
     private String remote = "";
 
-    /** Local path the file is installed to, relative to the modpack root. Required. */
+    /**
+     * Local path the file is installed to, relative to its list's folder: {@code mods/} for mods
+     * (so a bare file name such as {@code jei.jar}), {@code config/}, {@code resourcepacks/} or
+     * {@code shaderpacks/} for those lists, and the pack root only for init files. Required.
+     */
     private String local = "";
 
     /** The primary hash value, or empty when the entry carries no usable hash. */
@@ -91,7 +95,7 @@ public class ModPackFileEntry
      *
      * @param name         display name, or {@code ""} for lists that carry no name
      * @param remote       remote download URL
-     * @param local        local install path relative to the modpack root
+     * @param local        local install path, relative to its list's folder (see {@link #local})
      * @param hash         primary hash value, or {@code ""} when there is none
      * @param hashType     algorithm of {@code hash}
      * @param clientReq    whether the file is required on clients
@@ -148,7 +152,7 @@ public class ModPackFileEntry
     public void setRemote( String value ) { this.remote = value == null ? "" : value; }
 
     /**
-     * Returns the local install path, relative to the modpack root.
+     * Returns the local install path, relative to its list's folder (see {@link #local}).
      *
      * @return the local path, never {@code null}
      *

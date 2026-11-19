@@ -1152,9 +1152,9 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
             <span class="gate"><span class="badge mutate">MUTATING</span> · asks by default</span>
         </header>
         <dl class="meta">
-            <dt>Purpose</dt><dd>Adds a mod to a pack's manifest, to be downloaded on the next sync.</dd>
-            <dt>Arguments</dt><dd><code>friendlyName</code>, <code>modName</code>, <code>remoteUrl</code>, <code>localPath</code> — all required. <code>localPath</code> is relative to the pack root, e.g. <code>mods/jei.jar</code>.</dd>
-            <dt>Before asking</dt><dd>Pack must exist. <code>remoteUrl</code> faces the same install-source gate as a pack manifest, for the same reason: it is a model-chosen address that will be downloaded and put on the game's classpath. <code>localPath</code> must be relative, contain no <code>..</code> segment and no control characters.</dd>
+            <dt>Purpose</dt><dd>Adds a mod to a pack's manifest, to be downloaded on the next sync. The launcher downloads the jar once while adding it and records its SHA-256 and SHA-1, so the sync verifies it and replaces an older file at the same path. The result names the folder it installs to.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code>, <code>modName</code>, <code>remoteUrl</code>, <code>localPath</code> — required. <code>localPath</code> is the jar's file name in the pack's <code>mods</code> folder, e.g. <code>jei.jar</code>; a leading <code>mods/</code> is dropped. Optional <code>sha1</code> and <code>sha256</code> (hex): the add fails if the downloaded jar does not match.</dd>
+            <dt>Before asking</dt><dd>Pack must exist. <code>remoteUrl</code> faces the same install-source gate as a pack manifest, for the same reason: it is a model-chosen address that will be downloaded and put on the game's classpath. <code>localPath</code> must be relative, contain no <code>..</code> segment and no control characters, and after dropping a leading <code>mods/</code> must hold no folder: the sync only loads and cleans up the top level of <code>mods</code>. Hashes must be 40 (SHA-1) or 64 (SHA-256) hex digits. A mod already listed under the same file name (with or without <code>mods/</code>) is refused.</dd>
             <dt>Editability</dt><dd>Only packs whose manifest this launcher authored. Otherwise the error points at <code>fork_modpack</code>.</dd>
         </dl>
     </div>
