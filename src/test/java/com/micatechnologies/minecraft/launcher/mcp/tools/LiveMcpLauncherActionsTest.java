@@ -191,6 +191,15 @@ class LiveMcpLauncherActionsTest
                               + "Turned off \"Fast\", which conflicts with \"AUSM\". Takes effect the next time the "
                               + "pack launches or syncs.", outcome.message() );
 
+        // Turning it off again drops the requirement it alone switched on; Fast stays off.
+        var on = OptionalModResolver.toggle( mods, Map.of(), "ausm.jar", true );
+        var off = LiveMcpLauncherActions.describeToggle(
+                OptionalModResolver.toggle( mods, on.choices(), "ausm.jar", false ), "Alto", "AUSM", false );
+        assertTrue( off.ok() );
+        assertEquals( "Turned \"AUSM\" off in \"Alto\". Turned off \"Lib\" too; it was only on because \"AUSM\" "
+                              + "requires it. Takes effect the next time the pack launches or syncs.",
+                      off.message() );
+
         var refused = LiveMcpLauncherActions.describeToggle(
                 OptionalModResolver.toggle( mods, Map.of(), "ghost.jar", true ), "Alto", "ghost.jar", true );
         assertFalse( refused.ok() );

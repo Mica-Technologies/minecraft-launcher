@@ -50,8 +50,22 @@ import java.util.Set;
  *   <li>Names in {@code requires} or {@code conflictsWith} that are not optional mods of the
  *       same pack are ignored here (the editor refuses to save them).</li>
  * </ol>
- * The toggle UI keeps stored choices consistent, so rules 2 and 3 only bite when a manifest
- * update adds a dependency or a conflict after the player chose, or when defaults disagree.
+ * Rule 3 bites when a manifest update adds a conflict after the player chose, or when defaults
+ * disagree; the toggle stores {@code false} for mods it forces off so it does not bite there.
+ *
+ * <h2>What a toggle stores</h2>
+ * A toggle ({@link #toggle}) stores only what the player decided:
+ * <ul>
+ *   <li>the toggled mod's own new state;</li>
+ *   <li>{@code false} for every mod that conflicts with the toggled mod's requires-group, and for
+ *       everything that (transitively) requires one of those: the player chose the toggled mod
+ *       over them;</li>
+ *   <li>when turning a mod off, {@code false} for everything that (transitively) requires it.</li>
+ * </ul>
+ * Requirements a toggle turns on are <em>not</em> stored. Rule 2 keeps them on while a mod that
+ * needs them is on; once none is, each falls back to its own wish. So turning a mod on and then
+ * off again turns its requirements back off, unless the player switched one on themselves or
+ * another mod that is on still needs it.
  *
  * <h2>Sides</h2>
  * A client installs the resolved set's mods that are client-side. A dedicated server has no
@@ -76,6 +90,16 @@ public final class OptionalModResolver
         CONFLICTS_WITH,
         /** Turned off because it requires a mod that is now off. */
         REQUIRES_OFF,
+        /**
+         * Turned off because it was only on as a requirement of a mod that is now off; it fell
+         * back to its own wish.
+         */
+        NO_LONGER_REQUIRED,
+        /**
+         * Turned on because the mod it conflicts with is now off; it was wished on but held off
+         * by that conflict.
+         */
+        CONFLICT_CLEARED,
         /** Refused: the mod needs a group of mods that conflict among themselves. */
         UNSATISFIABLE,
         /** Refused: no optional mod has that name. */
@@ -100,8 +124,10 @@ public final class OptionalModResolver
      *
      * @param applied   whether the toggle can be applied; {@code false} means nothing changes
      * @param refusal   why it was refused, or {@code null} when applied
-     * @param choices   the player's choices after the toggle (identity key to on/off), to store;
-     *                  equal to the input choices when refused
+     * @param choices   the player's choices after the toggle (identity key to on/off), to store:
+     *                  the input choices plus the toggled mod's state and the {@code false}s for
+     *                  mods it forced off (see the class notes); requirements turned on are not
+     *                  among them. Equal to the input choices when refused
      * @param enabled   the identity keys that are on after the toggle
      * @param changes   the mods other than the toggled one that switched, in manifest order
      *
@@ -192,11 +218,12 @@ public final class OptionalModResolver
     /**
      * Works out what turning one optional mod on or off does.
      * <p>
-     * Turning a mod on also turns on everything it requires (transitively) and turns off
-     * everything that conflicts with any of those, plus anything that needs a mod being turned
-     * off. Turning a mod off also turns off everything that needs it. Every switched mod is
-     * written into the returned choices explicitly, so a later toggle elsewhere does not quietly
-     * undo it.
+     * Turning a mod on stores it as on and stores {@code false} for everything that conflicts
+     * with it or with anything it requires (transitively), plus everything that needs one of
+     * those. Its requirements are not stored: they are on because it is on. Turning a mod off
+     * stores it as off and stores {@code false} for everything that needs it; its requirements
+     * fall back to their own wish (stored choice, else {@code defaultEnabled}) unless another mod
+     * that is on still needs them. See the class notes.
      *
      * @param mods    the pack's optional mods, in manifest order
      * @param choices the player's current stored choices
@@ -241,10 +268,11 @@ public final class OptionalModResolver
             return refused( Reason.UNSATISFIABLE, before, enabledBefore );
         }
 
+        // Only the player's own pick and the mods it forces off are stored. Requirements stay on
+        // through the requires-closure while a mod that needs them is on, and fall back to their
+        // own wish once none is.
         Map< String, Boolean > after = new LinkedHashMap<>( before );
-        for ( String key : turnOn ) {
-            after.put( key, true );
-        }
+        after.put( target, enable );
         for ( String key : turnOff ) {
             after.put( key, false );
         }
@@ -262,50 +290,119 @@ public final class OptionalModResolver
             boolean wasOn = enabledBefore.contains( key );
             boolean isOn = enabledAfter.contains( key );
             if ( wasOn != isOn ) {
-                changes.add( explain( byKey, mod, isOn, enabledAfter ) );
+                changes.add( explain( byKey, mod, isOn, turnOff.contains( key ), enabledBefore, enabledAfter ) );
             }
         }
         return new ToggleResult( true, null, after, enabledAfter, changes );
     }
 
     /**
-     * Explains why a mod switched.
+     * Explains why a mod switched. Every cause is picked deterministically: the first candidate
+     * in manifest order.
+     * <ul>
+     *   <li>Turned on: {@link Reason#REQUIRED_BY} the first mod on afterwards that directly
+     *       requires it; else {@link Reason#CONFLICT_CLEARED} by the first mod that was on, is off
+     *       now and conflicts with it; else {@link Reason#REQUIRED_BY} with no cause.</li>
+     *   <li>Turned off and stored off by the toggle ({@code forced}):
+     *       {@link Reason#CONFLICTS_WITH} the first mod on afterwards that it conflicts with; else
+     *       {@link Reason#REQUIRES_OFF} the first mod it directly requires that is off afterwards;
+     *       else {@link Reason#REQUIRES_OFF} with no cause.</li>
+     *   <li>Turned off without being stored (it fell back to its own wish):
+     *       {@link Reason#NO_LONGER_REQUIRED} by the first mod that was on, is off now and directly
+     *       requires it; else {@link Reason#CONFLICTS_WITH} the first mod on afterwards that it
+     *       conflicts with; else {@link Reason#REQUIRES_OFF} with no cause.</li>
+     * </ul>
      *
-     * @param byKey   the pack's optional mods by key
-     * @param mod     the switched mod
-     * @param isOn    its new state
-     * @param enabled the keys that are on after the toggle
+     * @param byKey  the pack's optional mods by key
+     * @param mod    the switched mod
+     * @param isOn   its new state
+     * @param forced whether the toggle stored it as off
+     * @param before the keys that were on before the toggle
+     * @param after  the keys that are on after the toggle
      *
      * @return the change
      */
     private static Change explain( Map< String, GameOptionalMod > byKey, GameOptionalMod mod, boolean isOn,
-                                   Set< String > enabled )
+                                   boolean forced, Set< String > before, Set< String > after )
     {
         String key = mod.key();
+        String name = mod.getDisplayName();
         if ( isOn ) {
-            for ( String other : enabled ) {
-                GameOptionalMod candidate = byKey.get( other );
-                if ( candidate != null && keysOf( candidate.getRequires() ).contains( key ) ) {
-                    return new Change( key, mod.getDisplayName(), true, Reason.REQUIRED_BY,
-                                       candidate.getDisplayName() );
+            String requirer = firstRequirer( byKey, key, after, Set.of() );
+            if ( requirer != null ) {
+                return new Change( key, name, true, Reason.REQUIRED_BY, requirer );
+            }
+            String cleared = firstConflict( byKey, key, before, after );
+            if ( cleared != null ) {
+                return new Change( key, name, true, Reason.CONFLICT_CLEARED, cleared );
+            }
+            return new Change( key, name, true, Reason.REQUIRED_BY, "" );
+        }
+        if ( !forced ) {
+            String requirer = firstRequirer( byKey, key, before, after );
+            if ( requirer != null ) {
+                return new Change( key, name, false, Reason.NO_LONGER_REQUIRED, requirer );
+            }
+        }
+        String conflict = firstConflict( byKey, key, after, Set.of() );
+        if ( conflict != null ) {
+            return new Change( key, name, false, Reason.CONFLICTS_WITH, conflict );
+        }
+        if ( forced ) {
+            for ( String required : keysOf( mod.getRequires() ) ) {
+                GameOptionalMod requiredMod = byKey.get( required );
+                if ( requiredMod != null && !after.contains( required ) ) {
+                    return new Change( key, name, false, Reason.REQUIRES_OFF, requiredMod.getDisplayName() );
                 }
             }
-            return new Change( key, mod.getDisplayName(), true, Reason.REQUIRED_BY, "" );
         }
-        for ( String other : enabled ) {
-            if ( conflicts( byKey, key, other ) ) {
-                return new Change( key, mod.getDisplayName(), false, Reason.CONFLICTS_WITH,
-                                   byKey.get( other ).getDisplayName() );
+        return new Change( key, name, false, Reason.REQUIRES_OFF, "" );
+    }
+
+    /**
+     * Finds the first mod, in manifest order, that is in {@code in}, not in {@code notIn}, and
+     * directly requires {@code key}.
+     *
+     * @param byKey the pack's optional mods by key, in manifest order
+     * @param key   the required mod
+     * @param in    the mods to look among
+     * @param notIn the mods to leave out
+     *
+     * @return the requirer's display name, or {@code null} when there is none
+     */
+    private static String firstRequirer( Map< String, GameOptionalMod > byKey, String key, Set< String > in,
+                                         Set< String > notIn )
+    {
+        for ( GameOptionalMod candidate : byKey.values() ) {
+            String other = candidate.key();
+            if ( in.contains( other ) && !notIn.contains( other ) && keysOf( candidate.getRequires() ).contains( key ) ) {
+                return candidate.getDisplayName();
             }
         }
-        for ( String required : keysOf( mod.getRequires() ) ) {
-            GameOptionalMod requiredMod = byKey.get( required );
-            if ( requiredMod != null && !enabled.contains( required ) ) {
-                return new Change( key, mod.getDisplayName(), false, Reason.REQUIRES_OFF,
-                                   requiredMod.getDisplayName() );
+        return null;
+    }
+
+    /**
+     * Finds the first mod, in manifest order, that is in {@code in}, not in {@code notIn}, and
+     * conflicts with {@code key} in either direction.
+     *
+     * @param byKey the pack's optional mods by key, in manifest order
+     * @param key   the mod
+     * @param in    the mods to look among
+     * @param notIn the mods to leave out
+     *
+     * @return the conflicting mod's display name, or {@code null} when there is none
+     */
+    private static String firstConflict( Map< String, GameOptionalMod > byKey, String key, Set< String > in,
+                                         Set< String > notIn )
+    {
+        for ( GameOptionalMod candidate : byKey.values() ) {
+            String other = candidate.key();
+            if ( in.contains( other ) && !notIn.contains( other ) && conflicts( byKey, key, other ) ) {
+                return candidate.getDisplayName();
             }
         }
-        return new Change( key, mod.getDisplayName(), false, Reason.REQUIRES_OFF, "" );
+        return null;
     }
 
     /**

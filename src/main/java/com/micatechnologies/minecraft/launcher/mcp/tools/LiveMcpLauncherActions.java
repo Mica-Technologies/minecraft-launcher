@@ -444,6 +444,12 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
                         .append( cause != null ? ", which \"" + cause + "\" requires." : "." );
                 case CONFLICTS_WITH -> message.append( "Turned off \"" ).append( change.name() )
                         .append( "\", which conflicts with \"" ).append( cause ).append( "\"." );
+                case NO_LONGER_REQUIRED -> message.append( "Turned off \"" ).append( change.name() ).append( '"' )
+                        .append( cause != null ? " too; it was only on because \"" + cause + "\" requires it."
+                                               : " too." );
+                case CONFLICT_CLEARED -> message.append( "Turned on \"" ).append( change.name() ).append( '"' )
+                        .append( cause != null ? " again; it was only off because it conflicts with \"" + cause
+                                + "\", which is now off." : " again." );
                 default -> message.append( "Turned off \"" ).append( change.name() ).append( '"' )
                         .append( cause != null ? ", which requires \"" + cause + "\"." : "." );
             }
