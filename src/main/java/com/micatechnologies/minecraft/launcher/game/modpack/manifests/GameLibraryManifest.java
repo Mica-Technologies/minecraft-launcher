@@ -33,6 +33,7 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressP
 import com.micatechnologies.minecraft.launcher.game.modpack.LaunchPrepareContext;
 import com.micatechnologies.minecraft.launcher.game.modpack.Lwjgl2ArmPatcher;
 import com.micatechnologies.minecraft.launcher.game.modpack.ManagedGameFile;
+import com.micatechnologies.minecraft.launcher.game.modpack.MavenArtifactPath;
 import com.micatechnologies.minecraft.launcher.utilities.DownloadExecutor;
 import com.micatechnologies.minecraft.launcher.utilities.JsonHelper;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
@@ -93,20 +94,22 @@ public class GameLibraryManifest extends ManagedGameFile
     /**
      * Get the list of all applicable libraries for the current system from this Minecraft library manifest.
      *
+     * @param side the game side the libraries are for; an entry marked for the other side is left out
+     *
      * @return list of {@link GameLibrary} objects
      *
      * @throws ModpackException if download or processing fails
      * @since 1.0
      */
-    private ArrayList< GameLibrary > getLibraries() throws ModpackException {
-        return extractLibraries( readToJsonObject() );
+    private ArrayList< GameLibrary > getLibraries( GameMode side ) throws ModpackException {
+        return extractLibraries( readToJsonObject(), ManifestRuleUtilities.Host.current(), side );
     }
 
     /**
      * Scans an already-parsed client.json's {@code libraries} array and returns the list of
-     * {@link GameLibrary} objects applicable to the current system: resolving per-platform native
-     * classifiers, evaluating each library's {@code rules} array, and filtering to libraries whose
-     * applicable-OS list contains the current platform.
+     * {@link GameLibrary} objects applicable to the current system, for either side: resolving
+     * per-platform native classifiers, evaluating each library's {@code rules} array, and filtering
+     * to libraries whose applicable-OS list contains the current platform.
      *
      * @param libManifest the parsed client.json to scan
      *
@@ -121,8 +124,43 @@ public class GameLibraryManifest extends ManagedGameFile
     // directly against a hand-built manifest, without a real GameModPack/downloaded file backing
     // this instance. Reads no instance state (parentModPack is never referenced in the body).
     static ArrayList< GameLibrary > extractLibraries( JsonObject libManifest ) throws ModpackException {
+        return extractLibraries( libManifest, ManifestRuleUtilities.Host.current(), null );
+    }
+
+    /**
+     * Scans an already-parsed client.json (or a loader's standalone version profile) and returns
+     * the {@link GameLibrary} objects that apply to {@code host} on {@code side}.
+     *
+     * <p>Beyond Mojang's own format this reads two things Cleanroom's standalone
+     * {@code version.json} relies on, neither of which appears in a Mojang client.json:</p>
+     * <ul>
+     *   <li>An entry marked {@code "side": "client"} or {@code "side": "server"} is left out on
+     *       the other side (Cleanroom marks every natives entry client-only, and its installer
+     *       leaves them off a server). An entry without {@code side} applies to both.</li>
+     *   <li>A download without a {@code path} (Cleanroom's legacy natives classifiers carry only
+     *       {@code url} and {@code sha1}) gets the Maven path of the library name plus the
+     *       classifier. A name that is no usable coordinate fails rather than inventing a
+     *       path.</li>
+     * </ul>
+     *
+     * @param libManifest the parsed manifest to scan
+     * @param host        the host the libraries are resolved for
+     * @param side        the game side, or {@code null} to keep every entry regardless of its
+     *                    {@code side}
+     *
+     * @return the applicable libraries, in manifest order
+     *
+     * @throws ModpackException if a library entry is missing a required field
+     *
+     * @since 2026.11
+     */
+    static ArrayList< GameLibrary > extractLibraries( JsonObject libManifest,
+                                                      ManifestRuleUtilities.Host host,
+                                                      GameMode side ) throws ModpackException
+    {
         // Create list to return
         ArrayList< GameLibrary > libraries = new ArrayList<>();
+        String currentPlatform = host.platformName();
 
         // Loop through each library in manifest
         JsonArray libManifestLibraries = libManifest.getAsJsonArray(
@@ -136,8 +174,15 @@ public class GameLibraryManifest extends ManagedGameFile
             // downloads: Object
             if ( libManifestLibObj.has( ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY ) &&
                     libManifestLibObj.has( ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_NAME_KEY ) ) {
+                // An entry for the other side is left out entirely (not malformed, so no warning).
+                if ( !appliesToSide( libManifestLibObj, side ) ) {
+                    continue;
+                }
+                String libName = JsonHelper.getString( libManifestLibObj,
+                        ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_NAME_KEY, "" );
+
                 // Library information variables
-                Path path = null;
+                String path = null;
                 String sha1 = null;
                 String url = null;
 
@@ -148,14 +193,14 @@ public class GameLibraryManifest extends ManagedGameFile
                         ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_ARTIFACT_KEY );
                 if ( artifactObj != null ) {
                     // Store library path, sha1 and url
-                    path = Paths.get( JsonHelper.getRequiredString( artifactObj, "path" ) );
+                    path = Paths.get( pathOrDerived( artifactObj, libName, null ) ).toString();
                     sha1 = JsonHelper.getRequiredString( artifactObj, "sha1" );
                     url = JsonHelper.getRequiredString( artifactObj, "url" );
                 }
 
-                String currentPlatform = ManifestRuleUtilities.getCurrentPlatformName();
                 boolean libraryAllowed = ManifestRuleUtilities.evaluateRules(
-                        libManifestLibObj.has( "rules" ) ? libManifestLibObj.getAsJsonArray( "rules" ) : null );
+                        libManifestLibObj.has( "rules" ) ? libManifestLibObj.getAsJsonArray( "rules" ) : null,
+                        host );
 
                 ArrayList< String > rulesOS = new ArrayList<>();
                 if ( libraryAllowed ) {
@@ -167,83 +212,23 @@ public class GameLibraryManifest extends ManagedGameFile
                 // Note: classifiers are additional libraries or
                 // sub-libraries associated with the parent library
                 // Note: logging classifiers are ignored.
-                if ( libManifestLibObj.getAsJsonObject(
-                        ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY ).has( "classifiers" ) ) {
-                    JsonObject classifiersObj = libManifestLibObj.getAsJsonObject(
-                                                               ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
-                                                           .getAsJsonObject( "classifiers" );
-
-                    // Check for and process windows native libraries
-                    String windowsNativeKey = resolveNativeClassifierKey( libManifestLibObj, "windows" );
-                    if ( libraryAllowed &&
-                            org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS &&
-                            windowsNativeKey != null &&
-                            classifiersObj.has( windowsNativeKey ) ) {
-                        // Create list to store applicable OSes for native
+                JsonObject classifiersObj = JsonHelper.getJsonObject( downloadsObj, "classifiers" );
+                String nativeOsKey = switch ( host.os() ) {
+                    case WINDOWS -> "windows";
+                    case MACOS -> "osx";
+                    case LINUX -> "linux";
+                    default -> null;
+                };
+                if ( classifiersObj != null && libraryAllowed && nativeOsKey != null ) {
+                    String nativeKey = resolveNativeClassifierKey( libManifestLibObj, nativeOsKey, host );
+                    if ( nativeKey != null && classifiersObj.has( nativeKey ) ) {
+                        // The native applies to the host's platform only
                         ArrayList< String > nativeValidOS = new ArrayList<>();
-
-                        // Add Windows as an applicable OS if library supports Windows
-                        if ( libraryAllowed ) {
-                            nativeValidOS.add( ModPackConstants.PLATFORM_WINDOWS );
-                        }
+                        nativeValidOS.add( currentPlatform );
 
                         // Initialize new native library object
-                        JsonObject nativeObj = classifiersObj.getAsJsonObject( windowsNativeKey );
-                        String localLibPath = JsonHelper.getRequiredString( nativeObj, "path" );
-                        GameLibrary nativeLib = new GameLibrary( JsonHelper.getRequiredString( nativeObj, "url" ),
-                                                     localLibPath,
-                                                     JsonHelper.getRequiredString( nativeObj, "sha1" ),
-                                                     ManagedGameFileHashType.SHA1,
-                                                     true, nativeValidOS, true );
-
-                        // Add native library to applicable libraries list
-                        libraries.add( nativeLib );
-                    }
-
-                    // Check for and process macOS native libraries
-                    String macNativeKey = resolveNativeClassifierKey( libManifestLibObj, "osx" );
-                    if ( libraryAllowed &&
-                            org.apache.commons.lang3.SystemUtils.IS_OS_MAC &&
-                            macNativeKey != null &&
-                            classifiersObj.has( macNativeKey ) ) {
-                        // Create list to store applicable OSes for native
-                        ArrayList< String > nativeValidOS = new ArrayList<>();
-
-                        // Add macOS as an applicable OS if library supports macOS
-                        if ( libraryAllowed ) {
-                            nativeValidOS.add( ModPackConstants.PLATFORM_MACOS );
-                        }
-
-                        // Initialize new native library object
-                        JsonObject nativeObj = classifiersObj.getAsJsonObject( macNativeKey );
-                        String localLibPath = JsonHelper.getRequiredString( nativeObj, "path" );
-                        GameLibrary nativeLib = new GameLibrary( JsonHelper.getRequiredString( nativeObj, "url" ),
-                                                     localLibPath,
-                                                     JsonHelper.getRequiredString( nativeObj, "sha1" ),
-                                                     ManagedGameFileHashType.SHA1,
-                                                     true, nativeValidOS, true );
-
-                        // Add native library to applicable libraries list
-                        libraries.add( nativeLib );
-                    }
-
-                    // Check for and process Linux native libraries if on Linux
-                    String linuxNativeKey = resolveNativeClassifierKey( libManifestLibObj, "linux" );
-                    if ( libraryAllowed &&
-                            org.apache.commons.lang3.SystemUtils.IS_OS_LINUX &&
-                            linuxNativeKey != null &&
-                            classifiersObj.has( linuxNativeKey ) ) {
-                        // Create list to store applicable OSes for native
-                        ArrayList< String > nativeValidOS = new ArrayList<>();
-
-                        // Add Linux as an applicable OS if library supports Linux
-                        if ( libraryAllowed ) {
-                            nativeValidOS.add( ModPackConstants.PLATFORM_UNIX );
-                        }
-
-                        // Initialize new native library object
-                        JsonObject nativeObj = classifiersObj.getAsJsonObject( linuxNativeKey );
-                        String localLibPath = JsonHelper.getRequiredString( nativeObj, "path" );
+                        JsonObject nativeObj = classifiersObj.getAsJsonObject( nativeKey );
+                        String localLibPath = pathOrDerived( nativeObj, libName, nativeKey );
                         GameLibrary nativeLib = new GameLibrary( JsonHelper.getRequiredString( nativeObj, "url" ),
                                                      localLibPath,
                                                      JsonHelper.getRequiredString( nativeObj, "sha1" ),
@@ -257,7 +242,7 @@ public class GameLibraryManifest extends ManagedGameFile
 
                 // Create final library object and add to applicable list
                 if ( path != null && url != null && sha1 != null ) {
-                    GameLibrary thisLib = new GameLibrary( url, path.toString(), sha1, ManagedGameFileHashType.SHA1,
+                    GameLibrary thisLib = new GameLibrary( url, path, sha1, ManagedGameFileHashType.SHA1,
                                                            useStrictRules, rulesOS, false );
 
                     if ( thisLib.getApplicableOSes().contains( currentPlatform ) ) {
@@ -276,8 +261,65 @@ public class GameLibraryManifest extends ManagedGameFile
     }
 
     /**
+     * Returns whether a library entry applies to the given side. Only an entry whose {@code side}
+     * names the other side is left out; an entry without {@code side} (every Mojang entry) applies
+     * to both, as does every entry when no side is given.
+     *
+     * @param libraryObject the library entry
+     * @param side          the game side, or {@code null} for either
+     *
+     * @return {@code true} if the entry applies to {@code side}
+     *
+     * @since 2026.11
+     */
+    static boolean appliesToSide( JsonObject libraryObject, GameMode side ) {
+        if ( side == null ) {
+            return true;
+        }
+        String librarySide = JsonHelper.getString( libraryObject, "side", null );
+        if ( librarySide == null || librarySide.isBlank() ) {
+            return true;
+        }
+        String wanted = side == GameMode.SERVER ? "server" : "client";
+        return librarySide.trim().equalsIgnoreCase( wanted );
+    }
+
+    /**
+     * Returns a download's {@code path}, or, when it is absent or blank, the Maven path of the
+     * library {@code name} with {@code classifier} appended (Cleanroom's legacy natives
+     * classifiers carry only {@code url} and {@code sha1}). Mojang's downloads always carry a
+     * path, so for them this returns it unchanged.
+     *
+     * @param download   the {@code artifact} or classifier download object
+     * @param name       the library's Maven coordinate ({@code group:artifact:version})
+     * @param classifier the classifier key, or {@code null} for the main artifact
+     *
+     * @return the download's repository-relative path, with forward slashes
+     *
+     * @throws IllegalArgumentException if the path is missing and {@code name} is no usable
+     *                                  coordinate (or the classifier would leave the libraries
+     *                                  folder): the same failure as before paths were derived
+     *
+     * @since 2026.11
+     */
+    static String pathOrDerived( JsonObject download, String name, String classifier ) {
+        String path = JsonHelper.getString( download, "path", null );
+        if ( path != null && !path.isBlank() ) {
+            return path;
+        }
+        String coordinate = classifier == null ? name : name + ":" + classifier;
+        try {
+            return MavenArtifactPath.toRelativePathStrict( coordinate );
+        }
+        catch ( ModpackException e ) {
+            // Not a coordinate: fail on the missing path exactly as an underived read did.
+            return JsonHelper.getRequiredString( download, "path" );
+        }
+    }
+
+    /**
      * Resolves the classifier key used to look up a native sub-library for the given OS within a library entry's
-     * {@code downloads.classifiers} object.
+     * {@code downloads.classifiers} object, for the current host.
      * <p>
      * When the library declares a {@code natives} mapping, the value for the requested OS is used directly, with any
      * {@code ${arch}} placeholder substituted for the current process architecture ({@code "64"} or {@code "32"}). When
@@ -298,11 +340,27 @@ public class GameLibraryManifest extends ManagedGameFile
     // constructor requires a real GameModPack and resolves launcher paths) just to
     // exercise a pure string rule.
     static String resolveNativeClassifierKey( JsonObject libraryObject, String osKey ) {
+        return resolveNativeClassifierKey( libraryObject, osKey, ManifestRuleUtilities.Host.current() );
+    }
+
+    /**
+     * {@link #resolveNativeClassifierKey(JsonObject, String)} for the given host.
+     *
+     * @param libraryObject the library entry JSON object from the manifest
+     * @param osKey         the Mojang OS key to resolve a native classifier for
+     * @param host          the host whose architecture fills {@code ${arch}}
+     *
+     * @return the resolved classifier key for the requested OS
+     *
+     * @since 2026.11
+     */
+    static String resolveNativeClassifierKey( JsonObject libraryObject, String osKey,
+                                              ManifestRuleUtilities.Host host ) {
         if ( libraryObject.has( "natives" ) ) {
             JsonObject nativesObject = libraryObject.getAsJsonObject( "natives" );
             if ( nativesObject.has( osKey ) ) {
                 String key = nativesObject.get( osKey ).getAsString();
-                String arch = System.getProperty( "os.arch", "" ).contains( "64" ) ? "64" : "32";
+                String arch = host.is64Bit() ? "64" : "32";
                 return key.replace( "${arch}", arch );
             }
         }
@@ -312,12 +370,13 @@ public class GameLibraryManifest extends ManagedGameFile
     /**
      * Verify each library's local copy and download/update if necessary
      *
+     * @param side             the game side the libraries are for
      * @param progressProvider progress provider
      *
      * @throws ModpackException if update or download fails
      * @since 1.0
      */
-    private void downloadVerifyLibraries( GameModPackProgressProvider progressProvider )
+    private void downloadVerifyLibraries( GameMode side, GameModPackProgressProvider progressProvider )
     throws ModpackException, InterruptedException, ExecutionException
     {
         // Build full path to libraries and natives folders
@@ -329,7 +388,7 @@ public class GameLibraryManifest extends ManagedGameFile
                 ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER;
 
         // Get list of libraries
-        ArrayList< GameLibrary > libraries = getLibraries();
+        ArrayList< GameLibrary > libraries = getLibraries( side );
         if ( libraries.isEmpty() ) {
             return;
         }
@@ -391,14 +450,14 @@ public class GameLibraryManifest extends ManagedGameFile
     throws ModpackException
     {
         // Get list of libraries
-        ArrayList< GameLibrary > minecraftLibsList = getLibraries();
+        ArrayList< GameLibrary > minecraftLibsList = getLibraries( appGameMode );
         if ( progressProvider != null ) {
             progressProvider.submitProgress( LocalizationManager.get( "libraryManifest.gotLibraryList" ), 5 );
         }
 
         // Download the libraries
         try {
-            downloadVerifyLibraries( progressProvider );
+            downloadVerifyLibraries( appGameMode, progressProvider );
         }
         catch ( InterruptedException e ) {
             throw new ModpackException( LocalizationManager.get( "minecraft.error.libsInterrupted" ), e );
