@@ -146,6 +146,29 @@ class OptionalModSyncTest
     }
 
     @Test
+    void aServerInstallsTheRequirementsOfItsDefaultModsButNotAGroupWithAClientOnlyMod()
+    {
+        GameModPack withRequires = JSONUtilities.getGson().fromJson( """
+                {
+                  "packName": "Alto",
+                  "packVersion": "1.0.0",
+                  "packMods": [],
+                  "packOptionalMods": [
+                    { "name": "Core", "remote": "https://example.invalid/core.jar", "local": "core.jar",
+                      "serverReq": true, "defaultEnabled": true, "requires": ["api.jar"] },
+                    { "name": "Api", "remote": "https://example.invalid/api.jar", "local": "api.jar",
+                      "serverReq": true },
+                    { "name": "Hud", "remote": "https://example.invalid/hud.jar", "local": "hud.jar",
+                      "serverReq": true, "defaultEnabled": true, "requires": ["gui.jar"] },
+                    { "name": "Gui", "remote": "https://example.invalid/gui.jar", "local": "gui.jar" }
+                  ]
+                }
+                """, GameModPack.class );
+        assertEquals( List.of( "core.jar", "api.jar" ),
+                      keys( GameModPackFileSync.modsForSide( withRequires, GameMode.SERVER, Map.of() ) ) );
+    }
+
+    @Test
     void anOptionalModWhoseFileNameHoldsAFolderIsNeverInstalled()
     {
         // mods/nested.jar would land in mods/mods/, where the game never loads it.

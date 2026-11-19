@@ -69,8 +69,11 @@ import java.util.Set;
  *
  * <h2>Sides</h2>
  * A client installs the resolved set's mods that are client-side. A dedicated server has no
- * player to choose, so it ignores stored choices and installs exactly the mods that are both
- * {@code serverReq} and {@code defaultEnabled}.
+ * player to choose, so it ignores stored choices: it starts from the mods that are both
+ * {@code serverReq} and {@code defaultEnabled}, in manifest order, and turns each on together
+ * with its requires-group. A group is skipped whole when any of its mods is not
+ * {@code serverReq}, or when it conflicts within itself or with a mod already on (the earlier
+ * entry wins, as for a client).
  *
  * @author Mica Technologies
  * @since 2026.11
@@ -197,15 +200,13 @@ public final class OptionalModResolver
         if ( mods == null || mods.isEmpty() ) {
             return selected;
         }
+        Map< String, GameOptionalMod > byKey = index( mods );
         if ( side == GameMode.SERVER ) {
-            for ( GameOptionalMod mod : index( mods ).values() ) {
-                if ( mod.isServerSide() && mod.isDefaultEnabled() ) {
-                    selected.add( mod );
-                }
+            for ( String key : resolveServer( byKey ) ) {
+                selected.add( byKey.get( key ) );
             }
             return selected;
         }
-        Map< String, GameOptionalMod > byKey = index( mods );
         for ( String key : resolveEnabled( mods, choices ) ) {
             GameOptionalMod mod = byKey.get( key );
             if ( mod != null && mod.isClientSide() ) {
@@ -213,6 +214,41 @@ public final class OptionalModResolver
             }
         }
         return selected;
+    }
+
+    /**
+     * Resolves which optional mods a dedicated server installs: each mod that is both
+     * {@code serverReq} and {@code defaultEnabled}, in manifest order, together with everything it
+     * requires (transitively). A group is skipped whole when any mod in it is not
+     * {@code serverReq}, when two of its mods conflict, or when it conflicts with a mod already
+     * on, so the earlier manifest entry wins.
+     *
+     * @param byKey the pack's optional mods by key, in manifest order
+     *
+     * @return the identity keys of the mods the server installs, in manifest order
+     */
+    private static Set< String > resolveServer( Map< String, GameOptionalMod > byKey )
+    {
+        Set< String > enabled = new LinkedHashSet<>();
+        for ( GameOptionalMod mod : byKey.values() ) {
+            String key = mod.key();
+            if ( enabled.contains( key ) || !mod.isServerSide() || !mod.isDefaultEnabled() ) {
+                continue;
+            }
+            Set< String > group = requiresClosure( byKey, key );
+            boolean allServerSide = true;
+            for ( String member : group ) {
+                if ( !byKey.get( member ).isServerSide() ) {
+                    allServerSide = false;
+                    break;
+                }
+            }
+            if ( !allServerSide || conflictsWithin( byKey, group ) || conflictsBetween( byKey, group, enabled ) ) {
+                continue;
+            }
+            enabled.addAll( group );
+        }
+        return orderLike( byKey, enabled );
     }
 
     /**
