@@ -150,6 +150,21 @@ public interface GameModLoader
     }
 
     /**
+     * Extra JVM arguments a dedicated server of this loader needs because nobody is at its
+     * console, space-separated. Empty by default. Cleanroom returns
+     * {@code -Dfml.queryResult=confirm}: without it, a pack lacking Fugue and Scalar stops at a
+     * console prompt, the server watchdog kills it, and the restart loop brings it back to the
+     * same prompt.
+     *
+     * @return the server JVM arguments, or an empty string
+     *
+     * @since 2026.11
+     */
+    default String getServerJvmArguments() {
+        return "";
+    }
+
+    /**
      * The loader's standalone version profile, which the launch uses <em>instead of</em> the
      * vanilla client.json: libraries and natives, Java runtime, asset index, client and server
      * jars. {@code null} (the default) for a loader that sits on top of vanilla, as Forge,

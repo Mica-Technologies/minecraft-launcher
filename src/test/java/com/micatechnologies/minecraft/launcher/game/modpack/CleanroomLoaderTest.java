@@ -86,6 +86,31 @@ class CleanroomLoaderTest
     }
 
     // =========================================================================
+    //  Unattended server
+    // =========================================================================
+
+    /**
+     * A Cleanroom server without Fugue and Scalar stops at a console prompt; nobody answers it on
+     * a server the launcher starts, so the watchdog kills it and the restart loop repeats.
+     */
+    @Test
+    void aCleanroomServerAnswersItsStartupPrompts() throws ModpackException
+    {
+        assertEquals( "-Dfml.queryResult=confirm", realLoader().getServerJvmArguments() );
+    }
+
+    @Test
+    void serverJvmArgsAreAddedUnlessTheOperatorSetTheProperty()
+    {
+        List< String > loader = List.of( "-Dfml.queryResult=confirm" );
+        assertEquals( loader, GameModPackLauncher.serverJvmArgsToAdd( loader, List.of( "java", "-Xmx2g" ) ) );
+        assertEquals( List.of(), GameModPackLauncher.serverJvmArgsToAdd(
+                loader, List.of( "java", "-Dfml.queryResult=cancel" ) ), "the operator's own value wins" );
+        assertEquals( List.of(), GameModPackLauncher.serverJvmArgsToAdd( loader, List.of( "-Dfml.queryResult=confirm" ) ) );
+        assertEquals( List.of(), GameModPackLauncher.serverJvmArgsToAdd( List.of(), List.of( "java" ) ) );
+    }
+
+    // =========================================================================
     //  Loader kind
     // =========================================================================
 
