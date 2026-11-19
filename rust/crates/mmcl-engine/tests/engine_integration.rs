@@ -4,11 +4,13 @@
 //! manifest edits, backups, refusals, server-mode guard, settings helpers and reset.
 
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
+use futures::future::BoxFuture;
 use mmcl_core::{DataPaths, GameMode};
 use mmcl_engine::{
-    Engine, EngineError, EngineEvent, EngineOptions, LaunchOptions, PackId, Setting,
+    Engine, EngineError, EngineEvent, EngineOptions, LaunchOptions, OfflineHttp, PackId, Setting,
 };
 
 struct Harness {
@@ -17,7 +19,67 @@ struct Harness {
     _dir: tempfile::TempDir,
 }
 
+/// Offline for everything except a capped download, which writes [`JAR_BYTES`]: enough for
+/// `add_mod` to hash a "jar" without touching the network.
+struct JarHttp;
+
+const JAR_BYTES: &[u8] = b"pretend jar";
+
+impl mmcl_engine::PackHttp for JarHttp {
+    fn is_offline(&self) -> bool {
+        OfflineHttp.is_offline()
+    }
+    fn refresh_network_availability(&self) -> BoxFuture<'_, bool> {
+        OfflineHttp.refresh_network_availability()
+    }
+    fn get_conditional<'a>(
+        &'a self,
+        url: &'a str,
+        max_bytes: u64,
+        etag: Option<&'a str>,
+        last_modified: Option<&'a str>,
+    ) -> BoxFuture<'a, Result<mmcl_net::BoundedFetchResult, mmcl_net::DownloadError>> {
+        OfflineHttp.get_conditional(url, max_bytes, etag, last_modified)
+    }
+    fn get_bounded<'a>(
+        &'a self,
+        url: &'a str,
+        max_bytes: u64,
+    ) -> BoxFuture<'a, Result<String, mmcl_net::DownloadError>> {
+        OfflineHttp.get_bounded(url, max_bytes)
+    }
+    fn get_string<'a>(
+        &'a self,
+        url: &'a str,
+    ) -> BoxFuture<'a, Result<String, mmcl_net::DownloadError>> {
+        OfflineHttp.get_string(url)
+    }
+    fn download<'a>(
+        &'a self,
+        url: &'a str,
+        dest: &'a Path,
+        tracker: Option<Arc<mmcl_net::DownloadTracker>>,
+    ) -> BoxFuture<'a, Result<(), mmcl_net::DownloadError>> {
+        OfflineHttp.download(url, dest, tracker)
+    }
+    fn download_bounded<'a>(
+        &'a self,
+        _url: &'a str,
+        dest: &'a Path,
+        _max_bytes: u64,
+    ) -> BoxFuture<'a, Result<(), mmcl_net::DownloadError>> {
+        Box::pin(async move {
+            std::fs::write(dest, JAR_BYTES).expect("write the fake jar");
+            Ok(())
+        })
+    }
+}
+
 fn harness(mode: GameMode) -> Harness {
+    harness_with(mode, None)
+}
+
+fn harness_with(mode: GameMode, http: Option<Arc<dyn mmcl_engine::PackHttp>>) -> Harness {
     let dir = tempfile::tempdir().unwrap();
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -25,10 +87,13 @@ fn harness(mode: GameMode) -> Harness {
         .build()
         .unwrap();
     // Network-free: OfflineHttp answers every request (and the connectivity probe) at once.
-    let o = EngineOptions::offline_for_tests(
+    let mut o = EngineOptions::offline_for_tests(
         DataPaths::at_root(dir.path().join("data"), mode),
         rt.handle().clone(),
     );
+    if http.is_some() {
+        o.http = http;
+    }
     let engine = Engine::new(o).unwrap();
     Harness {
         _rt: rt,
@@ -55,7 +120,7 @@ fn create(h: &Harness, name: &str) -> PackId {
 
 #[test]
 fn an_authored_pack_can_be_created_edited_and_forked() {
-    let h = harness(GameMode::Client);
+    let h = harness_with(GameMode::Client, Some(Arc::new(JarHttp)));
     let id = create(&h, "Test Pack");
     let e = &h.engine;
     let summary = e.pack(&id).expect("installed");
@@ -64,19 +129,38 @@ fn an_authored_pack_can_be_created_edited_and_forked() {
     let authored = e.paths().mcp_manifests_dir().join("created-testpack.json");
     assert!(authored.is_file());
 
-    // Add a mod; a second one at the same path is refused without writing.
+    // Add a mod. A leading mods/ is dropped (issue 101: it would land in mods/mods/), and the
+    // jar's hashes are recorded so the sync can verify it.
     let id2 = id.clone();
-    h.run(move |e| {
-        Box::pin(async move {
-            e.add_mod(&id2, "JEI", "https://example.com/jei.jar", "mods/jei.jar")
+    let added = h
+        .run(move |e| {
+            Box::pin(async move {
+                e.add_mod(
+                    &id2,
+                    "JEI",
+                    "https://example.com/jei.jar",
+                    "mods/jei.jar",
+                    None,
+                    None,
+                )
                 .await
+            })
         })
-    })
-    .unwrap();
-    let text = e.pack_manifest_text(&id).unwrap_or_default();
+        .unwrap();
+    let jar_sha256 = mmcl_util::hash::sha256_hex(JAR_BYTES);
+    assert_eq!(added.sha256, jar_sha256);
+    assert!(
+        added
+            .install_path
+            .ends_with(Path::new("mods").join("jei.jar")),
+        "{added:?}"
+    );
     let on_disk = std::fs::read_to_string(&authored).unwrap();
-    assert!(on_disk.contains("mods/jei.jar"), "{on_disk}");
-    let _ = text;
+    assert!(on_disk.contains("\"jei.jar\""), "{on_disk}");
+    assert!(!on_disk.contains("mods/jei.jar"), "{on_disk}");
+    assert!(on_disk.contains(&jar_sha256), "{on_disk}");
+
+    // A second one naming the same file, in either form, is refused without writing.
     let id2 = id.clone();
     let dup = h.run(move |e| {
         Box::pin(async move {
@@ -84,23 +168,53 @@ fn an_authored_pack_can_be_created_edited_and_forked() {
                 &id2,
                 "JEI 2",
                 "https://example.com/jei2.jar",
-                "MODS/JEI.JAR",
+                "JEI.JAR",
+                None,
+                None,
             )
             .await
         })
     });
     assert!(
-        matches!(&dup, Err(EngineError::ModPathTaken { local_path, .. }) if local_path == "MODS/JEI.JAR"),
+        matches!(&dup, Err(EngineError::ModPathTaken { local_path, .. }) if local_path == "JEI.JAR"),
         "{dup:?}"
     );
+    for refused in ["../x.jar", "mods/mods/x.jar", "sub/x.jar"] {
+        let id2 = id.clone();
+        let r = h.run(move |e| {
+            Box::pin(async move {
+                e.add_mod(&id2, "x", "https://example.com/x.jar", refused, None, None)
+                    .await
+            })
+        });
+        assert!(r.is_err(), "{refused}: {r:?}");
+    }
+
+    // An expected hash that the jar does not have refuses the add.
     let id2 = id.clone();
-    let unsafe_path = h.run(move |e| {
+    let wrong = "0".repeat(64);
+    let mismatch = h.run(move |e| {
         Box::pin(async move {
-            e.add_mod(&id2, "x", "https://example.com/x.jar", "../x.jar")
-                .await
+            e.add_mod(
+                &id2,
+                "y",
+                "https://example.com/y.jar",
+                "y.jar",
+                None,
+                Some(&wrong),
+            )
+            .await
         })
     });
-    assert!(unsafe_path.is_err());
+    assert!(
+        matches!(&mismatch, Err(EngineError::Other(why)) if why.contains("SHA-256")),
+        "{mismatch:?}"
+    );
+    assert!(
+        !std::fs::read_to_string(&authored)
+            .unwrap()
+            .contains("y.jar")
+    );
 
     // Remove it by name; removing again finds nothing.
     let id2 = id.clone();

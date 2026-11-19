@@ -9,6 +9,7 @@
 //! server mode can use [`Engine::block_on`].
 
 pub mod authoring;
+pub use authoring::ModAdded;
 mod catalog;
 pub mod diag;
 mod hosts;
@@ -1207,14 +1208,21 @@ impl Engine {
     }
 
     /// Adds a mod entry to an owned pack's manifest (MCP `add_mod_to_modpack`).
+    ///
+    /// `local_path` is the jar's file name in the pack's `mods` folder; a leading `mods/` is
+    /// dropped and any other folder is refused. The jar is downloaded once (HTTPS, capped) to
+    /// record its SHA-256 and SHA-1, so the sync can verify it and replace an older file at
+    /// the same path; `sha1` / `sha256`, when given, must match the download.
     pub async fn add_mod(
         &self,
         id: &PackId,
         mod_name: &str,
         remote_url: &str,
         local_path: &str,
-    ) -> EngineResult<()> {
-        self.add_mod_impl(id, mod_name, remote_url, local_path)
+        sha1: Option<&str>,
+        sha256: Option<&str>,
+    ) -> EngineResult<ModAdded> {
+        self.add_mod_impl(id, mod_name, remote_url, local_path, sha1, sha256)
             .await
     }
 

@@ -365,12 +365,16 @@ pub trait LauncherActions: Send + Sync {
         mod_loader_url: Option<&str>,
     ) -> Outcome;
     fn fork_pack(&self, source_friendly_name: &str, new_name: &str) -> Outcome;
+    /// Adds a mod. `local_path` is the jar's file name in the pack's `mods` folder (already
+    /// normalised); `sha1` / `sha256` are optional expected hashes, lower-case hex.
     fn add_mod(
         &self,
         friendly_name: &str,
         mod_name: &str,
         remote_url: &str,
         local_path: &str,
+        sha1: Option<&str>,
+        sha256: Option<&str>,
     ) -> Outcome;
     fn remove_mod(&self, friendly_name: &str, identifier: &str) -> Outcome;
 }

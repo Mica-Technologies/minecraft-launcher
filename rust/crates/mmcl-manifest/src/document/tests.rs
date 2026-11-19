@@ -732,6 +732,37 @@ fn mods_are_added_in_order() {
     assert_eq!(d.mods()[0].local(), "mods/a.jar");
 }
 
+/// Issue 101: a mod's local path is resolved against the mods folder, so `mods/jei.jar` and
+/// `jei.jar` name the same entry, whichever side carries the prefix.
+#[test]
+fn a_duplicate_is_found_across_the_mods_prefix() {
+    let mut d = pack_named("Pack", "1.0.0");
+    assert!(d.add_mod(mod_entry("JEI", "mods/jei.jar")));
+    assert!(!d.add_mod(mod_entry("JEI again", "jei.jar")));
+    assert!(!d.add_mod(mod_entry("JEI again", "Mods\\JEI.jar")));
+    assert_eq!(d.mods().len(), 1);
+}
+
+#[test]
+fn mod_local_paths_normalise_to_a_file_name_in_the_mods_folder() {
+    assert_eq!(normalize_mod_local_path("mods/jei.jar"), "jei.jar");
+    assert_eq!(normalize_mod_local_path(" MODS\\jei.jar "), "jei.jar");
+    assert_eq!(normalize_mod_local_path("./mods/jei.jar"), "jei.jar");
+    assert_eq!(normalize_mod_local_path("jei.jar"), "jei.jar");
+    assert_eq!(
+        normalize_mod_local_path("mods/mods/jei.jar"),
+        "mods/jei.jar",
+        "only one prefix is dropped, so a doubled one stays visible"
+    );
+    assert_eq!(normalize_mod_local_path("modsjei.jar"), "modsjei.jar");
+    assert_eq!(
+        normalize_mod_local_path("mödsx"),
+        "mödsx",
+        "no panic on a multi-byte char"
+    );
+    assert_eq!(normalize_mod_local_path(""), "");
+}
+
 #[test]
 fn duplicate_or_blank_local_paths_are_refused() {
     let mut d = pack_named("Pack", "1.0.0");

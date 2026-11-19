@@ -151,6 +151,36 @@ pub fn reject_unsafe_local_path(p: &str) -> Option<String> {
     None
 }
 
+/// Refuses a mod path that would not land directly in the pack's `mods` folder (issue 101).
+/// A leading `mods/` is fine (it is dropped); any other folder is refused, saying where it
+/// would have landed. The rule itself lives in the engine, which applies it again.
+pub fn reject_mod_folder(p: &str) -> Option<String> {
+    match mmcl_engine::engine::authoring::mod_file_name(p) {
+        Ok(_) => None,
+        Err(mmcl_engine::EngineError::Other(why)) => Some(why),
+        Err(e) => Some(e.to_string()),
+    }
+}
+
+/// The jar's file name in the mods folder, as the action receives it.
+fn mod_file_name_or_given(p: &str) -> String {
+    mmcl_engine::engine::authoring::mod_file_name(p).unwrap_or_else(|_| p.trim().to_string())
+}
+
+/// Refuses an optional hash argument that is not `len` hex digits.
+pub fn reject_bad_hex(name: &str, value: &str, len: usize) -> Option<String> {
+    if value.is_empty() || (value.len() == len && value.chars().all(|c| c.is_ascii_hexdigit())) {
+        None
+    } else {
+        Some(format!("{name} must be {len} hex digits."))
+    }
+}
+
+/// An optional hex argument, lower-cased; `None` when empty.
+fn hex_or_none(value: &str) -> Option<String> {
+    (!value.is_empty()).then(|| value.to_ascii_lowercase())
+}
+
 /// `512 bytes`, `1.0 KB`, `4.2 GB`, `512 MB`: one decimal below 10, none above, rounded half
 /// up on the exact value like Java's `Formatter`.
 pub fn describe_size(bytes: u64) -> String {
@@ -291,6 +321,9 @@ impl MutatingTool {
                     return Some("That mod URL was refused by the launcher's install-source rules. Mod URLs must be well-formed https links.".into());
                 }
                 reject_unsafe_local_path(&local)
+                    .or_else(|| reject_mod_folder(&local))
+                    .or_else(|| reject_bad_hex("sha1", &string_arg(args, "sha1"), 40))
+                    .or_else(|| reject_bad_hex("sha256", &string_arg(args, "sha256"), 64))
             }
             Kind::RemoveMod => {
                 let pack = string_arg(args, "friendlyName");
@@ -400,12 +433,17 @@ impl MutatingTool {
                 )))
             }
             Kind::Fork => result_of(Some(a.fork_pack(&s("friendlyName"), &s("newName")))),
-            Kind::AddMod => result_of(Some(a.add_mod(
-                &s("friendlyName"),
-                &s("modName"),
-                &s("remoteUrl"),
-                &s("localPath"),
-            ))),
+            Kind::AddMod => {
+                let (sha1, sha256) = (hex_or_none(&s("sha1")), hex_or_none(&s("sha256")));
+                result_of(Some(a.add_mod(
+                    &s("friendlyName"),
+                    &s("modName"),
+                    &s("remoteUrl"),
+                    &mod_file_name_or_given(&s("localPath")),
+                    sha1.as_deref(),
+                    sha256.as_deref(),
+                )))
+            }
             Kind::RemoveMod => result_of(Some(a.remove_mod(&s("friendlyName"), &s("mod")))),
             Kind::Uninstall => result_of(Some(a.uninstall(&s("friendlyName")))),
             Kind::Launch => {
@@ -457,7 +495,7 @@ impl Tool for MutatingTool {
                 "Copies an existing modpack under a new name and installs the copy, so it can be edited without touching the original. The copy keeps every mod, config and setting, with its minor version bumped."
             }
             Kind::AddMod => {
-                "Adds a mod to a modpack's manifest, to be downloaded on the next sync. The remote URL must be https."
+                "Adds a mod to a modpack's manifest, to be downloaded on the next sync. The remote URL must be https. The launcher downloads the jar once while adding it and records its SHA-1 and SHA-256, so the sync verifies it and replaces an older file at the same path."
             }
             Kind::RemoveMod => {
                 "Removes a mod from a modpack's manifest, identified by its local path, display name, or Modrinth slug. The file is removed on the next sync."
@@ -505,7 +543,15 @@ impl Tool for MutatingTool {
                     ("remoteUrl", "The https URL to download the mod from."),
                     (
                         "localPath",
-                        "Where it installs, relative to the pack root, e.g. mods/jei.jar",
+                        "The jar's file name in the pack's mods folder, e.g. jei.jar. A leading mods/ is dropped; any other folder is refused.",
+                    ),
+                    (
+                        "sha1",
+                        "Optional expected SHA-1 (hex). The add fails if the downloaded jar does not match.",
+                    ),
+                    (
+                        "sha256",
+                        "Optional expected SHA-256 (hex). The add fails if the downloaded jar does not match.",
                     ),
                 ],
                 &["friendlyName", "modName", "remoteUrl", "localPath"],
@@ -779,6 +825,69 @@ mod tests {
             "localPath must stay inside the modpack folder."
         );
         assert!(gate(&f, "add_mod_to_modpack", full("mods/jei.jar", URL)).is_none());
+    }
+
+    /// Issue 101: a mod's local path is resolved against the mods folder, so the old
+    /// description's "mods/jei.jar" put the jar in mods/mods/, where the game never loads it.
+    #[test]
+    fn add_mod_drops_a_leading_mods_folder_and_refuses_any_other() {
+        let full = |lp: &str| json!({"friendlyName":"Alto","modName":"JEI","remoteUrl":URL,"localPath":lp});
+        for given in ["mods/jei.jar", "MODS\\jei.jar", "./mods/jei.jar", "jei.jar"] {
+            let f = fx();
+            assert!(
+                gate(&f, "add_mod_to_modpack", full(given)).is_none(),
+                "{given}"
+            );
+            run(&f, "add_mod_to_modpack", full(given));
+            assert_eq!(
+                *f.actions.calls.lock(),
+                vec![format!("add Alto JEI {URL} jei.jar None None")],
+                "{given}"
+            );
+        }
+        let f = fx();
+        for nested in ["mods/mods/jei.jar", "sub/jei.jar", "mods/1.12.2/jei.jar"] {
+            let why = gate(&f, "add_mod_to_modpack", full(nested)).expect(nested);
+            assert!(why.contains("mods/"), "says where it would land: {why}");
+        }
+        assert!(gate(&f, "add_mod_to_modpack", full("mods/")).is_some());
+        assert!(f.actions.calls.lock().is_empty());
+    }
+
+    #[test]
+    fn add_mod_checks_optional_hashes_and_passes_them_lower_case() {
+        let f = fx();
+        let mut a =
+            json!({"friendlyName":"Alto","modName":"JEI","remoteUrl":URL,"localPath":"jei.jar"});
+        a["sha1"] = json!("A".repeat(40));
+        a["sha256"] = json!("B".repeat(64));
+        assert!(gate(&f, "add_mod_to_modpack", a.clone()).is_none());
+        run(&f, "add_mod_to_modpack", a);
+        assert_eq!(
+            *f.actions.calls.lock(),
+            vec![format!(
+                "add Alto JEI {URL} jei.jar Some({:?}) Some({:?})",
+                "a".repeat(40),
+                "b".repeat(64)
+            )]
+        );
+        for (k, v) in [
+            ("sha1", "abc".to_string()),
+            ("sha1", "z".repeat(40)),
+            ("sha256", "a".repeat(40)),
+        ] {
+            let mut bad = json!({"friendlyName":"Alto","modName":"JEI","remoteUrl":URL,"localPath":"jei.jar"});
+            bad[k] = json!(v);
+            assert!(gate(&f, "add_mod_to_modpack", bad).is_some(), "{k}={v}");
+        }
+        let schema = f.reg.find("add_mod_to_modpack").unwrap().input_schema();
+        assert!(schema["properties"]["sha256"].is_object());
+        assert!(!schema["required"].to_string().contains("sha"));
+        assert!(
+            !schema["properties"]["localPath"]["description"]
+                .to_string()
+                .contains("mods/jei.jar")
+        );
     }
 
     #[test]

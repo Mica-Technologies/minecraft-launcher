@@ -115,8 +115,16 @@ impl LauncherActions for StubActions {
     fn fork_pack(&self, s: &str, n: &str) -> Outcome {
         self.out(format!("fork {s} {n}"))
     }
-    fn add_mod(&self, p: &str, m: &str, r: &str, l: &str) -> Outcome {
-        self.out(format!("add {p} {m} {r} {l}"))
+    fn add_mod(
+        &self,
+        p: &str,
+        m: &str,
+        r: &str,
+        l: &str,
+        sha1: Option<&str>,
+        sha256: Option<&str>,
+    ) -> Outcome {
+        self.out(format!("add {p} {m} {r} {l} {sha1:?} {sha256:?}"))
     }
     fn remove_mod(&self, p: &str, i: &str) -> Outcome {
         self.out(format!("remove {p} {i}"))

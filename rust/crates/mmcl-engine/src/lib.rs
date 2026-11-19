@@ -20,7 +20,7 @@ pub mod task;
 
 pub use engine::diag;
 pub use engine::{
-    CrashActionResult, Engine, EngineOptions, LaunchOptions, OfflineHttp, RuntimeChoice,
+    CrashActionResult, Engine, EngineOptions, LaunchOptions, ModAdded, OfflineHttp, RuntimeChoice,
     SignInRequest,
 };
 pub use error::{EngineError, EngineResult, LaunchRefusal};

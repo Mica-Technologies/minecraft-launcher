@@ -185,21 +185,25 @@ impl Engine {
         mod_name: &str,
         remote_url: &str,
         local_path: &str,
-    ) -> EngineResult<()> {
+        sha1: Option<&str>,
+        sha256: Option<&str>,
+    ) -> EngineResult<ModAdded> {
         if let Some(why) = unsafe_local_path(local_path) {
             return Err(EngineError::Other(why));
         }
-        let pack_name = self.require_installed(id)?.name();
-        let entry = FileEntry::new(
-            mod_name.trim(),
-            remote_url.trim(),
-            local_path.trim(),
-            "",
-            Some("sha1"),
-            true,
-            true,
-        );
-        let local = local_path.trim().to_string();
+        let file_name = mod_file_name(local_path)?;
+        let pack = self.require_installed(id)?;
+        // Refuse a pack we cannot edit before spending a download on it.
+        self.authored_manifest_of(id)?;
+
+        let hashes = self.hash_remote_mod(remote_url.trim()).await?;
+        if let Some(why) = mod_hash_mismatch(&hashes, sha1, sha256) {
+            return Err(EngineError::Other(why));
+        }
+        let entry = mod_entry(mod_name, remote_url, &file_name, &hashes);
+
+        let pack_name = pack.name();
+        let local = file_name.clone();
         self.edit_authored(id, move |doc| {
             if doc.add_mod(entry) {
                 Ok(())
@@ -210,7 +214,49 @@ impl Engine {
                 })
             }
         })
-        .await
+        .await?;
+        Ok(ModAdded {
+            install_path: pack.pack_root().join("mods").join(&file_name),
+            sha256: hashes.sha256,
+        })
+    }
+
+    /// Downloads a mod jar once to a temporary file and hashes it.
+    async fn hash_remote_mod(&self, url: &str) -> EngineResult<ModHashes> {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let file =
+            std::env::temp_dir().join(format!("mmcl-mcp-mod-{}-{n}.jar", std::process::id()));
+        let downloaded = self
+            .inner
+            .http
+            .download_bounded(url, &file, MAX_MOD_BYTES)
+            .await;
+        let hashed = file.clone();
+        let hashes = match downloaded {
+            Ok(()) => tokio::task::spawn_blocking(move || {
+                (
+                    mmcl_util::hash::file_sha1(&hashed),
+                    mmcl_util::hash::file_sha256(&hashed),
+                )
+            })
+            .await
+            .map_err(|e| EngineError::Other(e.to_string())),
+            Err(e) => Err(EngineError::Other(format!(
+                "Could not download the mod from that URL to record its hash ({e}). Nothing was added."
+            ))),
+        };
+        let _ = tokio::fs::remove_file(&file).await;
+        let (sha1, sha256) = hashes?;
+        match (sha1, sha256) {
+            (Some(sha1), Some(sha256)) => Ok(ModHashes {
+                sha1: sha1.to_ascii_lowercase(),
+                sha256: sha256.to_ascii_lowercase(),
+            }),
+            _ => Err(EngineError::Other(
+                "The downloaded mod could not be hashed. Nothing was added.".into(),
+            )),
+        }
     }
 
     /// [`Engine::remove_mod`].
@@ -278,6 +324,88 @@ pub fn unsafe_local_path(p: &str) -> Option<String> {
         return Some(mmcl_i18n::t!("engine.error.localPath.illegalChar").into_owned());
     }
     None
+}
+
+/// The largest mod jar [`Engine::add_mod`] downloads to hash.
+pub(crate) const MAX_MOD_BYTES: u64 = 512 * 1024 * 1024;
+
+/// What [`Engine::add_mod`] recorded.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ModAdded {
+    /// Where the jar installs on the next sync (`<pack root>/mods/<file>`).
+    pub install_path: PathBuf,
+    /// The jar's SHA-256, lower-case hex.
+    pub sha256: String,
+}
+
+/// A downloaded jar's hashes, lower-case hex.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ModHashes {
+    pub(crate) sha1: String,
+    pub(crate) sha256: String,
+}
+
+/// The jar's file name in the mods folder, or why the path is refused (issue 101).
+///
+/// A mod's local path is resolved against `mods/`, and the sync's cleanup only looks at that
+/// folder's top level, so a leading `mods/` is dropped and any folder left after that
+/// (including `mods/mods/x.jar`) is refused with where it would have landed.
+pub fn mod_file_name(local_path: &str) -> EngineResult<String> {
+    let name = mmcl_modpack::document::normalize_mod_local_path(local_path);
+    if name.is_empty() {
+        return Err(EngineError::Other(
+            "localPath must name the jar, e.g. jei.jar.".into(),
+        ));
+    }
+    if name.contains('/') {
+        return Err(EngineError::Other(format!(
+            "localPath is the jar's file name inside the pack's mods folder, e.g. jei.jar. \"{}\" would install to mods/{name}, a subfolder the game does not load mods from.",
+            local_path.trim()
+        )));
+    }
+    Ok(name)
+}
+
+/// Why a downloaded jar does not match the hashes the caller expected, if it does not.
+pub(crate) fn mod_hash_mismatch(
+    actual: &ModHashes,
+    sha1: Option<&str>,
+    sha256: Option<&str>,
+) -> Option<String> {
+    if let Some(want) = sha256.filter(|w| !w.eq_ignore_ascii_case(&actual.sha256)) {
+        return Some(format!(
+            "The jar at that URL has SHA-256 {}, not the expected {want}. Nothing was added.",
+            actual.sha256
+        ));
+    }
+    if let Some(want) = sha1.filter(|w| !w.eq_ignore_ascii_case(&actual.sha1)) {
+        return Some(format!(
+            "The jar at that URL has SHA-1 {}, not the expected {want}. Nothing was added.",
+            actual.sha1
+        ));
+    }
+    None
+}
+
+/// The manifest entry for a mod: SHA-256 as its primary hash with the SHA-1 kept beside it,
+/// so the sync verifies strongest-first. Required on both sides.
+pub(crate) fn mod_entry(
+    mod_name: &str,
+    remote_url: &str,
+    file_name: &str,
+    hashes: &ModHashes,
+) -> FileEntry {
+    let mut entry = FileEntry::new(
+        mod_name.trim(),
+        remote_url.trim(),
+        file_name,
+        hashes.sha256.as_str(),
+        Some("sha256"),
+        true,
+        true,
+    );
+    entry.put_extra_hash("sha1", Some(&hashes.sha1));
+    entry
 }
 
 /// Writes `bytes` to a sibling temp file and renames it over `target`.

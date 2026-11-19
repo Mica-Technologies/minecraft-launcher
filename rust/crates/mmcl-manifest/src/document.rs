@@ -583,16 +583,18 @@ impl ModPackDocument {
         self.read_file_list(FileList::Mods)
     }
 
-    /// Appends a mod unless its local path is blank or equals (ignoring case) an existing
-    /// mod's local path.
+    /// Appends a mod unless its local path is blank or names (ignoring case) the same file as
+    /// an existing mod's, both compared after [`normalize_mod_local_path`] so `mods/jei.jar` and
+    /// `jei.jar` collide.
     pub fn add_mod(&mut self, entry: FileEntry) -> bool {
         if entry.local().trim().is_empty() {
             return false;
         }
+        let key = normalize_mod_local_path(entry.local());
         let mut mods = self.mods();
         if mods
             .iter()
-            .any(|m| crate::eq_ignore_case(m.local(), entry.local()))
+            .any(|m| crate::eq_ignore_case(&normalize_mod_local_path(m.local()), &key))
         {
             return false;
         }
@@ -736,6 +738,25 @@ impl ModPackDocument {
         }
         issues
     }
+}
+
+/// Normalises a mod's `local` path to the form the sync expects (Java
+/// `ModPackDocument.normalizeModLocalPath`).
+///
+/// A mod's `local` is resolved against the pack's `mods` folder, not the pack root, so it is a
+/// bare file name such as `jei.jar`. Callers (and models) often write `mods/jei.jar`, which
+/// would land in `mods/mods/` where the game never loads it. This trims, turns backslashes into
+/// slashes, and drops leading `./` and one leading `mods/` (any case). It rejects nothing;
+/// callers decide whether a remaining folder is acceptable.
+pub fn normalize_mod_local_path(local: &str) -> String {
+    let mut path = local.trim().replace('\\', "/");
+    while let Some(rest) = path.strip_prefix("./") {
+        path = rest.to_string();
+    }
+    if path.len() >= 5 && path.is_char_boundary(5) && path[..5].eq_ignore_ascii_case("mods/") {
+        path = path[5..].to_string();
+    }
+    path
 }
 
 /// Bumps one segment of a dotted version and zeroes every segment to its right. Blank is

@@ -494,25 +494,48 @@ impl LauncherActions for EngineActions {
         mod_name: &str,
         remote_url: &str,
         local_path: &str,
+        sha1: Option<&str>,
+        sha256: Option<&str>,
     ) -> Outcome {
         let (m, r, l) = (
             mod_name.to_string(),
             remote_url.to_string(),
             local_path.to_string(),
         );
+        let (h1, h256) = (sha1.map(str::to_string), sha256.map(str::to_string));
+        let added = Arc::new(std::sync::Mutex::new(None::<mmcl_engine::ModAdded>));
+        let sink = added.clone();
         let refusal = |_: &mmcl_engine::PackSummary, e: &EngineError| {
-            path_taken(e).map(|taken| {
-                Outcome::failed(format!(
-                    "\"{friendly_name}\" already installs something to {taken}."
-                ))
-            })
+            path_taken(e)
+                .map(|taken| {
+                    Outcome::failed(format!(
+                        "\"{friendly_name}\" already installs a mod to mods/{taken}. Remove it first to replace it."
+                    ))
+                })
+                .or_else(|| add_mod_refusal(e).map(Outcome::failed))
         };
         match self.edit(friendly_name, refusal, move |engine, id| {
-            Box::pin(async move { engine.add_mod(&id, &m, &r, &l).await })
+            Box::pin(async move {
+                let done = engine
+                    .add_mod(&id, &m, &r, &l, h1.as_deref(), h256.as_deref())
+                    .await?;
+                *sink.lock().unwrap_or_else(|p| p.into_inner()) = Some(done);
+                Ok(())
+            })
         }) {
-            Ok(()) => Outcome::ok(format!(
-                "Added \"{mod_name}\" to \"{friendly_name}\". It downloads on the next sync."
-            )),
+            Ok(()) => {
+                let done = added.lock().unwrap_or_else(|p| p.into_inner()).take();
+                Outcome::ok(match done {
+                    Some(d) => format!(
+                        "Added \"{mod_name}\" to \"{friendly_name}\" (SHA-256 {}). It installs to {} on the next sync.",
+                        d.sha256,
+                        d.install_path.display()
+                    ),
+                    None => format!(
+                        "Added \"{mod_name}\" to \"{friendly_name}\". It downloads on the next sync."
+                    ),
+                })
+            }
             Err(o) => o,
         }
     }
@@ -542,6 +565,15 @@ impl LauncherActions for EngineActions {
 fn path_taken(e: &EngineError) -> Option<&str> {
     match e {
         EngineError::ModPathTaken { local_path, .. } => Some(local_path),
+        _ => None,
+    }
+}
+
+/// The model-facing reason an add was refused before anything was written (bad path, failed
+/// download, hash mismatch): the engine's own words, which are written for the caller.
+fn add_mod_refusal(e: &EngineError) -> Option<String> {
+    match e {
+        EngineError::Other(why) => Some(why.clone()),
         _ => None,
     }
 }
@@ -751,7 +783,14 @@ mod tests {
     fn edits_of_a_pack_that_is_not_installed_say_so() {
         let h = offline_engine();
         let actions = EngineActions::new(h.engine.clone());
-        let add = actions.add_mod("Nope", "JEI", "https://example.com/jei.jar", "mods/jei.jar");
+        let add = actions.add_mod(
+            "Nope",
+            "JEI",
+            "https://example.com/jei.jar",
+            "jei.jar",
+            None,
+            None,
+        );
         assert!(!add.ok);
         assert_eq!(add.message, "No modpack named \"Nope\" is installed.");
         let remove = actions.remove_mod("Nope", "jei");
