@@ -111,12 +111,9 @@ public final class SmoothScroll
     {
         if ( scrollPane == null ) return;
 
-        final double[] target = { scrollPane.getVvalue() };
-        // Set to true while the animation is the one mutating vvalue, so the
-        // value-change listener below ignores its own writes. Without this
-        // flag, every frame the listener would reset the target to whatever
-        // we just wrote, creating a feedback loop that stops the chase.
-        final boolean[] internalUpdate = { false };
+        final Glide glide = new Glide();
+        glide.target = scrollPane.getVvalue();
+        scrollPane.getProperties().put( GLIDE_KEY, glide );
 
         final AnimationTimer ticker = new AnimationTimer()
         {
@@ -126,30 +123,34 @@ public final class SmoothScroll
                 // Pane detached (e.g. its modal closed mid-glide): stop now so an
                 // in-flight chase doesn't keep the pane reachable until it snaps.
                 if ( scrollPane.getScene() == null ) {
+                    glide.running = false;
                     stop();
                     return;
                 }
                 double current = scrollPane.getVvalue();
-                double diff = target[ 0 ] - current;
+                double diff = glide.target - current;
                 if ( Math.abs( diff ) < SNAP_THRESHOLD ) {
-                    internalUpdate[ 0 ] = true;
-                    scrollPane.setVvalue( target[ 0 ] );
-                    internalUpdate[ 0 ] = false;
+                    glide.internalUpdate = true;
+                    scrollPane.setVvalue( glide.target );
+                    glide.internalUpdate = false;
+                    glide.running = false;
                     stop();
                     return;
                 }
-                internalUpdate[ 0 ] = true;
+                glide.internalUpdate = true;
                 scrollPane.setVvalue( current + diff * FOLLOW_RATE );
-                internalUpdate[ 0 ] = false;
+                glide.internalUpdate = false;
             }
         };
 
         // External vvalue changes (drag scrollbar, programmatic setVvalue,
         // keyboard arrow keys): sync target to the new value so the chase
-        // continues from where the user actually put the pane.
+        // continues from where the user actually put the pane. Changes that only
+        // re-fit the value to a content-height change (see contentResized) leave
+        // the target alone, so a glide in progress carries on.
         scrollPane.vvalueProperty().addListener( ( obs, oldV, newV ) -> {
-            if ( !internalUpdate[ 0 ] ) {
-                target[ 0 ] = newV.doubleValue();
+            if ( !glide.internalUpdate && !glide.refitting ) {
+                glide.target = newV.doubleValue();
             }
         } );
 
@@ -184,13 +185,64 @@ public final class SmoothScroll
             // means "scroll content down", which in JavaFX is a larger vvalue; hence the
             // negation. Wheel-up (deltaY > 0) decreases it.
             double deltaY = -event.getDeltaY() * SCROLL_SPEED;
-            target[ 0 ] = clamp( target[ 0 ] + deltaY / scrollable, 0, 1 );
+            // No glide running: start from where the pane is, whatever moved it last.
+            if ( !glide.running ) {
+                glide.target = scrollPane.getVvalue();
+            }
+            glide.target = clamp( glide.target + deltaY / scrollable, 0, 1 );
 
             // Idempotent — AnimationTimer.start() is a no-op if already
             // running. No restart jolts because the existing tick continues
             // chasing the freshly-updated target.
+            glide.running = true;
             ticker.start();
         } );
+    }
+
+    /** Property key under which {@link #install(ScrollPane)} keeps a pane's {@link Glide}. */
+    private static final String GLIDE_KEY = "mmcl.smoothScroll.glide";
+
+    /** One pane's glide: where it is heading and whether it is moving. */
+    private static final class Glide
+    {
+        /** The vvalue the glide is heading for. */
+        double target;
+        /** Whether the chase is running. */
+        boolean running;
+        /** Set while the chase itself writes the vvalue, so the listener ignores its own writes.
+         *  Without it every frame would reset the target to what was just written, and the chase
+         *  would stop. */
+        boolean internalUpdate;
+        /** Set from a content-height change until the next pulse; vvalue changes in that window
+         *  only re-fit the position to the new height. */
+        boolean refitting;
+    }
+
+    /**
+     * Tells a smooth-scrolled pane that its content's height changed, so the scrollable distance
+     * went from {@code oldScrollable} to {@code newScrollable} pixels. A glide in progress keeps
+     * heading for the same pixel position, and scroll-value changes until the next pulse (the
+     * skin, or the caller, re-fitting the position to the new height) don't cancel it. Without
+     * this, content that loads in during a glide stops the glide dead.
+     *
+     * @param scrollPane    a pane set up with {@link #install(ScrollPane)}; others are ignored
+     * @param oldScrollable the scrollable distance before the change, in pixels
+     * @param newScrollable the scrollable distance after it, in pixels
+     *
+     * @since 2026.11
+     */
+    public static void contentResized( ScrollPane scrollPane, double oldScrollable, double newScrollable )
+    {
+        if ( scrollPane == null || !( scrollPane.getProperties().get( GLIDE_KEY ) instanceof Glide glide ) ) {
+            return;
+        }
+        if ( glide.running && oldScrollable > 0 && newScrollable > 0 ) {
+            glide.target = clamp( glide.target * oldScrollable / newScrollable, 0, 1 );
+        }
+        if ( !glide.refitting ) {
+            glide.refitting = true;
+            javafx.application.Platform.runLater( () -> glide.refitting = false );
+        }
     }
 
     /**

@@ -319,7 +319,7 @@ sections in a few per frame, and is cached:
 |---|---|---|
 | Overview | always | **What's new** (a pending update; hidden otherwise), **Optional mods** summary ("N available · M on" and Choose, when the pack has client-side optional mods), News, Links, At a glance (stats), Quick actions |
 | Problems | the audit found problems | one tile per file re-downloaded on every launch |
-| Mods | a modded pack with an install folder or a settings key | **Optional mods** switches, then **Installed mods** (`ModpackContentBrowser`, Modrinth update check and add) |
+| Mods | the pack has an install folder | **Optional mods** switches (modded packs with a manifest), then **Installed mods** (`ModpackContentBrowser`, Modrinth update check and add) |
 | Worlds & files | the pack has an install folder | Worlds / Server favorites / Screenshots / Shader packs / Resource packs browsers |
 | Activity | the pack has an install folder | Update log, Crash history |
 | Settings | `pack.getSettingsKey() != null` (a manifest or a vanilla version) | **Launch as**; with a manifest also **Game files** (always verify, Verify now, scan frequency, acknowledged scan findings) and **Official Minecraft Launcher** (add or remove) |

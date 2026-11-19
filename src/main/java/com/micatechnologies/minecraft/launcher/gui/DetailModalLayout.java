@@ -54,13 +54,11 @@ final class DetailModalLayout
 
     /**
      * Returns the tabs a pack gets, in display order. Overview always comes first and Problems
-     * follows it when there are problems. Mods needs a modded pack with an install folder or a
-     * settings key (optional mods can be chosen before the first install). Worlds &amp; files and
-     * Activity need an install folder. Settings needs a settings key (a manifest, or a vanilla
-     * version).
+     * follows it when there are problems. Mods, Worlds &amp; files and Activity need an install
+     * folder (the same rule the old Content and Activity tabs had). Settings needs a settings key
+     * (a manifest, or a vanilla version).
      *
      * @param hasProblems    whether the pack's audit found problems
-     * @param vanilla        whether the pack is a vanilla Minecraft install
      * @param hasFolder      whether the pack has an install folder
      * @param hasSettingsKey whether the pack has a stable settings key
      *
@@ -68,17 +66,15 @@ final class DetailModalLayout
      *
      * @since 2026.11
      */
-    static List< String > tabsFor( boolean hasProblems, boolean vanilla, boolean hasFolder, boolean hasSettingsKey )
+    static List< String > tabsFor( boolean hasProblems, boolean hasFolder, boolean hasSettingsKey )
     {
         List< String > tabs = new ArrayList<>();
         tabs.add( TAB_OVERVIEW );
         if ( hasProblems ) {
             tabs.add( TAB_PROBLEMS );
         }
-        if ( !vanilla && ( hasFolder || hasSettingsKey ) ) {
-            tabs.add( TAB_MODS );
-        }
         if ( hasFolder ) {
+            tabs.add( TAB_MODS );
             tabs.add( TAB_FILES );
             tabs.add( TAB_ACTIVITY );
         }
