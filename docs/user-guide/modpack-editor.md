@@ -83,9 +83,9 @@ Besides the usual columns, each optional mod has:
 |---|---|
 | **Description** | A short line shown to the player next to the switch. Say what the mod does and what it costs. |
 | **On by default** | Ticked: the mod is on for players who have not chosen. Unticked (the default): off until a player turns it on. |
-| **Requires** | File names of other optional mods that must be on with this one, separated by commas (e.g. `ausm-core.jar`). Turning this mod on turns them on too. |
+| **Requires** | File names of other optional mods that must be on with this one, separated by commas (e.g. `ausm-core.jar`). Turning this mod on turns them on too; turning it off again turns them back off, unless the player turned one on themselves, it is on by default, or another mod that is on still needs it. |
 | **Conflicts with** | File names of other optional mods that must be off while this one is on. Turning this mod on turns them off. It is enough for one of the two mods to name the other. |
-| **Client / Server** | Optional mods are client-only unless **Server** is ticked. A dedicated server has no switches: it installs an optional mod only when **Server** and **On by default** are both ticked. |
+| **Client / Server** | Optional mods are client-only unless **Server** is ticked. A dedicated server has no switches: it installs each optional mod that has **Server** and **On by default** both ticked, together with the mods it **Requires** (whether or not those are on by default). If any of those mods does not have **Server** ticked, or they conflict with each other or with a mod listed earlier that the server already installs, the server leaves the whole group out. |
 
 The editor will not save the pack while:
 

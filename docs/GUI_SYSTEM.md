@@ -309,7 +309,9 @@ is a stub, so it loads off the FX thread (`OptionalMods.of`) and the section sta
 knows the pack has client-side optional mods (a server-only one gets no switch). Each mod is an `MFXToggleButton` labelled with its name, its
 description, and muted "Needs: ..." / "Can't be used with: ..." notes (conflicts are shown from both
 sides). A toggle calls `OptionalMods.toggle`, which applies `requires` / `conflictsWith` and stores
-the choice at once. The section then sets every toggle from the result under a re-entrancy guard,
+the choice at once (only the player's own pick and the mods it forces off: requirements it turns on
+are not stored, so turning the mod off again turns them back off unless something else keeps them
+on; see `GAME_LAUNCH_SYSTEM.md`). The section then sets every toggle from the result under a re-entrancy guard,
 so the programmatic flips are not treated as player toggles, and shows a status line built by
 `OptionalModMessages.describeToggle`: the mod's new state (installed or removed the next time the
 pack launches) and one line per other mod that switched, with the reason. A refused toggle reverts
