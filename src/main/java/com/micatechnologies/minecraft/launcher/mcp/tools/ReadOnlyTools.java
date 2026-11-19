@@ -63,6 +63,7 @@ public final class ReadOnlyTools
         registry.register( new DiagnoseLaunchFailure( view ) );
         registry.register( new GetLauncherStatus( view ) );
         registry.register( new ListRunningGames( view ) );
+        registry.register( new ListOptionalMods( view ) );
     }
 
     /**
@@ -459,6 +460,83 @@ public final class ReadOnlyTools
             JsonObject result = new JsonObject();
             result.add( "games", games );
             return McpToolResult.json( result );
+        }
+    }
+
+    /** Lists a pack's optional mods and whether each is on for the player. */
+    private static final class ListOptionalMods extends ViewTool
+    {
+        ListOptionalMods( McpLauncherView view ) { super( view ); }
+
+        @Override
+        public String name() { return "list_optional_mods"; }
+
+        @Override
+        public String title() { return "List optional mods"; }
+
+        @Override
+        public String description()
+        {
+            return "Lists a modpack's optional mods: mods the pack offers that each player switches "
+                    + "on or off. For each: its file name (localName, the identifier set_optional_mod "
+                    + "takes), display name, description, whether it is on now, whether it is on by "
+                    + "default, the player's own choice (on, off, or default when following the default), its sides, "
+                    + "and the file names it requires and conflicts with.";
+        }
+
+        @Override
+        public JsonObject inputSchema() { return packNameSchema(); }
+
+        @Override
+        public McpToolResult invoke( McpCallContext context, JsonObject arguments )
+        {
+            String friendlyName = friendlyNameOf( arguments );
+            if ( friendlyName.isEmpty() ) {
+                return McpToolResult.error( "A friendlyName argument is required." );
+            }
+            List< McpLauncherView.OptionalModInfo > mods = view.optionalModsOf( friendlyName );
+            if ( mods == null ) {
+                return McpToolResult.error( unknownPack( friendlyName ) );
+            }
+            JsonArray list = new JsonArray();
+            for ( McpLauncherView.OptionalModInfo mod : mods ) {
+                JsonObject entry = new JsonObject();
+                entry.addProperty( "localName", mod.localName() );
+                entry.addProperty( "name", mod.name() );
+                entry.addProperty( "description", mod.description() );
+                entry.addProperty( "enabled", mod.enabled() );
+                entry.addProperty( "defaultEnabled", mod.defaultEnabled() );
+                entry.addProperty( "playerChoice", mod.playerChoice() == null ? "default"
+                                                   : mod.playerChoice() ? "on" : "off" );
+                entry.addProperty( "clientSide", mod.clientSide() );
+                entry.addProperty( "serverSide", mod.serverSide() );
+                entry.add( "requires", stringArray( mod.requires() ) );
+                entry.add( "conflictsWith", stringArray( mod.conflictsWith() ) );
+                list.add( entry );
+            }
+            JsonObject result = new JsonObject();
+            result.addProperty( "friendlyName", friendlyName );
+            result.add( "optionalMods", list );
+            result.addProperty( "count", list.size() );
+            result.addProperty( "note", "Changes made with set_optional_mod take effect the next time "
+                    + "the pack launches or syncs." );
+            return McpToolResult.json( result );
+        }
+
+        /**
+         * Builds a JSON array of strings.
+         *
+         * @param values the strings; {@code null} reads as none
+         *
+         * @return the array
+         */
+        private static JsonArray stringArray( List< String > values )
+        {
+            JsonArray array = new JsonArray();
+            if ( values != null ) {
+                values.forEach( array::add );
+            }
+            return array;
         }
     }
 

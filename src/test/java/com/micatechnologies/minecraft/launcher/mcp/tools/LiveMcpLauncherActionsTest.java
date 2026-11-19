@@ -17,14 +17,19 @@
 
 package com.micatechnologies.minecraft.launcher.mcp.tools;
 
+import com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod;
 import com.micatechnologies.minecraft.launcher.game.modpack.ModPackDocument;
 import com.micatechnologies.minecraft.launcher.game.modpack.ModPackFileEntry;
+import com.micatechnologies.minecraft.launcher.game.modpack.OptionalModResolver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -166,5 +171,28 @@ class LiveMcpLauncherActionsTest
         assertEquals( "sha256", written.getHashType() );
         assertEquals( JAR.sha256(), written.getHash() );
         assertEquals( JAR.sha1(), written.getExtraHash( "sha1" ) );
+    }
+
+    /** A toggle's result names every other optional mod that switched, and when it applies. */
+    @Test
+    void anOptionalModToggleNamesWhatElseChanged()
+    {
+        List< GameOptionalMod > mods = List.of(
+                new GameOptionalMod( "AUSM", "https://example.test/a.jar", "ausm.jar", null, true, false, "", false,
+                                     List.of( "lib.jar" ), List.of( "fast.jar" ) ),
+                new GameOptionalMod( "Lib", "https://example.test/l.jar", "lib.jar", null, true, false, "", false,
+                                     null, null ),
+                new GameOptionalMod( "Fast", "https://example.test/f.jar", "fast.jar", null, true, false, "", true,
+                                     null, null ) );
+        var outcome = LiveMcpLauncherActions.describeToggle(
+                OptionalModResolver.toggle( mods, Map.of(), "ausm.jar", true ), "Alto", "AUSM", true );
+        assertTrue( outcome.ok() );
+        assertEquals( "Turned \"AUSM\" on in \"Alto\". Also turned on \"Lib\", which \"AUSM\" requires. "
+                              + "Turned off \"Fast\", which conflicts with \"AUSM\". Takes effect the next time the "
+                              + "pack launches or syncs.", outcome.message() );
+
+        var refused = LiveMcpLauncherActions.describeToggle(
+                OptionalModResolver.toggle( mods, Map.of(), "ghost.jar", true ), "Alto", "ghost.jar", true );
+        assertFalse( refused.ok() );
     }
 }

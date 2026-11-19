@@ -197,4 +197,21 @@ public interface McpLauncherActions
      * @since 3.0
      */
     Outcome removeMod( String friendlyName, String identifier );
+
+    /**
+     * Turns one of a pack's optional mods on or off for the player, applying its
+     * {@code requires} and {@code conflictsWith}. A player setting, stored in the launcher
+     * config: the manifest is not changed, so this works for any installed pack, including ones
+     * installed from a remote manifest. Takes effect on the next launch.
+     *
+     * @param friendlyName the pack
+     * @param localName    the optional mod's file name, already normalised with
+     *                     {@code ModPackDocument.normalizeModLocalPath}
+     * @param enabled      the requested state
+     *
+     * @return what happened, naming any other optional mod that switched with it
+     *
+     * @since 2026.11
+     */
+    Outcome setOptionalMod( String friendlyName, String localName, boolean enabled );
 }
