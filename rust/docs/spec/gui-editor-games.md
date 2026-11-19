@@ -1447,6 +1447,27 @@ older generation abandons itself; every async section checks "still shown".
 
 ### 9.2 Structure
 
+One scroll area holds items 1–4 (vertical only, with a scrollbar); the action row
+(5) stays fixed below it. The tab bar pins to the top of the scroll area once it gets there:
+
+* **Pinned** when the offset (px) is at least the bar's place in the content less **0.5 px**
+  (`model::is_pinned`; a bar at 0, nothing laid out yet, is never pinned). While pinned a copy of
+  the bar is drawn over the top of the scroll area on `-md-surface-container-high` with a shadow
+  and the card's top radius, with a ✕ (`detailModal.close`, closes the modal) at its end; it takes
+  clicks but lets the wheel through. The in-flow bar keeps the ✕'s room (hidden) so both wrap
+  alike, and is hidden while the copy shows.
+* **Tab switch**: a pinned bar stays pinned, showing the new tab from its top; otherwise the
+  offset is kept, so a switch never jumps back over the hero (`model::offset_after_tab_switch`).
+  Choose (Optional mods summary) and Review (Problems banner) scroll to the pinned position
+  whatever the offset.
+* The offset is kept in **pixels**, so content that loads later (sections, folder sizes) never
+  moves what is on screen. When the bar's place moves (the hero follows the card's height, the
+  chips and banner arrive late) a pinned body stays where it was
+  (`model::offset_after_pin_move`).
+* The **body** is at least the viewport less the tab bar (rounded up, +1 px) tall
+  (`model::body_min_height`), so any tab, however short, can reach the pinned position.
+* Tab labels never truncate: the tabs wrap onto more rows in a narrow card.
+
 1. **Hero** (height = card height × 0.36 clamped to **172..320**): pack background (or
    procedural gradient), darkening veil, badges (Beta / Recently updated), logo (96 px box) +
    name + last-played subtitle, optional ◀ ▶ navigation (bottom-anchored, 28 px above the hero's
@@ -1462,26 +1483,37 @@ older generation abandons itself; every async section checks "still shown".
    after the last `-` of the loader version, `modal.chip.packVersion {v}` (omitted when equal to
    the MC version), `modal.chip.minimumRam {n}` (`%.0f` if integral else `%.1f`; skipped when
    unset/≤0), `modal.chip.modCount {n}` (>0). Then, if the audit found problems, a one-line
-   problems banner that opens the Problems tab.
-3. **Tab bar** (segmented, connected group): Overview (always), Problems (only with problems;
-   count badge), Content and Activity (only with an install folder), Advanced (only with a
-   settings key). Labels `detailModal.tab.{overview,content,activity,advanced}`,
-   `detailModal.section.problems`. Each tab body is built lazily on first activation, cached,
-   streamed in **3 sections per frame**, scrolled to top on switch. Empty tab →
-   `detailModal.tab.empty`.
-   * Overview: News (pack's visible news), Links, Quick actions, Stats.
-   * Content: Worlds, Servers, Mods, Screenshots, Shader packs, Resource packs (§9.6).
-   * Activity: Update log (last **12** entries + "+N more"), Crash history. While an update is
-     pending (`PackDetails::pending_update`, from `mmcl_modpack::diff::pending_update_diff` with
-     the player's optional-mod choices, computed off the async threads), a "What's new" card
-     (`modpackDetailSection`, `model::whats_new`) sits atop the update log, even when the log is
-     empty: `detailModal.whatsNew.header` with the manifest's version (`?` when missing), the
-     non-zero counts (`added`, `updated`, `removed`, `newOptional`) joined with `"  ·  "`, muted
-     `addedNames` / `updatedNames` / `removedNames` / `newOptionalNames` lines (at most 6 names,
-     then `more`; enabled optional mods in added/updated tagged `optionalTag`), and the muted
-     `note`.
-   * Advanced: §9.4. Problems: the audit problem list.
-4. **Body** scroll (smooth scroll, vertical only).
+   problems banner whose Review opens the Problems tab pinned.
+3. **Tab bar** (segmented, connected group), tabs grouped by task (`model::tabs`, Java
+   `DetailModalLayout.tabsFor`): Overview (always), Problems (only with problems, right after
+   Overview; count badge), Mods, Worlds & files and Activity (only with an install folder),
+   Settings (only with a settings key). Labels `detailModal.tab.{overview,mods,files,activity,
+   settings}`, `detailModal.section.problems`. Section headings are sentence case. Every section
+   starts expanded and collapses. Empty tab → `detailModal.tab.empty`.
+   * **Overview**: What's new, Optional mods summary, News (pack's visible news), Links, At a
+     glance (`detailModal.section.stats`), Quick actions.
+     * *What's new* (only while an update is pending: `PackDetails::pending_update`, from
+       `mmcl_modpack::diff::pending_update_diff` with the player's optional-mod choices,
+       computed off the async threads; `model::whats_new`): a section headed
+       `detailModal.whatsNew.header` with the manifest's version (`?` when missing), then the
+       non-zero counts (`added`, `updated`, `removed`, `newOptional`) joined with `"  ·  "`,
+       muted `addedNames` / `updatedNames` / `removedNames` / `newOptionalNames` lines (at most 6
+       names, then `more`; enabled optional mods in added/updated tagged `optionalTag`), and the
+       muted `note`.
+     * *Optional mods summary* (`detailModal.optionalSummary.title`; only for a modded pack with
+       a settings key, a Mods tab and at least one client-side optional mod):
+       `detailModal.optionalSummary.counts {available} {on}` (`model::optional_counts`:
+       client-side mods only, each identity key once; follows the Mods tab's switches) and
+       `detailModal.optionalSummary.choose`, which opens the Mods tab pinned (Optional mods on
+       top).
+     * *Links* (only with renderable `packLinks`: a title and an http(s) URL;
+       `PackDetails::links`): one compact card per link, the title (primary colour) opens the
+       URL, the description muted under it.
+   * **Mods**: Optional mods (§9.4), then Installed mods (`detailModal.section.mods`, §9.6).
+   * **Worlds & files**: Worlds, Servers, Screenshots, Shader packs, Resource packs (§9.6).
+   * **Activity**: Update log (last **12** entries + "+N more"), Crash history.
+   * **Settings**: §9.4. **Problems**: the audit problem list.
+4. **Body**: the active tab's sections, at least a viewport (less the tab bar) tall.
 5. **Action row** (padding 14/24/18/24, spacing 10, buttons 42 high): `Play`
    (`common.button.play`, primary, `PLAY` glyph, grows; disabled when announcements disable
    gameplay) → hide, then if the pack already has an active session show it in Running Games,
@@ -1524,10 +1556,10 @@ played, total play time, launches, installed version (annotated
 `detailModal.stats.installedDisplay.withUpdate {installed} {remote}` when an update is
 available), manifest URL. Keys `detailModal.stats.*`.
 
-### 9.4 Advanced tab
+### 9.4 Optional mods (Mods tab) and the Settings tab
 
-* **Optional mods** (issue #103, modpack-model §1.25): a section of its own ahead of the settings
-  below (`detailModal.section.optionalMods`), shown only for a pack with a manifest URL and
+* **Optional mods** (issue #103, modpack-model §1.25): the Mods tab's first section
+  (`detailModal.section.optionalMods`), shown only for a modded pack with a manifest URL and
   client-side optional mods; the list loads off the UI thread (`Engine::optional_mods`). Hint
   `modal.optionalMods.hint` (changes apply on the next launch), then per client-side mod a switch
   labelled with its display name, its description and muted `modal.optionalMods.requires` /
@@ -1537,38 +1569,48 @@ available), manifest URL. Keys `detailModal.stats.*`.
   `.reason.requiredBy/turnedOn/conflictsWith/requiresOff/turnedOff`, refusals
   `.refused.unsatisfiable/unknown`). The wording is built in `dialogs/detail/optional.rs` (Java
   `OptionalModMessages`).
-* Hint `modal.advanced.hint`.
-* **Launch as**: combo of `""` (= default account, label `modal.advanced.account.default {default
-  name}`) + every signed-in account (label = name, or `account.switcher.needsSignIn {name}`) +
-  the stored override if it no longer exists (`modal.advanced.account.missing`). Selecting writes
-  `ConfigManager::set_account_override_for_pack(settings_key, None for "" else uuid)`. Label
-  `modal.advanced.account.label`, hint `modal.advanced.account.hint`.
-* Only with a manifest URL:
+
+The **Settings** tab has three sections; each control carries its hint directly under it.
+
+* **Launch as** (`modal.advanced.account.label`; any pack with a settings key): hint
+  `modal.advanced.account.hint`, then a combo of `""` (= default account, label
+  `modal.advanced.account.default {default name}`) + every signed-in account (label = name, or
+  `account.switcher.needsSignIn {name}`) + the stored override if it no longer exists
+  (`modal.advanced.account.missing`). Selecting writes
+  `ConfigManager::set_account_override_for_pack(settings_key, None for "" else uuid)`.
+* **Game files** (`detailModal.section.gameFiles`; only with a manifest URL):
   * Switch "always verify on launch" (`modal.advanced.alwaysVerify` + hint), stored per manifest
     URL, default off.
-  * Scan frequency combo: `modal.advanced.scanFreq.useGlobal` (= no override) + every
-    `ScanFrequency` display label; stored per manifest URL. Label/hint keys
-    `modal.advanced.scanFreq.{label,hint}`.
-  * Read-only list of the manifest's scan acknowledgements (`modal.ack.heading`; rows: rule kind,
-    locator, reason; file SHA-256 in a tooltip only).
   * `Verify now` (`modal.advanced.verifyNow` + hint): hide, run a forced full verify.
-  * With an install folder: `Add to official launcher` (`officialExport.menuItem`, hint
-    `modal.advanced.addOfficial.hint`) or, when a Mica-owned profile already exists,
-    `Remove from official launcher` (`officialExport.remove.menuItem`,
-    `modal.advanced.removeOfficial.hint`) — exactly one is shown; both hide the modal first.
+  * Scan frequency: label `modal.advanced.scanFreq.label`, combo
+    `modal.advanced.scanFreq.useGlobal` (= no override) + every `ScanFrequency` display label,
+    hint `modal.advanced.scanFreq.hint`; stored per manifest URL.
+  * Read-only list of the manifest's scan acknowledgements (`PackDetails::scan_acknowledgements`;
+    heading `modal.ack.heading`, intro `modal.ack.intro`; rows: rule kind or
+    `modal.ack.unknownRule`, `·` locator, reason or `modal.ack.noReason`; file SHA-256 in a
+    tooltip only, `tooltip.modal.fileSha`). Left out when there are none.
+* **Official Minecraft Launcher** (`detailModal.section.officialLauncher`; with an install
+  folder): `Add to official launcher` (`officialExport.menuItem`, hint
+  `modal.advanced.addOfficial.hint`) or, when a Mica-owned profile already exists,
+  `Remove from official launcher` (`officialExport.remove.menuItem`,
+  `modal.advanced.removeOfficial.hint`) — exactly one is shown; both hide the modal first. Unlike
+  the Java launcher, which shows it only with a manifest, an installed vanilla version gets it too
+  (its export writes a profile-only entry).
 
 ### 9.5 Section box
 
-Each section is a collapsible box with a heading; some register a "populate on first expand"
-action (`register_on_first_expand`) so their contents (and any disk scan) are built only when the
-user opens them.
+Each section is a collapsible box with a sentence-case heading; every section starts expanded.
+Folder listings (and any disk scan) run the first time their section is open on a shown tab.
 
 ### 9.6 Content browser (`ModpackContentBrowser`)
 
 Sections are built quickly (directory listing) and populate asynchronously behind a loading
-placeholder; file actions (open, delete) run on workers.
+placeholder; file actions (open, delete) run on workers. An empty Worlds, Screenshots, Installed
+mods, Shader packs or Resource packs listing shows `detailModal.content.empty` and an Open Folder
+button (`detailModal.content.openFolder`) that opens the folder, creating it when it does not
+exist yet.
 
-* **Mods** (collapsed, populated on first expand): files in `<packRoot>/mods` that are files
+* **Installed mods** (Mods tab, under Optional mods): files in `<packRoot>/mods` that are files
   ending (case-insensitive) in `.jar` or `.jar.disabled`, sorted by lower-cased name (disabled
   sorts next to its jar). Header: `Check for updates` (`detailModal.mods.checkUpdates`) + status;
   for modded packs a spacer and `Add mod` (`detailModal.mods.addMod`, opens §3).
