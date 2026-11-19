@@ -138,7 +138,7 @@ Root: a 1-column, 5-row grid, minimum 750×475, preferred 1000×800, style `root
 | 0 | fixed 52 | Navbar (`navBar`): 36×36 brand logo (shell asset `micaBrandLogo-small`), title `t!("editor.navbar.title")` (`navBrand`), flexible spacer, offline chip (`offlineLabel`, hidden unless offline, §10.11), help button (`helpBtn`, glyph `HELP`, tooltip `tooltip.common.help`, opens help topic `MODPACK_EDITOR`). Padding left 14, right 10, spacing 12. |
 | 1 | 0 or 40 | Announcement banner (§10.10), text from `AnnouncementManager.getAnnouncementModpacksEdit()`. Glyph `ANNOUNCEMENT`. |
 | 2 | fixed 44 | Toolbar (`stripPane`, padding 6/16, spacing 8): `New` (`editor.toolbar.new`), `Open File` (`editor.toolbar.openFile`), `Open URL` (`editor.toolbar.openUrl`), spacer (min 16), `Validate` (`editor.toolbar.validate`), `Diff` (`editor.toolbar.diff`). Buttons 28 px high. |
-| 3 | grow | Tab bar, tabs not closable: **Metadata** (`editor.tab.metadata`), **Mods**, **Configs**, **Resource Packs**, **Shader Packs**, **Initial Files** (`editor.tab.mods/configs/resources/shaders/initialFiles`). |
+| 3 | grow | Tab bar, tabs not closable: **Metadata** (`editor.tab.metadata`), **Mods**, **Optional mods**, **Configs**, **Resource Packs**, **Shader Packs**, **Initial Files** (`editor.tab.mods/optionalMods/configs/resources/shaders/initialFiles`), one per `FileList::ALL` entry. The **Optional mods** tab (issue #103, modpack-model §1.25) adds the columns Description, On by default, Requires and Conflicts with (`editor.column.description/defaultEnabled/requires/conflictsWith`; the name lists are comma- or semicolon-separated) under a hint (`editor.optional.hint`), and its new rows are client-only. Save is refused with a warning dialog (`dialog.editor.optionalInvalid.title/header`, status `editor.status.optionalInvalid`) listing the `validate_optional_mods` problems; Validate reports the same. |
 | 4 | fixed 44 | Bottom bar (`bottomBar`, padding 0/14, spacing 10): status label (`muted`, initial `editor.status.noFile`), spacer, `Save` (`editor.saveBtn`), `Return` (`editor.returnBtn`). |
 
 **Metadata tab** — a vertical scroll (smooth wheel scroll, §10.17), padding 16/24, spacing 8.
@@ -1518,6 +1518,17 @@ available), manifest URL. Keys `detailModal.stats.*`.
 
 ### 9.4 Advanced tab
 
+* **Optional mods** (issue #103, modpack-model §1.25): a section of its own ahead of the settings
+  below (`detailModal.section.optionalMods`), shown only for a pack with a manifest URL and
+  client-side optional mods; the list loads off the UI thread (`Engine::optional_mods`). Hint
+  `modal.optionalMods.hint` (changes apply on the next launch), then per client-side mod a switch
+  labelled with its display name, its description and muted `modal.optionalMods.requires` /
+  `modal.optionalMods.conflicts` notes (conflicts from both sides; a server-only mod gets no
+  switch). A switch calls `Engine::set_optional_mod`; the other switches follow the result and
+  status lines explain each change (`modal.optionalMods.status.on/off`,
+  `.reason.requiredBy/turnedOn/conflictsWith/requiresOff/turnedOff`, refusals
+  `.refused.unsatisfiable/unknown`). The wording is built in `dialogs/detail/optional.rs` (Java
+  `OptionalModMessages`).
 * Hint `modal.advanced.hint`.
 * **Launch as**: combo of `""` (= default account, label `modal.advanced.account.default {default
   name}`) + every signed-in account (label = name, or `account.switcher.needsSignIn {name}`) +

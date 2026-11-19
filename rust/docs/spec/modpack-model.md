@@ -145,6 +145,7 @@ absent.
 | `packResourcePacks` | object[] | null | Resource packs (`ManagedGameFile`). Client only. |
 | `packShaderPacks` | object[] | null | Shader packs (`ManagedGameFile`). Client only. |
 | `packInitialFiles` | object[] | null | Files placed at the pack root (`GameAsset`), e.g. `options.txt`. Note: in practice synced every launch like configs, despite the editor calling them "written once". |
+| `packOptionalMods` | object[] | absent | Optional mods each player switches on or off (`GameOptionalMod`, section 1.25). Left out while empty. |
 
 Keys that appear in manifests but that the launcher model ignores at runtime (they must survive
 an editor round trip, so the editor works on a raw JSON document):
@@ -1249,6 +1250,87 @@ Headless editor model over a raw JSON object (so unknown and future keys survive
 server_req (true), modrinth_slug, extra_hashes`; setters coalesce null to "" (hash type to
 "sha1"); `put_extra_hash(algo, value)` lowercases the algo, blank value removes, null algo is
 ignored; `extra_hashes()` read-only view.
+
+### 1.25 Optional mods (`packOptionalMods`, issue #103)
+
+Built in both launchers at once, with the same rules, so a player who switches launchers sees the
+same mods installed. This is the owner-approved exception to the "never change an on-disk format"
+rule in `ARCHITECTURE.md`: everything below is additive and ignored by builds that do not know it.
+
+**Manifest.** A top-level `packOptionalMods` array, not a flag on `packMods` entries: a launcher
+that does not know the key ignores it, so it never installs these jars, and its sweep removes any a
+newer launcher left behind. Entries have every `packMods` field plus `description` (absent = ""),
+`defaultEnabled` (absent = false), `requires` and `conflictsWith` (arrays of other optional mods'
+`local` names). Side defaults differ from `packMods`: an absent `clientReq` means **true**, an
+absent `serverReq` false. Model: `mmcl_manifest::optional::OptionalMod`
+(`PackManifest::pack_optional_mods`); the Gson compat check knows the key.
+
+**Identity.** `local` normalised with `normalize_mod_local_path`, lower-cased
+(`optional::key_of`): `mods/AUSM.jar` and `ausm.jar` are one mod. `local` must be a plain file name:
+the sync skips an entry with a folder (it would land in `mods/mods/`), the editor refuses to save
+one.
+
+**Player's choice.** `configuration.json` → `optionalModsByPack` → pack settings key (the key
+`accountOverrideByPack` uses) → `{ local name: bool }`, stored in the manifest's (normalised)
+spelling (`optional::to_stored_choices`). Only JSON booleans count; a malformed section reads as no
+choices. Setting an empty map removes the pack's entry (the section stays). Accessors:
+`Config::optional_mod_choices` / `set_optional_mod_choices`. Never written into a manifest.
+
+**Resolution** (`optional::resolve_enabled`): a mod's wish is its stored choice, else
+`defaultEnabled`; mods are visited in manifest order; a wished-on mod turns on with its whole
+`requires` closure (breadth-first); if that group conflicts (either direction) with a mod already
+on, or within itself, the whole group stays off (the earlier entry wins); unknown names are
+ignored. **Toggle** (`optional::toggle`): on → turn on its requires closure, turn off everything
+conflicting with the group; off → turn it off; either way also turn off every mod that needs a mod
+being turned off. Every switched mod is written into the choices explicitly (existing order, then
+the turned-on group, then the turned-off mods, as Java's `LinkedHashMap`). Each other mod that
+changed is reported with `RequiredBy` / `ConflictsWith` / `RequiresOff` and the cause's display
+name; a self-conflicting group (or one that needs what it conflicts with) is refused as
+`Unsatisfiable`, an unknown name as `Unknown`, and nothing is stored.
+
+**Sides.** A client installs the resolved mods that are client-side. A dedicated server ignores
+choices and installs exactly the optional mods with `serverReq && defaultEnabled`; it does not
+follow `requires`.
+
+**Sync** (`mmcl_modpack::optional::mods_for_side`): `packMods` plus the selected optional mods (an
+optional entry duplicating a `packMods` file is skipped, as is one with a folder). That list drives
+the file count, download and hash check, the user-disabled check, the post-sync existence check and
+the sweep's expected set, so an optional mod that is off has its jar removed. `None` when `packMods`
+is absent (no sweep). The choices reach `FileSync` through the required `SyncEnv::optional_choices`
+and the `LaunchConfig::optional_mod_choices` method, which has no default so no wrapper can forget
+it (empty on a server).
+
+**Verify fingerprint** (`optional::verify_fingerprint`, `mmcl_launch::pipeline::verify_fingerprint`):
+the manifest SHA-256 unchanged when no optional mod is on, else
+`sha256_hex("<manifestSha>|optional:<sorted keys joined by ,>")`, the value Java computes. Captured
+once per launch and used for the fast-path decision, the verify state written after a FULL run and
+the scan schedule, so a toggle forces a full verify and a scan on the next launch.
+
+**Sidecar** `.known_optional_mods` in the pack root: the keys of every optional mod in the manifest,
+one per line, no trailing newline, written after a successful mod sync, only when the pack has or
+had optional mods (the file exists). Same name and format as Java.
+
+**Pending-update diff** (`mmcl_manifest::diff::diff_mods_with_optional`,
+`mmcl_modpack::diff::pending_update_diff(pack, choices)`): changes to optional mods that are on are
+listed like other mod changes and named in `optional_names` (for an "(optional)" tag); a client-side
+optional mod that is off and not in the sidecar is listed in `new_optional_names` ("new optional
+mods, off until you turn them on"); changes to optional mods that are off are hidden, and an optional
+jar is never reported as removed. The Rust UI does not render the pending-update card yet, so these
+fields have no screen.
+
+**Editor document.** `FileList::OptionalMods` (second in `FileList::ALL`, as Java's enum) reads and
+writes the list with `description` and `defaultEnabled` always written and `requires` /
+`conflictsWith` only when non-empty, after the usual fields; the key is removed while the list is
+empty and `blank()` leaves it out. `add_mod` refuses a file that is already an optional mod.
+`validate_optional_mods` (also part of `validate`) reports, in order per entry: a folder in `local`,
+a file in both lists, an optional mod listed twice (once); then per entry a `requires` /
+`conflictsWith` name that is the mod itself or not an optional mod. Fork, an editor save and the
+MCP add/remove mod edits keep the list (tested).
+
+**Engine.** `Engine::optional_mods(id)` (installed, else available pack; reads the cached manifest
+for a stub) returns the mods, the stored choices and the enabled keys; `Engine::set_optional_mod`
+(installed packs only) applies a toggle and stores the result. The detail dialog and the MCP tools
+both go through them.
 
 ---
 
