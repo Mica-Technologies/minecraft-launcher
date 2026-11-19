@@ -320,7 +320,12 @@ class GameModPackLauncher
         // getLaunchCount() + 1 is the launch number recordLaunchStart will commit once this
         // launch succeeds, so audit entries line up with the official launch count the detail
         // modal reads back.
-        final LaunchVerifyMode chosenMode = decideLaunchVerifyMode();
+        // The fingerprint is the manifest hash plus, when any optional mods are on, which ones:
+        // switching an optional mod changes it, so the next launch runs a FULL verify and the
+        // security scan treats the pack as changed. Captured once so the decision and the sidecar
+        // written after a successful verify agree even if the player toggles mid-launch.
+        final String fingerprint = pack.getVerifyFingerprint();
+        final LaunchVerifyMode chosenMode = decideLaunchVerifyMode( fingerprint );
         Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.verifyMode", pack.getPackName(), chosenMode ) );
         LaunchPrepareContext prevContext = pack.getPrepareContext();
         pack.setPrepareContext( LaunchPrepareContext.forLaunch( chosenMode, pack.getPackRootFolder(),
@@ -334,13 +339,13 @@ class GameModPackLauncher
             // since the decision required it to match) but the verifiedAt
             // stays anchored to the last actual hash sweep.
             if ( chosenMode == LaunchVerifyMode.FULL
-                    && pack.getManifestContentSha256() != null ) {
+                    && fingerprint != null ) {
                 // Read-modify-write so the scan-tracking fields (lastScannedAt /
                 // lastScannedManifestSha256) the scan step writes aren't clobbered
                 // by a verify-only update.
                 VerifyState existing = VerifyState.loadForPack( pack );
                 VerifyState fresh = VerifyState.successfulVerify(
-                        existing, pack.getManifestContentSha256() );
+                        existing, fingerprint );
                 VerifyState.saveForPack( pack, fresh );
                 Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.wroteVerifyState",
                                          pack.getPackName(), fresh.verifiedAt ) );
@@ -362,8 +367,11 @@ class GameModPackLauncher
      *         {@link LaunchVerifyMode#FULL} when the cached verify state is
      *         missing, stale, manifest-mismatched, or the per-pack opt-out is
      *         set; otherwise {@link LaunchVerifyMode#FAST_PATH}
+     *
+     * @param fingerprint the pack's verify fingerprint for this launch
+     *                    ({@link GameModPack#getVerifyFingerprint()})
      */
-    private LaunchVerifyMode decideLaunchVerifyMode()
+    private LaunchVerifyMode decideLaunchVerifyMode( String fingerprint )
     {
         // Servers launch infrequently (on service start / crash-restart) and are highly
         // update-sensitive: a headless server silently running a stale mod set is worse than
@@ -385,7 +393,7 @@ class GameModPackLauncher
         VerifyState existing = VerifyState.loadForPack( pack );
         return VerifyState.decideMode(
                 existing,
-                pack.getManifestContentSha256(),
+                fingerprint,
                 VerifyState.DEFAULT_TTL_MS,
                 perPackOptOut,
                 /* globalForceFullVerify */ false );
@@ -419,11 +427,12 @@ class GameModPackLauncher
         LaunchPrepareContext prevContext = pack.getPrepareContext();
         pack.setPrepareContext( LaunchPrepareContext.fullVerify() );
         try {
+            final String fingerprint = pack.getVerifyFingerprint();
             buildClasspathInner();
-            if ( pack.getManifestContentSha256() != null ) {
+            if ( fingerprint != null ) {
                 VerifyState existing = VerifyState.loadForPack( pack );
                 VerifyState fresh = VerifyState.successfulVerify(
-                        existing, pack.getManifestContentSha256() );
+                        existing, fingerprint );
                 VerifyState.saveForPack( pack, fresh );
             }
         }
@@ -1085,7 +1094,7 @@ class GameModPackLauncher
                         .effectiveScanFrequencyForPack( pack.getManifestUrl() );
         final com.micatechnologies.minecraft.launcher.game.modpack.VerifyState lastState =
                 com.micatechnologies.minecraft.launcher.game.modpack.VerifyState.loadForPack( pack );
-        final String currentManifestSha256 = pack.getManifestContentSha256();
+        final String currentManifestSha256 = pack.getVerifyFingerprint();
         if ( !com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.shouldScan(
                 effective, lastState, currentManifestSha256 ) ) {
             Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.skippingScan",
