@@ -84,6 +84,27 @@ class OptionalModMessagesTest
     }
 
     @Test
+    void turningAModOffSaysWhichRequirementsWentWithIt()
+    {
+        var on = OptionalModResolver.toggle( mods, Map.of(), "ausm.jar", true );
+        var off = OptionalModResolver.toggle( mods, on.choices(), "ausm.jar", false );
+        assertEquals( List.of( "modal.optionalMods.status.off|AUSM",
+                               "modal.optionalMods.reason.noLongerRequired|Lib|AUSM" ),
+                      OptionalModMessages.describeToggle( off, "AUSM", false, OptionalModMessagesTest::echo ) );
+    }
+
+    @Test
+    void aModHeldOffByAConflictSaysWhyItCameBack()
+    {
+        var both = List.of( mod( "First", "first.jar", true, null, null ),
+                            mod( "Second", "second.jar", true, null, List.of( "first.jar" ) ) );
+        var off = OptionalModResolver.toggle( both, Map.of(), "first.jar", false );
+        assertEquals( List.of( "modal.optionalMods.status.off|First",
+                               "modal.optionalMods.reason.conflictCleared|Second|First" ),
+                      OptionalModMessages.describeToggle( off, "First", false, OptionalModMessagesTest::echo ) );
+    }
+
+    @Test
     void relationsNameOtherModsByDisplayNameAndShowConflictsBothWays()
     {
         assertEquals( List.of( "modal.optionalMods.requires|Lib", "modal.optionalMods.conflicts|Fast" ),

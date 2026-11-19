@@ -75,6 +75,10 @@ final class OptionalModMessages
                 case REQUIRED_BY -> hasCause ? "modal.optionalMods.reason.requiredBy"
                                              : "modal.optionalMods.reason.turnedOn";
                 case CONFLICTS_WITH -> "modal.optionalMods.reason.conflictsWith";
+                case NO_LONGER_REQUIRED -> hasCause ? "modal.optionalMods.reason.noLongerRequired"
+                                                    : "modal.optionalMods.reason.turnedOff";
+                case CONFLICT_CLEARED -> hasCause ? "modal.optionalMods.reason.conflictCleared"
+                                                  : "modal.optionalMods.reason.turnedOn";
                 default -> hasCause ? "modal.optionalMods.reason.requiresOff"
                                     : "modal.optionalMods.reason.turnedOff";
             };
