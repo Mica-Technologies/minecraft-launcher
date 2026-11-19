@@ -375,20 +375,78 @@ fn a_server_ignores_choices_and_installs_only_server_side_default_on_mods() {
     );
 }
 
+fn server_keys(mods: &[OptionalMod]) -> Vec<String> {
+    select_for_side(mods, Side::Server, &Choices::new())
+        .iter()
+        .map(|m| m.key())
+        .collect()
+}
+
+fn server_mod(local: &str, default_on: bool, requires: &[&str], conflicts: &[&str]) -> OptionalMod {
+    OptionalMod {
+        client_req: true,
+        server_req: true,
+        ..m(local, default_on, requires, conflicts)
+    }
+}
+
 #[test]
-fn a_server_does_not_follow_requires() {
+fn a_server_follows_requires_transitively() {
     let mods = [
-        OptionalMod {
-            requires: Some(vec!["lib.jar".into()]),
-            ..sided("s.jar", true, true, true)
-        },
-        sided("lib.jar", true, true, false),
+        server_mod("s.jar", true, &["lib.jar"], &[]),
+        server_mod("lib.jar", false, &["core.jar"], &[]),
+        server_mod("core.jar", false, &[], &[]),
+        server_mod("other.jar", false, &[], &[]),
     ];
-    let picked = select_for_side(&mods, Side::Server, &Choices::new());
-    assert_eq!(
-        picked.iter().map(|m| m.key()).collect::<Vec<_>>(),
-        ["s.jar"]
-    );
+    assert_eq!(server_keys(&mods), ["s.jar", "lib.jar", "core.jar"]);
+}
+
+#[test]
+fn a_server_skips_a_group_with_a_client_only_requirement() {
+    let mods = [
+        server_mod("s.jar", true, &["lib.jar"], &[]),
+        sided("lib.jar", true, false, true),
+        server_mod("t.jar", true, &[], &[]),
+    ];
+    // s needs a mod a server never installs, so s is skipped too; t is unaffected.
+    assert_eq!(server_keys(&mods), ["t.jar"]);
+}
+
+#[test]
+fn a_server_skips_a_group_that_conflicts_with_itself() {
+    let mods = [
+        server_mod("s.jar", true, &["lib.jar"], &["lib.jar"]),
+        server_mod("lib.jar", false, &[], &[]),
+    ];
+    assert!(server_keys(&mods).is_empty());
+}
+
+#[test]
+fn on_a_server_the_earlier_group_wins_a_conflict_in_either_direction() {
+    // b's requirement conflicts with a, named from a's side.
+    let mods = [
+        server_mod("a.jar", true, &[], &["blib.jar"]),
+        server_mod("b.jar", true, &["blib.jar"], &[]),
+        server_mod("blib.jar", false, &[], &[]),
+    ];
+    assert_eq!(server_keys(&mods), ["a.jar"]);
+    // Named from the later group's side.
+    let mods = [
+        server_mod("a.jar", true, &["alib.jar"], &[]),
+        server_mod("alib.jar", false, &[], &[]),
+        server_mod("b.jar", true, &[], &["alib.jar"]),
+    ];
+    assert_eq!(server_keys(&mods), ["a.jar", "alib.jar"]);
+}
+
+#[test]
+fn a_server_keeps_a_required_mod_selected_by_an_earlier_group() {
+    let mods = [
+        server_mod("a.jar", true, &["lib.jar"], &[]),
+        server_mod("b.jar", true, &["lib.jar"], &[]),
+        server_mod("lib.jar", false, &[], &[]),
+    ];
+    assert_eq!(server_keys(&mods), ["a.jar", "b.jar", "lib.jar"]);
 }
 
 #[test]

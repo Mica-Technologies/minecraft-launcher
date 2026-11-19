@@ -1295,8 +1295,10 @@ mod that changed is reported with `RequiredBy` / `ConflictsWith` / `RequiresOff`
 requirement as `true`, read as the player's own picks.
 
 **Sides.** A client installs the resolved mods that are client-side. A dedicated server ignores
-choices and installs exactly the optional mods with `serverReq && defaultEnabled`; it does not
-follow `requires`.
+choices (owner decision): in manifest order, each optional mod with `serverReq && defaultEnabled`
+is selected with its whole `requires` closure; if any mod in that group is not `serverReq`, or the
+group conflicts (either direction) within itself or with a mod already selected, the whole group
+is skipped (the earlier entry wins).
 
 **Sync** (`mmcl_modpack::optional::mods_for_side`): `packMods` plus the selected optional mods (an
 optional entry duplicating a `packMods` file is skipped, as is one with a folder). That list drives

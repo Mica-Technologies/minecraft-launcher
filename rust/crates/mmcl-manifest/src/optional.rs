@@ -27,8 +27,10 @@
 //! A toggle stores only the player's own pick for the mod switched (plus `false` for the mods it
 //! forces off); requirements it turns on follow from rule 2, so they go off again with it.
 //!
-//! A dedicated server has no player to choose: it ignores stored choices and installs exactly
-//! the mods that are both `serverReq` and `defaultEnabled` (and does not follow `requires`).
+//! A dedicated server has no player to choose: it ignores stored choices and installs the mods
+//! that are both `serverReq` and `defaultEnabled`, each with its `requires` closure. A group
+//! with a mod that is not `serverReq`, or that conflicts with itself or with a mod already
+//! selected, is skipped whole (the earlier entry wins).
 //!
 //! Mods are identified by [`key_of`] their `local` name: normalised with
 //! [`normalize_mod_local_path`] and lower-cased, so `mods/AUSM.jar` and `ausm.jar` are one mod.
@@ -91,8 +93,8 @@ pub struct OptionalMod {
     /// Installed on clients when on; `true` when absent.
     #[serde(rename = "clientReq", deserialize_with = "boolean_default_true")]
     pub client_req: bool,
-    /// A dedicated server may install it (only when also `defaultEnabled`); `false` when
-    /// absent.
+    /// A dedicated server may install it (when also `defaultEnabled`, or required by such a
+    /// mod); `false` when absent.
     #[serde(rename = "serverReq", deserialize_with = "lenient::boolean")]
     pub server_req: bool,
     #[serde(
@@ -197,7 +199,8 @@ impl OptionalMod {
         self.client_req
     }
 
-    /// A dedicated server installs it when it is also on by default.
+    /// A dedicated server may install it: when it is also on by default, or a server-side mod
+    /// on by default requires it.
     pub fn is_server_side(&self) -> bool {
         self.server_req
     }
@@ -396,9 +399,37 @@ pub fn resolve_enabled(mods: &[OptionalMod], choices: &Choices) -> IndexSet<Stri
         .collect()
 }
 
+/// The optional mods a dedicated server installs, by identity key in manifest order: each mod
+/// that is server-side and on by default, with its `requires` closure. Mods are visited in
+/// manifest order; a group with a mod that is not server-side, or that conflicts (either
+/// direction) within itself or with a mod already selected, is skipped whole, so the earlier
+/// entry wins.
+fn resolve_server(by_key: &IndexMap<String, &OptionalMod>) -> IndexSet<String> {
+    let mut selected: IndexSet<String> = IndexSet::new();
+    for (key, m) in by_key {
+        if selected.contains(key) || !(m.is_server_side() && m.default_enabled) {
+            continue;
+        }
+        let group = requires_closure(by_key, key);
+        if group.iter().any(|k| !by_key[k].is_server_side())
+            || conflicts_between(by_key, &group, &group)
+            || conflicts_between(by_key, &group, &selected)
+        {
+            continue;
+        }
+        selected.extend(group);
+    }
+    by_key
+        .keys()
+        .filter(|k| selected.contains(*k))
+        .cloned()
+        .collect()
+}
+
 /// The optional mods a sync installs on `side`, in manifest order. A client installs the
 /// resolved mods that are client-side; a server ignores `choices` and installs the mods that
-/// are both server-side and on by default.
+/// are both server-side and on by default, with their `requires` closures
+/// ([`resolve_server`]).
 pub fn select_for_side<'a>(
     mods: &'a [OptionalMod],
     side: Side,
@@ -409,10 +440,9 @@ pub fn select_for_side<'a>(
     }
     let by_key = index(mods);
     match side {
-        Side::Server => by_key
-            .values()
-            .filter(|m| m.is_server_side() && m.default_enabled)
-            .copied()
+        Side::Server => resolve_server(&by_key)
+            .iter()
+            .filter_map(|k| by_key.get(k).copied())
             .collect(),
         Side::Client => resolve_enabled(mods, choices)
             .iter()
