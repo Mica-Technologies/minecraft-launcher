@@ -2,7 +2,7 @@
 
 <p>The Browse screen is your install &amp; manage surface. From here you can install new modpacks
 from the public manifest, install pure vanilla Minecraft versions, install empty Forge / NeoForge /
-Fabric starter packs, edit packs you already have, and uninstall things you don't want any more.</p>
+Fabric / Cleanroom starter packs, edit packs you already have, and uninstall things you don't want any more.</p>
 
 <h2>Cards &amp; the Filter Bar</h2>
 
@@ -13,7 +13,7 @@ a status line, and action buttons. The filter bar across the top is how you narr
     <li><strong>Search</strong> — free-text match against the card titles. Updates as you type
         (with a short debounce so it doesn't thrash the layout).</li>
     <li><strong>Type</strong> — All, Modpacks, or one of the version catalogues:
-        Vanilla (Releases / Snapshots / Old Beta / Old Alpha) and Forge / NeoForge / Fabric versions.
+        Vanilla (Releases / Snapshots / Old Beta / Old Alpha) and Forge / NeoForge / Fabric / Cleanroom versions.
         The loader-version filters are intentionally <em>not</em> included in "All" — the combined list
         would be thousands of entries and isn't what a "show me everything" search wants.</li>
     <li><strong>Status</strong> — All, Installed, or Available. "Available" shows things you
@@ -57,10 +57,10 @@ Minecraft version as a synthetic empty modpack you can play directly from the ma
 betas and alphas are runnable too — the launcher pulls the appropriate Java runtime for each
 version automatically.</p>
 
-<h2>Forge / NeoForge / Fabric Versions</h2>
+<h2>Forge / NeoForge / Fabric / Cleanroom Versions</h2>
 
 <p>The loader-version filters surface every release advertised by each project's version service:
-Forge promotions, NeoForge maven metadata, and the Fabric meta API. Clicking Install on one of
+Forge promotions, NeoForge maven metadata, the Fabric meta API, and the CleanroomMC/Cleanroom GitHub releases. Clicking Install on one of
 these writes a synthetic "empty modpack" manifest under your config folder and registers it with
 the launcher — so the result behaves like any other installed modpack:</p>
 
@@ -89,7 +89,7 @@ and the manifest's metadata is downloaded and validated before install begins.</
 
 <p>The bottom-bar <strong>Modpack Editor</strong> button opens the
 <a href="help://topic/MODPACK_EDITOR">Modpack Editor</a> with a blank manifest so you can build
-a new pack from scratch — set the loader (Forge / NeoForge / Fabric / vanilla), Minecraft version,
+a new pack from scratch — set the loader (Forge / NeoForge / Fabric / Cleanroom / vanilla), Minecraft version,
 mods list, etc. The Editor can also be opened on an existing pack via the <strong>Edit</strong>
 button on its card.</p>
 
