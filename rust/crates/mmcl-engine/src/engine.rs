@@ -19,6 +19,7 @@ mod maintenance;
 pub mod net_hooks;
 pub mod official_export;
 mod operations;
+mod optional_mods;
 
 pub use net_hooks::OfflineHttp;
 

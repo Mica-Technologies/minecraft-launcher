@@ -30,7 +30,7 @@ fn pack(root: &Path, mode: GameMode, m: PackManifest) -> Arc<GameModPack> {
 }
 
 fn env(side: Side, http: Arc<FakeHttp>) -> SyncEnv {
-    let mut e = SyncEnv::new(side, http, Arc::new(NullSink));
+    let mut e = SyncEnv::new(side, http, Arc::new(NullSink), Default::default());
     e.pool = DownloadPool::with_size(4);
     e
 }
@@ -330,4 +330,111 @@ async fn missing_required_mod_after_sync_is_an_error() {
         .fetch_latest_mods()
         .await
         .unwrap();
+}
+
+// ---- optional mods (issue #103 acceptance 2-4, minus the game) ----
+
+fn optional_pack() -> PackManifest {
+    let sha = mmcl_util::hash::sha256_hex(b"ausm");
+    let text = format!(
+        r#"{{"packName":"Alto","packVersion":"1","packMods":[{{"name":"JEI","local":"jei.jar",
+            "remote":"https://cdn.example/jei.jar","sha256":"{}","clientReq":true,"serverReq":true}}],
+            "packOptionalMods":[{{"name":"AUSM","local":"ausm.jar",
+            "remote":"https://cdn.example/ausm.jar","sha256":"{sha}"}}]}}"#,
+        mmcl_util::hash::sha256_hex(b"jei")
+    );
+    PackManifest::parse(&text).unwrap()
+}
+
+fn optional_env(side: Side, http: Arc<FakeHttp>, on: Option<bool>) -> SyncEnv {
+    let mut e = env(side, http);
+    if let Some(on) = on {
+        e.optional_choices.insert("ausm.jar".into(), on);
+    }
+    e
+}
+
+#[tokio::test]
+async fn an_optional_mod_installs_when_on_and_is_swept_when_off() {
+    let d = tempfile::tempdir().unwrap();
+    let p = pack(d.path(), GameMode::Client, optional_pack());
+    let mods = p.mods_dir();
+    let http = FakeHttp::new();
+    http.body("https://cdn.example/jei.jar", b"jei".to_vec());
+    http.body("https://cdn.example/ausm.jar", b"ausm".to_vec());
+
+    // Off by default: not downloaded, and the sidecar records it.
+    let sync = FileSync::new(p.clone(), optional_env(Side::Client, http.clone(), None));
+    assert_eq!(sync.synced_mods().len(), 1);
+    sync.fetch_latest_mods().await.unwrap();
+    assert!(!mods.join("ausm.jar").exists());
+    assert_eq!(
+        fs::read_to_string(
+            p.pack_root()
+                .join(crate::optional::KNOWN_OPTIONAL_MODS_FILE)
+        )
+        .unwrap(),
+        "ausm.jar"
+    );
+
+    // On: downloaded with the right hash and kept.
+    FileSync::new(
+        p.clone(),
+        optional_env(Side::Client, http.clone(), Some(true)),
+    )
+    .fetch_latest_mods()
+    .await
+    .unwrap();
+    assert_eq!(fs::read(mods.join("ausm.jar")).unwrap(), b"ausm");
+
+    // Off again: the sweep removes it; the required mod stays.
+    FileSync::new(
+        p.clone(),
+        optional_env(Side::Client, http.clone(), Some(false)),
+    )
+    .fetch_latest_mods()
+    .await
+    .unwrap();
+    assert!(!mods.join("ausm.jar").exists());
+    assert!(mods.join("jei.jar").exists());
+}
+
+#[tokio::test]
+async fn a_server_ignores_the_players_optional_choices() {
+    let d = tempfile::tempdir().unwrap();
+    let p = pack(d.path(), GameMode::Server, optional_pack());
+    let http = FakeHttp::new();
+    http.body("https://cdn.example/jei.jar", b"jei".to_vec());
+    let sync = FileSync::new(
+        p.clone(),
+        optional_env(Side::Server, http.clone(), Some(true)),
+    );
+    assert_eq!(
+        sync.synced_mods().len(),
+        1,
+        "client-only and off by default"
+    );
+    sync.fetch_latest_mods().await.unwrap();
+    assert!(!p.mods_dir().join("ausm.jar").exists());
+}
+
+#[tokio::test]
+async fn a_pack_without_optional_mods_gets_no_sidecar() {
+    let d = tempfile::tempdir().unwrap();
+    let m = PackManifest {
+        pack_mods: Some(vec![modf("only.jar", b"only", true, true)]),
+        ..named("One")
+    };
+    let p = pack(d.path(), GameMode::Client, m);
+    let http = FakeHttp::new();
+    http.body("https://cdn.example/only.jar", b"only".to_vec());
+    FileSync::new(p.clone(), env(Side::Client, http))
+        .fetch_latest_mods()
+        .await
+        .unwrap();
+    assert!(
+        !p.pack_root()
+            .join(crate::optional::KNOWN_OPTIONAL_MODS_FILE)
+            .exists()
+    );
 }

@@ -5093,6 +5093,7 @@ dependencies = [
  "chrono",
  "futures",
  "image",
+ "indexmap",
  "md-5",
  "mmcl-archive",
  "mmcl-auth",

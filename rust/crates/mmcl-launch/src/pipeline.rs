@@ -23,7 +23,8 @@ use futures::stream::FuturesUnordered;
 use indexmap::IndexMap;
 use mmcl_core::GameMode;
 use mmcl_i18n::{t, tf};
-use mmcl_manifest::ServerFavorite;
+use mmcl_manifest::optional::Choices;
+use mmcl_manifest::{ServerFavorite, Side};
 use mmcl_modpack::sync::{FileSync, SyncEnv};
 use mmcl_modpack::verify_state::{DEFAULT_TTL_MS, decide_mode, should_scan};
 use mmcl_modpack::{GameModPack, PrepareContext, ScanFrequency, VerifyMode, VerifyState};
@@ -263,8 +264,36 @@ pub fn guard_loaded(pack: &GameModPack) -> Result<()> {
     Ok(())
 }
 
-/// FULL or FAST_PATH for this launch: server mode is always FULL.
-pub fn decide_launch_verify_mode(env: &LaunchEnv, pack: &GameModPack) -> VerifyMode {
+/// The player's optional-mod choices for `pack`: empty on a server, which has no player to
+/// choose and installs only the optional mods that are server-side and on by default.
+pub fn optional_choices(env: &LaunchEnv, pack: &GameModPack) -> Choices {
+    if env.side() == Side::Server {
+        return Choices::new();
+    }
+    pack.settings_key()
+        .map(|k| env.config.optional_mod_choices(&k))
+        .unwrap_or_default()
+}
+
+/// The fingerprint the verify fast path and the scan schedule compare (Java
+/// `GameModPack.getVerifyFingerprint`): the manifest hash, extended with the optional mods that
+/// are on for this side when there are any, so switching one forces a full verify and a scan.
+pub fn verify_fingerprint(env: &LaunchEnv, pack: &GameModPack) -> Option<String> {
+    let keys = mmcl_modpack::optional::enabled_keys_for_side(
+        pack.manifest(),
+        env.side(),
+        &optional_choices(env, pack),
+    );
+    mmcl_modpack::optional::verify_fingerprint(pack.manifest_sha256(), &keys)
+}
+
+/// FULL or FAST_PATH for this launch: server mode is always FULL. `fingerprint` is the pack's
+/// [`verify_fingerprint`] for this launch.
+pub fn decide_launch_verify_mode(
+    env: &LaunchEnv,
+    pack: &GameModPack,
+    fingerprint: Option<&str>,
+) -> VerifyMode {
     if env.mode() == GameMode::Server {
         return VerifyMode::Full;
     }
@@ -273,7 +302,7 @@ pub fn decide_launch_verify_mode(env: &LaunchEnv, pack: &GameModPack) -> VerifyM
         .is_some_and(|u| env.config.always_verify_on_launch(u));
     decide_mode(
         pack.load_verify_state().as_ref(),
-        pack.manifest_sha256(),
+        fingerprint,
         DEFAULT_TTL_MS,
         always,
         false,
@@ -307,7 +336,10 @@ pub async fn prepare(
 ) -> Result<Prepared> {
     guard_loaded(pack)?;
     sink.set_curr_text(&t!("gameModPackLauncher.progress.preparingModpack"));
-    let mode = decide_launch_verify_mode(env, pack);
+    // Captured once so the decision and the state written after a successful verify agree even
+    // if the player toggles an optional mod mid-launch.
+    let fingerprint = verify_fingerprint(env, pack);
+    let mode = decide_launch_verify_mode(env, pack, fingerprint.as_deref());
     mmcl_log::debug(&tf!(
         "log.gameModPackLauncher.verifyMode",
         pack.name(),
@@ -320,7 +352,7 @@ pub async fn prepare(
     );
     let prepared = prepare_with_context(env, pack, Arc::new(ctx), sink, bridge, cancel).await?;
     if mode == VerifyMode::Full {
-        write_verify_state(pack);
+        write_verify_state(pack, fingerprint.as_deref());
     }
     Ok(prepared)
 }
@@ -336,6 +368,7 @@ pub async fn verify_all_files_now(
 ) -> Result<Prepared> {
     guard_loaded(pack)?;
     mmcl_log::debug(&tf!("log.gameModPackLauncher.forceFullVerify", pack.name()));
+    let fingerprint = verify_fingerprint(env, pack);
     let prepared = prepare_with_context(
         env,
         pack,
@@ -345,12 +378,12 @@ pub async fn verify_all_files_now(
         cancel,
     )
     .await?;
-    write_verify_state(pack);
+    write_verify_state(pack, fingerprint.as_deref());
     Ok(prepared)
 }
 
-fn write_verify_state(pack: &GameModPack) {
-    if let Some(sha) = pack.manifest_sha256() {
+fn write_verify_state(pack: &GameModPack, fingerprint: Option<&str>) {
+    if let Some(sha) = fingerprint {
         let fresh = VerifyState::successful_verify(pack.load_verify_state(), Some(sha));
         pack.save_verify_state(&fresh);
         mmcl_log::debug(&tf!(
@@ -491,7 +524,12 @@ async fn content_branch(run: &PackRun, step: Step) -> Result<()> {
     step.run("launch.error.contentSyncFailed", async {
         run.check_cancelled()?;
         let sink = step.sink.clone();
-        let mut senv = SyncEnv::new(run.env.side(), run.env.http.clone(), sink.clone());
+        let mut senv = SyncEnv::new(
+            run.env.side(),
+            run.env.http.clone(),
+            sink.clone(),
+            optional_choices(&run.env, &run.pack),
+        );
         senv.pool = run.env.pool.clone();
         senv.ctx = Some(run.ctx.clone());
         senv.cancel = Some(run.cancel.clone());
@@ -616,7 +654,7 @@ async fn security_scan(
 ) -> Result<()> {
     let freq = env.config.scan_frequency_for(pack.manifest_url());
     let state = pack.load_verify_state();
-    let sha = pack.manifest_sha256().map(str::to_string);
+    let sha = verify_fingerprint(env, pack);
     if !should_scan(freq, state.as_ref(), sha.as_deref(), now_ms()) {
         mmcl_log::debug(&tf!(
             "log.gameModPackLauncher.skippingScan",

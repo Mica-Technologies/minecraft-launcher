@@ -37,6 +37,7 @@ pub mod managed;
 pub mod manager;
 pub mod meter;
 pub mod modrinth_updates;
+pub mod optional;
 pub mod pack;
 pub mod scan;
 pub mod sidecar;

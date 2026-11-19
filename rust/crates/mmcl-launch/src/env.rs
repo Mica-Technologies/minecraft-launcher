@@ -10,6 +10,7 @@ use futures::future::BoxFuture;
 use mmcl_auth::User;
 use mmcl_core::{DataPaths, GameMode};
 use mmcl_manifest::Side;
+use mmcl_manifest::optional::Choices;
 use mmcl_modpack::{GameModPack, ModpackError, NetHttp, PackHttp, ScanFrequency};
 use mmcl_mojang::HostInfo;
 use mmcl_net::{CancelToken, DownloadPool};
@@ -32,6 +33,10 @@ pub trait LaunchConfig: Send + Sync {
     fn always_verify_on_launch(&self, manifest_url: &str) -> bool;
     /// The effective pre-launch scan frequency for a pack.
     fn scan_frequency_for(&self, manifest_url: Option<&str>) -> ScanFrequency;
+    /// The player's optional-mod choices for a pack (`optionalModsByPack[pack_key]`). No
+    /// default: a wrapper that forgot it would make every sync sweep the optional jars the
+    /// player turned on.
+    fn optional_mod_choices(&self, pack_key: &str) -> Choices;
 }
 
 impl LaunchConfig for mmcl_config::Config {
@@ -56,6 +61,9 @@ impl LaunchConfig for mmcl_config::Config {
             None => self.default_scan_frequency(),
         }
     }
+    fn optional_mod_choices(&self, pack_key: &str) -> Choices {
+        mmcl_config::Config::optional_mod_choices(self, pack_key)
+    }
 }
 
 /// A fixed configuration (tests, tools, and callers without a config store).
@@ -67,6 +75,8 @@ pub struct StaticConfig {
     pub lwjgl_arm_patch: bool,
     pub always_verify: bool,
     pub scan_frequency: ScanFrequency,
+    /// Every pack's optional-mod choices.
+    pub optional_choices: Choices,
 }
 
 impl Default for StaticConfig {
@@ -78,6 +88,7 @@ impl Default for StaticConfig {
             lwjgl_arm_patch: true,
             always_verify: false,
             scan_frequency: ScanFrequency::Disabled,
+            optional_choices: Choices::new(),
         }
     }
 }
@@ -100,6 +111,9 @@ impl LaunchConfig for StaticConfig {
     }
     fn scan_frequency_for(&self, _manifest_url: Option<&str>) -> ScanFrequency {
         self.scan_frequency
+    }
+    fn optional_mod_choices(&self, _pack_key: &str) -> Choices {
+        self.optional_choices.clone()
     }
 }
 

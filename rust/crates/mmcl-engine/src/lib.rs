@@ -41,4 +41,6 @@ pub use mmcl_auth::{DeviceCodePrompt, SignInKind};
 pub use mmcl_config::{ScanFrequency, WindowBounds};
 pub use mmcl_core::GameMode;
 pub use mmcl_crash::{CrashAction, PackFolder};
+/// Optional mods: the manifest entries, the player's choices and the toggle rules.
+pub use mmcl_manifest::optional;
 pub use mmcl_modpack::PackHttp;

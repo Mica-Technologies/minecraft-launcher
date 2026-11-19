@@ -234,7 +234,11 @@ async fn fabric_prepare_merges_classpaths_with_loader_priority() {
 
     // Same manifest, fresh state: the next launch uses the fast path.
     assert_eq!(
-        decide_launch_verify_mode(&fx.env, &pack),
+        decide_launch_verify_mode(
+            &fx.env,
+            &pack,
+            verify_fingerprint(&fx.env, &pack).as_deref()
+        ),
         VerifyMode::FastPath
     );
     let (main, args) =
@@ -731,5 +735,40 @@ fn scan_skip_reasons() {
     assert_eq!(
         scan_skip_reason(ScanFrequency::Daily),
         t!("gameModPackLauncher.scanSkip.recent")
+    );
+}
+
+#[test]
+fn optional_choices_reach_the_sync_and_the_fingerprint_on_a_client_only() {
+    let manifest = PackManifest::parse(
+        r#"{"packName":"Alto","packMods":[],"packOptionalMods":[{"local":"ausm.jar","remote":"r"}]}"#,
+    )
+    .unwrap();
+    let choices: Choices = [("ausm.jar".to_string(), true)].into_iter().collect();
+    let config = crate::env::StaticConfig {
+        optional_choices: choices.clone(),
+        ..Default::default()
+    };
+
+    let mut fx = Fixture::new(GameMode::Client);
+    let pack = fx.pack(manifest.clone());
+    let off = verify_fingerprint(&fx.env, &pack);
+    assert_eq!(
+        off.as_deref(),
+        pack.manifest_sha256(),
+        "nothing on: the manifest hash"
+    );
+    fx.env.config = Arc::new(config.clone());
+    assert_eq!(optional_choices(&fx.env, &pack), choices);
+    let on = verify_fingerprint(&fx.env, &pack);
+    assert!(on.is_some() && on != off, "a toggle forces a full verify");
+
+    let mut server = Fixture::new(GameMode::Server);
+    server.env.config = Arc::new(config);
+    let pack = server.pack(manifest);
+    assert!(optional_choices(&server.env, &pack).is_empty());
+    assert_eq!(
+        verify_fingerprint(&server.env, &pack).as_deref(),
+        pack.manifest_sha256()
     );
 }

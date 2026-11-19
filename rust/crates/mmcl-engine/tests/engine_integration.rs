@@ -822,3 +822,88 @@ fn idle_prefetch_and_page_retry_are_quiet_without_work() {
     assert!(!h.run(move |e| Box::pin(async move { e.prefetch_client_json(&id).await })));
     assert!(!h.engine.retry_sign_in_page(), "no web view sign-in runs");
 }
+
+#[test]
+fn optional_mods_are_switched_in_the_players_config_and_survive_mod_edits() {
+    let h = harness_with(GameMode::Client, Some(Arc::new(JarHttp)));
+    let id = create(&h, "Optional Pack");
+    let e = h.engine.clone();
+    let manifest = e.pack_manifest_text(&id).expect("authored manifest");
+    let mut doc: serde_json::Value = serde_json::from_str(&manifest).unwrap();
+    doc["packOptionalMods"] = serde_json::json!([
+        {"name": "AUSM", "remote": "https://example.invalid/ausm.jar", "local": "AUSM.jar",
+         "description": "Shaders", "requires": ["lib.jar"], "conflictsWith": ["fast.jar"]},
+        {"name": "Lib", "remote": "https://example.invalid/lib.jar", "local": "lib.jar"},
+        {"name": "Fast", "remote": "https://example.invalid/fast.jar", "local": "fast.jar",
+         "defaultEnabled": true}
+    ]);
+    let (i, text) = (id.clone(), doc.to_string());
+    h.run(move |e| Box::pin(async move { e.save_manifest(&i, &text).await }))
+        .unwrap();
+
+    let view = e.optional_mods(&id).expect("installed");
+    assert_eq!(view.mods.len(), 3);
+    assert_eq!(view.enabled.iter().collect::<Vec<_>>(), ["fast.jar"]);
+    assert_eq!(view.player_choice("ausm.jar"), None);
+
+    let r = e.set_optional_mod(&id, "mods/ausm.jar", true).unwrap();
+    assert!(r.applied);
+    assert_eq!(r.changes.len(), 2, "Lib on, Fast off");
+    // Stored under the pack's settings key, in the manifest's spelling.
+    let stored = e.config().optional_mod_choices(id.as_str());
+    assert_eq!(
+        stored
+            .iter()
+            .map(|(k, v)| (k.as_str(), *v))
+            .collect::<Vec<_>>(),
+        [("AUSM.jar", true), ("lib.jar", true), ("fast.jar", false)]
+    );
+    let view = e.optional_mods(&id).unwrap();
+    assert_eq!(
+        view.enabled.iter().collect::<Vec<_>>(),
+        ["ausm.jar", "lib.jar"]
+    );
+    assert_eq!(view.player_choice("fast.jar"), Some(false));
+    assert!(
+        e.set_optional_mod(&id, "ghost.jar", true)
+            .unwrap()
+            .refusal
+            .is_some()
+    );
+
+    // add_mod refuses an optional mod's file; add/remove of other mods keep the list.
+    let i = id.clone();
+    let refused = h.run(move |e| {
+        Box::pin(async move {
+            e.add_mod(
+                &i,
+                "AUSM",
+                "https://example.invalid/a.jar",
+                "ausm.jar",
+                None,
+                None,
+            )
+            .await
+        })
+    });
+    assert!(matches!(refused, Err(EngineError::ModPathTaken { .. })));
+    let i = id.clone();
+    h.run(move |e| {
+        Box::pin(async move {
+            e.add_mod(
+                &i,
+                "Other",
+                "https://example.invalid/o.jar",
+                "o.jar",
+                None,
+                None,
+            )
+            .await
+        })
+    })
+    .unwrap();
+    let i = id.clone();
+    h.run(move |e| Box::pin(async move { e.remove_mod(&i, "o.jar").await }))
+        .unwrap();
+    assert_eq!(e.optional_mods(&id).unwrap().mods.len(), 3);
+}

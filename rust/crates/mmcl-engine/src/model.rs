@@ -692,3 +692,36 @@ pub struct OfficialExportReport {
     /// The installer's own error text from that failure (`{0}` of the body).
     pub loader_installer_message: Option<String>,
 }
+
+/// A pack's optional mods as the player has them ([`crate::Engine::optional_mods`]).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct OptionalModsView {
+    /// The pack's `packOptionalMods`, in manifest order.
+    pub mods: Vec<mmcl_manifest::optional::OptionalMod>,
+    /// The player's stored choices (`optionalModsByPack`), as stored.
+    pub choices: mmcl_manifest::optional::Choices,
+    /// The identity keys of the mods that are on (choices, defaults, requires and conflicts
+    /// applied), in manifest order.
+    pub enabled: indexmap::IndexSet<String>,
+}
+
+impl OptionalModsView {
+    /// Whether the mod with identity key `key` is on.
+    pub fn is_enabled(&self, key: &str) -> bool {
+        self.enabled.contains(key)
+    }
+
+    /// The player's own choice for a mod, `None` when it follows its default. A name stored
+    /// in several spellings counts the last one, as the resolver does.
+    pub fn player_choice(&self, mod_key: &str) -> Option<bool> {
+        mmcl_manifest::optional::normalize_choices(&self.choices)
+            .get(mod_key)
+            .copied()
+    }
+
+    /// The client-side mods, the ones a player can switch (a server-only optional mod is
+    /// never installed on a client).
+    pub fn client_side(&self) -> impl Iterator<Item = &mmcl_manifest::optional::OptionalMod> {
+        self.mods.iter().filter(|m| m.is_client_side())
+    }
+}

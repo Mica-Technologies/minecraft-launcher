@@ -156,6 +156,9 @@ impl mmcl_launch::LaunchConfig for ForceVerify {
     fn scan_frequency_for(&self, manifest_url: Option<&str>) -> mmcl_modpack::ScanFrequency {
         mmcl_launch::LaunchConfig::scan_frequency_for(&self.0, manifest_url)
     }
+    fn optional_mod_choices(&self, pack_key: &str) -> mmcl_manifest::optional::Choices {
+        self.0.optional_mod_choices(pack_key)
+    }
 }
 
 #[derive(Default)]

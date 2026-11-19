@@ -25,6 +25,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use mmcl_i18n::{t, tf};
+use mmcl_manifest::optional::Choices;
 use mmcl_manifest::{ManifestFile, Side};
 use mmcl_net::{AwaitError, CancelToken, DownloadPool, DownloadTracker, await_all};
 use mmcl_progress::{DownloadMeter, ProgressSink};
@@ -52,11 +53,21 @@ pub struct SyncEnv {
     pub ctx: Option<Arc<PrepareContext>>,
     pub mods_timeout: Duration,
     pub cancel: Option<CancelToken>,
+    /// The player's optional-mod choices for this pack (`optionalModsByPack`); ignored on a
+    /// server, which installs only the optional mods that are server-side and on by default.
+    pub optional_choices: Choices,
 }
 
 impl SyncEnv {
-    /// A sync on the shared download pool, using the pack's prepare context.
-    pub fn new(side: Side, http: Arc<dyn PackHttp>, sink: Arc<dyn ProgressSink>) -> Self {
+    /// A sync on the shared download pool, using the pack's prepare context. `optional_choices`
+    /// is required so no caller can forget it: an empty map would sweep the jars of every
+    /// optional mod the player turned on.
+    pub fn new(
+        side: Side,
+        http: Arc<dyn PackHttp>,
+        sink: Arc<dyn ProgressSink>,
+        optional_choices: Choices,
+    ) -> Self {
         SyncEnv {
             side,
             http,
@@ -65,6 +76,7 @@ impl SyncEnv {
             ctx: None,
             mods_timeout: MODS_TIMEOUT,
             cancel: None,
+            optional_choices,
         }
     }
 }
@@ -95,6 +107,9 @@ pub struct FileSync {
     env: SyncEnv,
     meter: Option<Arc<dyn DownloadMeter>>,
     tracker: Option<Arc<DownloadTracker>>,
+    /// The mods this sync installs and keeps on its side: `packMods` plus the optional mods
+    /// that are on ([`crate::optional::mods_for_side`]). `None` exactly when `packMods` is.
+    synced_mods: Option<Vec<ManifestFile>>,
 }
 
 impl FileSync {
@@ -102,8 +117,11 @@ impl FileSync {
     pub fn new(pack: Arc<GameModPack>, env: SyncEnv) -> Self {
         let meter = env.sink.download_tracker();
         let tracker = tracker_of(env.sink.as_ref());
+        // The player's choices only matter on a client: a dedicated server has no one to choose.
+        let synced_mods =
+            crate::optional::mods_for_side(pack.manifest(), env.side, &env.optional_choices);
         if let Some(m) = &meter {
-            let mut total = pack.manifest().mods().len()
+            let mut total = synced_mods.as_ref().map_or(0, Vec::len)
                 + pack.manifest().configs().len()
                 + pack.manifest().initial_files().len();
             if env.side != Side::Server {
@@ -117,7 +135,13 @@ impl FileSync {
             env,
             meter,
             tracker,
+            synced_mods,
         }
+    }
+
+    /// The mods this sync installs and keeps (see [`crate::optional::mods_for_side`]).
+    pub fn synced_mods(&self) -> &[ManifestFile] {
+        self.synced_mods.as_deref().unwrap_or(&[])
     }
 
     fn ctx(&self) -> Arc<PrepareContext> {
@@ -153,9 +177,7 @@ impl FileSync {
     /// (kept disabled, not synced). When both copies exist the enabled one is on the classpath,
     /// so it is verified like any other mod.
     fn user_disabled(&self, mods_dir: &Path) -> HashSet<String> {
-        self.pack
-            .manifest()
-            .mods()
+        self.synced_mods()
             .iter()
             .filter(|m| m.is_required_for(self.env.side))
             .map(|m| self.managed(m, mods_dir.to_path_buf()))
@@ -167,10 +189,11 @@ impl FileSync {
     }
 
     /// Deletes files in `mods/` that are not mods of this pack for this side. Never runs
-    /// without an authoritative mod list. Directories are left alone.
+    /// without an authoritative mod list. Directories are left alone. An optional mod that is
+    /// off is not in the expected set, so a jar left from when it was on is removed here.
     pub fn clear_floating_mods(&self) -> Result<()> {
         let root = self.guard_loaded()?;
-        let Some(mods) = self.pack.manifest().pack_mods.as_ref() else {
+        let Some(mods) = self.synced_mods.as_ref() else {
             mmcl_log::warn_silent(&t!("log.gameModPackFileSync.floatingCleanupSkipped"));
             return Ok(());
         };
@@ -217,7 +240,7 @@ impl FileSync {
         let root = self.guard_loaded()?;
         self.clear_floating_mods()?;
         sink.submit_progress(&t!("fileSync.progress.floatingRemoved"), 30.0);
-        let Some(mods) = self.pack.manifest().pack_mods.clone() else {
+        let Some(mods) = self.synced_mods.clone() else {
             sink.submit_progress(&t!("fileSync.progress.noMods"), 100.0);
             return Ok(());
         };
@@ -294,6 +317,7 @@ impl FileSync {
             self.pack.name(),
             required.len().to_string()
         ));
+        crate::optional::remember_optional_mods(self.pack.manifest(), &root, &self.pack.name());
         Ok(())
     }
 
