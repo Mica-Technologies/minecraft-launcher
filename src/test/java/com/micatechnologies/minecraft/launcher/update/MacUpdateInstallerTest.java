@@ -114,18 +114,22 @@ class MacUpdateInstallerTest
     @Test
     void everyPathIsItsOwnArgument()
     {
+        // Expectations come from the same Path objects, so they hold on Windows too, where
+        // Path.toString() writes these with backslashes.
         Path bundle = Path.of( "/Users/player/Applications/" + NAME );
         Path log = Path.of( "/Users/player/.MicaMinecraftLauncher/logs/update-install.log" );
+        Path script = Path.of( "/tmp/h.sh" );
+        Path incoming = Path.of( "/x/new app" );
+        Path pkg = Path.of( "/x/My Update.pkg" );
+        Path dmg = Path.of( "/x/disk image.dmg" );
 
-        List< String > swap = MacUpdateInstaller.swapCommand( Path.of( "/tmp/h.sh" ), 42, Path.of( "/x/new app" ),
-                                                              bundle, true, log );
+        List< String > swap = MacUpdateInstaller.swapCommand( script, 42, incoming, bundle, true, log );
 
-        assertEquals( List.of( "/bin/sh", "/tmp/h.sh", "swap", "42", "/x/new app", bundle.toString(),
+        assertEquals( List.of( "/bin/sh", script.toString(), "swap", "42", incoming.toString(), bundle.toString(),
                                MacUpdateInstaller.previousFor( bundle ).toString(), "1", log.toString() ), swap );
-        assertEquals( List.of( "/bin/sh", "/tmp/h.sh", "pkg", "7", "/x/My Update.pkg", log.toString() ),
-                      MacUpdateInstaller.pkgCommand( Path.of( "/tmp/h.sh" ), 7, Path.of( "/x/My Update.pkg" ), log ) );
-        assertEquals( "/x/disk image.dmg",
-                      MacUpdateInstaller.attachCommand( Path.of( "/x/disk image.dmg" ), Path.of( "/m" ) ).get( 7 ) );
+        assertEquals( List.of( "/bin/sh", script.toString(), "pkg", "7", pkg.toString(), log.toString() ),
+                      MacUpdateInstaller.pkgCommand( script, 7, pkg, log ) );
+        assertEquals( dmg.toString(), MacUpdateInstaller.attachCommand( dmg, Path.of( "/m" ) ).get( 7 ) );
     }
 
     @Test
@@ -180,6 +184,7 @@ class MacUpdateInstallerTest
     }
 
     @Test
+    @DisabledOnOs( value = OS.WINDOWS, disabledReason = "writes the helper with POSIX file permissions" )
     void installDmgStartsTheSwapHelperForThisProcess( @TempDir Path dir ) throws IOException
     {
         Path bundle = Files.createDirectories( dir.resolve( NAME ) );

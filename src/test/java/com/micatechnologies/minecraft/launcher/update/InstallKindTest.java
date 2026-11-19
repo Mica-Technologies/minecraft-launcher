@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.update;
 
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 
@@ -33,13 +34,22 @@ class InstallKindTest
     private static final String LINUX = "Linux";
     private static final String LOCAL_APP_DATA = "C:\\Users\\player\\AppData\\Local";
 
-    /** Facts with nothing on disk and nothing writable unless listed. */
+    /**
+     * Facts with nothing on disk and nothing writable unless listed. The listed paths use forward
+     * slashes; the fakes compare that way so the macOS and Linux cases also run on Windows, where
+     * {@code Path.toString()} uses backslashes.
+     */
     private static InstallKind detect( String os, Map< String, String > env, String appPath, String codeSource,
                                        Set< String > existing, Set< String > writable )
     {
         return InstallKind.detect( new InstallKind.Facts( os, env, appPath, codeSource, false,
-                                                          p -> existing.contains( p.toString() ),
-                                                          p -> writable.contains( p.toString() ) ) );
+                                                          p -> existing.contains( slashes( p ) ),
+                                                          p -> writable.contains( slashes( p ) ) ) );
+    }
+
+    private static String slashes( Path path )
+    {
+        return path.toString().replace( '\\', '/' );
     }
 
     private static InstallKind detect( String os, Map< String, String > env, String appPath )
