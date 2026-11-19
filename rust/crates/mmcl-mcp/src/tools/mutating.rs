@@ -1,6 +1,6 @@
 // Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
 
-//! The eight state-changing tools (Java `MutatingTools`), registered only when the second
+//! The nine state-changing tools (Java `MutatingTools`), registered only when the second
 //! opt-in (`mcpAllowStateChanges`) is on. Each one's content gate runs before the user is
 //! asked, so a malformed request never becomes a prompt.
 
@@ -18,12 +18,13 @@ use crate::approval::RiskClass;
 use crate::{BoxError, McpError};
 
 /// Registration order (appended after the read-only tools).
-pub const TOOL_NAMES: [&str; 8] = [
+pub const TOOL_NAMES: [&str; 9] = [
     "install_modpack",
     "create_modpack",
     "fork_modpack",
     "add_mod_to_modpack",
     "remove_mod_from_modpack",
+    "set_optional_mod",
     "uninstall_modpack",
     "launch_modpack",
     "stop_game",
@@ -34,7 +35,7 @@ pub fn tool_names() -> Vec<String> {
     TOOL_NAMES.iter().map(|s| s.to_string()).collect()
 }
 
-/// Registers the eight tools in [`TOOL_NAMES`] order.
+/// Registers the nine tools in [`TOOL_NAMES`] order.
 pub fn register_all(
     reg: &mut ToolRegistry,
     view: Arc<dyn LauncherView>,
@@ -46,6 +47,7 @@ pub fn register_all(
         Kind::Fork,
         Kind::AddMod,
         Kind::RemoveMod,
+        Kind::SetOptionalMod,
         Kind::Uninstall,
         Kind::Launch,
         Kind::Stop,
@@ -57,6 +59,50 @@ pub fn register_all(
         }))?;
     }
     Ok(())
+}
+
+/// The `enabled` argument of `set_optional_mod`: a JSON boolean or the text `true` /
+/// `false` (any case); `None` when absent or anything else.
+fn enabled_arg(args: &Args) -> Option<bool> {
+    match args.get("enabled")? {
+        Value::Bool(b) => Some(*b),
+        Value::String(s) if s.trim().eq_ignore_ascii_case("true") => Some(true),
+        Value::String(s) if s.trim().eq_ignore_ascii_case("false") => Some(false),
+        _ => None,
+    }
+}
+
+/// Why a `set_optional_mod` call is refused before the consent prompt: missing arguments, an
+/// unknown pack, a pack without optional mods, or a name that is none of its optional mods
+/// (the refusal lists the real ones).
+fn set_optional_mod_problem(view: &dyn LauncherView, args: &Args) -> Option<String> {
+    let pack = string_arg(args, "friendlyName");
+    let wanted = string_arg(args, "mod");
+    if pack.is_empty() || wanted.is_empty() {
+        return Some("friendlyName, mod and enabled are all required.".into());
+    }
+    if enabled_arg(args).is_none() {
+        return Some("enabled must be true or false.".into());
+    }
+    if view.pack(&pack).is_none() {
+        return Some(unknown_pack(&pack));
+    }
+    let mods = view.optional_mods_of(&pack).unwrap_or_default();
+    if mods.is_empty() {
+        return Some(format!("\"{pack}\" has no optional mods."));
+    }
+    let key = mmcl_engine::optional::key_of(&wanted);
+    if mods
+        .iter()
+        .any(|m| mmcl_engine::optional::key_of(&m.local_name) == key)
+    {
+        return None;
+    }
+    let names: Vec<&str> = mods.iter().map(|m| m.local_name.as_str()).collect();
+    Some(format!(
+        "\"{pack}\" has no optional mod named \"{wanted}\". Its optional mods are: {}. Call list_optional_mods for details.",
+        names.join(", ")
+    ))
 }
 
 /// An object schema whose properties are all strings; `required` lists the required ones.
@@ -254,6 +300,7 @@ enum Kind {
     Fork,
     AddMod,
     RemoveMod,
+    SetOptionalMod,
     Uninstall,
     Launch,
     Stop,
@@ -336,6 +383,7 @@ impl MutatingTool {
                 }
                 None
             }
+            Kind::SetOptionalMod => set_optional_mod_problem(self.view.as_ref(), args),
             Kind::Uninstall => {
                 let name = string_arg(args, "friendlyName");
                 if name.is_empty() {
@@ -445,6 +493,11 @@ impl MutatingTool {
                 )))
             }
             Kind::RemoveMod => result_of(Some(a.remove_mod(&s("friendlyName"), &s("mod")))),
+            Kind::SetOptionalMod => result_of(Some(a.set_optional_mod(
+                &s("friendlyName"),
+                &mmcl_engine::optional::normalize_mod_local_path(&s("mod")),
+                enabled_arg(args) == Some(true),
+            ))),
             Kind::Uninstall => result_of(Some(a.uninstall(&s("friendlyName")))),
             Kind::Launch => {
                 let account = s("account");
@@ -477,6 +530,7 @@ impl Tool for MutatingTool {
             Kind::Fork => "Fork modpack",
             Kind::AddMod => "Add mod to modpack",
             Kind::RemoveMod => "Remove mod from modpack",
+            Kind::SetOptionalMod => "Set optional mod",
             Kind::Uninstall => "Uninstall modpack",
             Kind::Launch => "Launch modpack",
             Kind::Stop => "Stop game",
@@ -499,6 +553,9 @@ impl Tool for MutatingTool {
             }
             Kind::RemoveMod => {
                 "Removes a mod from a modpack's manifest, identified by its local path, display name, or Modrinth slug. The file is removed on the next sync."
+            }
+            Kind::SetOptionalMod => {
+                "Turns one of a modpack's optional mods on or off for the player. Turning one on also turns on the optional mods it requires and turns off the ones it conflicts with; turning one off also turns off the ones that need it. The result names every mod that changed. This is the player's setting, not a manifest edit, so it works for any installed pack. It takes effect the next time the pack launches or syncs, which downloads or removes the jars."
             }
             Kind::Uninstall => {
                 "Permanently removes a modpack and deletes its files, including any worlds saved inside it. This cannot be undone."
@@ -569,6 +626,23 @@ impl Tool for MutatingTool {
                 ],
                 &["friendlyName", "mod"],
             ),
+            Kind::SetOptionalMod => {
+                let mut schema = schema_of(
+                    &[
+                        ("friendlyName", "The modpack."),
+                        (
+                            "mod",
+                            "The optional mod's file name as list_optional_mods reports it (localName), e.g. ausm.jar. A leading mods/ is ignored.",
+                        ),
+                    ],
+                    &["friendlyName", "mod", "enabled"],
+                );
+                schema["properties"]["enabled"] = json!({
+                    "type": "boolean",
+                    "description": "true to turn the mod on, false to turn it off."
+                });
+                schema
+            }
             Kind::Uninstall => schema_of(
                 &[("friendlyName", "The modpack to uninstall.")],
                 &["friendlyName"],
@@ -673,6 +747,8 @@ mod tests {
             "fork_modpack",
             "add_mod_to_modpack",
             "remove_mod_from_modpack",
+            // Same class as add_mod_to_modpack: it decides which jars the next sync installs.
+            "set_optional_mod",
         ] {
             assert_eq!(risk(n), RiskClass::Mutating);
         }
@@ -1139,5 +1215,106 @@ mod tests {
             result_of(Some(Outcome::ok("yes"))).raw_text_blocks()[0],
             "yes"
         );
+    }
+
+    // ---- set_optional_mod ----
+
+    fn optional_fx() -> Fx {
+        let f = fx();
+        f.view.optional.lock().push((
+            "Alto".into(),
+            vec![
+                crate::tools::OptionalModInfo {
+                    local_name: "ausm.jar".into(),
+                    name: "AUSM".into(),
+                    client_side: true,
+                    ..Default::default()
+                },
+                crate::tools::OptionalModInfo {
+                    local_name: "Lib.jar".into(),
+                    name: "Lib".into(),
+                    enabled: true,
+                    default_enabled: true,
+                    client_side: true,
+                    server_side: true,
+                    ..Default::default()
+                },
+            ],
+        ));
+        f
+    }
+
+    fn opt(pack: &str, m: &str, enabled: Value) -> Value {
+        let mut a = json!({"friendlyName": pack, "mod": m});
+        if !enabled.is_null() {
+            a["enabled"] = enabled;
+        }
+        a
+    }
+
+    #[test]
+    fn set_optional_mod_accepts_a_known_mod_in_any_spelling() {
+        let f = optional_fx();
+        let g = |m: &str, e: Value| gate(&f, "set_optional_mod", opt("Alto", m, e));
+        assert_eq!(g("ausm.jar", json!(true)), None);
+        assert_eq!(g("mods/AUSM.jar", json!(false)), None);
+        assert_eq!(g("lib.jar", json!("false")), None);
+        assert_eq!(g("lib.jar", json!(" TRUE ")), None);
+    }
+
+    #[test]
+    fn set_optional_mod_refuses_before_consent() {
+        let f = optional_fx();
+        let g = |p: &str, m: &str, e: Value| gate(&f, "set_optional_mod", opt(p, m, e));
+        assert!(g("Nope", "ausm.jar", json!(true)).is_some(), "unknown pack");
+        assert!(g("Alto", "", json!(true)).is_some(), "no mod");
+        assert_eq!(
+            g("Alto", "ausm.jar", Value::Null).as_deref(),
+            Some("enabled must be true or false.")
+        );
+        assert!(g("Alto", "ausm.jar", json!("maybe")).is_some());
+        assert!(g("Alto", "ausm.jar", json!(1)).is_some());
+        let unknown = g("Alto", "ghost.jar", json!(true)).unwrap();
+        assert_eq!(
+            unknown,
+            "\"Alto\" has no optional mod named \"ghost.jar\". Its optional mods are: ausm.jar, Lib.jar. Call list_optional_mods for details."
+        );
+        assert_eq!(
+            g("Remote Pack", "ausm.jar", json!(true)).as_deref(),
+            Some("\"Remote Pack\" has no optional mods.")
+        );
+        assert!(f.actions.calls.lock().is_empty());
+    }
+
+    #[test]
+    fn set_optional_mod_passes_the_normalised_name_to_the_action() {
+        let f = optional_fx();
+        assert!(
+            !run(
+                &f,
+                "set_optional_mod",
+                opt("Alto", " mods/AUSM.jar", json!(true))
+            )
+            .is_error()
+        );
+        assert!(
+            !run(
+                &f,
+                "set_optional_mod",
+                opt("Alto", "lib.jar", json!("false"))
+            )
+            .is_error()
+        );
+        assert_eq!(
+            *f.actions.calls.lock(),
+            ["optional Alto AUSM.jar true", "optional Alto lib.jar false"]
+        );
+    }
+
+    #[test]
+    fn set_optional_mod_schema_has_a_boolean_enabled() {
+        let s = fx().reg.find("set_optional_mod").unwrap().input_schema();
+        assert_eq!(s["properties"]["enabled"]["type"], "boolean");
+        assert_eq!(s["required"], json!(["friendlyName", "mod", "enabled"]));
     }
 }

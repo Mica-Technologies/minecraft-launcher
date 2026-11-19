@@ -34,7 +34,7 @@ use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
-use crate::document::normalize_mod_local_path;
+pub use crate::document::normalize_mod_local_path;
 use crate::files::{ManifestFile, Side};
 use crate::lenient;
 

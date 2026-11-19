@@ -48,6 +48,9 @@ impl LauncherView for View {
     fn running_games(&self) -> Vec<RunningGame> {
         Vec::new()
     }
+    fn optional_mods_of(&self, _: &str) -> Option<Vec<mmcl_mcp::tools::OptionalModInfo>> {
+        Some(Vec::new())
+    }
 }
 
 /// Allows everything except `get_crash_report` (denied) and `get_modpack_manifest`, which

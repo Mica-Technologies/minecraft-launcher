@@ -14,6 +14,8 @@ pub(crate) struct StubView {
     pub footprint: Mutex<Option<PackFootprint>>,
     pub status: Mutex<LauncherStatus>,
     pub running: Mutex<Vec<RunningGame>>,
+    /// Optional mods by friendly name; a known pack without an entry has none.
+    pub optional: Mutex<Vec<(String, Vec<OptionalModInfo>)>>,
 }
 
 impl StubView {
@@ -72,6 +74,17 @@ impl LauncherView for StubView {
     fn running_games(&self) -> Vec<RunningGame> {
         self.running.lock().clone()
     }
+    fn optional_mods_of(&self, n: &str) -> Option<Vec<OptionalModInfo>> {
+        self.pack(n)?;
+        Some(
+            self.optional
+                .lock()
+                .iter()
+                .find(|(k, _)| k == n)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_default(),
+        )
+    }
 }
 
 /// Records every call; answers `ok` with a fixed message unless told otherwise.
@@ -128,6 +141,9 @@ impl LauncherActions for StubActions {
     }
     fn remove_mod(&self, p: &str, i: &str) -> Outcome {
         self.out(format!("remove {p} {i}"))
+    }
+    fn set_optional_mod(&self, p: &str, l: &str, on: bool) -> Outcome {
+        self.out(format!("optional {p} {l} {on}"))
     }
 }
 

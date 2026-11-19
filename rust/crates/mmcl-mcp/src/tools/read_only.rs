@@ -1,6 +1,6 @@
 // Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
 
-//! The seven read-only tools (Java `ReadOnlyTools`), always registered when the server runs.
+//! The eight read-only tools (Java `ReadOnlyTools`), always registered when the server runs.
 
 use std::sync::Arc;
 
@@ -14,7 +14,7 @@ use crate::approval::RiskClass;
 use crate::{BoxError, McpError};
 
 /// Registration order.
-pub const TOOL_NAMES: [&str; 7] = [
+pub const TOOL_NAMES: [&str; 8] = [
     "list_modpacks",
     "get_modpack_info",
     "get_modpack_manifest",
@@ -22,6 +22,7 @@ pub const TOOL_NAMES: [&str; 7] = [
     "diagnose_launch_failure",
     "get_launcher_status",
     "list_running_games",
+    "list_optional_mods",
 ];
 
 const NAME_REQUIRED: &str = "A friendlyName argument is required.";
@@ -40,7 +41,7 @@ pub fn pack_name_schema() -> Value {
     })
 }
 
-/// Registers the seven tools in [`TOOL_NAMES`] order.
+/// Registers the eight tools in [`TOOL_NAMES`] order.
 pub fn register_all(reg: &mut ToolRegistry, view: Arc<dyn LauncherView>) -> Result<(), McpError> {
     for kind in [
         Kind::ListModpacks,
@@ -50,6 +51,7 @@ pub fn register_all(reg: &mut ToolRegistry, view: Arc<dyn LauncherView>) -> Resu
         Kind::DiagnoseLaunchFailure,
         Kind::GetLauncherStatus,
         Kind::ListRunningGames,
+        Kind::ListOptionalMods,
     ] {
         reg.register(Arc::new(ReadOnlyTool {
             kind,
@@ -68,6 +70,7 @@ enum Kind {
     DiagnoseLaunchFailure,
     GetLauncherStatus,
     ListRunningGames,
+    ListOptionalMods,
 }
 
 struct ReadOnlyTool {
@@ -193,6 +196,28 @@ impl ReadOnlyTool {
                     .collect();
                 ToolResult::json(&json!({ "games": games }))
             }
+            Kind::ListOptionalMods => {
+                let name = string_arg(args, "friendlyName");
+                if name.is_empty() {
+                    return ToolResult::error(NAME_REQUIRED);
+                }
+                let Some(mods) = v.optional_mods_of(&name) else {
+                    return ToolResult::error(unknown_pack(&name));
+                };
+                let list: Vec<Value> = mods.iter().map(optional_mod_entry).collect();
+                let count = list.len();
+                let mut m = Map::new();
+                m.insert("friendlyName".into(), Value::String(name));
+                m.insert("optionalMods".into(), Value::Array(list));
+                m.insert("count".into(), Value::from(count));
+                m.insert(
+                    "note".into(),
+                    Value::String(
+                        "Changes made with set_optional_mod take effect the next time the pack launches or syncs.".into(),
+                    ),
+                );
+                ToolResult::json(&Value::Object(m))
+            }
         }
     }
 }
@@ -207,6 +232,7 @@ impl Tool for ReadOnlyTool {
             Kind::DiagnoseLaunchFailure => "diagnose_launch_failure",
             Kind::GetLauncherStatus => "get_launcher_status",
             Kind::ListRunningGames => "list_running_games",
+            Kind::ListOptionalMods => "list_optional_mods",
         }
     }
 
@@ -219,6 +245,7 @@ impl Tool for ReadOnlyTool {
             Kind::DiagnoseLaunchFailure => "Diagnose launch failure",
             Kind::GetLauncherStatus => "Get launcher status",
             Kind::ListRunningGames => "List running games",
+            Kind::ListOptionalMods => "List optional mods",
         }
     }
 
@@ -245,6 +272,9 @@ impl Tool for ReadOnlyTool {
             Kind::ListRunningGames => {
                 "Lists the games that are launching or running: the modpack, the account playing it (username), whether it is still preparing or running, and how long it has run in seconds."
             }
+            Kind::ListOptionalMods => {
+                "Lists a modpack's optional mods: mods the pack offers that each player switches on or off. For each: its file name (localName, the identifier set_optional_mod takes), display name, description, whether it is on now, whether it is on by default, the player's own choice (on, off, or default when following the default), its sides, and the file names it requires and conflicts with."
+            }
         }
     }
 
@@ -264,6 +294,28 @@ impl Tool for ReadOnlyTool {
     fn invoke(&self, _ctx: &CallContext, args: &Args) -> Result<ToolResult, BoxError> {
         Ok(self.invoke_inner(args))
     }
+}
+
+/// One `list_optional_mods` entry: `localName, name, description, enabled, defaultEnabled,
+/// playerChoice (on/off/default), clientSide, serverSide, requires, conflictsWith`.
+fn optional_mod_entry(o: &super::OptionalModInfo) -> Value {
+    let mut m = Map::new();
+    m.insert("localName".into(), Value::String(o.local_name.clone()));
+    m.insert("name".into(), Value::String(o.name.clone()));
+    m.insert("description".into(), Value::String(o.description.clone()));
+    m.insert("enabled".into(), Value::Bool(o.enabled));
+    m.insert("defaultEnabled".into(), Value::Bool(o.default_enabled));
+    let choice = match o.player_choice {
+        None => "default",
+        Some(true) => "on",
+        Some(false) => "off",
+    };
+    m.insert("playerChoice".into(), Value::String(choice.into()));
+    m.insert("clientSide".into(), Value::Bool(o.client_side));
+    m.insert("serverSide".into(), Value::Bool(o.server_side));
+    m.insert("requires".into(), json!(o.requires));
+    m.insert("conflictsWith".into(), json!(o.conflicts_with));
+    Value::Object(m)
 }
 
 #[cfg(test)]
@@ -289,7 +341,7 @@ mod tests {
     }
 
     #[test]
-    fn registers_seven_read_only_tools_in_order() {
+    fn registers_eight_read_only_tools_in_order() {
         let (r, _) = registry(StubView::default());
         let names: Vec<String> = r.all().iter().map(|t| t.name().to_string()).collect();
         assert_eq!(names, TOOL_NAMES);
@@ -495,5 +547,61 @@ mod tests {
             r.find("get_crash_report").unwrap().input_schema()["required"],
             json!(["friendlyName"])
         );
+    }
+
+    #[test]
+    fn list_optional_mods_reports_each_mod_and_the_players_choice() {
+        let v = StubView::with_packs(vec![pack("Alto", true)]);
+        v.optional.lock().push((
+            "Alto".into(),
+            vec![
+                crate::tools::OptionalModInfo {
+                    local_name: "ausm.jar".into(),
+                    name: "AUSM".into(),
+                    description: "Shaders".into(),
+                    enabled: true,
+                    player_choice: Some(true),
+                    client_side: true,
+                    requires: vec!["lib.jar".into()],
+                    conflicts_with: vec!["fast.jar".into()],
+                    ..Default::default()
+                },
+                crate::tools::OptionalModInfo {
+                    local_name: "lib.jar".into(),
+                    name: "Lib".into(),
+                    enabled: true,
+                    client_side: true,
+                    server_side: true,
+                    ..Default::default()
+                },
+            ],
+        ));
+        let (r, _) = registry(v);
+        let out = parsed(&call(
+            &r,
+            "list_optional_mods",
+            json!({"friendlyName": "Alto"}),
+        ));
+        assert_eq!(out["count"], 2);
+        let ausm = &out["optionalMods"][0];
+        assert_eq!(ausm["localName"], "ausm.jar");
+        assert_eq!(ausm["enabled"], true);
+        assert_eq!(ausm["playerChoice"], "on");
+        assert_eq!(ausm["requires"][0], "lib.jar");
+        assert_eq!(ausm["conflictsWith"][0], "fast.jar");
+        let lib = &out["optionalMods"][1];
+        assert_eq!(
+            lib["playerChoice"], "default",
+            "no choice means following the default"
+        );
+        assert_eq!(lib["serverSide"], true);
+        assert!(out["note"].as_str().unwrap().contains("next time"));
+    }
+
+    #[test]
+    fn list_optional_mods_refuses_an_unknown_pack() {
+        let (r, _) = registry(StubView::default());
+        assert!(call(&r, "list_optional_mods", json!({"friendlyName": "Nope"})).is_error());
+        assert!(call(&r, "list_optional_mods", json!({})).is_error());
     }
 }

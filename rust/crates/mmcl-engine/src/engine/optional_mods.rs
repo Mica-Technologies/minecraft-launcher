@@ -15,12 +15,12 @@ use crate::event::EngineEvent;
 use crate::model::{OptionalModsView, PackId};
 
 impl Engine {
-    /// The optional mods of an installed pack, the player's stored choices and which mods are
-    /// on. Reads the manifest from the cache when the pack is only a stub (an install-index
-    /// entry whose manifest was never loaded), so call it off the UI thread. `None` when the
-    /// pack is not installed.
+    /// The optional mods of an installed (else available) pack, the player's stored choices and
+    /// which mods are on. Reads the manifest from the cache when the pack is only a stub (an
+    /// install-index entry whose manifest was never loaded), so call it off the UI thread.
+    /// `None` when no such pack is known.
     pub fn optional_mods(&self, id: &PackId) -> Option<OptionalModsView> {
-        let pack = self.installed_pack(id)?;
+        let pack = self.any_pack(id)?;
         let mods = self.optional_mods_of(id, &pack);
         let choices = self.optional_choices_of(&pack);
         let enabled = optional::resolve_enabled(&mods, &choices);

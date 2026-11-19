@@ -19,8 +19,8 @@ use mmcl_engine::{Engine, EngineError, LaunchOptions, LaunchRefusal, PackId, Ses
 use crate::approval::ConsentPrompt;
 use crate::bootstrap::{McpConfig, McpHost};
 use crate::tools::{
-    CrashInfo, LauncherActions, LauncherStatus, LauncherView, Outcome, PackFootprint, PackSummary,
-    RunningGame,
+    CrashInfo, LauncherActions, LauncherStatus, LauncherView, OptionalModInfo, Outcome,
+    PackFootprint, PackSummary, RunningGame,
 };
 use crate::{BoxError, logging, now_ms};
 
@@ -219,6 +219,31 @@ impl LauncherView for EngineView {
             })
             .collect()
     }
+
+    fn optional_mods_of(&self, friendly_name: &str) -> Option<Vec<OptionalModInfo>> {
+        let id = self.any_id(friendly_name)?;
+        let view = self.engine.optional_mods(&id)?;
+        Some(
+            view.mods
+                .iter()
+                .map(|m| {
+                    let key = m.key();
+                    OptionalModInfo {
+                        local_name: m.local_name(),
+                        name: m.display_name(),
+                        description: m.description().to_string(),
+                        enabled: view.is_enabled(&key),
+                        default_enabled: m.default_enabled,
+                        player_choice: view.player_choice(&key),
+                        client_side: m.is_client_side(),
+                        server_side: m.is_server_side(),
+                        requires: m.requires().to_vec(),
+                        conflicts_with: m.conflicts_with().to_vec(),
+                    }
+                })
+                .collect(),
+        )
+    }
 }
 
 /// [`LauncherActions`] over the engine.
@@ -293,6 +318,33 @@ impl EngineActions {
 }
 
 impl LauncherActions for EngineActions {
+    /// Switches an optional mod through the same rules as the detail dialog. Writes the
+    /// player's config, not the manifest, so it does not go through [`EngineActions::edit`]: a
+    /// pack installed from a remote manifest has optional mods the player may switch too.
+    fn set_optional_mod(&self, friendly_name: &str, local_name: &str, enabled: bool) -> Outcome {
+        let Some(p) = self.installed(friendly_name) else {
+            return Self::not_installed(friendly_name);
+        };
+        let key = mmcl_engine::optional::key_of(local_name);
+        let name = self
+            .engine
+            .optional_mods(&p.id)
+            .and_then(|v| {
+                v.mods
+                    .iter()
+                    .find(|m| m.key() == key)
+                    .map(|m| m.display_name())
+            })
+            .unwrap_or_else(|| local_name.to_string());
+        match self.engine.set_optional_mod(&p.id, local_name, enabled) {
+            Ok(result) => describe_toggle(&result, friendly_name, &name, enabled),
+            Err(e) => {
+                logging::warn_with("log.mcpActions.setOptionalModFailed", &[friendly_name], &e);
+                Outcome::failed("The optional mod could not be changed.")
+            }
+        }
+    }
+
     fn install_from_url(&self, url: &str) -> Outcome {
         let engine = self.engine.clone();
         let u = url.to_string();
@@ -598,6 +650,55 @@ fn account_problem_message(key: &str) -> String {
     }
 }
 
+/// Words a toggle's outcome for a model (Java `LiveMcpLauncherActions.describeToggle`): the
+/// mod's new state, every other optional mod that switched and why, and when it takes effect.
+pub(crate) fn describe_toggle(
+    result: &mmcl_engine::optional::ToggleResult,
+    friendly_name: &str,
+    name: &str,
+    enabled: bool,
+) -> Outcome {
+    use mmcl_engine::optional::Reason;
+    if !result.applied {
+        return Outcome::failed(match result.refusal {
+            Some(Reason::Unknown) => format!(
+                "\"{friendly_name}\" has no optional mod named \"{name}\". Nothing was changed."
+            ),
+            _ => format!(
+                "\"{name}\" cannot be turned on: the optional mods it requires conflict with each other. Nothing was changed."
+            ),
+        });
+    }
+    let mut message = format!(
+        "Turned \"{name}\" {} in \"{friendly_name}\".",
+        if enabled { "on" } else { "off" }
+    );
+    for change in &result.changes {
+        let cause = Some(change.cause.as_str()).filter(|c| !c.is_empty());
+        message.push(' ');
+        message.push_str(&match change.reason {
+            Reason::RequiredBy => match cause {
+                Some(c) => format!(
+                    "Also turned on \"{}\", which \"{c}\" requires.",
+                    change.name
+                ),
+                None => format!("Also turned on \"{}\".", change.name),
+            },
+            Reason::ConflictsWith => format!(
+                "Turned off \"{}\", which conflicts with \"{}\".",
+                change.name,
+                cause.unwrap_or("")
+            ),
+            _ => match cause {
+                Some(c) => format!("Turned off \"{}\", which requires \"{c}\".", change.name),
+                None => format!("Turned off \"{}\".", change.name),
+            },
+        });
+    }
+    message.push_str(" Takes effect the next time the pack launches or syncs.");
+    Outcome::ok(message)
+}
+
 /// [`McpConfig`] over the engine's config.
 #[derive(Clone)]
 pub struct EngineMcpConfig {
@@ -796,5 +897,44 @@ mod tests {
         let remove = actions.remove_mod("Nope", "jei");
         assert!(!remove.ok);
         assert_eq!(remove.message, "No modpack named \"Nope\" is installed.");
+    }
+
+    /// Port of `LiveMcpLauncherActionsTest.anOptionalModToggleNamesWhatElseChanged`.
+    #[test]
+    fn an_optional_mod_toggle_names_what_else_changed() {
+        use mmcl_engine::optional::{OptionalMod, toggle};
+        let m = |name: &str, local: &str, on: bool, req: &[&str], conf: &[&str]| OptionalMod {
+            name: Some(name.into()),
+            remote: Some(format!("https://example.test/{local}")),
+            local: Some(local.into()),
+            default_enabled: on,
+            requires: Some(req.iter().map(|s| s.to_string()).collect()),
+            conflicts_with: Some(conf.iter().map(|s| s.to_string()).collect()),
+            ..Default::default()
+        };
+        let mods = [
+            m("AUSM", "ausm.jar", false, &["lib.jar"], &["fast.jar"]),
+            m("Lib", "lib.jar", false, &[], &[]),
+            m("Fast", "fast.jar", true, &[], &[]),
+        ];
+        let none = Default::default();
+        let o = describe_toggle(
+            &toggle(&mods, &none, "ausm.jar", true),
+            "Alto",
+            "AUSM",
+            true,
+        );
+        assert!(o.ok);
+        assert_eq!(
+            o.message,
+            "Turned \"AUSM\" on in \"Alto\". Also turned on \"Lib\", which \"AUSM\" requires. Turned off \"Fast\", which conflicts with \"AUSM\". Takes effect the next time the pack launches or syncs."
+        );
+        let refused = describe_toggle(
+            &toggle(&mods, &none, "ghost.jar", true),
+            "Alto",
+            "ghost.jar",
+            true,
+        );
+        assert!(!refused.ok);
     }
 }

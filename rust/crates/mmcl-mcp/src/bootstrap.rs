@@ -428,14 +428,17 @@ mod tests {
     }
 
     #[test]
-    fn describe_tools_lists_all_fifteen_regardless_of_config() {
+    fn describe_tools_lists_all_seventeen_regardless_of_config() {
         let (b, _) = boot(Cfg::default());
         let d = b.describe_tools();
-        assert_eq!(d.len(), 15);
+        assert_eq!(d.len(), 17);
         assert_eq!(d[0].name, "list_modpacks");
-        assert_eq!(d[14].name, "stop_game");
-        assert_eq!(d[12].risk_class, RiskClass::Destructive);
-        assert_eq!(d[13].risk_class, RiskClass::Execute);
+        assert_eq!(d[7].name, "list_optional_mods");
+        assert_eq!(d[13].name, "set_optional_mod");
+        assert_eq!(d[13].risk_class, RiskClass::Mutating);
+        assert_eq!(d[16].name, "stop_game");
+        assert_eq!(d[14].risk_class, RiskClass::Destructive);
+        assert_eq!(d[15].risk_class, RiskClass::Execute);
         assert!(!d[0].title.is_empty());
     }
 

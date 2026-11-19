@@ -306,6 +306,27 @@ pub struct RunningGame {
     pub uptime_seconds: u64,
 }
 
+/// One of a pack's optional mods, as the player has it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct OptionalModInfo {
+    /// The file name in the pack's `mods` folder, normalised (no leading `mods/`): the
+    /// identifier `set_optional_mod` takes.
+    pub local_name: String,
+    pub name: String,
+    pub description: String,
+    /// On for this player now (choice, default, requires and conflicts applied).
+    pub enabled: bool,
+    /// On for a player who has not chosen.
+    pub default_enabled: bool,
+    /// The player's stored choice, `None` when following the default.
+    pub player_choice: Option<bool>,
+    pub client_side: bool,
+    /// A dedicated server may install it (only when also on by default).
+    pub server_side: bool,
+    pub requires: Vec<String>,
+    pub conflicts_with: Vec<String>,
+}
+
 /// The only read surface tools and resources get.
 pub trait LauncherView: Send + Sync {
     /// Installed packs first, then available ones; one entry per friendly name.
@@ -324,6 +345,9 @@ pub trait LauncherView: Send + Sync {
     fn status(&self) -> LauncherStatus;
     /// Oldest first.
     fn running_games(&self) -> Vec<RunningGame>;
+    /// A pack's optional mods in manifest order (empty when it has none); `None` when the
+    /// pack is unknown.
+    fn optional_mods_of(&self, friendly_name: &str) -> Option<Vec<OptionalModInfo>>;
 }
 
 /// The result of an action. Messages are model-facing and never carry exception text.
@@ -377,6 +401,10 @@ pub trait LauncherActions: Send + Sync {
         sha256: Option<&str>,
     ) -> Outcome;
     fn remove_mod(&self, friendly_name: &str, identifier: &str) -> Outcome;
+    /// Turns one of an installed pack's optional mods on or off for the player, applying its
+    /// `requires` and `conflictsWith`. A player setting in the launcher config: the manifest
+    /// is not changed. `local_name` is already normalised. Takes effect on the next launch.
+    fn set_optional_mod(&self, friendly_name: &str, local_name: &str, enabled: bool) -> Outcome;
 }
 
 /// A string argument: absent or non-primitive → `""`, then trimmed.

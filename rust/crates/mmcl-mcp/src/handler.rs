@@ -632,7 +632,7 @@ mod tests {
         let f = fx(true);
         init(&f);
         let r = send(&f, r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#).unwrap();
-        assert_eq!(r["result"]["tools"].as_array().unwrap().len(), 8);
+        assert_eq!(r["result"]["tools"].as_array().unwrap().len(), 9);
     }
 
     #[test]
