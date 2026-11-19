@@ -70,6 +70,23 @@ final class SignInPanel
     private final AtomicBoolean    waiting = new AtomicBoolean( false );
     private       boolean          redeeming;
 
+    // ---- Sign in with a code (microsoft.com/link), plan decision D16 ----
+    private final VBox             codePane;
+    private final Label            codeLabel;
+    private final Label            codeWhere;
+    private final Label            codeStatus;
+    private final javafx.scene.image.ImageView codeQr = new javafx.scene.image.ImageView();
+    private final Label            codeScanHint;
+    private final LoadingIndicator codeSpinner;
+    private final MFXButton        codeRetryButton;
+    private final MFXButton        modeSwitch;
+    /** Whether the code pane is showing instead of Microsoft's page; first on a Steam Deck. */
+    private       boolean          codeMode = com.micatechnologies.minecraft.launcher.steam.SteamDeck.isSteamDeck();
+    /** Bumped on every new code or mode change, so a superseded wait drops its result. */
+    private final java.util.concurrent.atomic.AtomicInteger codeGeneration =
+            new java.util.concurrent.atomic.AtomicInteger();
+    private       java.util.function.Consumer< String > onDeviceToken = token -> { };
+
     /**
      * Builds the card.
      *
@@ -121,7 +138,17 @@ final class SignInPanel
         dismissButton.setPrefHeight( 32 );
         dismissButton.setMinWidth( 96 );
 
-        VBox aside = new VBox( 14, brand, heading, subtitle, points, grow, remember, statusLabel, dismissButton );
+        modeSwitch = new MFXButton();
+        modeSwitch.getStyleClass().add( "heroCardSecondaryBtn" );
+        modeSwitch.setPrefHeight( 32 );
+        modeSwitch.setOnAction( e -> {
+            codeMode = !codeMode;
+            clearStatus();
+            loadSignIn();
+        } );
+
+        VBox aside = new VBox( 14, brand, heading, subtitle, points, grow, remember, statusLabel, modeSwitch,
+                               dismissButton );
         aside.getStyleClass().add( "signInAside" );
         aside.setPadding( new Insets( 32, 28, 28, 32 ) );
         aside.setMinWidth( 300 );
@@ -151,7 +178,38 @@ final class SignInPanel
         overlay.setAlignment( Pos.CENTER );
         overlay.getStyleClass().add( "signInOverlay" );
 
-        StackPane frame = new StackPane( webView, overlay );
+        Label codeHeading = new Label( LocalizationManager.get( "signIn.code.heading" ) );
+        codeHeading.getStyleClass().add( "heading-h2" );
+        codeWhere = new Label();
+        codeWhere.getStyleClass().add( "muted" );
+        codeWhere.setWrapText( true );
+        codeWhere.setMaxWidth( 360 );
+        codeWhere.setAlignment( Pos.CENTER );
+        codeWhere.setTextAlignment( javafx.scene.text.TextAlignment.CENTER );
+        codeLabel = new Label();
+        codeLabel.getStyleClass().add( "signInCode" );
+        codeSpinner = new LoadingIndicator();
+        codeSpinner.setPrefSize( 28, 28 );
+        codeStatus = new Label();
+        codeStatus.getStyleClass().add( "muted" );
+        codeStatus.setWrapText( true );
+        codeStatus.setMaxWidth( 360 );
+        codeStatus.setAlignment( Pos.CENTER );
+        codeStatus.setTextAlignment( javafx.scene.text.TextAlignment.CENTER );
+        codeRetryButton = new MFXButton( LocalizationManager.get( "signIn.code.newCode" ) );
+        codeRetryButton.getStyleClass().add( "primary" );
+        codeRetryButton.setPrefHeight( 32 );
+        codeRetryButton.setOnAction( e -> startCode() );
+        codeQr.setSmooth( false );   // keep the modules crisp
+        codeScanHint = new Label( LocalizationManager.get( "signIn.code.scan" ) );
+        codeScanHint.getStyleClass().add( "subtle" );
+        codePane = new VBox( 14, codeHeading, codeWhere, codeLabel, codeQr, codeScanHint, codeSpinner, codeStatus,
+                             codeRetryButton );
+        codePane.setAlignment( Pos.CENTER );
+        codePane.getStyleClass().add( "signInOverlay" );
+        codePane.setVisible( false );
+
+        StackPane frame = new StackPane( webView, overlay, codePane );
         frame.getStyleClass().add( "signInFrame" );
         Rectangle clip = ShapeScale.round( new Rectangle(), ShapeScale.MEDIUM );
         clip.widthProperty().bind( frame.widthProperty() );
@@ -203,15 +261,147 @@ final class SignInPanel
     }
 
     /**
-     * (Re)loads Microsoft's sign-in page and clears any busy state.
+     * Calls back with the refresh token each time a sign-in with a code completes, on the FX
+     * thread. The host redeems it with
+     * {@link com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager#signInWithDeviceCodeToken}.
+     * Attach once.
+     *
+     * @param onToken receives the refresh token
+     *
+     * @since 2026.11
+     */
+    void onDeviceToken( java.util.function.Consumer< String > onToken )
+    {
+        this.onDeviceToken = onToken;
+    }
+
+    /**
+     * (Re)starts sign-in in the current mode: loads Microsoft's page, or gets a new code.
      */
     void loadSignIn()
     {
         redeeming = false;
         rememberToggle.setDisable( false );
+        modeSwitch.setText( LocalizationManager.get( codeMode ? "signIn.code.switchToPage"
+                                                              : "signIn.code.switchToCode" ) );
+        modeSwitch.setDisable( false );
+        codePane.setVisible( codeMode );
+        if ( codeMode ) {
+            waiting.set( false );
+            overlay.setVisible( false );
+            webView.getEngine().load( "about:blank" );
+            startCode();
+            return;
+        }
+        codeGeneration.incrementAndGet();   // a code being waited for is no longer wanted
         waiting.set( true );
         showOverlay( LocalizationManager.get( "signIn.loading" ), false );
         webView.getEngine().load( MicrosoftSignIn.loginUrl() );
+    }
+
+    /**
+     * Chooses the mode {@link #loadSignIn()} starts in; for tests (the panel picks it itself).
+     *
+     * @param useCode whether to start with a code instead of Microsoft's page
+     */
+    void useCodeMode( boolean useCode )
+    {
+        codeMode = useCode;
+    }
+
+    /**
+     * Stops waiting for a code to be entered; call when the host window closes.
+     *
+     * @since 2026.11
+     */
+    void stop()
+    {
+        codeGeneration.incrementAndGet();
+    }
+
+    /** Gets a code from Microsoft, shows it, and waits for the user to enter it elsewhere. */
+    private void startCode()
+    {
+        int generation = codeGeneration.incrementAndGet();
+        codeLabel.setText( "" );
+        codeWhere.setText( "" );
+        showQr( null );
+        setCodeStatus( LocalizationManager.get( "signIn.code.getting" ), true, false );
+        Thread worker = new Thread( () -> {
+            com.micatechnologies.minecraft.launcher.game.auth.DeviceCodeSignIn flow =
+                    com.micatechnologies.minecraft.launcher.game.auth.DeviceCodeSignIn.standard();
+            try {
+                com.micatechnologies.minecraft.launcher.game.auth.DeviceCodeSignIn.DeviceCode code = flow.start();
+                javafx.application.Platform.runLater( () -> {
+                    if ( generation != codeGeneration.get() ) {
+                        return;
+                    }
+                    codeLabel.setText( code.userCode() );
+                    // "microsoft.com/link" reads (and types) better than the full URL.
+                    String where = code.verificationUri().replaceFirst( "^https?://(www\\.)?", "" );
+                    codeWhere.setText( LocalizationManager.format( "signIn.code.where", where ) );
+                    showQr( code.verificationUri() );
+                    setCodeStatus( LocalizationManager.get( "signIn.code.waiting" ), true, false );
+                } );
+                String token = flow.awaitRefreshToken( code, () -> generation != codeGeneration.get() );
+                javafx.application.Platform.runLater( () -> {
+                    if ( generation == codeGeneration.get() ) {
+                        onDeviceToken.accept( token );
+                    }
+                } );
+            }
+            catch ( com.micatechnologies.minecraft.launcher.game.auth.DeviceCodeSignIn.SignInException e ) {
+                if ( e.failure()
+                     == com.micatechnologies.minecraft.launcher.game.auth.DeviceCodeSignIn.Failure.CANCELLED ) {
+                    return;
+                }
+                String key = switch ( e.failure() ) {
+                    case EXPIRED -> "signIn.code.expired";
+                    case DECLINED -> "signIn.code.declined";
+                    default -> "signIn.code.unreachable";
+                };
+                Logger.logWarningSilent( LocalizationManager.format( "log.login.codeFailed", e.getMessage() ) );
+                javafx.application.Platform.runLater( () -> {
+                    if ( generation == codeGeneration.get() ) {
+                        setCodeStatus( LocalizationManager.get( key ), false, true );
+                    }
+                } );
+            }
+            catch ( java.io.IOException e ) {
+                Logger.logWarningSilent( LocalizationManager.format( "log.login.codeFailed", e.getMessage() ) );
+                javafx.application.Platform.runLater( () -> {
+                    if ( generation == codeGeneration.get() ) {
+                        setCodeStatus( LocalizationManager.get( "signIn.code.unreachable" ), false, true );
+                    }
+                } );
+            }
+            catch ( InterruptedException e ) {
+                Thread.currentThread().interrupt();
+            }
+        }, "Sign-In-Code" );
+        worker.setDaemon( true );
+        worker.start();
+    }
+
+    /** Shows a QR code that opens the given address, or hides it for {@code null}. */
+    private void showQr( String uri )
+    {
+        javafx.scene.image.Image image = uri == null ? null : QrCodeImage.render( uri, 150 );
+        codeQr.setImage( image );
+        boolean show = image != null;
+        codeQr.setVisible( show );
+        codeQr.setManaged( show );
+        codeScanHint.setVisible( show );
+        codeScanHint.setManaged( show );
+    }
+
+    private void setCodeStatus( String text, boolean busy, boolean offerRetry )
+    {
+        codeStatus.setText( text );
+        codeSpinner.setVisible( busy );
+        codeSpinner.setManaged( busy );
+        codeRetryButton.setVisible( offerRetry );
+        codeRetryButton.setManaged( offerRetry );
     }
 
     /**
@@ -221,7 +411,12 @@ final class SignInPanel
     {
         redeeming = true;
         rememberToggle.setDisable( true );
+        modeSwitch.setDisable( true );
         clearStatus();
+        if ( codeMode ) {
+            setCodeStatus( LocalizationManager.get( "signIn.redeeming" ), true, false );
+            return;
+        }
         showOverlay( LocalizationManager.get( "signIn.redeeming" ), false );
     }
 

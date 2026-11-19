@@ -75,6 +75,14 @@ public class ConfigConstants
     public static final long MAX_RAM_MEGABYTES_DEFAULT = 2048;
 
     /**
+     * The first-run maximum RAM on a Steam Deck, which has 16 GB shared with its GPU: enough for
+     * most modpacks while leaving room for graphics and SteamOS.
+     *
+     * @since 2026.11
+     */
+    public static final long MAX_RAM_MEGABYTES_DEFAULT_STEAM_DECK = 4096;
+
+    /**
      * The default value for debug logging being enabled.
      *
      * @since 1.0
@@ -1130,6 +1138,16 @@ public class ConfigConstants
      * @since 2026.10
      */
     public static final String ACCOUNT_OVERRIDE_BY_PACK_KEY = "accountOverrideByPack";
+
+    /**
+     * Configuration key for the player's optional-mod choices: a JSON object mapping a pack's
+     * settings key ({@code GameModPack#getSettingsKey()}) to an object that maps an optional mod's
+     * {@code local} file name to {@code true} (on) or {@code false} (off). A mod with no entry
+     * follows its manifest {@code defaultEnabled}. A player setting: never written into a manifest.
+     *
+     * @since 2026.11
+     */
+    public static final String OPTIONAL_MODS_BY_PACK_KEY = "optionalModsByPack";
 
     // endregion
 

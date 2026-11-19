@@ -64,6 +64,7 @@ public final class MutatingTools
         registry.register( new ForkModpack( view, actions ) );
         registry.register( new AddModToModpack( view, actions ) );
         registry.register( new RemoveModFromModpack( view, actions ) );
+        registry.register( new SetOptionalMod( view, actions ) );
         registry.register( new UninstallModpack( view, actions ) );
         registry.register( new LaunchModpack( view, actions ) );
         registry.register( new StopGame( view, actions ) );
@@ -145,6 +146,26 @@ public final class MutatingTools
             schema.addProperty( "type", "object" );
             schema.add( "properties", properties );
             schema.add( "required", required );
+            return schema;
+        }
+
+        /**
+         * Adds optional string properties to a schema built by {@link #schemaOf}.
+         *
+         * @param schema              the schema to extend
+         * @param nameThenDescription alternating property names and descriptions
+         *
+         * @return the same schema
+         */
+        protected static JsonObject withOptional( JsonObject schema, String... nameThenDescription )
+        {
+            JsonObject properties = schema.getAsJsonObject( "properties" );
+            for ( int i = 0; i + 1 < nameThenDescription.length; i += 2 ) {
+                JsonObject property = new JsonObject();
+                property.addProperty( "type", "string" );
+                property.addProperty( "description", nameThenDescription[ i + 1 ] );
+                properties.add( nameThenDescription[ i ], property );
+            }
             return schema;
         }
 
@@ -280,10 +301,11 @@ public final class MutatingTools
             JsonObject loader = new JsonObject();
             loader.addProperty( "type", "string" );
             loader.addProperty( "description",
-                                "Mod loader: forge, neoforge, or fabric. Defaults to forge." );
+                                "Mod loader: forge, neoforge, fabric, or cleanroom. Defaults to forge." );
             JsonObject loaderUrl = new JsonObject();
             loaderUrl.addProperty( "type", "string" );
-            loaderUrl.addProperty( "description", "URL of the mod loader installer." );
+            loaderUrl.addProperty( "description",
+                                   "URL of the mod loader installer (for cleanroom, the Cleanroom installer jar)." );
             schema.getAsJsonObject( "properties" ).add( "modLoader", loader );
             schema.getAsJsonObject( "properties" ).add( "modLoaderUrl", loaderUrl );
             return schema;
@@ -385,17 +407,24 @@ public final class MutatingTools
         public String description()
         {
             return "Adds a mod to a modpack's manifest, to be downloaded on the next sync. "
-                    + "The remote URL must be https.";
+                    + "The remote URL must be https. The launcher downloads the jar once while "
+                    + "adding it and records its SHA-1 and SHA-256, so the sync verifies it and "
+                    + "replaces an older file at the same path.";
         }
 
         @Override
         public JsonObject inputSchema()
         {
-            return schemaOf( "friendlyName", "The modpack to edit.",
-                             "modName", "The mod's display name.",
-                             "remoteUrl", "The https URL to download the mod from.",
-                             "localPath", "Where it installs, relative to the pack root, "
-                                     + "e.g. mods/jei.jar" );
+            return withOptional( schemaOf( "friendlyName", "The modpack to edit.",
+                                           "modName", "The mod's display name.",
+                                           "remoteUrl", "The https URL to download the mod from.",
+                                           "localPath", "The jar's file name in the pack's mods "
+                                                   + "folder, e.g. jei.jar. A leading mods/ is "
+                                                   + "dropped; any other folder is refused." ),
+                                 "sha1", "Optional expected SHA-1 (hex). The add fails if the "
+                                         + "downloaded jar does not match.",
+                                 "sha256", "Optional expected SHA-256 (hex). The add fails if the "
+                                         + "downloaded jar does not match." );
         }
 
         @Override
@@ -425,6 +454,15 @@ public final class MutatingTools
                         + "Mod URLs must be well-formed https links.";
             }
             String rejection = rejectUnsafeLocalPath( localPath );
+            if ( rejection == null ) {
+                rejection = rejectModFolder( localPath );
+            }
+            if ( rejection == null ) {
+                rejection = rejectBadHex( "sha1", stringArg( arguments, "sha1" ), 40 );
+            }
+            if ( rejection == null ) {
+                rejection = rejectBadHex( "sha256", stringArg( arguments, "sha256" ), 64 );
+            }
             return rejection;
         }
 
@@ -434,7 +472,10 @@ public final class MutatingTools
             return resultOf( actions.addMod( stringArg( arguments, "friendlyName" ),
                                              stringArg( arguments, "modName" ),
                                              stringArg( arguments, "remoteUrl" ),
-                                             stringArg( arguments, "localPath" ) ) );
+                                             ModPackDocument.normalizeModLocalPath(
+                                                     stringArg( arguments, "localPath" ) ),
+                                             hexOrNull( stringArg( arguments, "sha1" ) ),
+                                             hexOrNull( stringArg( arguments, "sha256" ) ) ) );
         }
     }
 
@@ -484,6 +525,117 @@ public final class MutatingTools
         {
             return resultOf( actions.removeMod( stringArg( arguments, "friendlyName" ),
                                                 stringArg( arguments, "mod" ) ) );
+        }
+    }
+
+    /**
+     * Turns one of a pack's optional mods on or off for the player. Same risk class as
+     * {@code add_mod_to_modpack}: it decides which jars the next sync installs.
+     */
+    private static final class SetOptionalMod extends ActionTool
+    {
+        SetOptionalMod( McpLauncherView view, McpLauncherActions actions ) { super( view, actions ); }
+
+        @Override
+        public String name() { return "set_optional_mod"; }
+
+        @Override
+        public String title() { return "Set optional mod"; }
+
+        @Override
+        public String description()
+        {
+            return "Turns one of a modpack's optional mods on or off for the player. Turning one on "
+                    + "also turns on the optional mods it requires and turns off the ones it conflicts "
+                    + "with; turning one off also turns off the ones that need it. The result names "
+                    + "every mod that changed. This is the player's setting, not a manifest edit, so it "
+                    + "works for any installed pack. It takes effect the next time the pack launches "
+                    + "or syncs, which downloads or removes the jars.";
+        }
+
+        @Override
+        public JsonObject inputSchema()
+        {
+            JsonObject schema = schemaOf( "friendlyName", "The modpack.",
+                                          "mod", "The optional mod's file name as list_optional_mods "
+                                                  + "reports it (localName), e.g. ausm.jar. A leading "
+                                                  + "mods/ is ignored." );
+            JsonObject enabled = new JsonObject();
+            enabled.addProperty( "type", "boolean" );
+            enabled.addProperty( "description", "true to turn the mod on, false to turn it off." );
+            schema.getAsJsonObject( "properties" ).add( "enabled", enabled );
+            schema.getAsJsonArray( "required" ).add( "enabled" );
+            return schema;
+        }
+
+        @Override
+        public McpRiskClass riskClass() { return McpRiskClass.MUTATING; }
+
+        @Override
+        public String validateBeforeApproval( JsonObject arguments )
+        {
+            String pack = stringArg( arguments, "friendlyName" );
+            String mod = stringArg( arguments, "mod" );
+            if ( pack.isEmpty() || mod.isEmpty() ) {
+                return "friendlyName, mod and enabled are all required.";
+            }
+            if ( enabledArg( arguments ) == null ) {
+                return "enabled must be true or false.";
+            }
+            if ( view.pack( pack ) == null ) {
+                return unknownPack( pack );
+            }
+            List< McpLauncherView.OptionalModInfo > mods = view.optionalModsOf( pack );
+            if ( mods == null || mods.isEmpty() ) {
+                return "\"" + pack + "\" has no optional mods.";
+            }
+            String wanted = ModPackDocument.normalizeModLocalPath( mod );
+            StringBuilder names = new StringBuilder();
+            for ( McpLauncherView.OptionalModInfo info : mods ) {
+                if ( info.localName().equalsIgnoreCase( wanted ) ) {
+                    return null;
+                }
+                names.append( names.length() == 0 ? "" : ", " ).append( info.localName() );
+            }
+            return "\"" + pack + "\" has no optional mod named \"" + mod + "\". Its optional mods are: "
+                    + names + ". Call list_optional_mods for details.";
+        }
+
+        @Override
+        public McpToolResult invoke( McpCallContext context, JsonObject arguments )
+        {
+            Boolean enabled = enabledArg( arguments );
+            return resultOf( actions.setOptionalMod( stringArg( arguments, "friendlyName" ),
+                                                     ModPackDocument.normalizeModLocalPath(
+                                                             stringArg( arguments, "mod" ) ),
+                                                     Boolean.TRUE.equals( enabled ) ) );
+        }
+
+        /**
+         * Reads the {@code enabled} argument, accepting a JSON boolean or the strings
+         * {@code "true"} / {@code "false"}.
+         *
+         * @param arguments the call arguments
+         *
+         * @return the value, or {@code null} when absent or anything else
+         */
+        private static Boolean enabledArg( JsonObject arguments )
+        {
+            if ( arguments == null || !arguments.has( "enabled" ) || !arguments.get( "enabled" ).isJsonPrimitive() ) {
+                return null;
+            }
+            var value = arguments.getAsJsonPrimitive( "enabled" );
+            if ( value.isBoolean() ) {
+                return value.getAsBoolean();
+            }
+            String text = value.getAsString().trim();
+            if ( "true".equalsIgnoreCase( text ) ) {
+                return Boolean.TRUE;
+            }
+            if ( "false".equalsIgnoreCase( text ) ) {
+                return Boolean.FALSE;
+            }
+            return null;
         }
     }
 
@@ -814,6 +966,66 @@ public final class MutatingTools
     }
 
     /**
+     * Refuses a mod path that would not land directly in the pack's {@code mods} folder.
+     * <p>
+     * A mod's {@code local} is resolved against {@code mods/}, and the sync's cleanup only
+     * looks at that folder's top level, so a mod in a subfolder would be neither loaded
+     * reliably nor removed when it leaves the pack. A leading {@code mods/} is accepted and
+     * dropped by {@link ModPackDocument#normalizeModLocalPath(String)}; anything still holding
+     * a folder after that (including {@code mods/mods/x.jar}) is refused, with where it would
+     * have landed.
+     *
+     * @param localPath the proposed path, already past {@link #rejectUnsafeLocalPath(String)}
+     *
+     * @return a rejection reason, or {@code null} when the path is a plain file name
+     */
+    static String rejectModFolder( String localPath )
+    {
+        String normalized = ModPackDocument.normalizeModLocalPath( localPath );
+        if ( normalized.isEmpty() ) {
+            return "localPath must name the jar, e.g. jei.jar.";
+        }
+        if ( normalized.contains( "/" ) ) {
+            return "localPath is the jar's file name inside the pack's mods folder, e.g. jei.jar. \""
+                    + localPath + "\" would install to mods/" + normalized
+                    + ", a subfolder the game does not load mods from.";
+        }
+        return null;
+    }
+
+    /**
+     * Refuses an optional hash argument that is not hex of the right length.
+     *
+     * @param name   the argument's name, for the message
+     * @param value  the value, {@code ""} when not given
+     * @param length the expected number of hex digits
+     *
+     * @return a rejection reason, or {@code null} when absent or well-formed
+     */
+    static String rejectBadHex( String name, String value, int length )
+    {
+        if ( value == null || value.isEmpty() ) {
+            return null;
+        }
+        if ( value.length() != length || !value.matches( "[0-9a-fA-F]+" ) ) {
+            return name + " must be " + length + " hex digits.";
+        }
+        return null;
+    }
+
+    /**
+     * Lower-cases an optional hex argument, mapping an empty one to {@code null}.
+     *
+     * @param value the value
+     *
+     * @return the lower-case value, or {@code null} when empty
+     */
+    private static String hexOrNull( String value )
+    {
+        return value == null || value.isEmpty() ? null : value.toLowerCase( java.util.Locale.ROOT );
+    }
+
+    /**
      * Maps an empty string to {@code null}, for optional arguments.
      *
      * @param value the value
@@ -835,7 +1047,7 @@ public final class MutatingTools
     public static List< String > toolNames()
     {
         return List.of( "install_modpack", "create_modpack", "fork_modpack", "add_mod_to_modpack",
-                        "remove_mod_from_modpack", "uninstall_modpack", "launch_modpack",
+                        "remove_mod_from_modpack", "set_optional_mod", "uninstall_modpack", "launch_modpack",
                         "stop_game" );
     }
 

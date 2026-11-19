@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.game.modpack.ModPackFileEntry;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -25,8 +26,8 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
 /**
- * Mutable JavaFX bean representing a single file entry (mod, config, resource pack, shader pack, or initial file) in
- * the modpack editor. Uses JavaFX properties for direct TableView cell binding.
+ * Mutable JavaFX bean representing a single file entry (mod, optional mod, config, resource pack, shader pack, or
+ * initial file) in the modpack editor. Uses JavaFX properties for direct TableView cell binding.
  *
  * @author Mica Technologies
  * @version 1.0
@@ -116,6 +117,36 @@ public class ModPackEditorFileEntry
      * @since 3.0
      */
     private final java.util.Map< String, String > extraHashes = new java.util.HashMap<>();
+
+    /**
+     * Optional mods only: the short text shown to the player next to the toggle.
+     *
+     * @since 2026.11
+     */
+    private final StringProperty description = new SimpleStringProperty( "" );
+
+    /**
+     * Optional mods only: whether the mod is on for a player who has not chosen.
+     *
+     * @since 2026.11
+     */
+    private final BooleanProperty defaultEnabled = new SimpleBooleanProperty( false );
+
+    /**
+     * Optional mods only: the {@code local} names this mod requires, comma-separated as the
+     * editor cell shows them.
+     *
+     * @since 2026.11
+     */
+    private final StringProperty requires = new SimpleStringProperty( "" );
+
+    /**
+     * Optional mods only: the {@code local} names that must be off while this mod is on,
+     * comma-separated as the editor cell shows them.
+     *
+     * @since 2026.11
+     */
+    private final StringProperty conflictsWith = new SimpleStringProperty( "" );
 
     /**
      * Constructs an empty file entry with all properties at their defaults: blank name / remote /
@@ -469,6 +500,115 @@ public class ModPackEditorFileEntry
      */
     public java.util.Map< String, String > getExtraHashes() {
         return java.util.Collections.unmodifiableMap( extraHashes );
+    }
+
+    /**
+     * The optional mod's description, for table binding.
+     *
+     * @return the description property
+     *
+     * @since 2026.11
+     */
+    public StringProperty descriptionProperty() { return description; }
+
+    /**
+     * Whether the optional mod is on by default, for table binding.
+     *
+     * @return the default-enabled property
+     *
+     * @since 2026.11
+     */
+    public BooleanProperty defaultEnabledProperty() { return defaultEnabled; }
+
+    /**
+     * The optional mod's required names, comma-separated, for table binding.
+     *
+     * @return the requires property
+     *
+     * @since 2026.11
+     */
+    public StringProperty requiresProperty() { return requires; }
+
+    /**
+     * The optional mod's conflicting names, comma-separated, for table binding.
+     *
+     * @return the conflicts property
+     *
+     * @since 2026.11
+     */
+    public StringProperty conflictsWithProperty() { return conflictsWith; }
+
+    /**
+     * Builds an editor row from a headless manifest entry, carrying over every preserved
+     * non-primary hash, the Modrinth slug and the optional-mod fields.
+     *
+     * @param source the manifest entry
+     *
+     * @return an equivalent editor row
+     *
+     * @since 2026.11
+     */
+    public static ModPackEditorFileEntry fromDocumentEntry( ModPackFileEntry source )
+    {
+        ModPackEditorFileEntry row = new ModPackEditorFileEntry( source.getName(), source.getRemote(),
+                                                                 source.getLocal(), source.getHash(),
+                                                                 source.getHashType(), source.isClientReq(),
+                                                                 source.isServerReq() );
+        for ( java.util.Map.Entry< String, String > extra : source.getExtraHashes().entrySet() ) {
+            row.putExtraHash( extra.getKey(), extra.getValue() );
+        }
+        row.setModrinthSlug( source.getModrinthSlug() );
+        row.description.set( source.getDescription() );
+        row.defaultEnabled.set( source.isDefaultEnabled() );
+        row.requires.set( String.join( ", ", source.getRequires() ) );
+        row.conflictsWith.set( String.join( ", ", source.getConflictsWith() ) );
+        return row;
+    }
+
+    /**
+     * Builds the headless manifest entry for this row. The inverse of
+     * {@link #fromDocumentEntry}; the transient URL-check status is a view concern and is not
+     * carried over. Which fields reach the manifest is decided by the list it is written to.
+     *
+     * @return an equivalent manifest entry
+     *
+     * @since 2026.11
+     */
+    public ModPackFileEntry toDocumentEntry()
+    {
+        ModPackFileEntry entry = new ModPackFileEntry( getName(), getRemote(), getLocal(), getHash(),
+                                                       getHashType(), isClientReq(), isServerReq() );
+        for ( java.util.Map.Entry< String, String > extra : extraHashes.entrySet() ) {
+            entry.putExtraHash( extra.getKey(), extra.getValue() );
+        }
+        entry.setModrinthSlug( getModrinthSlug() );
+        entry.setDescription( description.get() );
+        entry.setDefaultEnabled( defaultEnabled.get() );
+        entry.setRequires( splitNames( requires.get() ) );
+        entry.setConflictsWith( splitNames( conflictsWith.get() ) );
+        return entry;
+    }
+
+    /**
+     * Splits a comma- or semicolon-separated list of names, as typed into an editor cell.
+     *
+     * @param text the cell text; {@code null} reads as empty
+     *
+     * @return the trimmed, non-blank names in order
+     *
+     * @since 2026.11
+     */
+    static java.util.List< String > splitNames( String text )
+    {
+        java.util.List< String > names = new java.util.ArrayList<>();
+        if ( text != null ) {
+            for ( String part : text.split( "[,;]" ) ) {
+                if ( !part.isBlank() ) {
+                    names.add( part.trim() );
+                }
+            }
+        }
+        return names;
     }
 
     // endregion

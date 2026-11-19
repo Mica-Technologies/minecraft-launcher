@@ -92,6 +92,14 @@ class MutatingToolsTest
 
         @Override
         public List< RunningGame > runningGames() { return running; }
+
+        private final java.util.Map< String, List< OptionalModInfo > > optional = new java.util.HashMap<>();
+
+        @Override
+        public List< OptionalModInfo > optionalModsOf( String friendlyName )
+        {
+            return pack( friendlyName ) == null ? null : optional.getOrDefault( friendlyName, List.of() );
+        }
     }
 
     /** Hand-rolled actions that record what they were asked to do rather than doing it. */
@@ -147,9 +155,10 @@ class MutatingToolsTest
         }
 
         @Override
-        public Outcome addMod( String friendlyName, String modName, String remoteUrl, String localPath )
+        public Outcome addMod( String friendlyName, String modName, String remoteUrl, String localPath, String sha1,
+                               String sha256 )
         {
-            performed.add( "addMod:" + friendlyName + ":" + localPath );
+            performed.add( "addMod:" + friendlyName + ":" + localPath + ":" + sha1 + ":" + sha256 );
             return nextOutcome;
         }
 
@@ -157,6 +166,13 @@ class MutatingToolsTest
         public Outcome removeMod( String friendlyName, String identifier )
         {
             performed.add( "removeMod:" + friendlyName + ":" + identifier );
+            return nextOutcome;
+        }
+
+        @Override
+        public Outcome setOptionalMod( String friendlyName, String localName, boolean enabled )
+        {
+            performed.add( "setOptionalMod:" + friendlyName + ":" + localName + ":" + enabled );
             return nextOutcome;
         }
     }
@@ -210,6 +226,8 @@ class MutatingToolsTest
         assertEquals( McpRiskClass.MUTATING, registry.find( "fork_modpack" ).riskClass() );
         assertEquals( McpRiskClass.MUTATING, registry.find( "add_mod_to_modpack" ).riskClass() );
         assertEquals( McpRiskClass.MUTATING, registry.find( "remove_mod_from_modpack" ).riskClass() );
+        assertEquals( McpRiskClass.MUTATING, registry.find( "set_optional_mod" ).riskClass(),
+                      "same class as add_mod_to_modpack: it decides which jars the next sync installs" );
         assertEquals( McpRiskClass.DESTRUCTIVE, registry.find( "uninstall_modpack" ).riskClass() );
         assertEquals( McpRiskClass.EXECUTE, registry.find( "launch_modpack" ).riskClass() );
         assertEquals( McpRiskClass.EXECUTE, registry.find( "stop_game" ).riskClass() );
@@ -294,13 +312,70 @@ class MutatingToolsTest
     @Test
     void aValidModAdditionPasses()
     {
-        assertNull( validate( "add_mod_to_modpack", modArgs( "mods/jei.jar" ) ) );
+        assertNull( validate( "add_mod_to_modpack", modArgs( "jei.jar" ) ) );
+    }
+
+    /**
+     * Issue 101: a mod's local path is resolved against the mods folder, so following the old
+     * description ("mods/jei.jar") put the jar in mods/mods/, where the game never loads it.
+     */
+    @Test
+    void aLeadingModsFolderIsDroppedBeforeTheActionRuns()
+    {
+        for ( String given : new String[]{ "mods/jei.jar", "MODS\\jei.jar", "./mods/jei.jar", " jei.jar " } ) {
+            actions.performed.clear();
+            assertNull( validate( "add_mod_to_modpack", modArgs( given ) ), given );
+            invoke( "add_mod_to_modpack", modArgs( given ) );
+            assertEquals( List.of( "addMod:Installed Pack:jei.jar:null:null" ), actions.performed, given );
+        }
+    }
+
+    @Test
+    void aModPathWithAnyOtherFolderIsRefused()
+    {
+        for ( String nested : new String[]{ "mods/mods/jei.jar", "sub/jei.jar", "mods/1.12.2/jei.jar",
+                                            "config/jei.jar" } ) {
+            String refusal = validate( "add_mod_to_modpack", modArgs( nested ) );
+            assertNotNull( refusal, nested );
+            assertTrue( refusal.contains( "mods/" ), "says where it would have landed: " + refusal );
+        }
+        assertNotNull( validate( "add_mod_to_modpack", modArgs( "mods/" ) ), "no file name left" );
+        assertTrue( actions.performed.isEmpty() );
+    }
+
+    @Test
+    void optionalHashesAreCheckedForShapeAndPassedLowerCase()
+    {
+        JsonObject arguments = modArgs( "jei.jar" );
+        arguments.addProperty( "sha1", "A".repeat( 40 ) );
+        arguments.addProperty( "sha256", "B".repeat( 64 ) );
+        assertNull( validate( "add_mod_to_modpack", arguments ) );
+        invoke( "add_mod_to_modpack", arguments );
+        assertEquals( List.of( "addMod:Installed Pack:jei.jar:" + "a".repeat( 40 ) + ":" + "b".repeat( 64 ) ),
+                      actions.performed );
+
+        for ( String[] bad : new String[][]{ { "sha1", "abc" }, { "sha1", "z".repeat( 40 ) },
+                                             { "sha256", "a".repeat( 40 ) } } ) {
+            JsonObject wrong = modArgs( "jei.jar" );
+            wrong.addProperty( bad[ 0 ], bad[ 1 ] );
+            assertNotNull( validate( "add_mod_to_modpack", wrong ), bad[ 0 ] + "=" + bad[ 1 ] );
+        }
+    }
+
+    @Test
+    void theSchemaKeepsTheHashesOptional()
+    {
+        JsonObject schema = registry.find( "add_mod_to_modpack" ).inputSchema();
+        assertTrue( schema.getAsJsonObject( "properties" ).has( "sha256" ) );
+        assertFalse( schema.getAsJsonArray( "required" ).toString().contains( "sha" ) );
+        assertFalse( schema.getAsJsonObject( "properties" ).getAsJsonObject( "localPath" ).get( "description" )
+                           .getAsString().contains( "mods/jei.jar" ), "the description no longer teaches mods/x.jar" );
     }
 
     @Test
     void aModUrlFacesTheSameInstallSourceGate()
     {
-        JsonObject arguments = modArgs( "mods/jei.jar" );
+        JsonObject arguments = modArgs( "jei.jar" );
         arguments.addProperty( "remoteUrl", "http://example.test/jei.jar" );
         assertNotNull( validate( "add_mod_to_modpack", arguments ) );
     }
@@ -342,7 +417,7 @@ class MutatingToolsTest
     @Test
     void addingToAnUnknownPackIsRefused()
     {
-        JsonObject arguments = modArgs( "mods/jei.jar" );
+        JsonObject arguments = modArgs( "jei.jar" );
         arguments.addProperty( "friendlyName", "Ghost Pack" );
         assertNotNull( validate( "add_mod_to_modpack", arguments ) );
     }
@@ -664,6 +739,67 @@ class MutatingToolsTest
     {
         actions.nextOutcome = null;
         assertTrue( invoke( "install_modpack", args( "url", "https://example.test/p.json" ) ).isError() );
+    }
+
+    // endregion
+
+    // region set_optional_mod
+
+    private void givePackOptionalMods()
+    {
+        view.optional.put( "Installed Pack", List.of(
+                new McpLauncherView.OptionalModInfo( "ausm.jar", "AUSM", "Shaders", false, false, null, true, false,
+                                                     List.of(), List.of() ),
+                new McpLauncherView.OptionalModInfo( "Lib.jar", "Lib", "", true, true, null, true, true,
+                                                     List.of(), List.of() ) ) );
+    }
+
+    private static JsonObject optionalArgs( String pack, String mod, Object enabled )
+    {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty( "friendlyName", pack );
+        arguments.addProperty( "mod", mod );
+        if ( enabled instanceof Boolean b ) {
+            arguments.addProperty( "enabled", b );
+        }
+        else if ( enabled != null ) {
+            arguments.addProperty( "enabled", enabled.toString() );
+        }
+        return arguments;
+    }
+
+    @Test
+    void setOptionalModAcceptsAKnownModInAnySpelling()
+    {
+        givePackOptionalMods();
+        assertNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "ausm.jar", true ) ) );
+        assertNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "mods/AUSM.jar", false ) ) );
+        assertNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "lib.jar", "false" ) ) );
+    }
+
+    @Test
+    void setOptionalModRefusesBeforeConsent()
+    {
+        givePackOptionalMods();
+        assertNotNull( validate( "set_optional_mod", optionalArgs( "Nope", "ausm.jar", true ) ), "unknown pack" );
+        assertNotNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "", true ) ), "no mod" );
+        assertNotNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "ausm.jar", null ) ),
+                       "no enabled" );
+        assertNotNull( validate( "set_optional_mod", optionalArgs( "Installed Pack", "ausm.jar", "maybe" ) ),
+                       "enabled not a boolean" );
+        String unknownMod = validate( "set_optional_mod", optionalArgs( "Installed Pack", "ghost.jar", true ) );
+        assertNotNull( unknownMod );
+        assertTrue( unknownMod.contains( "ausm.jar" ), "the refusal lists the real names: " + unknownMod );
+        assertNotNull( validate( "set_optional_mod", optionalArgs( "Not Installed", "ausm.jar", true ) ),
+                       "a pack without optional mods" );
+    }
+
+    @Test
+    void setOptionalModPassesTheNormalisedNameToTheAction()
+    {
+        givePackOptionalMods();
+        assertFalse( invoke( "set_optional_mod", optionalArgs( "Installed Pack", "mods/AUSM.jar", true ) ).isError() );
+        assertEquals( List.of( "setOptionalMod:Installed Pack:AUSM.jar:true" ), actions.performed );
     }
 
     // endregion

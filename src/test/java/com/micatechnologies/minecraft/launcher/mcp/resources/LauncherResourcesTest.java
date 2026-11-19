@@ -91,6 +91,9 @@ class LauncherResourcesTest
 
         @Override
         public java.util.List< RunningGame > runningGames() { return java.util.List.of(); }
+
+        @Override
+        public java.util.List< OptionalModInfo > optionalModsOf( String friendlyName ) { return null; }
     }
 
     @BeforeEach

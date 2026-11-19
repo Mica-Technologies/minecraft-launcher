@@ -167,7 +167,7 @@ public final class ModpackContentBrowser
                                               Comparator.comparingLong( File::lastModified ).reversed() ),
                        ( sec, worlds ) -> {
                            if ( worlds == null || worlds.length == 0 ) {
-                               sec.getChildren().add( emptyLabel() );
+                               sec.getChildren().add( emptyState( pack, "saves" ) );
                                return;
                            }
                            for ( File world : worlds ) {
@@ -212,7 +212,7 @@ public final class ModpackContentBrowser
                                               Comparator.comparingLong( File::lastModified ).reversed() ),
                        ( sec, shots ) -> {
                            if ( shots == null || shots.length == 0 ) {
-                               sec.getChildren().add( emptyLabel() );
+                               sec.getChildren().add( emptyState( pack, "screenshots" ) );
                                return;
                            }
                            FlowPane grid = new FlowPane( THUMB_GAP, THUMB_GAP );
@@ -269,7 +269,7 @@ public final class ModpackContentBrowser
                                               Comparator.comparing( ( File f ) -> f.getName().toLowerCase( java.util.Locale.ROOT ) ) ),
                        ( sec, mods ) -> {
                            if ( mods == null || mods.length == 0 ) {
-                               sec.getChildren().add( emptyLabel() );
+                               sec.getChildren().add( emptyState( pack, "mods" ) );
                                return;
                            }
                            File modsDirRef = subDir( pack, "mods" );
@@ -1293,7 +1293,7 @@ public final class ModpackContentBrowser
                                               Comparator.comparing( ( File f ) -> f.getName().toLowerCase( java.util.Locale.ROOT ) ) ),
                        ( sec, entries ) -> {
                            if ( entries == null || entries.length == 0 ) {
-                               sec.getChildren().add( emptyLabel() );
+                               sec.getChildren().add( emptyState( pack, folderName ) );
                                return;
                            }
                            for ( File entry : entries ) {
@@ -1664,5 +1664,43 @@ public final class ModpackContentBrowser
         Label l = new Label( LocalizationManager.get( "detailModal.content.empty" ) );
         l.getStyleClass().add( "muted" );
         return l;
+    }
+
+    /**
+     * The empty state for a section that lists one of the pack's folders: the muted "Nothing here
+     * yet." and an Open Folder button, so the player can drop files in (resource packs, shaders,
+     * mods) without hunting for the folder. The folder is created when it doesn't exist yet.
+     *
+     * @param pack       the modpack
+     * @param folderName the folder, relative to the pack's install folder
+     *
+     * @return the empty state
+     *
+     * @since 2026.11
+     */
+    private static Node emptyState( GameModPack pack, String folderName )
+    {
+        Label label = emptyLabel();
+        if ( pack == null || pack.getPackRootFolder() == null ) {
+            return label;
+        }
+        File folder = new File( pack.getPackRootFolder(), folderName );
+        MFXButton open = new MFXButton( LocalizationManager.get( "detailModal.content.openFolder" ) );
+        open.getStyleClass().add( "textBtn" );
+        open.setOnAction( e -> FxAsyncTask.run( () -> {
+            try {
+                if ( !folder.isDirectory() ) {
+                    //noinspection ResultOfMethodCallIgnored
+                    folder.mkdirs();
+                }
+                Desktop.getDesktop().open( folder );
+            }
+            catch ( Exception ex ) {
+                Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.openInBrowserFailed", ex.getMessage() ) );
+            }
+        } ) );
+        HBox row = new HBox( 8, label, open );
+        row.setAlignment( Pos.CENTER_LEFT );
+        return row;
     }
 }

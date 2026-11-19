@@ -284,6 +284,17 @@ public abstract class GameModPackMetadata
     protected List< GameMod > packMods;
 
     /**
+     * The pack's optional mods: mods each player switches on or off for themselves. Value read
+     * from the manifest's top-level {@code packOptionalMods} key; {@code null} when the manifest
+     * has none (and always on a stub, until the full manifest is loaded). Launchers that do not
+     * know the key ignore it, so they never install these jars.
+     *
+     * @since 2026.11
+     */
+    @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
+    protected List< GameOptionalMod > packOptionalMods;
+
+    /**
      * List of mod pack Forge configs. Value read from manifest JSON.
      *
      * @since 1.0
@@ -421,6 +432,19 @@ public abstract class GameModPackMetadata
             packScanExclusions = new ArrayList<>();
         }
         return packScanExclusions;
+    }
+
+    /**
+     * Get the pack's optional mods ({@code packOptionalMods}), in manifest order.
+     *
+     * @return the optional mods, never null; empty when the manifest declares none or is not
+     *         loaded yet (a stub)
+     *
+     * @since 2026.11
+     */
+    public List< GameOptionalMod > getPackOptionalMods()
+    {
+        return packOptionalMods == null ? List.of() : java.util.Collections.unmodifiableList( packOptionalMods );
     }
 
     /**

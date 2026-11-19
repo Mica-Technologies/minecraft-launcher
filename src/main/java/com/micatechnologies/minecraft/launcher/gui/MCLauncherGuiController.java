@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import javafx.application.Platform;
@@ -659,6 +660,12 @@ public class MCLauncherGuiController
         synchronized ( PREBUILD_LOCK ) {
             prebuiltMainGui = null;
         }
+        if ( !shouldCreateGui() ) {
+            // Server mode never starts the JavaFX toolkit, so there is no window to close and
+            // Platform.runLater would throw "Toolkit not initialized".
+            startSuccess.set( false );
+            return;
+        }
         RunningGamesWindow.shutdown();
         // Work on a local copy: the close below may run later on the FX thread, after the
         // field has been nulled, and a second exit() can null it from under the first.
@@ -684,12 +691,31 @@ public class MCLauncherGuiController
 
     /**
      * Returns a boolean indicating if the application in its current state should use graphical user interfaces.
+     * <p>
+     * False on a headless machine and in server mode. Server mode ({@code -s}) never starts the JavaFX toolkit,
+     * even on a desktop, so a GUI path taken there failed with "Toolkit not initialized" before the server was
+     * installed. Before the game mode is known it is neither client nor server, so early startup keeps its
+     * previous answer.
      *
      * @return true if GUIs should be used
      *
      * @since 1.0
      */
     public static boolean shouldCreateGui() {
-        return !GraphicsEnvironment.isHeadless();
+        return guiAllowed( GraphicsEnvironment.isHeadless(), GameModeManager.isServer() );
+    }
+
+    /**
+     * The pure rule behind {@link #shouldCreateGui()}.
+     *
+     * @param headless   whether the JVM is headless
+     * @param serverMode whether the launcher runs in server mode
+     *
+     * @return true if GUIs should be used
+     *
+     * @since 2026.11
+     */
+    static boolean guiAllowed( boolean headless, boolean serverMode ) {
+        return !headless && !serverMode;
     }
 }

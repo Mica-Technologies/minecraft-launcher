@@ -171,10 +171,15 @@ public class LauncherCore
         // Before anything that can fail: the main log only exists once the session starts, so a
         // launch that ends earlier would otherwise leave no trace (see StartupDiagnostics).
         StartupDiagnostics.installUncaughtExceptionHandler();
+        // Tell the Windows starter the JVM came up; it reports a launch that never gets here.
+        StarterHandshake.reachedMain();
         // Not the --mcp relay: MCP clients spawn it often, and it would crowd out the launches.
         if ( args.length == 0 || !LauncherConstants.PROGRAM_ARG_MCP.equalsIgnoreCase( args[ 0 ] ) ) {
             StartupDiagnostics.recordLaunch( args );
         }
+        // Every exit, including the early hand-off and relay ones below, may write the class-data
+        // archive; the JVM crashes if its folder is missing.
+        com.micatechnologies.minecraft.launcher.utilities.AppCdsArchiveFolder.ensureExists();
 
         // Raise the per-host keep-alive connection cap for the legacy
         // HttpURLConnection stack (JDK default is 5). The launcher fans out
@@ -214,6 +219,8 @@ public class LauncherCore
         // single-instance lock + GUI/auth bootstrap so it works standalone with
         // the launcher open, needs no auth, and never spawns the game.
         if ( args.length == 2 && LauncherConstants.PROGRAM_ARG_DIAG_MANIFEST.equalsIgnoreCase( args[ 0 ] ) ) {
+            // A console tool: its exit code and output are the report.
+            StarterHandshake.reportedOutcome();
             runManifestDiagnostic( args[ 1 ] );
             return;
         }
@@ -229,6 +236,8 @@ public class LauncherCore
         // stdout is reserved for protocol -- a stray log line there would corrupt the stream --
         // so this path returns before the logger is configured and reports only on stderr.
         if ( args.length >= 1 && LauncherConstants.PROGRAM_ARG_MCP.equalsIgnoreCase( args[ 0 ] ) ) {
+            // The MCP client reads the relay's stderr and exit code; no dialog for it.
+            StarterHandshake.reportedOutcome();
             System.exit( com.micatechnologies.minecraft.launcher.mcp.transport.StdioProxy.run(
                     com.micatechnologies.minecraft.launcher.mcp.McpEndpointFile.defaultPath(),
                     System.in, System.out, System.err ) );
@@ -343,6 +352,9 @@ public class LauncherCore
      */
     private static void handleSecondLaunch( String[] args )
     {
+        // Every outcome below is reported by this method or by the running launcher, before any
+        // window of ours. The macOS starter cannot see exit codes, so it must be told up front.
+        StarterHandshake.reportedOutcome();
         String uri = null;
         for ( String arg : args ) {
             if ( LauncherUriHandler.isLauncherUri( arg ) ) {
@@ -1402,6 +1414,21 @@ public class LauncherCore
         }
     }
 
+    /** Whether this run was started from a Steam library entry ({@code --steam}). */
+    private static volatile boolean steamLaunch = false;
+
+    /**
+     * Whether this run was started from a Steam library entry the launcher added
+     * ({@code --steam [modpack name]}).
+     *
+     * @return {@code true} for a Steam entry
+     *
+     * @since 2026.11
+     */
+    public static boolean isSteamLaunch() {
+        return steamLaunch;
+    }
+
     public static String parseLauncherArgs( String[] args ) {
         // Parsing is a pure function (LauncherArgs.parse); this method only applies the
         // side effects it decides on. Keeping the grammar out of here is what makes it
@@ -1415,6 +1442,7 @@ public class LauncherCore
         if ( parsed.hasPendingUri() ) {
             setPendingLauncherUri( parsed.pendingUri() );
         }
+        steamLaunch = parsed.steam();
 
         switch ( parsed.modeAction() ) {
             case CLIENT -> GameModeManager.setCurrentGameMode( GameMode.CLIENT );
@@ -1431,7 +1459,7 @@ public class LauncherCore
                                      LocalizationManager.USAGE_TEXT +
                                      ": launcher.jar [ -s [modpack_name] | -c" +
                                      " " +
-                                     "[modpack_name] | " +
+                                     "[modpack_name] | --steam [modpack_name] | " +
                                      "modpack_name ]" );
             closeApp();
         }
@@ -1465,9 +1493,9 @@ public class LauncherCore
         // Initialize user model ID
         try {
             if ( SystemUtils.IS_OS_WINDOWS ) {
-                String appUserModelId = LauncherConstants.LAUNCHER_IS_DEV ?
-                                        LauncherCore.class.getCanonicalName() + "DEV" :
-                                        LauncherCore.class.getCanonicalName();
+                // Each launcher window carries the same id plus a relaunch command (see
+                // WindowsRelaunchProperties), so a pin starts the native starter.
+                String appUserModelId = WindowsRelaunchProperties.appUserModelId();
                 Logger.logDebug( LocalizationManager.format( "log.launcherCore.settingAppUserModelId",
                                                              appUserModelId ) );
                 WString appUserModelIdWString = new WString( appUserModelId );
@@ -1545,6 +1573,13 @@ public class LauncherCore
         // while logging is still alive and we have full control over
         // the timing.
         cleanupStep( "config", com.micatechnologies.minecraft.launcher.config.ConfigManager::flushPendingWrite );
+        // An update downloaded but not yet installed ("Later") is installed now, so it runs from
+        // the next start. Only where the launcher installs updates itself (the AppImage); the
+        // running launcher is unaffected by the file swap.
+        cleanupStep( "pendingUpdate", () -> com.micatechnologies.minecraft.launcher.update.LauncherUpdater
+                .installStagedOnExit()
+                .ifPresent( version -> Logger.logStd(
+                        LocalizationManager.format( "log.update.installedOnExit", version ) ) ) );
         // Release the single-instance lock only once the config is on disk: a launcher started
         // the moment the lock frees (a quick relaunch) would otherwise read the config while
         // this one is still writing it.

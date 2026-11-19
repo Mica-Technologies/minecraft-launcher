@@ -213,7 +213,8 @@
  * translucent so other in-window cards (hero cards, library cards) still
  * get the frosted-glass treatment, but override modal-specific selectors
  * to paint solid. */
-.modpackDetailCard {
+.modpackDetailCard,
+.modpackDetailCard .modpackDetailTabBar.pinned {
     -fx-background-color: #1C2230;
 }
 .modpackDetailCard .modpackDetailSection {

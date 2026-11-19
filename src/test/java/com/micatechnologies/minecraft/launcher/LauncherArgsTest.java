@@ -251,4 +251,40 @@ class LauncherArgsTest
         LauncherArgs a = LauncherArgs.parse( new String[]{ "--tui", "mmcl://open" }, TUI );
         assertTrue( a.hasPendingUri() );
     }
+
+    @Test
+    void steamAloneOpensTheLauncherInClientMode()
+    {
+        LauncherArgs a = LauncherArgs.parse( new String[]{ "--steam" }, NO_TUI );
+        assertEquals( LauncherArgs.ModeAction.CLIENT, a.modeAction() );
+        assertEquals( "", a.modPackSelection() );
+        assertTrue( a.steam() );
+        assertFalse( a.invalid() );
+    }
+
+    @Test
+    void steamWithAPackNamesThePack()
+    {
+        LauncherArgs a = LauncherArgs.parse( new String[]{ "--steam", "Skyward Isles" }, NO_TUI );
+        assertEquals( LauncherArgs.ModeAction.CLIENT, a.modeAction() );
+        assertEquals( "Skyward Isles", a.modPackSelection() );
+        assertTrue( a.steam() );
+    }
+
+    @Test
+    void steamWithMoreThanOnePackIsInvalid()
+    {
+        LauncherArgs a = LauncherArgs.parse( new String[]{ "--steam", "a", "b" }, NO_TUI );
+        assertTrue( a.invalid() );
+        assertFalse( a.steam() );
+    }
+
+    @Test
+    void otherFormsAreNotSteamLaunches()
+    {
+        assertFalse( LauncherArgs.parse( new String[]{ "-c", "pack" }, NO_TUI ).steam() );
+        assertFalse( LauncherArgs.parse( new String[ 0 ], NO_TUI ).steam() );
+        assertFalse( LauncherArgs.parse( new String[]{ "--steam", "mmcl://open" }, NO_TUI ).steam(),
+                     "a deep link still wins" );
+    }
 }

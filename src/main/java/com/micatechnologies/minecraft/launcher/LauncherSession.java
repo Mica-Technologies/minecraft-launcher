@@ -148,6 +148,8 @@ class LauncherSession
         // sign-in), load the installed packs, and hand the terminal to the Lanterna app. Returns
         // only when the user quits the TUI; then the launcher shuts down.
         if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() ) {
+            // The terminal is this mode's window; it reports its own errors there.
+            com.micatechnologies.minecraft.launcher.utilities.StarterHandshake.reportedOutcome();
             if ( !com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.hasExistingLogin() ) {
                 com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut().println(
                         LocalizationManager.get( "tui.auth.noAccount" ) );
@@ -337,6 +339,10 @@ class LauncherSession
         if ( pendingUri != null ) {
             com.micatechnologies.minecraft.launcher.utilities.LauncherUriHandler.handle( pendingUri );
         }
+
+        // Started from a modpack's Steam library entry (--steam "<pack>"): go straight into the
+        // game now that the main window is up, and quit when it ends. No-op for other starts.
+        com.micatechnologies.minecraft.launcher.gui.SteamPlaySession.startIfRequested( initialModPackSelection );
 
         // Deferred .mmcjson import. Symmetric to the URI dispatch above — when the macOS
         // Desktop.setOpenFileHandler bridge fires before the main GUI is up (cold-start

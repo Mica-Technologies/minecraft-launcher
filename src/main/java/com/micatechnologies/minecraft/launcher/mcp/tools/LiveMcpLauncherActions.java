@@ -26,6 +26,8 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.ModPackDocument;
 import com.micatechnologies.minecraft.launcher.game.modpack.ModPackFileEntry;
+import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 
 import java.io.IOException;
@@ -214,16 +216,9 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
         try {
             ModPackDocument document = ModPackDocument.blank();
             document.putString( ModPackDocument.KEY_PACK_NAME, name );
-            if ( modLoader != null && !modLoader.isBlank() ) {
-                String normalized = modLoader.trim().toLowerCase( Locale.ROOT );
-                if ( !isKnownLoader( normalized ) ) {
-                    return Outcome.failed( "Unknown mod loader \"" + modLoader
-                                                   + "\". Use forge, neoforge, or fabric." );
-                }
-                document.putString( "packModLoader", normalized );
-            }
-            if ( modLoaderUrl != null && !modLoaderUrl.isBlank() ) {
-                document.putString( "packModLoaderURL", modLoaderUrl.trim() );
+            String refused = applyLoader( document, modLoader, modLoaderUrl );
+            if ( refused != null ) {
+                return Outcome.failed( refused );
             }
             return installAuthored( document, "Created" );
         }
@@ -253,18 +248,120 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
         }
     }
 
-    @Override
-    public Outcome addMod( String friendlyName, String modName, String remoteUrl, String localPath )
+    /** The largest mod jar {@link #addMod} will download to hash. */
+    static final long MAX_MOD_BYTES = 512L * 1024 * 1024;
+
+    /**
+     * A downloaded jar's hashes, lower-case hex.
+     *
+     * @param sha1   the SHA-1
+     * @param sha256 the SHA-256
+     *
+     * @since 2026.11
+     */
+    record ModHashes( String sha1, String sha256 ) { }
+
+    /**
+     * Compares a downloaded jar's hashes with the ones the caller expected.
+     *
+     * @param actual the downloaded jar's hashes
+     * @param sha1   the expected SHA-1, or {@code null}
+     * @param sha256 the expected SHA-256, or {@code null}
+     *
+     * @return a failure message, or {@code null} when everything given matches
+     */
+    static String hashMismatch( ModHashes actual, String sha1, String sha256 )
     {
-        return editManifest( friendlyName, document -> {
-            ModPackFileEntry entry = new ModPackFileEntry( modName, remoteUrl, localPath, "",
-                                                           "sha1", true, true );
-            if ( !document.addMod( entry ) ) {
-                return Outcome.failed( "\"" + friendlyName + "\" already installs something to "
-                                               + localPath + "." );
+        if ( sha256 != null && !sha256.equalsIgnoreCase( actual.sha256() ) ) {
+            return "The jar at that URL has SHA-256 " + actual.sha256() + ", not the expected " + sha256
+                    + ". Nothing was added.";
+        }
+        if ( sha1 != null && !sha1.equalsIgnoreCase( actual.sha1() ) ) {
+            return "The jar at that URL has SHA-1 " + actual.sha1() + ", not the expected " + sha1
+                    + ". Nothing was added.";
+        }
+        return null;
+    }
+
+    /**
+     * Builds the manifest entry for a mod, with the SHA-256 as its primary hash and the SHA-1
+     * kept beside it, so the sync verifies the file strongest-first.
+     *
+     * @param modName   the display name
+     * @param remoteUrl the download URL
+     * @param localPath the jar's file name in the mods folder
+     * @param hashes    the jar's hashes
+     *
+     * @return the entry, required on both sides
+     */
+    static ModPackFileEntry modEntry( String modName, String remoteUrl, String localPath, ModHashes hashes )
+    {
+        ModPackFileEntry entry = new ModPackFileEntry( modName, remoteUrl, localPath, hashes.sha256(), "sha256",
+                                                       true, true );
+        entry.putExtraHash( "sha1", hashes.sha1() );
+        return entry;
+    }
+
+    /**
+     * Adds a mod after downloading it once to record its hashes.
+     * <p>
+     * A hashless entry cannot be verified by the sync, and a hashless entry at a path whose
+     * file is already on disk is never downloaded again, so updating a mod in place silently
+     * kept the old jar (issue 101). Hashing at add time costs one download and fixes both.
+     */
+    @Override
+    public Outcome addMod( String friendlyName, String modName, String remoteUrl, String localPath, String sha1,
+                           String sha256 )
+    {
+        String fileName = ModPackDocument.normalizeModLocalPath( localPath );
+        Outcome refusal = editRefusal( friendlyName );
+        if ( refusal != null ) {
+            return refusal;
+        }
+
+        ModHashes hashes;
+        Path download = null;
+        try {
+            download = Files.createTempFile( "mmcl-mcp-mod-", ".jar" );
+            NetworkUtilities.downloadFileFromURLBounded( URI.create( remoteUrl ).toURL(), download.toFile(),
+                                                         MAX_MOD_BYTES );
+            hashes = new ModHashes( HashUtilities.getFileSHA1( download.toFile() ),
+                                    HashUtilities.getFileSHA256( download.toFile() ) );
+        }
+        catch ( Exception e ) {
+            return Outcome.failed( "Could not download the mod from that URL to record its hash ("
+                                           + e.getMessage() + "). Nothing was added." );
+        }
+        finally {
+            if ( download != null ) {
+                try {
+                    Files.deleteIfExists( download );
+                }
+                catch ( IOException ignored ) {
+                    // A temp file; the OS cleans it up.
+                }
             }
-            return Outcome.ok( "Added \"" + modName + "\" to \"" + friendlyName
-                                       + "\". It downloads on the next sync." );
+        }
+        if ( hashes.sha1() == null || hashes.sha256() == null ) {
+            return Outcome.failed( "The downloaded mod could not be hashed. Nothing was added." );
+        }
+        String mismatch = hashMismatch( hashes, sha1, sha256 );
+        if ( mismatch != null ) {
+            return Outcome.failed( mismatch );
+        }
+
+        return editManifest( friendlyName, document -> {
+            if ( !document.addMod( modEntry( modName, remoteUrl, fileName, hashes ) ) ) {
+                return Outcome.failed( "\"" + friendlyName + "\" already installs a mod to mods/"
+                                               + fileName + ". Remove it first to replace it." );
+            }
+            GameModPack pack = findPack( friendlyName );
+            String where = pack != null && pack.getPackRootFolder() != null
+                           ? Path.of( pack.getPackRootFolder(), "mods", fileName ).toString()
+                           : "mods/" + fileName + " in the pack folder";
+            return Outcome.ok( "Added \"" + modName + "\" to \"" + friendlyName + "\" (SHA-256 "
+                                       + hashes.sha256() + "). It installs to " + where
+                                       + " on the next sync." );
         } );
     }
 
@@ -279,6 +376,86 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
             return Outcome.ok( "Removed \"" + identifier + "\" from \"" + friendlyName
                                        + "\". The file goes on the next sync." );
         } );
+    }
+
+    /**
+     * Switches an optional mod through the same rules the detail dialog uses. Writes the player's
+     * config, not the manifest, so it does not go through {@link #editManifest}: a pack installed
+     * from a remote manifest has optional mods the player may switch too.
+     */
+    @Override
+    public Outcome setOptionalMod( String friendlyName, String localName, boolean enabled )
+    {
+        GameModPack pack = findPack( friendlyName );
+        if ( pack == null ) {
+            return Outcome.failed( "No modpack named \"" + friendlyName + "\" is installed." );
+        }
+        try {
+            List< com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod > mods =
+                    com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.of( pack );
+            String name = localName;
+            for ( var mod : mods ) {
+                if ( mod.key().equals( com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod.keyOf( localName ) ) ) {
+                    name = mod.getDisplayName();
+                    break;
+                }
+            }
+            var result = com.micatechnologies.minecraft.launcher.game.modpack.OptionalMods.toggle(
+                    pack, mods, localName, enabled );
+            return describeToggle( result, friendlyName, name, enabled );
+        }
+        catch ( Exception e ) {
+            Logger.logError( LocalizationManager.format( "log.mcpActions.setOptionalModFailed", friendlyName ) );
+            Logger.logThrowable( e );
+            return Outcome.failed( "The optional mod could not be changed." );
+        }
+    }
+
+    /**
+     * Words a toggle's outcome for a model: the mod's new state, every other optional mod that
+     * switched and why, and when it takes effect.
+     *
+     * @param result       the toggle's outcome
+     * @param friendlyName the pack
+     * @param name         the toggled mod's display name
+     * @param enabled      the requested state
+     *
+     * @return the outcome
+     */
+    static Outcome describeToggle( com.micatechnologies.minecraft.launcher.game.modpack.OptionalModResolver.ToggleResult result,
+                                   String friendlyName, String name, boolean enabled )
+    {
+        if ( !result.applied() ) {
+            return Outcome.failed( switch ( result.refusal() ) {
+                case UNKNOWN -> "\"" + friendlyName + "\" has no optional mod named \"" + name
+                        + "\". Nothing was changed.";
+                default -> "\"" + name + "\" cannot be turned on: the optional mods it requires conflict "
+                        + "with each other. Nothing was changed.";
+            } );
+        }
+        StringBuilder message = new StringBuilder();
+        message.append( "Turned \"" ).append( name ).append( "\" " ).append( enabled ? "on" : "off" )
+                .append( " in \"" ).append( friendlyName ).append( "\"." );
+        for ( var change : result.changes() ) {
+            message.append( ' ' );
+            String cause = change.cause() == null || change.cause().isEmpty() ? null : change.cause();
+            switch ( change.reason() ) {
+                case REQUIRED_BY -> message.append( "Also turned on \"" ).append( change.name() ).append( '"' )
+                        .append( cause != null ? ", which \"" + cause + "\" requires." : "." );
+                case CONFLICTS_WITH -> message.append( "Turned off \"" ).append( change.name() )
+                        .append( "\", which conflicts with \"" ).append( cause ).append( "\"." );
+                case NO_LONGER_REQUIRED -> message.append( "Turned off \"" ).append( change.name() ).append( '"' )
+                        .append( cause != null ? " too; it was only on because \"" + cause + "\" requires it."
+                                               : " too." );
+                case CONFLICT_CLEARED -> message.append( "Turned on \"" ).append( change.name() ).append( '"' )
+                        .append( cause != null ? " again; it was only off because it conflicts with \"" + cause
+                                + "\", which is now off." : " again." );
+                default -> message.append( "Turned off \"" ).append( change.name() ).append( '"' )
+                        .append( cause != null ? ", which requires \"" + cause + "\"." : "." );
+            }
+        }
+        message.append( " Takes effect the next time the pack launches or syncs." );
+        return Outcome.ok( message.toString() );
     }
 
     /**
@@ -300,6 +477,28 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
     }
 
     /**
+     * Says why a pack's manifest cannot be edited, if it cannot.
+     *
+     * @param friendlyName the pack
+     *
+     * @return the refusal, or {@code null} when the pack exists and its manifest is ours
+     */
+    private Outcome editRefusal( String friendlyName )
+    {
+        GameModPack pack = findPack( friendlyName );
+        if ( pack == null ) {
+            return Outcome.failed( "No modpack named \"" + friendlyName + "\" is installed." );
+        }
+        if ( localManifestPathOf( pack ) == null ) {
+            return Outcome.failed( "\"" + friendlyName + "\" was installed from a remote "
+                                           + "manifest, which this launcher does not own and "
+                                           + "cannot edit. Use fork_modpack to make an "
+                                           + "editable copy first." );
+        }
+        return null;
+    }
+
+    /**
      * Loads a pack's manifest, applies an edit, and writes it back.
      * <p>
      * Only packs whose manifest this launcher authored are editable — see the class javadoc for
@@ -313,17 +512,11 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
     private Outcome editManifest( String friendlyName, ManifestEdit edit )
     {
         try {
-            GameModPack pack = findPack( friendlyName );
-            if ( pack == null ) {
-                return Outcome.failed( "No modpack named \"" + friendlyName + "\" is installed." );
+            Outcome refusal = editRefusal( friendlyName );
+            if ( refusal != null ) {
+                return refusal;
             }
-            Path manifestPath = localManifestPathOf( pack );
-            if ( manifestPath == null ) {
-                return Outcome.failed( "\"" + friendlyName + "\" was installed from a remote "
-                                               + "manifest, which this launcher does not own and "
-                                               + "cannot edit. Use fork_modpack to make an "
-                                               + "editable copy first." );
-            }
+            Path manifestPath = localManifestPathOf( findPack( friendlyName ) );
 
             ModPackDocument document = ModPackDocument.fromJson(
                     Files.readString( manifestPath, StandardCharsets.UTF_8 ) );
@@ -545,6 +738,37 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
     }
 
     /**
+     * Writes a new pack's mod loader into its document: the lower-cased loader type, and the
+     * installer URL in {@code packModLoaderURL} (a Cleanroom pack names its installer in
+     * {@code packForgeURL} too, one jar for both sides).
+     *
+     * @param document     the new pack's document
+     * @param modLoader    the requested loader, or {@code null} / blank for the default
+     * @param modLoaderUrl the installer URL, or {@code null} / blank to leave it unset
+     *
+     * @return {@code null} when written, or the message refusing an unknown loader
+     *
+     * @since 2026.11
+     */
+    static String applyLoader( ModPackDocument document, String modLoader, String modLoaderUrl )
+    {
+        if ( modLoader != null && !modLoader.isBlank() ) {
+            String normalized = modLoader.trim().toLowerCase( Locale.ROOT );
+            if ( !isKnownLoader( normalized ) ) {
+                return "Unknown mod loader \"" + modLoader + "\". Use forge, neoforge, fabric, or cleanroom.";
+            }
+            document.putString( "packModLoader", normalized );
+        }
+        if ( modLoaderUrl != null && !modLoaderUrl.isBlank() ) {
+            document.putString( "packModLoaderURL", modLoaderUrl.trim() );
+            if ( ModPackConstants.MOD_LOADER_CLEANROOM.equals( document.getString( "packModLoader" ) ) ) {
+                document.putString( "packForgeURL", modLoaderUrl.trim() );
+            }
+        }
+        return null;
+    }
+
+    /**
      * Reports whether a mod loader identifier is one the launcher understands.
      *
      * @param normalized the lower-cased identifier
@@ -555,6 +779,7 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
     {
         return ModPackConstants.MOD_LOADER_FORGE.equals( normalized )
                 || ModPackConstants.MOD_LOADER_NEOFORGE.equals( normalized )
-                || ModPackConstants.MOD_LOADER_FABRIC.equals( normalized );
+                || ModPackConstants.MOD_LOADER_FABRIC.equals( normalized )
+                || ModPackConstants.MOD_LOADER_CLEANROOM.equals( normalized );
     }
 }

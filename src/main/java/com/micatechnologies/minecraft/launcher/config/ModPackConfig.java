@@ -423,6 +423,80 @@ public final class ModPackConfig
         ConfigStore.scheduleWrite();
     }
 
+    /**
+     * The player's optional-mod choices for a pack: which of the pack's optional mods they turned
+     * on or off. A mod with no entry follows its manifest {@code defaultEnabled}.
+     *
+     * @param packKey the pack's settings key ({@code GameModPack#getSettingsKey()})
+     *
+     * @return a copy of the choices, keyed by the optional mod's {@code local} name; empty when
+     *         the pack has none, the key is blank, or the stored section is malformed. Entries
+     *         whose value is not a boolean are skipped.
+     *
+     * @since 2026.11
+     */
+    public static synchronized java.util.Map< String, Boolean > getOptionalModChoices( String packKey )
+    {
+        java.util.Map< String, Boolean > choices = new java.util.LinkedHashMap<>();
+        if ( packKey == null || packKey.isBlank() ) return choices;
+        JsonObject json = ConfigStore.ensureLoaded();
+        try {
+            if ( !json.has( ConfigConstants.OPTIONAL_MODS_BY_PACK_KEY )
+                    || !json.get( ConfigConstants.OPTIONAL_MODS_BY_PACK_KEY ).isJsonObject() ) {
+                return choices;
+            }
+            JsonObject map = json.getAsJsonObject( ConfigConstants.OPTIONAL_MODS_BY_PACK_KEY );
+            if ( !map.has( packKey ) || !map.get( packKey ).isJsonObject() ) return choices;
+            for ( var entry : map.getAsJsonObject( packKey ).entrySet() ) {
+                var value = entry.getValue();
+                if ( value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean() ) {
+                    choices.put( entry.getKey(), value.getAsBoolean() );
+                }
+            }
+        }
+        catch ( Exception e ) {
+            // A malformed section means "no choices": every optional mod follows its default.
+            choices.clear();
+        }
+        return choices;
+    }
+
+    /**
+     * Replaces the player's optional-mod choices for a pack.
+     *
+     * @param packKey the pack's settings key; {@code null} or blank is ignored
+     * @param choices the choices, keyed by the optional mod's {@code local} name; {@code null}
+     *                or empty removes the pack's entry so every mod follows its default again.
+     *                {@code null} values are skipped.
+     *
+     * @since 2026.11
+     */
+    public static synchronized void setOptionalModChoices( String packKey, java.util.Map< String, Boolean > choices )
+    {
+        if ( packKey == null || packKey.isBlank() ) return;
+        JsonObject json = ConfigStore.ensureLoaded();
+        JsonObject map = json.has( ConfigConstants.OPTIONAL_MODS_BY_PACK_KEY )
+                         && json.get( ConfigConstants.OPTIONAL_MODS_BY_PACK_KEY ).isJsonObject()
+                         ? json.getAsJsonObject( ConfigConstants.OPTIONAL_MODS_BY_PACK_KEY )
+                         : new JsonObject();
+        JsonObject packChoices = new JsonObject();
+        if ( choices != null ) {
+            for ( var entry : choices.entrySet() ) {
+                if ( entry.getKey() != null && !entry.getKey().isBlank() && entry.getValue() != null ) {
+                    packChoices.addProperty( entry.getKey(), entry.getValue() );
+                }
+            }
+        }
+        if ( packChoices.size() == 0 ) {
+            map.remove( packKey );
+        }
+        else {
+            map.add( packKey, packChoices );
+        }
+        json.add( ConfigConstants.OPTIONAL_MODS_BY_PACK_KEY, map );
+        ConfigStore.scheduleWrite();
+    }
+
     /** Resolves the effective scan frequency for a pack: per-pack override
      *  if set, else launcher-wide default. {@code ScanFrequency.shouldScan}
      *  consumers only need a single value, so this hides the override-

@@ -95,6 +95,14 @@ class ReadOnlyToolsTest
 
         @Override
         public List< RunningGame > runningGames() { return running; }
+
+        private List< OptionalModInfo > optional = List.of();
+
+        @Override
+        public List< OptionalModInfo > optionalModsOf( String friendlyName )
+        {
+            return pack( friendlyName ) == null ? null : optional;
+        }
     }
 
     @BeforeEach
@@ -124,10 +132,11 @@ class ReadOnlyToolsTest
     @Test
     void everyReadOnlyToolRegisters()
     {
-        assertEquals( 7, registry.size() );
+        assertEquals( 8, registry.size() );
         for ( String name : new String[]{ "list_modpacks", "get_modpack_info", "get_modpack_manifest",
                                           "get_crash_report", "diagnose_launch_failure",
-                                          "get_launcher_status", "list_running_games" } ) {
+                                          "get_launcher_status", "list_running_games",
+                                          "list_optional_mods" } ) {
             assertNotNull( registry.find( name ), name + " should be registered" );
         }
     }
@@ -437,6 +446,50 @@ class ReadOnlyToolsTest
     // endregion
 
     // region helpers
+
+    @Test
+    void listOptionalModsReportsEachModAndThePlayersChoice()
+    {
+        view.packs.add( new McpLauncherView.PackSummary( "Alto", "1.0", "1.0", false, "forge", true, false ) );
+        view.optional = List.of(
+                new McpLauncherView.OptionalModInfo( "ausm.jar", "AUSM", "Shaders", true, false, Boolean.TRUE, true,
+                                                     false, List.of( "lib.jar" ), List.of( "fast.jar" ) ),
+                new McpLauncherView.OptionalModInfo( "lib.jar", "Lib", "", true, false, null, true, true,
+                                                     List.of(), List.of() ) );
+        JsonObject result = jsonOf( call( "list_optional_mods", packArgs( "Alto" ) ) );
+        assertEquals( 2, result.get( "count" ).getAsInt() );
+        JsonObject ausm = result.getAsJsonArray( "optionalMods" ).get( 0 ).getAsJsonObject();
+        assertEquals( "ausm.jar", ausm.get( "localName" ).getAsString() );
+        assertTrue( ausm.get( "enabled" ).getAsBoolean() );
+        assertEquals( "on", ausm.get( "playerChoice" ).getAsString() );
+        assertEquals( "lib.jar", ausm.getAsJsonArray( "requires" ).get( 0 ).getAsString() );
+        assertEquals( "fast.jar", ausm.getAsJsonArray( "conflictsWith" ).get( 0 ).getAsString() );
+        JsonObject lib = result.getAsJsonArray( "optionalMods" ).get( 1 ).getAsJsonObject();
+        assertEquals( "default", lib.get( "playerChoice" ).getAsString(), "no choice means following the default" );
+        assertTrue( lib.get( "serverSide" ).getAsBoolean() );
+        assertTrue( ausm.get( "installs" ).getAsBoolean() );
+    }
+
+    /** A server-only mod can be on and still never be installed by this launcher. */
+    @Test
+    void aServerOnlyOptionalModIsOnButNotInstalledByTheLauncher()
+    {
+        view.packs.add( new McpLauncherView.PackSummary( "Alto", "1.0", "1.0", false, "forge", true, false ) );
+        view.optional = List.of(
+                new McpLauncherView.OptionalModInfo( "srv.jar", "Server tweak", "", true, true, null, false, true,
+                                                     List.of(), List.of() ) );
+        JsonObject srv = jsonOf( call( "list_optional_mods", packArgs( "Alto" ) ) ).getAsJsonArray( "optionalMods" )
+                                                                              .get( 0 ).getAsJsonObject();
+        assertTrue( srv.get( "enabled" ).getAsBoolean() );
+        assertFalse( srv.get( "installs" ).getAsBoolean() );
+    }
+
+    @Test
+    void listOptionalModsRefusesAnUnknownPack()
+    {
+        assertTrue( call( "list_optional_mods", packArgs( "Nope" ) ).isError() );
+        assertTrue( call( "list_optional_mods", new JsonObject() ).isError() );
+    }
 
     private McpToolResult call( String toolName, JsonObject arguments )
     {

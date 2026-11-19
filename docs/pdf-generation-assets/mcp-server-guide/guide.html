@@ -160,7 +160,8 @@
         <li><strong>Read a manifest.</strong> The full pack definition as JSON, either as a tool
             call or as a <code>mica://</code> resource a client can re-read cheaply.</li>
         <li><strong>Change things — only after a second opt-in.</strong> Install from a URL,
-            create a pack, fork one, add or remove a mod, uninstall, launch, stop the game.</li>
+            create a pack, fork one, add or remove a mod, switch one of a pack's optional mods on
+            or off, uninstall, launch, stop the game.</li>
     </ul>
 
     <p>Everything runs inside the launcher process that already owns the modpack folders, through
@@ -209,7 +210,7 @@
                 <li>Session model, registry and cap</li>
                 <li>Approval engine, per-tool policies, session grants</li>
                 <li>Three-outcome consent dialog with a deadline</li>
-                <li>7 read-only tools, 8 state-changing tools</li>
+                <li>8 read-only tools, 9 state-changing tools</li>
                 <li>3 <code>mica://</code> resources, with templates</li>
                 <li><code>--mcp</code> stdio relay</li>
                 <li>Settings pane: enable, permissions, clients, activity</li>
@@ -291,7 +292,7 @@
     <h3><span class="num">2.3</span>The second opt-in</h3>
 
     <p>Enabling the server on its own gives you a <strong>strictly read-only</strong> server. The
-        eight state-changing tools are registered only when <strong>Allow tools that change
+        nine state-changing tools are registered only when <strong>Allow tools that change
         things</strong> is also on.</p>
 
     <div class="note ok">
@@ -699,7 +700,7 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         <tr><td>1</td><td><strong>Master switch</strong> (<code>mcpServerEnabled</code>, off)</td>
             <td>Everything. No port binds, no token is generated, no file is written.</td></tr>
         <tr><td>2</td><td><strong>State-change switch</strong> (<code>mcpAllowStateChanges</code>, off)</td>
-            <td>All eight mutating tools — they are not registered, so they do not exist on the wire.</td></tr>
+            <td>All nine mutating tools — they are not registered, so they do not exist on the wire.</td></tr>
         <tr><td>3</td><td><strong>Transport admission</strong></td>
             <td>Non-loopback peers, browser origins, unauthenticated callers, wrong method, oversized or non-JSON bodies (§4.2).</td></tr>
         <tr><td>4</td><td><strong>Handshake ordering</strong></td>
@@ -951,8 +952,8 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
 <section class="chapter">
     <h2><span class="num">5</span>Tool reference</h2>
 
-    <p class="lede">Fifteen tools: seven that only read, eight that change things. The seven are
-        registered whenever the server runs; the eight appear only when <em>Allow tools that change
+    <p class="lede">Sixteen tools: eight that only read, nine that change things. The eight are
+        registered whenever the server runs; the nine appear only when <em>Allow tools that change
         things</em> is on.</p>
 
     <h3><span class="num">5.1</span>Conventions</h3>
@@ -1097,11 +1098,24 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         </div>
     </div>
 
+    <div class="tool tall">
+        <header>
+            <h3>list_optional_mods</h3>
+            <span class="gate"><span class="badge read">READ_ONLY</span> · always registered</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>A pack's optional mods: the <code>packOptionalMods</code> its manifest offers, which each player switches on or off. Launchers that predate the key ignore it, so they never install these jars.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>.</dd>
+            <dt>Returns</dt><dd><code>optionalMods</code>, each with <code>localName</code> (the file name in <code>mods</code>, normalised without a leading <code>mods/</code>: the identifier <code>set_optional_mod</code> takes), <code>name</code>, <code>description</code>, <code>enabled</code> (on now, with requirements and conflicts applied, whatever the side), <code>installs</code> (on and client-side, so this launcher puts it in <code>mods</code>), <code>defaultEnabled</code>, <code>playerChoice</code> (<code>on</code> · <code>off</code> · <code>default</code>), <code>clientSide</code>, <code>serverSide</code>, <code>requires</code> and <code>conflictsWith</code> (file names); plus <code>count</code>.</dd>
+            <dt>Errors</dt><dd>Missing argument; no such pack (the message names <code>list_modpacks</code>).</dd>
+        </dl>
+    </div>
+
     <h3><span class="num">5.3</span>State-changing tools</h3>
 
     <div class="note warn">
         <span class="label">Second opt-in required</span>
-        <p>These eight are registered only when <strong>Settings → Security → Allow tools that
+        <p>These nine are registered only when <strong>Settings → Security → Allow tools that
             change things</strong> is on. With it off they are not denied — they are absent from
             <code>tools/list</code> and answer <code>-32602 Unknown tool</code>. Each still asks
             before every call unless you have given it a standing policy.</p>
@@ -1127,7 +1141,7 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         </header>
         <dl class="meta">
             <dt>Purpose</dt><dd>Creates a new, empty pack and installs it locally, ready to have mods added.</dd>
-            <dt>Arguments</dt><dd><code>name</code> <em>(required)</em>; <code>modLoader</code> (<code>forge</code> · <code>neoforge</code> · <code>fabric</code>, default forge); <code>modLoaderUrl</code>.</dd>
+            <dt>Arguments</dt><dd><code>name</code> <em>(required)</em>; <code>modLoader</code> (<code>forge</code> · <code>neoforge</code> · <code>fabric</code> · <code>cleanroom</code>, default forge); <code>modLoaderUrl</code> (for <code>cleanroom</code>, the Cleanroom installer JAR, which is also written to <code>packForgeURL</code>).</dd>
             <dt>Before asking</dt><dd>Refuses an empty name, a name with no letters or digits, or a name already in use — compared on letters and digits only, ignoring case, because that is what the manifest's filename keeps. <code>modLoaderUrl</code>, when given, faces the same install-source gate as a pack manifest: the installer it names is downloaded and run.</dd>
             <dt>Writes</dt><dd>A manifest into <code>&lt;config&gt;/mcp-manifests</code>, then installs from that local URL — the same convention the <code>.mmcjson</code> and <code>.mrpack</code> importers already use. Packs created this way are the ones the edit tools may later modify.</dd>
         </dl>
@@ -1152,9 +1166,9 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
             <span class="gate"><span class="badge mutate">MUTATING</span> · asks by default</span>
         </header>
         <dl class="meta">
-            <dt>Purpose</dt><dd>Adds a mod to a pack's manifest, to be downloaded on the next sync.</dd>
-            <dt>Arguments</dt><dd><code>friendlyName</code>, <code>modName</code>, <code>remoteUrl</code>, <code>localPath</code> — all required. <code>localPath</code> is relative to the pack root, e.g. <code>mods/jei.jar</code>.</dd>
-            <dt>Before asking</dt><dd>Pack must exist. <code>remoteUrl</code> faces the same install-source gate as a pack manifest, for the same reason: it is a model-chosen address that will be downloaded and put on the game's classpath. <code>localPath</code> must be relative, contain no <code>..</code> segment and no control characters.</dd>
+            <dt>Purpose</dt><dd>Adds a mod to a pack's manifest, to be downloaded on the next sync. The launcher downloads the jar once while adding it and records its SHA-256 and SHA-1, so the sync verifies it and replaces an older file at the same path. The result names the folder it installs to.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code>, <code>modName</code>, <code>remoteUrl</code>, <code>localPath</code> — required. <code>localPath</code> is the jar's file name in the pack's <code>mods</code> folder, e.g. <code>jei.jar</code>; a leading <code>mods/</code> is dropped. Optional <code>sha1</code> and <code>sha256</code> (hex): the add fails if the downloaded jar does not match.</dd>
+            <dt>Before asking</dt><dd>Pack must exist. <code>remoteUrl</code> faces the same install-source gate as a pack manifest, for the same reason: it is a model-chosen address that will be downloaded and put on the game's classpath. <code>localPath</code> must be relative, contain no <code>..</code> segment and no control characters, and after dropping a leading <code>mods/</code> must hold no folder: the sync only loads and cleans up the top level of <code>mods</code>. Hashes must be 40 (SHA-1) or 64 (SHA-256) hex digits. A mod already listed under the same file name (with or without <code>mods/</code>), or a file the pack already lists as an optional mod, is refused when the manifest is edited.</dd>
             <dt>Editability</dt><dd>Only packs whose manifest this launcher authored. Otherwise the error points at <code>fork_modpack</code>.</dd>
         </dl>
     </div>
@@ -1168,6 +1182,19 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
             <dt>Purpose</dt><dd>Removes a mod from a pack's manifest; the file goes on the next sync.</dd>
             <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>, <code>mod</code> <em>(required)</em> — its local path, display name, or Modrinth slug.</dd>
             <dt>Before asking</dt><dd>Both required; pack must exist. The same authored-manifest rule applies.</dd>
+        </dl>
+    </div>
+
+    <div class="tool tall">
+        <header>
+            <h3>set_optional_mod</h3>
+            <span class="gate"><span class="badge mutate">MUTATING</span> · asks by default</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>Turns one of a pack's optional mods on or off for the player. Turning one on also turns on the optional mods it <code>requires</code> and turns off those it <code>conflictsWith</code> (in either direction); turning one off also turns off the ones that need it, and turns its requirements back off unless the player chose them, they are on by default, or another mod that is on still needs them. The result names every mod that changed and why. Takes effect on the next launch or sync, which downloads and hash-checks the jar or removes it.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code>, <code>mod</code>, <code>enabled</code> — required. <code>mod</code> is the <code>localName</code> from <code>list_optional_mods</code>, e.g. <code>ausm.jar</code>; a leading <code>mods/</code> and letter case are ignored. <code>enabled</code> is a boolean (the strings <code>true</code>/<code>false</code> are accepted).</dd>
+            <dt>Before asking</dt><dd>Pack must exist and have an optional mod by that name (the refusal lists the real names); <code>enabled</code> must be a boolean. Same risk class as <code>add_mod_to_modpack</code>, because it decides which jars the next sync installs.</dd>
+            <dt>Writes</dt><dd>The player's choice in <code>configuration.json</code> (<code>optionalModsByPack</code>), never the manifest — so unlike the edit tools it works on packs installed from a remote manifest. A choice the rules cannot satisfy (the mod needs mods that conflict with each other) is refused and changes nothing. Only the mod's own state is stored, plus <code>off</code> for the mods it forces off; requirements it turns on are not stored. A dedicated server ignores these choices: it installs the optional mods that are both <code>serverReq</code> and <code>defaultEnabled</code>, together with the mods their <code>requires</code> lists name (transitively), and leaves out a group that needs a mod that is not <code>serverReq</code> or that conflicts with one listed earlier.</dd>
         </dl>
     </div>
 
@@ -1400,7 +1427,7 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         <thead><tr><th style="width:30%">Key</th><th style="width:14%">Type</th><th style="width:16%">Default</th><th>Meaning</th></tr></thead>
         <tbody>
         <tr><td><code>mcpServerEnabled</code></td><td>boolean</td><td><code>false</code></td><td>The master switch.</td></tr>
-        <tr><td><code>mcpAllowStateChanges</code></td><td>boolean</td><td><code>false</code></td><td>Registers the eight state-changing tools.</td></tr>
+        <tr><td><code>mcpAllowStateChanges</code></td><td>boolean</td><td><code>false</code></td><td>Registers the nine state-changing tools.</td></tr>
         <tr><td><code>mcpAutoApproveReadOnly</code></td><td>boolean</td><td><code>true</code></td><td>Read-only tools skip the prompt.</td></tr>
         <tr><td><code>mcpToolPolicies</code></td><td>JSON object</td><td>empty</td><td>Tool name → <code>ALWAYS_ALLOW</code> / <code>ASK</code> / <code>DISABLED</code>. An unreadable value resolves to "unset", never to a policy.</td></tr>
         <tr><td><code>mcpPort</code></td><td>int</td><td><code>47823</code> (dev <code>47824</code>)</td><td>The loopback port. No UI; edit the file to change it.</td></tr>
@@ -1559,7 +1586,8 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
             <td><code>launcher --mcp</code> exits with code 2 when no launcher is running.</td></tr>
         <tr><td><strong>Only authored manifests are editable</strong></td>
             <td><code>add_mod_to_modpack</code> and <code>remove_mod_from_modpack</code> refuse a
-                pack installed from a remote manifest. Fork it first.</td></tr>
+                pack installed from a remote manifest. Fork it first. (<code>set_optional_mod</code>
+                is a player setting, not a manifest edit, and works on any installed pack.)</td></tr>
         <tr><td><strong>No per-modpack scoping</strong></td>
             <td>A client granted a tool holds it for every pack; "this client may only touch pack X"
                 does not exist.</td></tr>
@@ -1796,10 +1824,10 @@ mcp '{"jsonrpc":"2.0","id":10,"method":"resources/read",
         <tr><td><code>mcp/approval/LauncherMcpAuthorizer.java</code></td><td>226</td><td>How that decision is wired to settings, grants and the prompt.</td></tr>
         <tr><td><code>mcp/approval/McpToolPolicyStore.java</code></td><td>262</td><td>Policy persistence and its fail-safe parsing.</td></tr>
         <tr><td><code>mcp/approval/McpGrantStore.java</code></td><td>223</td><td>Session grants and their TTL.</td></tr>
-        <tr><td><code>mcp/tools/ReadOnlyTools.java</code></td><td>444</td><td>The six read-only tools, schemas and output shapes.</td></tr>
-        <tr><td><code>mcp/tools/MutatingTools.java</code></td><td>733</td><td>The eight state-changing tools, their pre-approval gates and consent framing.</td></tr>
+        <tr><td><code>mcp/tools/ReadOnlyTools.java</code></td><td>564</td><td>The eight read-only tools, schemas and output shapes.</td></tr>
+        <tr><td><code>mcp/tools/MutatingTools.java</code></td><td>1060</td><td>The nine state-changing tools, their pre-approval gates and consent framing.</td></tr>
         <tr><td><code>mcp/tools/McpToolResult.java</code></td><td>188</td><td>The redaction boundary.</td></tr>
-        <tr><td><code>mcp/tools/LiveMcpLauncherView.java</code></td><td>395</td><td>What the tools can actually see.</td></tr>
+        <tr><td><code>mcp/tools/LiveMcpLauncherView.java</code></td><td>439</td><td>What the tools can actually see.</td></tr>
         <tr><td><code>mcp/tools/LiveMcpLauncherActions.java</code></td><td>469</td><td>What they can actually do, and the authored-manifest rule.</td></tr>
         <tr><td><code>mcp/resources/McpResourceUri.java</code></td><td>203</td><td>The <code>mica://</code> containment gate.</td></tr>
         <tr><td><code>mcp/resources/LauncherResources.java</code></td><td>219</td><td>The three resources and their enumeration.</td></tr>

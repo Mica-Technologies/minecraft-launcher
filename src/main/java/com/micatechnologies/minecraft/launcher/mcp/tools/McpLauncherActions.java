@@ -146,7 +146,7 @@ public interface McpLauncherActions
      *
      * @param name           the new pack's name
      * @param modLoader      the mod loader identifier ({@code forge} / {@code neoforge} /
-     *                       {@code fabric}), or {@code null} for the default
+     *                       {@code fabric} / {@code cleanroom}), or {@code null} for the default
      * @param modLoaderUrl   the loader installer URL, or {@code null} to leave it unset
      *
      * @return what happened
@@ -168,18 +168,23 @@ public interface McpLauncherActions
     Outcome forkPack( String sourceFriendlyName, String newName );
 
     /**
-     * Adds a mod to a pack's manifest.
+     * Adds a mod to a pack's manifest, with its hashes recorded so the sync can verify the
+     * file (and replace an older one at the same path).
      *
      * @param friendlyName the pack to edit
      * @param modName      the mod's display name
      * @param remoteUrl    where to download it
-     * @param localPath    where it installs, relative to the pack root
+     * @param localPath    the jar's file name in the pack's {@code mods} folder, already
+     *                     normalised with {@code ModPackDocument.normalizeModLocalPath}
+     * @param sha1         the expected SHA-1 (lower-case hex), or {@code null} when not given
+     * @param sha256       the expected SHA-256 (lower-case hex), or {@code null} when not given
      *
      * @return what happened
      *
      * @since 3.0
      */
-    Outcome addMod( String friendlyName, String modName, String remoteUrl, String localPath );
+    Outcome addMod( String friendlyName, String modName, String remoteUrl, String localPath, String sha1,
+                    String sha256 );
 
     /**
      * Removes a mod from a pack's manifest.
@@ -192,4 +197,21 @@ public interface McpLauncherActions
      * @since 3.0
      */
     Outcome removeMod( String friendlyName, String identifier );
+
+    /**
+     * Turns one of a pack's optional mods on or off for the player, applying its
+     * {@code requires} and {@code conflictsWith}. A player setting, stored in the launcher
+     * config: the manifest is not changed, so this works for any installed pack, including ones
+     * installed from a remote manifest. Takes effect on the next launch.
+     *
+     * @param friendlyName the pack
+     * @param localName    the optional mod's file name, already normalised with
+     *                     {@code ModPackDocument.normalizeModLocalPath}
+     * @param enabled      the requested state
+     *
+     * @return what happened, naming any other optional mod that switched with it
+     *
+     * @since 2026.11
+     */
+    Outcome setOptionalMod( String friendlyName, String localName, boolean enabled );
 }

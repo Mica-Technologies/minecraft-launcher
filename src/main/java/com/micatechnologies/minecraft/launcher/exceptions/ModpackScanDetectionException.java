@@ -38,7 +38,7 @@ import java.util.List;
  * ...
  *
  * Remove or replace the flagged file(s) before launching again. If you trust this content,
- * you can change this pack's Security Scan Frequency to "Disabled" in its Advanced settings.
+ * you can change this pack's Security Scan Frequency to "Disabled" in its Settings tab, under "Game files".
  * </pre>
  *
  * @author Mica Technologies
@@ -129,7 +129,7 @@ public class ModpackScanDetectionException extends ModpackException
         }
         sb.append( "\nRemove or replace the flagged file(s) before launching again. " )
           .append( "If you trust this content, you can change this pack's Security Scan Frequency " )
-          .append( "to \"Disabled\" in its Advanced settings to bypass the scan." );
+          .append( "to \"Disabled\" in its Settings tab, under \"Game files\", to bypass the scan." );
 
         return sb.toString();
     }

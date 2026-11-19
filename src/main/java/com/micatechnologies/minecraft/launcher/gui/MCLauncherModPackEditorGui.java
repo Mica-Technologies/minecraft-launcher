@@ -345,7 +345,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // case-insensitive matching against the constants on save/load.
         if ( packModLoaderTypeCombo != null ) {
             packModLoaderTypeCombo.setItems( javafx.collections.FXCollections.observableArrayList(
-                    "Forge", "NeoForge", "Fabric" ) );
+                    "Forge", "NeoForge", "Fabric", "Cleanroom" ) );
             packModLoaderTypeCombo.selectedItemProperty().addListener(
                     ( obs, oldV, newV ) -> {
                         // Update the picker button label to match the
@@ -434,10 +434,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             }
         } );
 
-        // Create file list tabs (all 5 types)
+        // Create file list tabs (one per ModPackDocument.FileList)
         // The FileList is the tab's identity; the name is display text only.
         Tab modsTab = createFileListTab( LocalizationManager.get( "editor.tab.mods" ), ModPackDocument.FileList.MODS );
         editorTabPane.getTabs().add( modsTab );
+        editorTabPane.getTabs().add( createFileListTab( LocalizationManager.get( "editor.tab.optionalMods" ),
+                                                        ModPackDocument.FileList.OPTIONAL_MODS ) );
         editorTabPane.getTabs().add( createFileListTab( LocalizationManager.get( "editor.tab.configs" ),
                                                         ModPackDocument.FileList.CONFIGS ) );
         editorTabPane.getTabs().add( createFileListTab( LocalizationManager.get( "editor.tab.resources" ),
@@ -681,6 +683,20 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     {
         GUIUtilities.JFXPlatformRun( () -> {
             collectFieldsToDocument();
+            // Optional mods must name only optional mods of this pack in requires/conflictsWith,
+            // and a file may not be both a mod and an optional mod. Refuse the save until fixed.
+            List< String > optionalProblems = workingDocument.validateOptionalMods( MCLauncherModPackEditorGui::localize );
+            if ( !optionalProblems.isEmpty() ) {
+                javafx.scene.control.Alert alert =
+                        new javafx.scene.control.Alert( javafx.scene.control.Alert.AlertType.WARNING );
+                alert.setTitle( LocalizationManager.get( "dialog.editor.optionalInvalid.title" ) );
+                alert.setHeaderText( LocalizationManager.get( "dialog.editor.optionalInvalid.header" ) );
+                alert.setContentText( String.join( "\n", optionalProblems ) );
+                GUIUtilities.themeAlertChrome( alert );
+                alert.showAndWait();
+                updateStatus( LocalizationManager.get( "editor.status.optionalInvalid" ) );
+                return;
+            }
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle( LocalizationManager.get( "dialog.fileChooser.saveModpack.title" ) );
             // Save defaults to the canonical .mmcjson extension so new files get the unique
@@ -721,7 +737,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     }
 
     /** Map a stored {@code packModLoader} identifier
-     *  (forge / neoforge / fabric) to the combo's display label.
+     *  (forge / neoforge / fabric / cleanroom) to the combo's display label.
      *  Defaults to {@code "Forge"} for unknown / missing values —
      *  matches the GameModPack back-compat behaviour. */
     private static String displayLabelForLoaderType( String stored )
@@ -730,8 +746,23 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         return switch ( stored.trim().toLowerCase( java.util.Locale.ROOT ) ) {
             case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_NEOFORGE -> "NeoForge";
             case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC   -> "Fabric";
+            case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM -> "Cleanroom";
             default -> "Forge";
         };
+    }
+
+    /** The Modrinth loader filter a pack's loader searches with: its own
+     *  lower-cased name, except Cleanroom, which runs Forge 1.12.2 mods and
+     *  so searches as {@code forge}.
+     *
+     *  @param loaderLabel the loader combo's display label, or {@code null}
+     *  @return the Modrinth loader facet, or {@code null} when no loader is set
+     *
+     *  @since 2026.11 */
+    static String modrinthLoaderFilterFor( String loaderLabel )
+    {
+        return com.micatechnologies.minecraft.launcher.game.modpack.import_.ModrinthClient
+                .loaderFacetFor( loaderLabel );
     }
 
     /** Inverse of {@link #displayLabelForLoaderType}. */
@@ -741,6 +772,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         return switch ( label ) {
             case "NeoForge" -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_NEOFORGE;
             case "Fabric"   -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC;
+            case "Cleanroom" -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM;
             default         -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE;
         };
     }
@@ -755,6 +787,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         if ( "NeoForge".equalsIgnoreCase( label ) ) {
             return LocalizationManager.get( "editor.loaderHint.neoforge" );
         }
+        if ( "Cleanroom".equalsIgnoreCase( label ) ) {
+            return LocalizationManager.get( "editor.loaderHint.cleanroom" );
+        }
         return LocalizationManager.get( "editor.loaderHint.forge" );
     }
 
@@ -768,6 +803,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         switch ( label ) {
             case "Fabric"   -> pickFabricVersion();
             case "NeoForge" -> pickNeoForgeVersion();
+            case "Cleanroom" -> pickCleanroomVersion();
             default         -> pickForgeVersion();
         }
     }
@@ -794,6 +830,56 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             }
             catch ( Exception ex ) {
                 updateStatus( LocalizationManager.format( "editor.status.hashComputeLoaderFailed", loaderLabel, ex.getMessage() ) );
+            }
+        } );
+    }
+
+    /**
+     * Opens a Cleanroom version picker dialog. Lists the
+     * CleanroomMC/Cleanroom GitHub releases that carry an installer JAR
+     * (newest first; every release targets Minecraft 1.12.2), then fills
+     * the URL field with the chosen installer and hashes it, the same way
+     * the Forge picker does.
+     *
+     * @since 2026.11
+     */
+    private void pickCleanroomVersion()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                updateStatus( LocalizationManager.get( "editor.status.fetchingCleanroom" ) );
+                List< com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion > versions =
+                        com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.fetchCleanroomVersions();
+                List< String > entries = new ArrayList<>();
+                Map< String, String > entryToUrl = new HashMap<>();
+                for ( var v : versions ) {
+                    String label = LocalizationManager.format( "editor.versionPick.cleanroom", v.loaderVersion() );
+                    entries.add( label );
+                    entryToUrl.put( label, v.installerUrl() );
+                }
+
+                GUIUtilities.JFXPlatformRun( () -> {
+                    ChoiceDialog< String > dialog = new ChoiceDialog<>(
+                            entries.isEmpty() ? null : entries.get( 0 ), entries );
+                    dialog.setTitle( LocalizationManager.get( "dialog.editor.pickCleanroom.title" ) );
+                    dialog.setHeaderText( LocalizationManager.get( "dialog.editor.pickCleanroom.header" ) );
+                    dialog.setContentText( LocalizationManager.get( "dialog.editor.pickCleanroom.contentLabel" ) );
+                    GUIUtilities.themeAlertChrome( dialog );
+                    dialog.showAndWait().ifPresent( selected -> {
+                        String url = entryToUrl.get( selected );
+                        if ( url != null ) {
+                            packForgeURLField.setText( url );
+                            packForgeHashField.setText( "" );
+                            updateStatus( LocalizationManager.get( "editor.status.cleanroomUrlSet" ) );
+                            computeAndPopulateHash( url, "Cleanroom" );
+                        }
+                    } );
+                } );
+            }
+            catch ( Exception ex ) {
+                Logger.logError( LocalizationManager.get( "log.editor.fetchCleanroomFailed" ) );
+                Logger.logThrowable( ex );
+                updateStatus( LocalizationManager.format( "editor.status.fetchCleanroomFailed", ex.getMessage() ) );
             }
         } );
     }
@@ -1162,10 +1248,17 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             loaderFilterCombo.getItems().addAll( "forge", "neoforge", "fabric", "quilt" );
             loaderFilterCombo.setPrefWidth( 150 );
             loaderFilterCombo.setMinHeight( 32 );
-            String packLoader = packModLoaderTypeCombo == null ? null : packModLoaderTypeCombo.getValue();
-            if ( packLoader != null && loaderFilterCombo.getItems().contains( packLoader.toLowerCase( java.util.Locale.ROOT ) ) ) {
-                loaderFilterCombo.selectItem( packLoader.toLowerCase( java.util.Locale.ROOT ) );
+            String packLoader = modrinthLoaderFilterFor(
+                    packModLoaderTypeCombo == null ? null : packModLoaderTypeCombo.getValue() );
+            if ( packLoader != null && loaderFilterCombo.getItems().contains( packLoader ) ) {
+                loaderFilterCombo.selectItem( packLoader );
                 loaderFilterCheck.setSelected( true );
+            }
+            // Cleanroom only runs Minecraft 1.12.2: pre-fill the version filter with it.
+            if ( "Cleanroom".equals( packModLoaderTypeCombo == null ? null : packModLoaderTypeCombo.getValue() )
+                    && !versionFilterCheck.isSelected() ) {
+                versionFilterField.setText( "1.12.2" );
+                versionFilterCheck.setSelected( true );
             }
             loaderFilterCombo.disableProperty().bind( loaderFilterCheck.selectedProperty().not() );
             HBox loaderBar = new HBox( 8, loaderFilterCheck, loaderFilterCombo );
@@ -1624,8 +1717,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // launcher builds reading the same manifest. Mirror the URL +
         // hash only when the loader is actually Forge — for Fabric /
         // NeoForge they'd be misleading.
-        boolean isForge = com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE
-                .equals( loaderType );
+        // Cleanroom names its installer there too (one installer for both sides).
+        boolean isForge = com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE.equals( loaderType )
+                || com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM.equals( loaderType );
         workingDocument.putString( "packForgeURL", isForge ? packForgeURLField.getText() : "" );
         workingDocument.putString( "packForgeHash", isForge ? packForgeHashField.getText() : "" );
         // Informational MC version field — round-trip through the
@@ -1744,6 +1838,10 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             table.getColumns().add( serverCol );
         }
 
+        if ( list.isOptional() ) {
+            addOptionalModColumns( table );
+        }
+
         // URL-check status column (read-only, transient). Populated by the "Check URLs"
         // toolbar action; blank until a check is run. Never persisted to the document.
         TableColumn< ModPackEditorFileEntry, ModPackEditorFileEntry.UrlCheck > urlStatusCol =
@@ -1860,6 +1958,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         MFXButton addBtn = new MFXButton( LocalizationManager.get( "common.button.add" ) );
         addBtn.setOnAction( e -> {
             ModPackEditorFileEntry newEntry = new ModPackEditorFileEntry();
+            // Optional mods are client-only unless the author says otherwise.
+            newEntry.setServerReq( list.serverReqDefault() );
             data.add( newEntry );
         } );
 
@@ -1948,10 +2048,65 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         BorderPane content = new BorderPane();
         content.setTop( toolbar );
         content.setCenter( table );
+        if ( list.isOptional() ) {
+            Label optionalHint = new Label( LocalizationManager.get( "editor.optional.hint" ) );
+            optionalHint.setWrapText( true );
+            optionalHint.getStyleClass().addAll( "muted", "type-label-small" );
+            optionalHint.setPadding( new Insets( 0, 8, 8, 8 ) );
+            javafx.scene.layout.VBox top = new javafx.scene.layout.VBox( toolbar, optionalHint );
+            content.setTop( top );
+        }
 
         Tab tab = new Tab( tabName, content );
         tab.setClosable( false );
         return tab;
+    }
+
+    /**
+     * Adds the optional-mod columns to the Optional mods table: the description shown to the
+     * player, whether the mod is on by default, and the comma-separated file names it requires
+     * and conflicts with. The names are checked when saving
+     * ({@link ModPackDocument#validateOptionalMods}).
+     *
+     * @param table the Optional mods table
+     */
+    private static void addOptionalModColumns( TableView< ModPackEditorFileEntry > table )
+    {
+        TableColumn< ModPackEditorFileEntry, String > descCol =
+                new TableColumn<>( LocalizationManager.get( "editor.column.description" ) );
+        descCol.setCellValueFactory( c -> c.getValue().descriptionProperty() );
+        descCol.setCellFactory( TextFieldTableCell.forTableColumn() );
+        descCol.setOnEditCommit( e -> e.getRowValue().descriptionProperty().set( e.getNewValue() ) );
+        descCol.setPrefWidth( 200 );
+        descCol.setMinWidth( 100 );
+        table.getColumns().add( descCol );
+
+        TableColumn< ModPackEditorFileEntry, Boolean > defaultCol =
+                new TableColumn<>( LocalizationManager.get( "editor.column.defaultEnabled" ) );
+        defaultCol.setCellValueFactory( c -> c.getValue().defaultEnabledProperty() );
+        defaultCol.setCellFactory( CheckBoxTableCell.forTableColumn( defaultCol ) );
+        defaultCol.setPrefWidth( 90 );
+        defaultCol.setMinWidth( 60 );
+        defaultCol.setMaxWidth( 120 );
+        table.getColumns().add( defaultCol );
+
+        TableColumn< ModPackEditorFileEntry, String > requiresCol =
+                new TableColumn<>( LocalizationManager.get( "editor.column.requires" ) );
+        requiresCol.setCellValueFactory( c -> c.getValue().requiresProperty() );
+        requiresCol.setCellFactory( TextFieldTableCell.forTableColumn() );
+        requiresCol.setOnEditCommit( e -> e.getRowValue().requiresProperty().set( e.getNewValue() ) );
+        requiresCol.setPrefWidth( 140 );
+        requiresCol.setMinWidth( 80 );
+        table.getColumns().add( requiresCol );
+
+        TableColumn< ModPackEditorFileEntry, String > conflictsCol =
+                new TableColumn<>( LocalizationManager.get( "editor.column.conflictsWith" ) );
+        conflictsCol.setCellValueFactory( c -> c.getValue().conflictsWithProperty() );
+        conflictsCol.setCellFactory( TextFieldTableCell.forTableColumn() );
+        conflictsCol.setOnEditCommit( e -> e.getRowValue().conflictsWithProperty().set( e.getNewValue() ) );
+        conflictsCol.setPrefWidth( 140 );
+        conflictsCol.setMinWidth( 80 );
+        table.getColumns().add( conflictsCol );
     }
 
     /**
@@ -1983,7 +2138,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             return;
         }
         for ( ModPackFileEntry entry : workingDocument.readFileList( list ) ) {
-            data.add( toEditorEntry( entry ) );
+            data.add( ModPackEditorFileEntry.fromDocumentEntry( entry ) );
         }
     }
 
@@ -2013,52 +2168,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         }
         List< ModPackFileEntry > entries = new ArrayList<>( data.size() );
         for ( ModPackEditorFileEntry row : data ) {
-            entries.add( toDocumentEntry( row ) );
+            entries.add( row.toDocumentEntry() );
         }
         workingDocument.writeFileList( list, entries );
-    }
-
-    /**
-     * Adapts a headless manifest entry into the JavaFX-property-backed row the editor's tables
-     * bind to, carrying over every preserved non-primary hash.
-     *
-     * @param source the manifest entry to adapt
-     *
-     * @return an equivalent editor row
-     */
-    private static ModPackEditorFileEntry toEditorEntry( ModPackFileEntry source )
-    {
-        ModPackEditorFileEntry row = new ModPackEditorFileEntry( source.getName(), source.getRemote(),
-                                                                 source.getLocal(), source.getHash(),
-                                                                 source.getHashType(), source.isClientReq(),
-                                                                 source.isServerReq() );
-        for ( Map.Entry< String, String > extra : source.getExtraHashes().entrySet() ) {
-            row.putExtraHash( extra.getKey(), extra.getValue() );
-        }
-        row.setModrinthSlug( source.getModrinthSlug() );
-        return row;
-    }
-
-    /**
-     * Adapts an editor row back into a headless manifest entry. The inverse of
-     * {@link #toEditorEntry}; the transient URL-check status is a view concern and is not
-     * carried over.
-     *
-     * @param source the editor row to adapt
-     *
-     * @return an equivalent manifest entry
-     */
-    private static ModPackFileEntry toDocumentEntry( ModPackEditorFileEntry source )
-    {
-        ModPackFileEntry entry = new ModPackFileEntry( source.getName(), source.getRemote(),
-                                                       source.getLocal(), source.getHash(),
-                                                       source.getHashType(), source.isClientReq(),
-                                                       source.isServerReq() );
-        for ( Map.Entry< String, String > extra : source.getExtraHashes().entrySet() ) {
-            entry.putExtraHash( extra.getKey(), extra.getValue() );
-        }
-        entry.setModrinthSlug( source.getModrinthSlug() );
-        return entry;
     }
 
     // endregion

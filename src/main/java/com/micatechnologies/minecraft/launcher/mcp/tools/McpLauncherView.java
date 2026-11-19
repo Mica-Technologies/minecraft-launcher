@@ -195,4 +195,38 @@ public interface McpLauncherView
      * @since 2026.10
      */
     List< RunningGame > runningGames();
+
+    /**
+     * One of a pack's optional mods, as the player has it.
+     *
+     * @param localName      the mod's file name in the pack's {@code mods} folder, normalised
+     *                       (no leading {@code mods/}): the identifier tools take
+     * @param name           the display name
+     * @param description    the short text the pack shows the player
+     * @param enabled        whether it is on for this player now (choice, default, requirements
+     *                       and conflicts applied)
+     * @param defaultEnabled whether it is on for a player who has not chosen
+     * @param playerChoice   the player's stored choice, or {@code null} when following the default
+     * @param clientSide     whether a client installs it when it is on
+     * @param serverSide     whether a dedicated server may install it (only when also on by default)
+     * @param requires       file names of the optional mods it needs on
+     * @param conflictsWith  file names of the optional mods that must be off while it is on
+     *
+     * @since 2026.11
+     */
+    record OptionalModInfo( String localName, String name, String description, boolean enabled,
+                            boolean defaultEnabled, Boolean playerChoice, boolean clientSide,
+                            boolean serverSide, List< String > requires, List< String > conflictsWith ) { }
+
+    /**
+     * Returns a pack's optional mods and whether each is on for the player.
+     *
+     * @param friendlyName the pack to read
+     *
+     * @return the optional mods in manifest order (empty when the pack has none), or {@code null}
+     *         when the pack is unknown
+     *
+     * @since 2026.11
+     */
+    List< OptionalModInfo > optionalModsOf( String friendlyName );
 }

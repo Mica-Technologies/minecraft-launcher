@@ -35,6 +35,119 @@ public final class ManifestRuleUtilities
     }
 
     /**
+     * The operating system family a rule's {@code os.name} is matched against.
+     *
+     * @since 2026.11
+     */
+    public enum HostOs
+    {
+        /** Microsoft Windows. */
+        WINDOWS,
+        /** Apple macOS. */
+        MACOS,
+        /** Linux. */
+        LINUX,
+        /** Any other system (the BSDs, Solaris, ...): no {@code os.name} rule matches it. */
+        OTHER
+    }
+
+    /**
+     * The machine a set of rules is evaluated for: its OS family, Java {@code os.arch} and {@code os.version}.
+     * {@link #current()} describes the machine the launcher runs on; tests build other hosts to check how a manifest
+     * resolves elsewhere.
+     *
+     * @param os        the OS family
+     * @param osArch    the Java {@code os.arch} value (e.g. {@code amd64}, {@code aarch64}, {@code x86_64})
+     * @param osVersion the Java {@code os.version} value
+     *
+     * @since 2026.11
+     */
+    public record Host( HostOs os, String osArch, String osVersion )
+    {
+        /** The host the launcher runs on, read once (the properties never change while it runs). */
+        private static final Host CURRENT = new Host(
+                org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ? HostOs.WINDOWS
+                        : org.apache.commons.lang3.SystemUtils.IS_OS_MAC ? HostOs.MACOS
+                        : org.apache.commons.lang3.SystemUtils.IS_OS_LINUX ? HostOs.LINUX
+                        : HostOs.OTHER,
+                System.getProperty( "os.arch", "" ),
+                System.getProperty( "os.version", "" ) );
+
+        /**
+         * Normalizes the record: {@code null} strings become empty and a {@code null} OS becomes
+         * {@link HostOs#OTHER}.
+         *
+         * @param os        the OS family
+         * @param osArch    the Java {@code os.arch} value
+         * @param osVersion the Java {@code os.version} value
+         */
+        public Host
+        {
+            os = os == null ? HostOs.OTHER : os;
+            osArch = osArch == null ? "" : osArch;
+            osVersion = osVersion == null ? "" : osVersion;
+        }
+
+        /**
+         * Returns the host the launcher runs on.
+         *
+         * @return the current host
+         *
+         * @since 2026.11
+         */
+        public static Host current() {
+            return CURRENT;
+        }
+
+        /**
+         * Returns the launcher's platform name for this host, as {@link #getCurrentPlatformName()} does for the
+         * current one.
+         *
+         * @return {@link ModPackConstants#PLATFORM_WINDOWS}, {@link ModPackConstants#PLATFORM_MACOS}, or
+         *         {@link ModPackConstants#PLATFORM_UNIX} for every other system
+         *
+         * @since 2026.11
+         */
+        public String platformName() {
+            return switch ( os ) {
+                case WINDOWS -> ModPackConstants.PLATFORM_WINDOWS;
+                case MACOS -> ModPackConstants.PLATFORM_MACOS;
+                default -> ModPackConstants.PLATFORM_UNIX;
+            };
+        }
+
+        /**
+         * Returns the normalized architecture name some loader profiles write in a rule's {@code os.arch} instead of
+         * a Java {@code os.arch} pattern. Cleanroom writes {@code x64}, {@code arm64} and {@code x86}, which no Java
+         * {@code os.arch} contains: Windows and Linux x64 report {@code amd64}, Apple Silicon {@code aarch64}.
+         *
+         * @return {@code x64}, {@code arm64} or {@code x86}, or {@code null} for any other architecture
+         *
+         * @since 2026.11
+         */
+        public String ruleArchName() {
+            return switch ( osArch.trim().toLowerCase( Locale.ROOT ) ) {
+                case "amd64", "x86_64", "x64" -> "x64";
+                case "aarch64", "arm64" -> "arm64";
+                case "x86", "i386", "i486", "i586", "i686" -> "x86";
+                default -> null;
+            };
+        }
+
+        /**
+         * Returns whether this host is 64-bit, as the {@code ${arch}} placeholder of a legacy natives classifier
+         * reads it ({@code os.arch} contains {@code 64}).
+         *
+         * @return {@code true} for a 64-bit {@code os.arch}
+         *
+         * @since 2026.11
+         */
+        public boolean is64Bit() {
+            return osArch.contains( "64" );
+        }
+    }
+
+    /**
      * Evaluates a Mojang/Forge-style {@code rules} array against the current runtime and returns whether the gated item
      * (library, argument, etc.) is allowed.
      * <p>
@@ -48,6 +161,21 @@ public final class ManifestRuleUtilities
      * @return {@code true} if the item is allowed for the current runtime, {@code false} otherwise
      */
     public static boolean evaluateRules( JsonArray rules ) {
+        return evaluateRules( rules, Host.current() );
+    }
+
+    /**
+     * Evaluates a Mojang/Forge-style {@code rules} array for the given host, as {@link #evaluateRules(JsonArray)} does
+     * for the current one.
+     *
+     * @param rules the rules array to evaluate, or {@code null} if the item has no rules
+     * @param host  the host to evaluate the rules for
+     *
+     * @return {@code true} if the item is allowed on {@code host}, {@code false} otherwise
+     *
+     * @since 2026.11
+     */
+    public static boolean evaluateRules( JsonArray rules, Host host ) {
         if ( rules == null || rules.isEmpty() ) {
             return true;
         }
@@ -59,7 +187,7 @@ public final class ManifestRuleUtilities
             }
 
             JsonObject ruleObj = ruleEl.getAsJsonObject();
-            if ( !ruleMatchesCurrentRuntime( ruleObj ) ) {
+            if ( !ruleMatches( ruleObj, host ) ) {
                 continue;
             }
 
@@ -166,15 +294,16 @@ public final class ManifestRuleUtilities
     }
 
     /**
-     * Determines whether a single rule's conditions match the current runtime. A rule matches when its optional
+     * Determines whether a single rule's conditions match the given host. A rule matches when its optional
      * {@code os} block matches the host OS and its optional {@code features} block matches the launcher's feature state.
      *
      * @param ruleObj the rule object to test
+     * @param host    the host to test the rule against
      *
-     * @return {@code true} if the rule's conditions all match the current runtime, {@code false} otherwise
+     * @return {@code true} if the rule's conditions all match the host, {@code false} otherwise
      */
-    private static boolean ruleMatchesCurrentRuntime( JsonObject ruleObj ) {
-        if ( ruleObj.has( "os" ) && !osMatches( ruleObj.getAsJsonObject( "os" ) ) ) {
+    private static boolean ruleMatches( JsonObject ruleObj, Host host ) {
+        if ( ruleObj.has( "os" ) && !osMatches( ruleObj.getAsJsonObject( "os" ), host ) ) {
             return false;
         }
         return !ruleObj.has( "features" ) || featuresMatch( ruleObj.getAsJsonObject( "features" ) );
@@ -182,37 +311,35 @@ public final class ManifestRuleUtilities
 
     /**
      * Evaluates a rule's {@code os} block against the host operating system. Any present subset of {@code name},
-     * {@code version} (regex), {@code arch} (regex), and {@code versionRange} (min/max, MC 26.1+) must all match; absent
-     * fields are not constraining. A {@code null} OS object matches.
+     * {@code version} (regex), {@code arch} (see {@link #archMatches}), and {@code versionRange} (min/max, MC 26.1+)
+     * must all match; absent fields are not constraining. A {@code null} OS object matches.
      *
      * @param osObj the {@code os} block of a rule, or {@code null}
+     * @param host  the host to test the block against
      *
      * @return {@code true} if every present OS constraint matches the host, {@code false} otherwise
      */
-    private static boolean osMatches( JsonObject osObj ) {
+    private static boolean osMatches( JsonObject osObj, Host host ) {
         if ( osObj == null ) {
             return true;
         }
 
         if ( osObj.has( "name" ) ) {
             String name = osObj.get( "name" ).getAsString();
-            if ( !osNameMatches( name ) ) {
+            if ( !osNameMatches( name, host ) ) {
                 return false;
             }
         }
 
         if ( osObj.has( "version" ) ) {
             String regex = osObj.get( "version" ).getAsString();
-            String osVersion = System.getProperty( "os.version", "" );
-            if ( !regexMatches( regex, osVersion ) ) {
+            if ( !regexMatches( regex, host.osVersion() ) ) {
                 return false;
             }
         }
 
         if ( osObj.has( "arch" ) ) {
-            String regex = osObj.get( "arch" ).getAsString();
-            String osArch = System.getProperty( "os.arch", "" );
-            if ( !regexMatches( regex, osArch ) ) {
+            if ( !archMatches( osObj.get( "arch" ).getAsString(), host ) ) {
                 return false;
             }
         }
@@ -220,8 +347,7 @@ public final class ManifestRuleUtilities
         // MC 26.1+ uses versionRange with min/max instead of regex
         if ( osObj.has( "versionRange" ) ) {
             JsonObject versionRange = osObj.getAsJsonObject( "versionRange" );
-            String osVersion = System.getProperty( "os.version", "" );
-            if ( !versionRangeMatches( versionRange, osVersion ) ) {
+            if ( !versionRangeMatches( versionRange, host.osVersion() ) ) {
                 return false;
             }
         }
@@ -230,23 +356,46 @@ public final class ManifestRuleUtilities
     }
 
     /**
+     * Matches a rule's {@code os.arch} value against the host: either Mojang's form, a regex found in the Java
+     * {@code os.arch}, or the host's {@linkplain Host#ruleArchName() normalized architecture name} written out in full
+     * (Cleanroom's {@code x64}, {@code arm64} and {@code x86}, case-insensitive). Mojang's only arch rule, {@code x86},
+     * means 32-bit x86 in both readings, so the second reading never changes a Mojang manifest's result on Windows or
+     * Linux.
+     *
+     * @param pattern the {@code os.arch} value of a rule
+     * @param host    the host to test against
+     *
+     * @return {@code true} if the value matches the host's architecture
+     *
+     * @since 2026.11
+     */
+    private static boolean archMatches( String pattern, Host host ) {
+        if ( regexMatches( pattern, host.osArch() ) ) {
+            return true;
+        }
+        String name = host.ruleArchName();
+        return name != null && pattern.trim().equalsIgnoreCase( name );
+    }
+
+    /**
      * Matches a Mojang OS name token (case-insensitive, e.g. {@code "windows"}, {@code "osx"}, {@code "linux"}) against
      * the host operating system. Unrecognized names do not match.
      *
      * @param osName the OS name token from a rule's {@code os.name} field
+     * @param host   the host to match against
      *
      * @return {@code true} if the token identifies the host operating system, {@code false} otherwise
      */
-    private static boolean osNameMatches( String osName ) {
+    private static boolean osNameMatches( String osName, Host host ) {
         String normalized = osName.toLowerCase( Locale.ROOT ).trim();
         if ( "bindoj".equals( normalized ) || "windows".equals( normalized ) || "win".equals( normalized ) ) {
-            return org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS;
+            return host.os() == HostOs.WINDOWS;
         }
         if ( "osx".equals( normalized ) || "mac".equals( normalized ) || "macos".equals( normalized ) ) {
-            return org.apache.commons.lang3.SystemUtils.IS_OS_MAC;
+            return host.os() == HostOs.MACOS;
         }
         if ( "linux".equals( normalized ) || "unix".equals( normalized ) ) {
-            return org.apache.commons.lang3.SystemUtils.IS_OS_LINUX;
+            return host.os() == HostOs.LINUX;
         }
         return false;
     }

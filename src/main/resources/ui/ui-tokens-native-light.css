@@ -166,7 +166,8 @@
  * with a clean opaque white card and faintly tinted section panels so the
  * modal reads as a discrete panel regardless of what the user has behind
  * the launcher window. */
-.modpackDetailCard {
+.modpackDetailCard,
+.modpackDetailCard .modpackDetailTabBar.pinned {
     -fx-background-color: #FFFFFF;
 }
 .modpackDetailCard .modpackDetailSection {

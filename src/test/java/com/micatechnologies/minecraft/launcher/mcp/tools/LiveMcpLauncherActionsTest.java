@@ -17,14 +17,22 @@
 
 package com.micatechnologies.minecraft.launcher.mcp.tools;
 
+import com.micatechnologies.minecraft.launcher.game.modpack.GameOptionalMod;
+import com.micatechnologies.minecraft.launcher.game.modpack.ModPackDocument;
+import com.micatechnologies.minecraft.launcher.game.modpack.ModPackFileEntry;
+import com.micatechnologies.minecraft.launcher.game.modpack.OptionalModResolver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for the containment rule in {@link LiveMcpLauncherActions} that decides which manifests
@@ -131,5 +139,93 @@ class LiveMcpLauncherActionsTest
         assertNull( LiveMcpLauncherActions.resolveAuthoredManifest( "file:not a uri", authored ) );
         assertNull( LiveMcpLauncherActions.resolveAuthoredManifest(
                 tempDir.resolve( "x.json" ).toUri().toString(), null ) );
+    }
+
+    // ---- add_mod_to_modpack hashes (issue 101) ------------------------------------------
+
+    private static final LiveMcpLauncherActions.ModHashes JAR =
+            new LiveMcpLauncherActions.ModHashes( "1".repeat( 40 ), "2".repeat( 64 ) );
+
+    @Test
+    void expectedHashesMustMatchTheDownloadedJar()
+    {
+        assertNull( LiveMcpLauncherActions.hashMismatch( JAR, null, null ), "nothing expected" );
+        assertNull( LiveMcpLauncherActions.hashMismatch( JAR, "1".repeat( 40 ), "2".repeat( 64 ) ) );
+        assertNotNull( LiveMcpLauncherActions.hashMismatch( JAR, null, "3".repeat( 64 ) ) );
+        assertNotNull( LiveMcpLauncherActions.hashMismatch( JAR, "3".repeat( 40 ), null ) );
+    }
+
+    /**
+     * The entry carries both hashes, SHA-256 first, and they survive the manifest's write, so
+     * the sync can verify the jar and replace an older file at the same path.
+     */
+    @Test
+    void anAddedModRecordsBothHashesInTheManifest()
+    {
+        ModPackDocument doc = ModPackDocument.blank();
+        assertTrue( doc.addMod( LiveMcpLauncherActions.modEntry( "JEI", "https://example.test/jei.jar",
+                                                                 "jei.jar", JAR ) ) );
+
+        ModPackFileEntry written = ModPackDocument.fromJson( doc.toPrettyJson() ).mods().get( 0 );
+        assertEquals( "jei.jar", written.getLocal() );
+        assertEquals( "sha256", written.getHashType() );
+        assertEquals( JAR.sha256(), written.getHash() );
+        assertEquals( JAR.sha1(), written.getExtraHash( "sha1" ) );
+    }
+
+    /** A toggle's result names every other optional mod that switched, and when it applies. */
+    @Test
+    void anOptionalModToggleNamesWhatElseChanged()
+    {
+        List< GameOptionalMod > mods = List.of(
+                new GameOptionalMod( "AUSM", "https://example.test/a.jar", "ausm.jar", null, true, false, "", false,
+                                     List.of( "lib.jar" ), List.of( "fast.jar" ) ),
+                new GameOptionalMod( "Lib", "https://example.test/l.jar", "lib.jar", null, true, false, "", false,
+                                     null, null ),
+                new GameOptionalMod( "Fast", "https://example.test/f.jar", "fast.jar", null, true, false, "", true,
+                                     null, null ) );
+        var outcome = LiveMcpLauncherActions.describeToggle(
+                OptionalModResolver.toggle( mods, Map.of(), "ausm.jar", true ), "Alto", "AUSM", true );
+        assertTrue( outcome.ok() );
+        assertEquals( "Turned \"AUSM\" on in \"Alto\". Also turned on \"Lib\", which \"AUSM\" requires. "
+                              + "Turned off \"Fast\", which conflicts with \"AUSM\". Takes effect the next time the "
+                              + "pack launches or syncs.", outcome.message() );
+
+        // Turning it off again drops the requirement it alone switched on; Fast stays off.
+        var on = OptionalModResolver.toggle( mods, Map.of(), "ausm.jar", true );
+        var off = LiveMcpLauncherActions.describeToggle(
+                OptionalModResolver.toggle( mods, on.choices(), "ausm.jar", false ), "Alto", "AUSM", false );
+        assertTrue( off.ok() );
+        assertEquals( "Turned \"AUSM\" off in \"Alto\". Turned off \"Lib\" too; it was only on because \"AUSM\" "
+                              + "requires it. Takes effect the next time the pack launches or syncs.",
+                      off.message() );
+
+        var refused = LiveMcpLauncherActions.describeToggle(
+                OptionalModResolver.toggle( mods, Map.of(), "ghost.jar", true ), "Alto", "ghost.jar", true );
+        assertFalse( refused.ok() );
+    }
+
+    /**
+     * {@code create_modpack} accepts Cleanroom (any case) and, like the editor, names its installer
+     * in {@code packForgeURL} as well as {@code packModLoaderURL}; an unknown loader is refused with
+     * all four loaders named.
+     */
+    @Test
+    void createModpackAcceptsCleanroomAndNamesItsInstallerInPackForgeUrl()
+    {
+        String url = "https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-installer.jar";
+        ModPackDocument doc = ModPackDocument.blank();
+        assertNull( LiveMcpLauncherActions.applyLoader( doc, "Cleanroom", url ) );
+        assertEquals( "cleanroom", doc.getString( "packModLoader" ) );
+        assertEquals( url, doc.getString( "packModLoaderURL" ) );
+        assertEquals( url, doc.getString( "packForgeURL" ) );
+
+        ModPackDocument fabric = ModPackDocument.blank();
+        assertNull( LiveMcpLauncherActions.applyLoader( fabric, "fabric", "https://meta.fabricmc.net/x" ) );
+        assertEquals( "", fabric.getString( "packForgeURL" ), "only Cleanroom mirrors its URL" );
+
+        String refused = LiveMcpLauncherActions.applyLoader( ModPackDocument.blank(), "quilt", null );
+        assertNotNull( refused );
+        assertTrue( refused.contains( "cleanroom" ), refused );
     }
 }

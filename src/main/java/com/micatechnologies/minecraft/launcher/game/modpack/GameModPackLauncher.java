@@ -320,7 +320,12 @@ class GameModPackLauncher
         // getLaunchCount() + 1 is the launch number recordLaunchStart will commit once this
         // launch succeeds, so audit entries line up with the official launch count the detail
         // modal reads back.
-        final LaunchVerifyMode chosenMode = decideLaunchVerifyMode();
+        // The fingerprint is the manifest hash plus, when any optional mods are on, which ones:
+        // switching an optional mod changes it, so the next launch runs a FULL verify and the
+        // security scan treats the pack as changed. Captured once so the decision and the sidecar
+        // written after a successful verify agree even if the player toggles mid-launch.
+        final String fingerprint = pack.getVerifyFingerprint();
+        final LaunchVerifyMode chosenMode = decideLaunchVerifyMode( fingerprint );
         Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.verifyMode", pack.getPackName(), chosenMode ) );
         LaunchPrepareContext prevContext = pack.getPrepareContext();
         pack.setPrepareContext( LaunchPrepareContext.forLaunch( chosenMode, pack.getPackRootFolder(),
@@ -334,13 +339,13 @@ class GameModPackLauncher
             // since the decision required it to match) but the verifiedAt
             // stays anchored to the last actual hash sweep.
             if ( chosenMode == LaunchVerifyMode.FULL
-                    && pack.getManifestContentSha256() != null ) {
+                    && fingerprint != null ) {
                 // Read-modify-write so the scan-tracking fields (lastScannedAt /
                 // lastScannedManifestSha256) the scan step writes aren't clobbered
                 // by a verify-only update.
                 VerifyState existing = VerifyState.loadForPack( pack );
                 VerifyState fresh = VerifyState.successfulVerify(
-                        existing, pack.getManifestContentSha256() );
+                        existing, fingerprint );
                 VerifyState.saveForPack( pack, fresh );
                 Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.wroteVerifyState",
                                          pack.getPackName(), fresh.verifiedAt ) );
@@ -362,8 +367,11 @@ class GameModPackLauncher
      *         {@link LaunchVerifyMode#FULL} when the cached verify state is
      *         missing, stale, manifest-mismatched, or the per-pack opt-out is
      *         set; otherwise {@link LaunchVerifyMode#FAST_PATH}
+     *
+     * @param fingerprint the pack's verify fingerprint for this launch
+     *                    ({@link GameModPack#getVerifyFingerprint()})
      */
-    private LaunchVerifyMode decideLaunchVerifyMode()
+    private LaunchVerifyMode decideLaunchVerifyMode( String fingerprint )
     {
         // Servers launch infrequently (on service start / crash-restart) and are highly
         // update-sensitive: a headless server silently running a stale mod set is worse than
@@ -385,7 +393,7 @@ class GameModPackLauncher
         VerifyState existing = VerifyState.loadForPack( pack );
         return VerifyState.decideMode(
                 existing,
-                pack.getManifestContentSha256(),
+                fingerprint,
                 VerifyState.DEFAULT_TTL_MS,
                 perPackOptOut,
                 /* globalForceFullVerify */ false );
@@ -419,11 +427,12 @@ class GameModPackLauncher
         LaunchPrepareContext prevContext = pack.getPrepareContext();
         pack.setPrepareContext( LaunchPrepareContext.fullVerify() );
         try {
+            final String fingerprint = pack.getVerifyFingerprint();
             buildClasspathInner();
-            if ( pack.getManifestContentSha256() != null ) {
+            if ( fingerprint != null ) {
                 VerifyState existing = VerifyState.loadForPack( pack );
                 VerifyState fresh = VerifyState.successfulVerify(
-                        existing, pack.getManifestContentSha256() );
+                        existing, fingerprint );
                 VerifyState.saveForPack( pack, fresh );
             }
         }
@@ -611,7 +620,7 @@ class GameModPackLauncher
      *         with the redundant vanilla {@code bin/minecraft.jar} dropped when
      *         the loader supplies a patched client
      */
-    private static String mergeClasspathsLoaderPriority( String loaderClasspath,
+    static String mergeClasspathsLoaderPriority( String loaderClasspath,
                                                           String mcClasspath )
     {
         java.util.LinkedHashMap< String, String > byCoord = new java.util.LinkedHashMap<>();
@@ -869,7 +878,9 @@ class GameModPackLauncher
             }
             fileSync.fetchLatestMods();
             checkCancelled();
-            if ( Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
+            // A standalone loader profile (Cleanroom) runs LWJGL 3 on 1.12.2: no LWJGL 2 patch,
+            // so no mods to disable for it.
+            if ( !pack.usesStandaloneLoaderProfile() && Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
                 Lwjgl2ArmPatcher.disableIncompatibleMods(
                         pack.getPackRootFolder() + File.separator + "mods" );
             }
@@ -1085,7 +1096,7 @@ class GameModPackLauncher
                         .effectiveScanFrequencyForPack( pack.getManifestUrl() );
         final com.micatechnologies.minecraft.launcher.game.modpack.VerifyState lastState =
                 com.micatechnologies.minecraft.launcher.game.modpack.VerifyState.loadForPack( pack );
-        final String currentManifestSha256 = pack.getManifestContentSha256();
+        final String currentManifestSha256 = pack.getVerifyFingerprint();
         if ( !com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.shouldScan(
                 effective, lastState, currentManifestSha256 ) ) {
             Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.skippingScan",
@@ -1242,6 +1253,33 @@ class GameModPackLauncher
     }
 
     /**
+     * The loader's server JVM arguments that are not already set. A {@code -Dname=value}
+     * argument counts as set when any existing argument sets the same property, so an operator's
+     * own value in the pack's or config's JVM arguments wins.
+     *
+     * @param loaderArgs the loader's server JVM arguments
+     * @param argv       the command line so far
+     *
+     * @return the arguments to append, in order
+     *
+     * @since 2026.11
+     */
+    static List< String > serverJvmArgsToAdd( List< String > loaderArgs, List< String > argv )
+    {
+        List< String > add = new java.util.ArrayList<>();
+        for ( String arg : loaderArgs ) {
+            String key = arg.startsWith( "-D" ) && arg.contains( "=" ) ? arg.substring( 0, arg.indexOf( '=' ) + 1 )
+                                                                       : arg;
+            boolean present = argv.stream().anyMatch( a -> a.equals( arg ) || ( key.endsWith( "=" )
+                                                                                  && a.startsWith( key ) ) );
+            if ( !present ) {
+                add.add( arg );
+            }
+        }
+        return add;
+    }
+
+    /**
      * Parses an inherited {@code -Xms}/{@code -Xmx} JVM argument into a heap size in
      * megabytes, honoring the {@code g}/{@code m}/{@code k} unit suffix (case-insensitive).
      * A bare numeric value with no suffix is interpreted as bytes per the JVM convention.
@@ -1356,63 +1394,20 @@ class GameModPackLauncher
         // Determine the required Java version from the Minecraft version manifest
         GameLibraryManifest libraryManifest = pack.getMinecraftLibraryManifest();
 
-        String minecraftMainClass;
-        String minecraftArgs = "";
-
-        if ( pack.isVanillaVersion() ) {
-            // Vanilla launch: use mainClass and args from the vanilla manifest
-            try {
-                minecraftMainClass = libraryManifest.getVanillaMainClass();
-                if ( minecraftMainClass == null ) {
-                    minecraftMainClass = "net.minecraft.client.main.Main";
-                }
-            }
-            catch ( Exception e ) {
-                minecraftMainClass = "net.minecraft.client.main.Main";
-            }
-
-            if ( GameModeManager.isClient() ) {
-                minecraftArgs = libraryManifest.getGameArguments();
-            }
+        String vanillaMainClass;
+        try {
+            vanillaMainClass = pack.isVanillaVersion() ? libraryManifest.getVanillaMainClass() : null;
         }
-        else {
-            // Modded launch — dispatch through the polymorphic modloader.
-            GameModLoader loader = pack.getModLoader();
-            if ( GameModeManager.isClient() ) {
-                minecraftMainClass = loader.getMinecraftMainClass();
-            }
-            else {
-                // Server-mode main class: prefer the loader's
-                // getServerMainClass() (legacy Forge ships
-                // ServerLaunchWrapper, Fabric ships FabricServerLauncher);
-                // fall back to the client main when the loader doesn't
-                // have a distinct server entry (modern Forge / NeoForge
-                // use the same BootstrapLauncher class differentiated
-                // by --launchTarget args).
-                String serverMain = loader.getServerMainClass();
-                minecraftMainClass = serverMain != null
-                        ? serverMain
-                        : loader.getMinecraftMainClass();
-            }
-
-            // Build game arguments: combine vanilla game args with the
-            // loader's extra game args.
-            if ( GameModeManager.isClient() ) {
-                String vanillaGameArgs = libraryManifest.getGameArguments();
-                String loaderGameArgs = loader.getMinecraftArguments();
-
-                if ( !loaderGameArgs.isEmpty() && !vanillaGameArgs.isEmpty() &&
-                        !loaderGameArgs.contains( "${auth_player_name}" ) ) {
-                    minecraftArgs = vanillaGameArgs + " " + loaderGameArgs;
-                }
-                else if ( !loaderGameArgs.isEmpty() ) {
-                    minecraftArgs = loaderGameArgs;
-                }
-                else {
-                    minecraftArgs = vanillaGameArgs;
-                }
-            }
+        catch ( Exception e ) {
+            vanillaMainClass = null;
         }
+        MainClassAndGameArgs mainAndArgs = mainClassAndGameArgs(
+                GameModeManager.isClient(),
+                vanillaMainClass,
+                GameModeManager.isClient() ? libraryManifest.getGameArguments() : "",
+                pack.isVanillaVersion() ? null : pack.getModLoader() );
+        String minecraftMainClass = mainAndArgs.mainClass();
+        String minecraftArgs = mainAndArgs.gameArgs();
         String runtimeComponent = libraryManifest.getRequiredRuntimeComponent();
         int requiredJavaMajorVersion = libraryManifest.getRequiredJavaMajorVersion();
         Logger.logStd( LocalizationManager.format( "log.gameModPackLauncher.versionRequiresRuntime",
@@ -1490,7 +1485,16 @@ class GameModPackLauncher
         // (CVE-2021-44228 / Log4Shell mitigation). These also use PatternLayout instead of XMLLayout
         // for the console appender, preventing XML clutter in stdout.
         // See: https://www.minecraft.net/en-us/article/important-message--security-vulnerability-java-edition
-        applyLog4jSecurityConfig( argv, pack.getMinecraftVersion() );
+        // A standalone loader profile (Cleanroom) declares no logging config and ships its own
+        // patched log4j, so Mojang's config file (which replaces the game's logging setup) is not
+        // applied to it; the no-lookups flag still is.
+        final boolean standaloneProfile = libraryManifest.isStandalone();
+        if ( standaloneProfile ) {
+            argv.add( "-Dlog4j2.formatMsgNoLookups=true" );
+        }
+        else {
+            applyLog4jSecurityConfig( argv, pack.getMinecraftVersion() );
+        }
 
         // Add natives path
         String nativesFolder = pack.getPackRootFolder() +
@@ -1515,7 +1519,7 @@ class GameModPackLauncher
         // natives folder instead of extracting x86_64 binaries from the classpath JARs.
         // Also disable the narrator (text2speech) which depends on JNA 4.4 that lacks ARM64 natives,
         // and force JNA to use the system-installed library if available.
-        if ( Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
+        if ( !standaloneProfile && Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
             argv.add( "-Dorg.lwjgl.librarypath=" + nativesFolder );
             argv.add( "-Dnet.java.games.input.librarypath=" + nativesFolder );
             argv.add( "-Djna.nosys=false" );
@@ -1538,6 +1542,17 @@ class GameModPackLauncher
             String loaderJvmArgs = pack.getModLoader().getJvmArguments();
             if ( !loaderJvmArgs.isEmpty() ) {
                 argv.addAll( ProcessUtilities.splitCommandLine( loaderJvmArgs ) );
+            }
+        }
+        else if ( !pack.isVanillaVersion() && GameModeManager.isServer() ) {
+            // A dedicated server has nobody at its console (e.g. Cleanroom's prompt about missing
+            // companion mods would otherwise stall it until the watchdog kills it, in a loop).
+            List< String > serverJvmArgs = serverJvmArgsToAdd(
+                    ProcessUtilities.splitCommandLine( pack.getModLoader().getServerJvmArguments() ), argv );
+            if ( !serverJvmArgs.isEmpty() ) {
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackLauncher.serverJvmArgsAdded",
+                                                               String.join( " ", serverJvmArgs ) ) );
+                argv.addAll( serverJvmArgs );
             }
         }
 
@@ -1710,6 +1725,78 @@ class GameModPackLauncher
         catch ( IOException e ) {
             throw new ModpackException( LocalizationManager.format( "launch.error.startFailed", extractMessage( e ) ), e );
         }
+    }
+
+    /**
+     * The main class and game arguments of a launch.
+     *
+     * @param mainClass the class the JVM starts
+     * @param gameArgs  the game arguments, space-separated (placeholders not yet substituted)
+     *
+     * @since 2026.11
+     */
+    record MainClassAndGameArgs( String mainClass, String gameArgs ) {}
+
+    /**
+     * Picks a launch's main class and game arguments. Pure, so the per-loader and per-side
+     * choices are tested without a pack.
+     *
+     * <ul>
+     *   <li>Vanilla: the manifest's main class (else {@code net.minecraft.client.main.Main}) and,
+     *       on a client, the manifest's game arguments.</li>
+     *   <li>Modded client: the loader's main class; the vanilla arguments followed by the
+     *       loader's, unless the loader's are a whole template of their own (they carry
+     *       {@code ${auth_player_name}}), which then stand alone.</li>
+     *   <li>Modded server: the loader's server main class (else its client one) and the loader's
+     *       {@linkplain GameModLoader#getServerArguments() server arguments} (Cleanroom's
+     *       {@code --tweakClass} per server tweaker; none for the other loaders).</li>
+     * </ul>
+     *
+     * @param client           whether this is a client launch
+     * @param vanillaMainClass the vanilla manifest's main class, or {@code null}
+     * @param vanillaGameArgs  the manifest's game arguments (empty on a server)
+     * @param loader           the pack's loader, or {@code null} for a vanilla pack
+     *
+     * @return the main class and game arguments
+     *
+     * @throws ModpackException if the loader cannot report its arguments
+     *
+     * @since 2026.11
+     */
+    static MainClassAndGameArgs mainClassAndGameArgs( boolean client, String vanillaMainClass,
+                                                      String vanillaGameArgs, GameModLoader loader )
+            throws ModpackException
+    {
+        String vanillaArgs = vanillaGameArgs == null ? "" : vanillaGameArgs;
+        if ( loader == null ) {
+            String main = vanillaMainClass != null ? vanillaMainClass : "net.minecraft.client.main.Main";
+            return new MainClassAndGameArgs( main, client ? vanillaArgs : "" );
+        }
+        if ( !client ) {
+            // Server-mode main class: prefer the loader's getServerMainClass() (legacy Forge
+            // ships ServerLaunchWrapper, Fabric ships FabricServerLauncher, Cleanroom its
+            // serverMainClass); fall back to the client main when the loader doesn't have a
+            // distinct server entry (modern Forge / NeoForge use the same BootstrapLauncher
+            // class differentiated by --launchTarget args).
+            String serverMain = loader.getServerMainClass();
+            String serverArgs = loader.getServerArguments();
+            return new MainClassAndGameArgs( serverMain != null ? serverMain : loader.getMinecraftMainClass(),
+                                             serverArgs == null ? "" : serverArgs );
+        }
+        // Build game arguments: combine vanilla game args with the loader's extra game args.
+        String loaderGameArgs = loader.getMinecraftArguments();
+        String args;
+        if ( !loaderGameArgs.isEmpty() && !vanillaArgs.isEmpty()
+                && !loaderGameArgs.contains( "${auth_player_name}" ) ) {
+            args = vanillaArgs + " " + loaderGameArgs;
+        }
+        else if ( !loaderGameArgs.isEmpty() ) {
+            args = loaderGameArgs;
+        }
+        else {
+            args = vanillaArgs;
+        }
+        return new MainClassAndGameArgs( loader.getMinecraftMainClass(), args );
     }
 
     /**

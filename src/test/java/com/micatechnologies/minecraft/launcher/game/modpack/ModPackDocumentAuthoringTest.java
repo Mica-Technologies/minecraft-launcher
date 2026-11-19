@@ -65,7 +65,7 @@ class ModPackDocumentAuthoringTest
         ModPackDocument source = packNamed( "Original", "1.0.0" );
         source.putString( "packModLoader", "fabric" );
         source.putBool( "packUnstable", true );
-        source.addMod( mod( "JEI", "mods/jei.jar" ) );
+        source.addMod( mod( "JEI", "jei.jar" ) );
 
         ModPackDocument fork = source.forkOf( "My Fork" );
 
@@ -83,10 +83,10 @@ class ModPackDocumentAuthoringTest
     void aForkIsIndependentOfItsSource()
     {
         ModPackDocument source = packNamed( "Original", "1.0.0" );
-        source.addMod( mod( "JEI", "mods/jei.jar" ) );
+        source.addMod( mod( "JEI", "jei.jar" ) );
 
         ModPackDocument fork = source.forkOf( "My Fork" );
-        fork.addMod( mod( "REI", "mods/rei.jar" ) );
+        fork.addMod( mod( "REI", "rei.jar" ) );
         fork.putString( "packModLoader", "fabric" );
 
         assertEquals( 1, source.mods().size(), "the source's mod list must not change" );
@@ -119,17 +119,17 @@ class ModPackDocumentAuthoringTest
     void aModIsAddedToTheList()
     {
         ModPackDocument doc = packNamed( "Pack", "1.0.0" );
-        assertTrue( doc.addMod( mod( "JEI", "mods/jei.jar" ) ) );
+        assertTrue( doc.addMod( mod( "JEI", "jei.jar" ) ) );
         assertEquals( 1, doc.mods().size() );
-        assertEquals( "mods/jei.jar", doc.mods().get( 0 ).getLocal() );
+        assertEquals( "jei.jar", doc.mods().get( 0 ).getLocal() );
     }
 
     @Test
     void severalModsKeepTheirOrder()
     {
         ModPackDocument doc = packNamed( "Pack", "1.0.0" );
-        doc.addMod( mod( "First", "mods/a.jar" ) );
-        doc.addMod( mod( "Second", "mods/b.jar" ) );
+        doc.addMod( mod( "First", "a.jar" ) );
+        doc.addMod( mod( "Second", "b.jar" ) );
         assertEquals( "First", doc.mods().get( 0 ).getName() );
         assertEquals( "Second", doc.mods().get( 1 ).getName() );
     }
@@ -141,8 +141,8 @@ class ModPackDocumentAuthoringTest
     void aDuplicateLocalPathIsRefused()
     {
         ModPackDocument doc = packNamed( "Pack", "1.0.0" );
-        assertTrue( doc.addMod( mod( "JEI", "mods/jei.jar" ) ) );
-        assertFalse( doc.addMod( mod( "JEI (again)", "mods/jei.jar" ) ) );
+        assertTrue( doc.addMod( mod( "JEI", "jei.jar" ) ) );
+        assertFalse( doc.addMod( mod( "JEI (again)", "jei.jar" ) ) );
         assertEquals( 1, doc.mods().size() );
     }
 
@@ -155,9 +155,37 @@ class ModPackDocumentAuthoringTest
     void aDuplicateLocalPathIsRefusedRegardlessOfCase()
     {
         ModPackDocument doc = packNamed( "Pack", "1.0.0" );
-        doc.addMod( mod( "JEI", "mods/JEI.jar" ) );
-        assertFalse( doc.addMod( mod( "jei", "mods/jei.jar" ) ) );
+        doc.addMod( mod( "JEI", "JEI.jar" ) );
+        assertFalse( doc.addMod( mod( "jei", "jei.jar" ) ) );
         assertEquals( 1, doc.mods().size() );
+    }
+
+    /**
+     * Issue 101: a mod's local path is resolved against the mods folder, so {@code mods/jei.jar}
+     * and {@code jei.jar} name the same entry for the duplicate check, whichever side carries
+     * the prefix (older manifests may already hold a {@code mods/} entry).
+     */
+    @Test
+    void aDuplicateIsFoundAcrossTheModsPrefix()
+    {
+        ModPackDocument doc = packNamed( "Pack", "1.0.0" );
+        doc.addMod( mod( "JEI", "mods/jei.jar" ) );
+        assertFalse( doc.addMod( mod( "JEI again", "jei.jar" ) ) );
+        assertFalse( doc.addMod( mod( "JEI again", "Mods\\JEI.jar" ) ) );
+        assertEquals( 1, doc.mods().size() );
+    }
+
+    @Test
+    void modLocalPathsNormaliseToAFileNameInTheModsFolder()
+    {
+        assertEquals( "jei.jar", ModPackDocument.normalizeModLocalPath( "mods/jei.jar" ) );
+        assertEquals( "jei.jar", ModPackDocument.normalizeModLocalPath( " MODS\\jei.jar " ) );
+        assertEquals( "jei.jar", ModPackDocument.normalizeModLocalPath( "./mods/jei.jar" ) );
+        assertEquals( "jei.jar", ModPackDocument.normalizeModLocalPath( "jei.jar" ) );
+        assertEquals( "mods/jei.jar", ModPackDocument.normalizeModLocalPath( "mods/mods/jei.jar" ),
+                      "only one prefix is dropped, so a doubled one stays visible" );
+        assertEquals( "modsjei.jar", ModPackDocument.normalizeModLocalPath( "modsjei.jar" ) );
+        assertEquals( "", ModPackDocument.normalizeModLocalPath( null ) );
     }
 
     @Test
@@ -174,7 +202,7 @@ class ModPackDocumentAuthoringTest
     void anAddedModSurvivesASerializationRoundTrip()
     {
         ModPackDocument doc = packNamed( "Pack", "1.0.0" );
-        ModPackFileEntry entry = mod( "JEI", "mods/jei.jar" );
+        ModPackFileEntry entry = mod( "JEI", "jei.jar" );
         entry.setHash( "abc" );
         entry.setModrinthSlug( "jei" );
         doc.addMod( entry );
@@ -193,7 +221,7 @@ class ModPackDocumentAuthoringTest
     void aModIsRemovedByLocalPath()
     {
         ModPackDocument doc = packWithTwoMods();
-        assertTrue( doc.removeMod( "mods/jei.jar" ) );
+        assertTrue( doc.removeMod( "jei.jar" ) );
         assertEquals( 1, doc.mods().size() );
         assertEquals( "REI", doc.mods().get( 0 ).getName() );
     }
@@ -210,7 +238,7 @@ class ModPackDocumentAuthoringTest
     void aModIsRemovedByModrinthSlug()
     {
         ModPackDocument doc = packNamed( "Pack", "1.0.0" );
-        ModPackFileEntry entry = mod( "Just Enough Items", "mods/jei.jar" );
+        ModPackFileEntry entry = mod( "Just Enough Items", "jei.jar" );
         entry.setModrinthSlug( "jei" );
         doc.addMod( entry );
 
@@ -244,12 +272,12 @@ class ModPackDocumentAuthoringTest
     void onlyOneModIsRemovedPerCall()
     {
         ModPackDocument doc = packNamed( "Pack", "1.0.0" );
-        doc.addMod( mod( "Shared", "mods/a.jar" ) );
-        doc.addMod( mod( "Shared", "mods/b.jar" ) );
+        doc.addMod( mod( "Shared", "a.jar" ) );
+        doc.addMod( mod( "Shared", "b.jar" ) );
 
         assertTrue( doc.removeMod( "Shared" ) );
         assertEquals( 1, doc.mods().size() );
-        assertEquals( "mods/b.jar", doc.mods().get( 0 ).getLocal() );
+        assertEquals( "b.jar", doc.mods().get( 0 ).getLocal() );
     }
 
     // endregion
@@ -373,8 +401,8 @@ class ModPackDocumentAuthoringTest
     private static ModPackDocument packWithTwoMods()
     {
         ModPackDocument doc = packNamed( "Pack", "1.0.0" );
-        doc.addMod( mod( "JEI", "mods/jei.jar" ) );
-        doc.addMod( mod( "REI", "mods/rei.jar" ) );
+        doc.addMod( mod( "JEI", "jei.jar" ) );
+        doc.addMod( mod( "REI", "rei.jar" ) );
         return doc;
     }
 
