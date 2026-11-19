@@ -70,8 +70,7 @@ impl ModrinthSearch {
         let version = cx.new(|cx| {
             InputState::new(window, cx).default_value(prefill.clone().unwrap_or_default())
         });
-        let wanted = pack_loader.to_lowercase();
-        let loader_idx = LOADER_FILTERS.iter().position(|l| *l == wanted);
+        let loader_idx = modrinth::filter_for_pack_loader(pack_loader);
         let mut subs = Vec::new();
         for input in [&query, &version] {
             subs.push(

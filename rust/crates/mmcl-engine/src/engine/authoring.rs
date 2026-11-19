@@ -16,8 +16,10 @@ use crate::model::PackId;
 /// The mod-loader document keys.
 const KEY_MOD_LOADER: &str = "packModLoader";
 const KEY_MOD_LOADER_URL: &str = "packModLoaderURL";
+/// The legacy loader URL key, where Forge and Cleanroom installers also go.
+const KEY_FORGE_URL: &str = "packForgeURL";
 /// The loaders a new pack may name.
-pub(crate) const VALID_LOADERS: [&str; 3] = ["forge", "neoforge", "fabric"];
+pub(crate) const VALID_LOADERS: [&str; 4] = ["forge", "neoforge", "fabric", "cleanroom"];
 
 fn doc_error(e: mmcl_manifest::document::DocError) -> EngineError {
     let args = e.args();
@@ -138,6 +140,10 @@ impl Engine {
         }
         if let Some(u) = mod_loader_url.map(str::trim).filter(|u| !u.is_empty()) {
             doc.put_string(KEY_MOD_LOADER_URL, u);
+            // A Cleanroom pack names its installer in packForgeURL (one jar for both sides).
+            if doc.get_string(KEY_MOD_LOADER) == "cleanroom" {
+                doc.put_string(KEY_FORGE_URL, u);
+            }
         }
         self.install_authored(doc).await
     }

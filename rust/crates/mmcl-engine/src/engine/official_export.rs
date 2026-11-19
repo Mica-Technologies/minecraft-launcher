@@ -531,14 +531,22 @@ impl Engine {
             Some(v) => Some(v.clone()),
             None => pack.minecraft_version().await.ok().flatten(),
         };
+        // A standalone loader profile (Cleanroom: Java 25) names its own runtime; the
+        // Minecraft-version heuristic would pick Java 8 for 1.12.2.
+        let component = match mmcl_launch::export_install::standalone_runtime_component(
+            &self.inner.launch_env,
+            &pack,
+        )
+        .await
+        {
+            Some(c) => c,
+            None => pick_runtime_component(mc_for_runtime.as_deref()).to_string(),
+        };
         let inputs = ProfileInputs {
             name: name.clone(),
             version_id: version_id.clone(),
             game_dir: game_dir.clone(),
-            java_dir: runtime_java(
-                &self.inner.paths,
-                pick_runtime_component(mc_for_runtime.as_deref()),
-            ),
+            java_dir: runtime_java(&self.inner.paths, &component),
             max_ram_mb: self.inner.config.max_ram_mb(),
             custom_jvm_args: self.inner.config.custom_jvm_args(),
             icon: None,

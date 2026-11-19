@@ -351,6 +351,8 @@ pub enum Brand {
     NeoForge,
     /// "FAB" in brown on tan.
     Fabric,
+    /// "CR" in white on teal.
+    Cleanroom,
 }
 
 /// What a brand tile draws (colours as `0xRRGGBB`, the text size per 128 px of tile).
@@ -364,12 +366,13 @@ pub struct BrandTile {
 }
 
 impl Brand {
-    /// The brand of a loader type (`forge`, `neoforge`, `fabric`; any case).
+    /// The brand of a loader type (`forge`, `neoforge`, `fabric`, `cleanroom`; any case).
     pub fn of_loader(loader_type: &str) -> Option<Brand> {
         match loader_type.trim().to_ascii_lowercase().as_str() {
             "forge" => Some(Brand::Forge),
             "neoforge" => Some(Brand::NeoForge),
             "fabric" => Some(Brand::Fabric),
+            "cleanroom" => Some(Brand::Cleanroom),
             _ => None,
         }
     }
@@ -381,6 +384,7 @@ impl Brand {
             Brand::Forge => Some("forge"),
             Brand::NeoForge => Some("neoforge"),
             Brand::Fabric => Some("fabric"),
+            Brand::Cleanroom => Some("cleanroom"),
         }
     }
 
@@ -391,6 +395,8 @@ impl Brand {
             Brand::Forge => Some("https://files.minecraftforge.net/static/images/embed_logo.png"),
             Brand::NeoForge => Some("https://neoforged.net/img/authors/neoforged.png"),
             Brand::Fabric => Some("https://fabricmc.net/assets/logo.png"),
+            // No stable official logo URL: the tile is drawn.
+            Brand::Cleanroom => None,
         }
     }
 
@@ -429,6 +435,13 @@ impl Brand {
                 text: "FAB",
                 text_color: 0x3B2A13,
                 text_size_per_128: 44,
+            },
+            Brand::Cleanroom => BrandTile {
+                top: 0x4FB3BF,
+                bottom: 0x1F6F7A,
+                text: "CR",
+                text_color: 0xFFFFFF,
+                text_size_per_128: 56,
             },
         }
     }
@@ -861,6 +874,9 @@ mod tests {
         assert_eq!(Brand::of_loader("Forge"), Some(Brand::Forge));
         assert_eq!(Brand::of_loader(" neoforge "), Some(Brand::NeoForge));
         assert_eq!(Brand::of_loader("fabric"), Some(Brand::Fabric));
+        assert_eq!(Brand::of_loader("Cleanroom"), Some(Brand::Cleanroom));
+        assert_eq!(Brand::Cleanroom.loader_type(), Some("cleanroom"));
+        assert_eq!(Brand::Cleanroom.tile().text, "CR");
         assert_eq!(Brand::of_loader("quilt"), None);
         assert_eq!(Brand::Vanilla.tile().text, "MC");
         assert_eq!(Brand::Vanilla.tile().top, 0x7BB344);

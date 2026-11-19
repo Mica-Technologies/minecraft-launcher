@@ -1,6 +1,6 @@
 // Copyright (c) Mica Technologies. Licensed under the GNU GPL v3.
 
-//! The Forge / NeoForge / Fabric version pickers: feed parsing (pure) and fetching.
+//! The Forge / NeoForge / Fabric / Cleanroom version pickers: feed parsing (pure) and fetching.
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -23,6 +23,9 @@ pub const NEOFORGE_METADATA_URL: &str =
 pub const FABRIC_GAME_URL: &str = "https://meta.fabricmc.net/v2/versions/game";
 /// Fabric loader versions.
 pub const FABRIC_LOADER_URL: &str = "https://meta.fabricmc.net/v2/versions/loader";
+/// Cleanroom's GitHub releases.
+pub const CLEANROOM_RELEASES_URL: &str =
+    "https://api.github.com/repos/CleanroomMC/Cleanroom/releases";
 
 /// One pickable version: what the list shows and the URL it sets.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -208,6 +211,37 @@ pub fn fabric_entries(
         .collect())
 }
 
+/// Cleanroom entries from the GitHub releases API, in feed order (newest first): every
+/// non-draft release with a `*-installer.jar` asset served over https.
+pub fn cleanroom_entries(releases_json: &str) -> Result<Vec<VersionChoice>, LoaderFeedError> {
+    let releases = match serde_json::from_str::<Value>(releases_json) {
+        Ok(Value::Array(a)) => a,
+        Ok(_) => return Err(LoaderFeedError::Parse("expected an array".into())),
+        Err(e) => return Err(LoaderFeedError::Parse(e.to_string())),
+    };
+    Ok(releases
+        .iter()
+        .filter(|r| r.get("draft").and_then(Value::as_bool) != Some(true))
+        .filter_map(|r| {
+            let tag = r.get("tag_name").and_then(Value::as_str)?.trim();
+            let url = r
+                .get("assets")?
+                .as_array()?
+                .iter()
+                .filter(|a| {
+                    a.get("name")
+                        .and_then(Value::as_str)
+                        .is_some_and(|n| n.ends_with("-installer.jar"))
+                })
+                .find_map(|a| a.get("browser_download_url").and_then(Value::as_str))?;
+            (!tag.is_empty() && url.starts_with("https://")).then(|| VersionChoice {
+                label: tf!("editor.versionPick.cleanroom", tag),
+                url: url.to_string(),
+            })
+        })
+        .collect())
+}
+
 /// Fetches the Forge list.
 pub async fn fetch_forge(
     backend: &dyn EditorBackend,
@@ -232,6 +266,14 @@ pub async fn fetch_fabric(
     let games = backend.get_text(FABRIC_GAME_URL).await?;
     let loaders = backend.get_text(FABRIC_LOADER_URL).await?;
     fabric_entries(&games, &loaders)
+}
+
+/// Fetches the Cleanroom list.
+pub async fn fetch_cleanroom(
+    backend: &dyn EditorBackend,
+) -> Result<Vec<VersionChoice>, LoaderFeedError> {
+    let text = backend.get_text(CLEANROOM_RELEASES_URL).await?;
+    cleanroom_entries(&text)
 }
 
 /// The installer's SHA-1 (what `packModLoaderHash` holds), from a temp download
@@ -283,6 +325,29 @@ mod tests {
         assert_eq!(forge_entries(PROMOS, "1.99").unwrap().len(), 4);
         assert!(forge_entries("[]", "").is_err());
         assert!(forge_entries("not json", "").is_err());
+    }
+
+    #[test]
+    fn cleanroom_releases_list_their_installers() {
+        let json = r#"[
+          {"tag_name":"0.7.14-alpha","draft":false,"prerelease":true,"assets":[
+            {"name":"cleanroom-0.7.14-alpha-universal.jar","browser_download_url":"https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-universal.jar"},
+            {"name":"cleanroom-0.7.14-alpha-installer.jar","browser_download_url":"https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-installer.jar"}]},
+          {"tag_name":"0.8.0-alpha","draft":true,"assets":[
+            {"name":"cleanroom-0.8.0-alpha-installer.jar","browser_download_url":"https://x/i.jar"}]},
+          {"tag_name":"0.7.13-alpha","assets":[]}
+        ]"#;
+        let e = cleanroom_entries(json).unwrap();
+        assert_eq!(e.len(), 1);
+        assert_eq!(
+            e[0].url,
+            "https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-installer.jar"
+        );
+        assert_eq!(
+            e[0].label,
+            tf!("editor.versionPick.cleanroom", "0.7.14-alpha")
+        );
+        assert!(cleanroom_entries(r#"{"message":"API rate limit exceeded"}"#).is_err());
     }
 
     #[test]

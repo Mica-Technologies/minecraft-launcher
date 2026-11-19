@@ -13,11 +13,18 @@ pub enum Loader {
     Forge,
     NeoForge,
     Fabric,
+    /// Cleanroom (Forge 1.12.2 fork on Java 25): its installer jar in the loader URL.
+    Cleanroom,
 }
 
 impl Loader {
     /// Every loader, in picker order.
-    pub const ALL: [Loader; 3] = [Loader::Forge, Loader::NeoForge, Loader::Fabric];
+    pub const ALL: [Loader; 4] = [
+        Loader::Forge,
+        Loader::NeoForge,
+        Loader::Fabric,
+        Loader::Cleanroom,
+    ];
 
     /// The brand name (not localized).
     pub fn label(self) -> &'static str {
@@ -25,6 +32,7 @@ impl Loader {
             Loader::Forge => "Forge",
             Loader::NeoForge => "NeoForge",
             Loader::Fabric => "Fabric",
+            Loader::Cleanroom => "Cleanroom",
         }
     }
 
@@ -34,6 +42,7 @@ impl Loader {
             Loader::Forge => "forge",
             Loader::NeoForge => "neoforge",
             Loader::Fabric => "fabric",
+            Loader::Cleanroom => "cleanroom",
         }
     }
 
@@ -42,6 +51,7 @@ impl Loader {
         match value.trim().to_lowercase().as_str() {
             "neoforge" => Loader::NeoForge,
             "fabric" => Loader::Fabric,
+            "cleanroom" => Loader::Cleanroom,
             _ => Loader::Forge,
         }
     }
@@ -52,6 +62,7 @@ impl Loader {
             Loader::Forge => "editor.loaderHint.forge",
             Loader::NeoForge => "editor.loaderHint.neoforge",
             Loader::Fabric => "editor.loaderHint.fabric",
+            Loader::Cleanroom => "editor.loaderHint.cleanroom",
         }
     }
 }
@@ -133,9 +144,10 @@ impl EditorForm {
         doc.put_string("packModLoader", loader);
         doc.put_string("packModLoaderURL", &self.loader_url);
         doc.put_string("packModLoaderHash", &self.loader_hash);
-        // Legacy mirror so older launcher builds still read Forge packs; blank for the others
-        // because the values would mislead.
-        let forge = self.loader == Loader::Forge;
+        // Legacy mirror so older launcher builds still read Forge packs, and the key a
+        // Cleanroom pack names its installer in; blank for the others because the values would
+        // mislead.
+        let forge = matches!(self.loader, Loader::Forge | Loader::Cleanroom);
         doc.put_string("packForgeURL", if forge { &self.loader_url } else { "" });
         doc.put_string("packForgeHash", if forge { &self.loader_hash } else { "" });
 
@@ -229,6 +241,22 @@ mod tests {
         form.loader = Loader::Forge;
         collect_all(&form, &mut doc);
         assert_eq!(doc.get_string("packForgeURL"), "https://meta/x");
+        // Cleanroom names its installer in packForgeURL too.
+        form.loader = Loader::Cleanroom;
+        form.loader_url = "https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-installer.jar".into();
+        form.loader_hash = "8aad156fec391bb97ec6956c40fb795d08fc7c0d".into();
+        collect_all(&form, &mut doc);
+        assert_eq!(doc.get_string("packModLoader"), "cleanroom");
+        assert_eq!(doc.get_string("packForgeURL"), form.loader_url);
+        assert_eq!(
+            doc.get_string("packForgeHash"),
+            "8aad156fec391bb97ec6956c40fb795d08fc7c0d"
+        );
+        assert_eq!(
+            EditorForm::populate(&doc).loader,
+            Loader::Cleanroom,
+            "round-trips"
+        );
     }
 
     #[test]

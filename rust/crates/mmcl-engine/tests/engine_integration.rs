@@ -252,6 +252,29 @@ fn an_authored_pack_can_be_created_edited_and_forked() {
         h.run(|e| Box::pin(async move { e.create_pack("  ", None, None).await }))
             .is_err()
     );
+    // Cleanroom is a valid loader; its installer goes in packForgeURL as well.
+    let url = "https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-installer.jar";
+    let cr = h
+        .run(move |e| {
+            Box::pin(async move {
+                e.create_pack("Cleanroom Pack", Some("Cleanroom"), Some(url))
+                    .await
+            })
+        })
+        .unwrap();
+    let doc: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(
+            e.paths()
+                .mcp_manifests_dir()
+                .join("created-cleanroompack.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(doc["packModLoader"], "cleanroom");
+    assert_eq!(doc["packForgeURL"], url);
+    assert_eq!(doc["packModLoaderURL"], url);
+    assert!(e.is_authored_pack(&cr));
 }
 
 #[test]

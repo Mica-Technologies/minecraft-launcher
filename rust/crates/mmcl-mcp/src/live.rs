@@ -227,7 +227,7 @@ pub struct EngineActions {
     engine: Engine,
 }
 
-const VALID_LOADERS: [&str; 3] = ["forge", "neoforge", "fabric"];
+const VALID_LOADERS: [&str; 4] = ["forge", "neoforge", "fabric", "cleanroom"];
 
 impl EngineActions {
     pub fn new(engine: Engine) -> EngineActions {
@@ -438,7 +438,7 @@ impl LauncherActions for EngineActions {
         let loader = match mod_loader.map(|l| l.trim().to_lowercase()) {
             Some(l) if !VALID_LOADERS.contains(&l.as_str()) => {
                 return Outcome::failed(format!(
-                    "Unknown mod loader \"{}\". Use forge, neoforge, or fabric.",
+                    "Unknown mod loader \"{}\". Use forge, neoforge, fabric, or cleanroom.",
                     mod_loader.unwrap_or("")
                 ));
             }

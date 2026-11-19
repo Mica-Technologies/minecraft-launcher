@@ -140,22 +140,24 @@ pub fn vanilla_kinds_for(kind: &str) -> &'static [&'static str] {
     }
 }
 
-/// The loader type a type filter shows (`forge`, `neoforge`, `fabric`).
+/// The loader type a type filter shows (`forge`, `neoforge`, `fabric`, `cleanroom`).
 pub fn loader_for(kind: &str) -> Option<&'static str> {
     match kind {
         "forge" => Some("forge"),
         "neoforge" => Some("neoforge"),
         "fabric" => Some("fabric"),
+        "cleanroom" => Some("cleanroom"),
         _ => None,
     }
 }
 
-/// `Forge`, `NeoForge`, `Fabric`, or the raw id.
+/// `Forge`, `NeoForge`, `Fabric`, `Cleanroom`, or the raw id.
 pub fn pretty_loader(id: &str) -> String {
     match id.to_ascii_lowercase().as_str() {
         "forge" => "Forge".into(),
         "neoforge" => "NeoForge".into(),
         "fabric" => "Fabric".into(),
+        "cleanroom" => "Cleanroom".into(),
         _ => id.to_string(),
     }
 }

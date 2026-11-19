@@ -1159,7 +1159,7 @@ impl Engine {
         Ok(PackId::vanilla(mc_version))
     }
 
-    /// Loader versions of `loader_type` (`forge`, `neoforge`, `fabric`).
+    /// Loader versions of `loader_type` (`forge`, `neoforge`, `fabric`, `cleanroom`).
     pub async fn loader_versions(&self, loader_type: &str) -> Vec<LoaderVersionView> {
         use mmcl_modpack::catalog::loaders;
         let http = self.inner.http.clone();
@@ -1167,6 +1167,7 @@ impl Engine {
             "forge" => loaders::forge_versions(http.as_ref()).await,
             "neoforge" => loaders::neoforge_versions(http.as_ref()).await,
             "fabric" => loaders::fabric_versions(http.as_ref()).await,
+            "cleanroom" => loaders::cleanroom_versions(http.as_ref()).await,
             _ => Vec::new(),
         };
         list.into_iter()

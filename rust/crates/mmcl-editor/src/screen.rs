@@ -847,6 +847,14 @@ impl ModpackEditor {
                 "dialog.editor.pickFabric.header",
                 "dialog.editor.pickFabric.contentLabel",
             ),
+            Loader::Cleanroom => (
+                "editor.status.fetchingCleanroom",
+                "editor.status.fetchCleanroomFailed",
+                "log.editor.fetchCleanroomFailed",
+                "dialog.editor.pickCleanroom.title",
+                "dialog.editor.pickCleanroom.header",
+                "dialog.editor.pickCleanroom.contentLabel",
+            ),
         };
         self.set_status(t!(fetching).into_owned(), cx);
         cx.spawn_in(window, async move |this, cx| {
@@ -857,6 +865,7 @@ impl ModpackEditor {
                         Loader::Forge => loaders::fetch_forge(b.as_ref(), &prefilter).await,
                         Loader::NeoForge => loaders::fetch_neoforge(b.as_ref()).await,
                         Loader::Fabric => loaders::fetch_fabric(b.as_ref()).await,
+                        Loader::Cleanroom => loaders::fetch_cleanroom(b.as_ref()).await,
                     }
                 })
                 .await;
@@ -898,6 +907,7 @@ impl ModpackEditor {
                     Loader::Forge => "editor.status.forgeUrlSet",
                     Loader::NeoForge => "editor.status.neoForgeUrlSet",
                     Loader::Fabric => "editor.status.fabricUrlSet",
+                    Loader::Cleanroom => "editor.status.cleanroomUrlSet",
                 };
                 this.set_status(t!(key).into_owned(), cx);
             });

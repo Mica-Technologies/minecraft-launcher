@@ -28,6 +28,7 @@ pub(crate) fn loader_version_of(v: &LoaderVersionView) -> Option<LoaderVersion> 
         "forge" => loaders::forge_installer_url(mc, lv),
         "neoforge" => loaders::neoforge_installer_url(lv),
         "fabric" => loaders::fabric_profile_url(mc, lv),
+        "cleanroom" => loaders::cleanroom_installer_url(lv),
         _ => return None,
     };
     Some(LoaderVersion {
@@ -298,6 +299,11 @@ mod tests {
             "https://meta.fabricmc.net/v2/versions/loader/1.21.5/0.16.10/profile/json"
         );
         assert_eq!(fa.manifest_filename(), "loader-fabric-1.21.5-0.16.10.json");
+        let cr = loader_version_of(&view("cleanroom", "1.12.2", "0.7.14-alpha")).unwrap();
+        assert_eq!(
+            cr.installer_url,
+            "https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-installer.jar"
+        );
         assert!(loader_version_of(&view("quilt", "1.21", "1")).is_none());
         assert!(loader_version_of(&view("forge", "", "47.3.0")).is_none());
         assert!(loader_version_of(&view("fabric", "1.21", " ")).is_none());

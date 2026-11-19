@@ -523,9 +523,12 @@ impl Tool for MutatingTool {
                     ("name", "The new modpack's name."),
                     (
                         "modLoader",
-                        "Mod loader: forge, neoforge, or fabric. Defaults to forge.",
+                        "Mod loader: forge, neoforge, fabric, or cleanroom. Defaults to forge.",
                     ),
-                    ("modLoaderUrl", "URL of the mod loader installer."),
+                    (
+                        "modLoaderUrl",
+                        "URL of the mod loader installer (for cleanroom, the Cleanroom installer jar).",
+                    ),
                 ],
                 &["name"],
             ),

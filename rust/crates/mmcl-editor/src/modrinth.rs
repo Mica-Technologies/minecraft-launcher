@@ -21,6 +21,16 @@ pub const SEARCH_URL: &str = "https://api.modrinth.com/v2/search";
 pub const SEARCH_LIMIT: usize = 25;
 /// The loader filter's choices.
 pub const LOADER_FILTERS: [&str; 4] = ["forge", "neoforge", "fabric", "quilt"];
+
+/// The Modrinth loader filter a pack's loader searches with: Cleanroom runs Forge 1.12.2 mods,
+/// so it searches as `forge`. `None` for a loader Modrinth has no filter for.
+pub fn filter_for_pack_loader(pack_loader: &str) -> Option<usize> {
+    let wanted = match pack_loader.trim().to_lowercase().as_str() {
+        "cleanroom" => "forge".to_string(),
+        other => other.to_string(),
+    };
+    LOADER_FILTERS.iter().position(|l| *l == wanted)
+}
 /// Description cap (characters) in a result row.
 pub const DESCRIPTION_MAX: usize = 120;
 
@@ -423,6 +433,14 @@ mod tests {
     use super::*;
     use crate::backend::fake::FakeBackend;
     use futures::executor::block_on;
+
+    #[test]
+    fn a_cleanroom_pack_searches_forge_mods() {
+        assert_eq!(filter_for_pack_loader("Cleanroom"), Some(0));
+        assert_eq!(filter_for_pack_loader("Fabric"), Some(2));
+        assert_eq!(filter_for_pack_loader("forge"), Some(0));
+        assert_eq!(filter_for_pack_loader("liteloader"), None);
+    }
 
     #[test]
     fn facets_are_built_exactly() {

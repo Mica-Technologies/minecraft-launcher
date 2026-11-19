@@ -3,7 +3,7 @@
 //! Catalogues for Browse and the editor: modloader versions (Java `LoaderVersionManager`) and
 //! vanilla Minecraft versions (Java `VanillaVersionManager`).
 
-/// Forge, NeoForge and Fabric version lists, and "install a bare loader" packs.
+/// Forge, NeoForge, Fabric and Cleanroom version lists, and "install a bare loader" packs.
 pub mod loaders {
     use std::collections::HashMap;
     use std::fs;
@@ -28,6 +28,11 @@ pub mod loaders {
         "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
     pub const FABRIC_GAME_URL: &str = "https://meta.fabricmc.net/v2/versions/game";
     pub const FABRIC_LOADER_URL: &str = "https://meta.fabricmc.net/v2/versions/loader";
+    /// Cleanroom's GitHub releases (each carries `cleanroom-<version>-installer.jar`).
+    pub const CLEANROOM_RELEASES_URL: &str =
+        "https://api.github.com/repos/CleanroomMC/Cleanroom/releases";
+    /// The one Minecraft version Cleanroom targets.
+    pub const CLEANROOM_MC_VERSION: &str = "1.12.2";
 
     /// One installable loader version.
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,6 +61,7 @@ pub mod loaders {
             "forge" => "Forge",
             "neoforge" => "NeoForge",
             "fabric" => "Fabric",
+            "cleanroom" => "Cleanroom",
             other => other,
         }
     }
@@ -65,6 +71,7 @@ pub mod loaders {
             "forge" => "https://files.minecraftforge.net",
             "neoforge" => "https://neoforged.net",
             "fabric" => "https://fabricmc.net",
+            "cleanroom" => "https://github.com/CleanroomMC/Cleanroom",
             _ => "https://minecraft.net",
         }
     }
@@ -102,6 +109,12 @@ pub mod loaders {
     }
     pub fn fabric_profile_url(mc: &str, loader: &str) -> String {
         format!("https://meta.fabricmc.net/v2/versions/loader/{mc}/{loader}/profile/json")
+    }
+    /// The Cleanroom installer of release `ver` (its GitHub release asset).
+    pub fn cleanroom_installer_url(ver: &str) -> String {
+        format!(
+            "https://github.com/CleanroomMC/Cleanroom/releases/download/{ver}/cleanroom-{ver}-installer.jar"
+        )
     }
 
     /// Forge versions from `promotions_slim.json`: newest MC first, recommended then latest.
@@ -177,6 +190,38 @@ pub mod loaders {
             .collect()
     }
 
+    /// Cleanroom versions from the GitHub releases API, newest first: every non-draft release
+    /// with a `*-installer.jar` asset (Cleanroom's releases are all alpha pre-releases, so
+    /// those are kept). `None` when the body is not a release list.
+    pub fn parse_cleanroom_releases(json: &str) -> Option<Vec<LoaderVersion>> {
+        let releases: Vec<Value> = serde_json::from_str(json).ok()?;
+        Some(
+            releases
+                .iter()
+                .filter(|r| r.get("draft").and_then(Value::as_bool) != Some(true))
+                .filter_map(|r| {
+                    let tag = r.get("tag_name").and_then(Value::as_str)?.trim();
+                    let url = r
+                        .get("assets")?
+                        .as_array()?
+                        .iter()
+                        .filter(|a| {
+                            a.get("name")
+                                .and_then(Value::as_str)
+                                .is_some_and(|n| n.ends_with("-installer.jar"))
+                        })
+                        .find_map(|a| a.get("browser_download_url").and_then(Value::as_str))?;
+                    (!tag.is_empty() && url.starts_with("https://")).then(|| LoaderVersion {
+                        loader_type: "cleanroom".into(),
+                        mc_version: CLEANROOM_MC_VERSION.into(),
+                        loader_version: tag.to_string(),
+                        installer_url: url.to_string(),
+                    })
+                })
+                .collect(),
+        )
+    }
+
     /// Fabric: every stable game version with the newest stable loader.
     pub fn parse_fabric(games_json: &str, loaders_json: &str) -> Option<Vec<LoaderVersion>> {
         let games: Vec<Value> = serde_json::from_str(games_json).ok()?;
@@ -212,6 +257,7 @@ pub mod loaders {
         forge: Option<Vec<LoaderVersion>>,
         neoforge: Option<Vec<LoaderVersion>>,
         fabric: Option<Vec<LoaderVersion>>,
+        cleanroom: Option<Vec<LoaderVersion>>,
     }
     static CACHE: LazyLock<Mutex<Cache>> = LazyLock::new(Default::default);
 
@@ -272,6 +318,27 @@ pub mod loaders {
         }
     }
 
+    pub async fn cleanroom_versions(http: &dyn PackHttp) -> Vec<LoaderVersion> {
+        if let Some(v) = CACHE.lock().cleanroom.clone() {
+            return v;
+        }
+        match http
+            .get_string(CLEANROOM_RELEASES_URL)
+            .await
+            .ok()
+            .and_then(|b| parse_cleanroom_releases(&b))
+        {
+            Some(v) => {
+                CACHE.lock().cleanroom = Some(v.clone());
+                v
+            }
+            None => {
+                mmcl_log::warn_silent(&t!("log.loaderVersionManager.fetchCleanroom"));
+                Vec::new()
+            }
+        }
+    }
+
     /// `<root>/config/imported-manifests/<manifest filename>`.
     pub fn manifest_path_for(paths: &DataPaths, v: &LoaderVersion) -> PathBuf {
         paths.imported_manifests_dir().join(v.manifest_filename())
@@ -297,7 +364,8 @@ pub mod loaders {
         m.insert("packModLoader".into(), s(&v.loader_type));
         m.insert("packModLoaderURL".into(), s(&v.installer_url));
         m.insert("packModLoaderHash".into(), s(""));
-        let forge = v.loader_type == "forge";
+        // Cleanroom's installer belongs in packForgeURL too (one jar for both sides).
+        let forge = v.loader_type == "forge" || v.loader_type == "cleanroom";
         m.insert(
             "packForgeURL".into(),
             s(if forge { &v.installer_url } else { "" }),
@@ -403,6 +471,32 @@ pub mod loaders {
                 v[0].installer_url,
                 "https://meta.fabricmc.net/v2/versions/loader/1.21.5/0.16.10/profile/json"
             );
+        }
+
+        #[test]
+        fn cleanroom_releases() {
+            let j = r#"[
+              {"tag_name":"0.7.14-alpha","draft":false,"prerelease":true,"assets":[
+                {"name":"cleanroom-0.7.14-alpha-universal.jar","browser_download_url":"https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-universal.jar"},
+                {"name":"cleanroom-0.7.14-alpha-installer.jar","browser_download_url":"https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-installer.jar"}]},
+              {"tag_name":"0.8.0-alpha","draft":true,"assets":[
+                {"name":"cleanroom-0.8.0-alpha-installer.jar","browser_download_url":"https://x/i.jar"}]},
+              {"tag_name":"0.7.13-alpha","assets":[{"name":"notes.txt","browser_download_url":"https://x/n"}]},
+              {"tag_name":"0.7.12-alpha","assets":[
+                {"name":"cleanroom-0.7.12-alpha-installer.jar","browser_download_url":"http://insecure/i.jar"}]}
+            ]"#;
+            let v = parse_cleanroom_releases(j).unwrap();
+            assert_eq!(v.len(), 1);
+            assert_eq!(v[0].loader_type, "cleanroom");
+            assert_eq!(v[0].mc_version, "1.12.2");
+            assert_eq!(v[0].loader_version, "0.7.14-alpha");
+            assert_eq!(v[0].installer_url, cleanroom_installer_url("0.7.14-alpha"));
+            assert_eq!(v[0].display_name(), "Cleanroom 1.12.2 (0.7.14-alpha)");
+            assert!(parse_cleanroom_releases("{\"message\":\"rate limited\"}").is_none());
+            let m = build_manifest(&v[0]);
+            assert_eq!(m["packModLoader"], "cleanroom");
+            assert_eq!(m["packForgeURL"], v[0].installer_url.as_str());
+            assert_eq!(m["packURL"], "https://github.com/CleanroomMC/Cleanroom");
         }
 
         #[test]

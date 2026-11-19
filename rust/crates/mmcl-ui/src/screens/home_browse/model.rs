@@ -37,7 +37,7 @@ pub const HOME_PAGE_SIZES: [usize; 5] = [12, 24, 48, 72, 96];
 pub const HOME_DEFAULT_PAGE_SIZE: usize = 48;
 
 /// Browse: type options (default `all`).
-pub const BROWSE_TYPES: [&str; 9] = [
+pub const BROWSE_TYPES: [&str; 10] = [
     "all",
     "modpacks",
     "vanilla.release",
@@ -47,6 +47,7 @@ pub const BROWSE_TYPES: [&str; 9] = [
     "forge",
     "neoforge",
     "fabric",
+    "cleanroom",
 ];
 /// Browse: status options (default `installed`).
 pub const BROWSE_STATUSES: [&str; 3] = ["all", "installed", "available"];
@@ -439,6 +440,7 @@ mod tests {
                     "forge",
                     "neoforge",
                     "fabric",
+                    "cleanroom",
                 ],
             ),
             (STATUS_PREFIX, &BROWSE_STATUSES),
