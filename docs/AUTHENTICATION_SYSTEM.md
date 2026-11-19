@@ -201,7 +201,7 @@ launch on a non-default account rarely waits.
 ### Which account a launch uses
 
 `MCLauncherAuthManager.userForLaunch(overrideUuid)` asks `LaunchAccountResolver`: the pack's
-override (Advanced tab → *Launch as*, stored per pack as `accountOverrideByPack`) if it has one,
+override (detail window Settings tab → *Launch as*, stored per pack as `accountOverrideByPack`) if it has one,
 otherwise the default. It then waits for that account's refresh if one is due. The launch is
 **blocked**, never silently redirected, when:
 
