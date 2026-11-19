@@ -10,6 +10,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::files::ManifestFile;
+use crate::optional::OptionalMod;
 
 static VERSION_TAIL: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"[-_]v?[0-9].*$").expect("valid regex"));
@@ -20,12 +21,21 @@ pub struct UpdateDiff {
     pub added: Vec<String>,
     pub removed: Vec<String>,
     pub updated: Vec<String>,
+    /// The names in `added` / `updated` that belong to optional mods the player has on, for
+    /// an "(optional)" tag. No duplicates, first-seen order.
+    pub optional_names: Vec<String>,
+    /// Display names of client-side optional mods that are new since the last sync and off:
+    /// available for the player to switch on.
+    pub new_optional_names: Vec<String>,
 }
 
 impl UpdateDiff {
-    /// True when nothing would change.
+    /// True when nothing would change and no new optional mod is available.
     pub fn is_empty(&self) -> bool {
-        self.added.is_empty() && self.removed.is_empty() && self.updated.is_empty()
+        self.added.is_empty()
+            && self.removed.is_empty()
+            && self.updated.is_empty()
+            && self.new_optional_names.is_empty()
     }
 }
 
@@ -78,6 +88,36 @@ where
     S: AsRef<str>,
     F: Fn(&ManifestFile, &str) -> bool,
 {
+    diff_mods_with_optional(
+        manifest,
+        &[],
+        &HashSet::new(),
+        &HashSet::new(),
+        installed,
+        installed_differs,
+    )
+}
+
+/// [`diff_mods`] with the pack's optional mods (Java `PendingUpdateDiff.compute`).
+///
+/// Changes to optional mods that are on (`enabled_keys`, identity keys of the optional mods
+/// installed on this client) are listed like any other mod change and named in
+/// `optional_names`. An optional mod that is off is never on disk, so its changes are hidden;
+/// a client-side one whose key is not in `known_keys` (the optional mods the manifest had at
+/// the last successful sync) is listed in `new_optional_names`. An optional jar never counts
+/// as removed: when it is off, the player chose that.
+pub fn diff_mods_with_optional<S, F>(
+    manifest: &[ManifestFile],
+    optional: &[OptionalMod],
+    enabled_keys: &HashSet<String>,
+    known_keys: &HashSet<String>,
+    installed: &[S],
+    installed_differs: F,
+) -> UpdateDiff
+where
+    S: AsRef<str>,
+    F: Fn(&ManifestFile, &str) -> bool,
+{
     let mut installed_by_key: Vec<(String, String, String)> = Vec::new(); // key, file, display
     let mut seen = HashSet::new();
     for file in installed.iter().map(AsRef::as_ref) {
@@ -105,13 +145,23 @@ where
         if !m.client_req {
             continue;
         }
-        match lookup.get(key.as_str()) {
-            None => diff.added.push(base_name(file_name)),
-            Some(installed_file) => {
-                if installed_differs(m, installed_file) {
-                    diff.updated.push(base_name(file_name));
-                }
+        classify(m, file_name, &lookup, &installed_differs, &mut diff);
+    }
+    for o in optional {
+        let file = o.to_manifest_file();
+        let Some(file_name) = file.file_name() else {
+            continue;
+        };
+        manifest_keys.insert(mod_key(file_name));
+        if enabled_keys.contains(&o.key()) {
+            if let Some(name) = classify(&file, file_name, &lookup, &installed_differs, &mut diff)
+                && !diff.optional_names.contains(&name)
+            {
+                diff.optional_names.push(name);
             }
+        } else if o.is_client_side() && !known_keys.contains(&o.key()) {
+            // A server-only optional mod is never offered on a client, so never "available".
+            diff.new_optional_names.push(o.display_name());
         }
     }
     diff.removed = installed_by_key
@@ -120,6 +170,29 @@ where
         .map(|(_, _, display)| display)
         .collect();
     diff
+}
+
+/// Files one manifest mod as added or updated; returns the name it was filed under, or `None`
+/// when it is unchanged.
+fn classify<F>(
+    m: &ManifestFile,
+    file_name: &str,
+    lookup: &HashMap<&str, &str>,
+    installed_differs: &F,
+    diff: &mut UpdateDiff,
+) -> Option<String>
+where
+    F: Fn(&ManifestFile, &str) -> bool,
+{
+    let name = base_name(file_name);
+    match lookup.get(mod_key(file_name).as_str()) {
+        None => diff.added.push(name.clone()),
+        Some(installed_file) if installed_differs(m, installed_file) => {
+            diff.updated.push(name.clone())
+        }
+        Some(_) => return None,
+    }
+    Some(name)
 }
 
 #[cfg(test)]
@@ -183,6 +256,138 @@ mod tests {
             |_, _| false,
         );
         assert!(diff.is_empty());
+    }
+
+    // ---- ports of PendingUpdateDiffOptionalTest ----
+
+    fn opt(name: &str, local: &str, client: bool, server: bool) -> OptionalMod {
+        OptionalMod {
+            name: Some(name.into()),
+            local: Some(local.into()),
+            client_req: client,
+            server_req: server,
+            ..Default::default()
+        }
+    }
+
+    fn keys(k: &[&str]) -> HashSet<String> {
+        k.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// Every installed file whose name is in `changed` reads as differing from the manifest.
+    fn diff_opt(
+        optional: &[OptionalMod],
+        enabled: &[&str],
+        known: &[&str],
+        installed: &[&str],
+        changed: &[&str],
+    ) -> UpdateDiff {
+        diff_mods_with_optional(
+            &[m("jei.jar", true)],
+            optional,
+            &keys(enabled),
+            &keys(known),
+            installed,
+            |_, f| changed.contains(&f),
+        )
+    }
+
+    #[test]
+    fn changes_to_enabled_optional_mods_are_listed_and_tagged() {
+        let optional = [
+            opt("AUSM", "ausm.jar", true, false),
+            opt("Lib", "lib.jar", true, false),
+        ];
+        let d = diff_opt(
+            &optional,
+            &["ausm.jar", "lib.jar"],
+            &["ausm.jar", "lib.jar"],
+            &["jei.jar", "ausm.jar"],
+            &["ausm.jar"],
+        );
+        assert_eq!(d.updated, ["ausm"]);
+        assert_eq!(d.added, ["lib"]);
+        assert_eq!(d.optional_names, ["ausm", "lib"]);
+        assert!(d.removed.is_empty() && d.new_optional_names.is_empty());
+    }
+
+    #[test]
+    fn a_new_optional_mod_that_is_off_is_available_not_added() {
+        let optional = [
+            opt("AUSM", "ausm.jar", true, false),
+            opt("Old", "old.jar", true, false),
+        ];
+        let d = diff_opt(
+            &optional,
+            &[],
+            &["old.jar"],
+            &["jei.jar"],
+            &["ausm.jar", "old.jar"],
+        );
+        assert_eq!(
+            d.new_optional_names,
+            ["AUSM"],
+            "only the one the last sync did not know about is new"
+        );
+        assert!(d.added.is_empty());
+        assert!(
+            d.updated.is_empty(),
+            "changes to optional mods that are off are hidden"
+        );
+        assert!(!d.is_empty());
+    }
+
+    #[test]
+    fn a_server_only_optional_mod_is_never_offered_to_a_client() {
+        let d = diff_opt(
+            &[opt("Srv", "srv.jar", false, true)],
+            &[],
+            &[],
+            &["jei.jar"],
+            &[],
+        );
+        assert!(d.new_optional_names.is_empty());
+        assert!(d.is_empty());
+    }
+
+    #[test]
+    fn an_optional_jar_on_disk_is_never_reported_removed() {
+        let d = diff_opt(
+            &[opt("AUSM", "ausm.jar", true, false)],
+            &[],
+            &["ausm.jar"],
+            &["jei.jar", "ausm.jar", "handmade.jar"],
+            &[],
+        );
+        assert_eq!(d.removed, ["handmade"]);
+        assert!(d.new_optional_names.is_empty());
+    }
+
+    #[test]
+    fn without_a_record_every_optional_mod_that_is_off_reads_as_new() {
+        let d = diff_opt(
+            &[opt("AUSM", "ausm.jar", true, false)],
+            &[],
+            &[],
+            &["jei.jar"],
+            &[],
+        );
+        assert_eq!(d.new_optional_names, ["AUSM"]);
+    }
+
+    #[test]
+    fn a_pack_without_optional_mods_diffs_as_before() {
+        let d = diff_mods_with_optional(
+            &[m("jei.jar", true), m("new.jar", true)],
+            &[],
+            &HashSet::new(),
+            &HashSet::new(),
+            &["jei.jar", "gone.jar"],
+            |_, _| false,
+        );
+        assert_eq!(d.added, ["new"]);
+        assert_eq!(d.removed, ["gone"]);
+        assert!(d.optional_names.is_empty());
     }
 
     #[test]

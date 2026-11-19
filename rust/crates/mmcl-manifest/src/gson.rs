@@ -179,6 +179,22 @@ const MOD_FIELDS: &[(&str, Ty)] = &[
     ("serverReq", Ty::Bool),
 ];
 
+/// `GameOptionalMod`: a `GameMod` plus the optional-mod fields.
+const OPTIONAL_MOD_FIELDS: &[(&str, Ty)] = &[
+    ("name", Ty::Str),
+    ("remote", Ty::Str),
+    ("local", Ty::Str),
+    ("sha1", Ty::Str),
+    ("md5", Ty::Str),
+    ("sha256", Ty::Str),
+    ("clientReq", Ty::Bool),
+    ("serverReq", Ty::Bool),
+    ("description", Ty::Str),
+    ("defaultEnabled", Ty::Bool),
+    ("requires", Ty::StrList),
+    ("conflictsWith", Ty::StrList),
+];
+
 /// `GameAsset`.
 const ASSET_FIELDS: &[(&str, Ty)] = &[
     ("remote", Ty::Str),
@@ -253,6 +269,7 @@ const PACK_FIELDS: &[(&str, Ty)] = &[
     ("packResourcePacks", Ty::ObjList(FILE_FIELDS)),
     ("packShaderPacks", Ty::ObjList(FILE_FIELDS)),
     ("packInitialFiles", Ty::ObjList(ASSET_FIELDS)),
+    ("packOptionalMods", Ty::ObjList(OPTIONAL_MOD_FIELDS)),
     // `GameModPack.manifestUrl` is a plain (non-transient) field, so Gson binds it too; the
     // fetcher overwrites it after loading.
     ("manifestUrl", Ty::Str),

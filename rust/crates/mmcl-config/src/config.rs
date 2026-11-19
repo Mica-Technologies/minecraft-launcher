@@ -767,6 +767,59 @@ impl Config {
         self.set_in_section(ACCOUNT_OVERRIDE_BY_PACK_KEY, pack_key, value);
     }
 
+    /// `optionalModsByPack[key]`: the player's optional-mod choices for a pack (an optional
+    /// mod's `local` name to on/off), in stored order. A mod with no entry follows its
+    /// manifest `defaultEnabled`. Empty when the key is blank, the pack has none, or the
+    /// section is malformed; entries whose value is not a JSON boolean are skipped.
+    pub fn optional_mod_choices(&self, pack_key: &str) -> indexmap::IndexMap<String, bool> {
+        if is_blank(pack_key) {
+            return indexmap::IndexMap::new();
+        }
+        self.store
+            .read(|doc| match doc.get(OPTIONAL_MODS_BY_PACK_KEY) {
+                Some(Value::Object(map)) => match map.get(pack_key) {
+                    Some(Value::Object(choices)) => choices
+                        .iter()
+                        .filter_map(|(name, v)| v.as_bool().map(|on| (name.clone(), on)))
+                        .collect(),
+                    _ => indexmap::IndexMap::new(),
+                },
+                _ => indexmap::IndexMap::new(),
+            })
+    }
+
+    /// Replaces `optionalModsByPack[key]` with `choices` (blank names skipped). Empty choices
+    /// remove the pack's entry, so every mod follows its default again. A blank key is a no-op.
+    pub fn set_optional_mod_choices(
+        &self,
+        pack_key: &str,
+        choices: &indexmap::IndexMap<String, bool>,
+    ) {
+        if is_blank(pack_key) {
+            return;
+        }
+        let pack: Map<String, Value> = choices
+            .iter()
+            .filter(|(name, _)| !is_blank(name))
+            .map(|(name, on)| (name.clone(), Value::Bool(*on)))
+            .collect();
+        self.store.mutate(|doc| {
+            if !matches!(doc.get(OPTIONAL_MODS_BY_PACK_KEY), Some(Value::Object(_))) {
+                doc.insert(
+                    OPTIONAL_MODS_BY_PACK_KEY.to_string(),
+                    Value::Object(Map::new()),
+                );
+            }
+            if let Some(Value::Object(map)) = doc.get_mut(OPTIONAL_MODS_BY_PACK_KEY) {
+                if pack.is_empty() {
+                    map.shift_remove(pack_key);
+                } else {
+                    map.insert(pack_key.to_string(), Value::Object(pack));
+                }
+            }
+        });
+    }
+
     // ---- secrets -------------------------------------------------------------------------
 
     fn stored_curseforge_envelope(&self) -> Option<String> {

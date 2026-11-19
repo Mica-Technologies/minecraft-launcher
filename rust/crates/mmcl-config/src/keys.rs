@@ -275,6 +275,9 @@ pub const ALWAYS_VERIFY_ON_LAUNCH_DEFAULT: bool = false;
 pub const DEFAULT_SCAN_FREQUENCY_KEY: &str = "defaultScanFrequency";
 pub const SCAN_FREQUENCY_BY_PACK_KEY: &str = "scanFrequencyByPack";
 pub const ACCOUNT_OVERRIDE_BY_PACK_KEY: &str = "accountOverrideByPack";
+/// The player's optional-mod choices: pack settings key → { optional mod `local` → on/off }.
+/// A player setting: never written into a manifest.
+pub const OPTIONAL_MODS_BY_PACK_KEY: &str = "optionalModsByPack";
 pub const CURSEFORGE_API_KEY_KEY: &str = "curseForgeApiKey";
 
 // ---- Rust-only keys (Java ignores them) ----------------------------------------------------
@@ -351,6 +354,7 @@ pub const ALL_KEYS: &[&str] = &[
     DEFAULT_SCAN_FREQUENCY_KEY,
     SCAN_FREQUENCY_BY_PACK_KEY,
     ACCOUNT_OVERRIDE_BY_PACK_KEY,
+    OPTIONAL_MODS_BY_PACK_KEY,
     CURSEFORGE_API_KEY_KEY,
     SHOW_PACK_BACKGROUNDS_KEY,
     WAVY_PROGRESS_KEY,

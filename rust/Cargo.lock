@@ -5001,6 +5001,7 @@ name = "mmcl-config"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "indexmap",
  "mmcl-core",
  "mmcl-i18n",
  "mmcl-log",
@@ -5189,6 +5190,7 @@ name = "mmcl-manifest"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "indexmap",
  "json5",
  "regex",
  "serde",

@@ -11,6 +11,7 @@ use crate::files::ManifestFile;
 use crate::gson::{self, Syntax};
 use crate::lenient;
 use crate::news::{LinkItem, NewsItem};
+use crate::optional::OptionalMod;
 use crate::scan::ScanAcknowledgement;
 use crate::server::ServerFavorite;
 use crate::string_or_array::{self, StringOrArray};
@@ -280,6 +281,14 @@ pub struct PackManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub pack_initial_files: Option<Vec<ManifestFile>>,
+    /// Optional mods each player switches on or off (see [`crate::optional`]). Launchers that
+    /// do not know the key ignore it, so they never install these jars.
+    #[serde(
+        rename = "packOptionalMods",
+        deserialize_with = "lenient::vec_skip_null",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub pack_optional_mods: Option<Vec<OptionalMod>>,
 }
 
 fn slice<T>(v: &Option<Vec<T>>) -> &[T] {
@@ -451,6 +460,11 @@ impl PackManifest {
     /// The mod list (empty when absent).
     pub fn mods(&self) -> &[ManifestFile] {
         slice(&self.pack_mods)
+    }
+
+    /// `packOptionalMods`, in manifest order (empty when absent).
+    pub fn optional_mods(&self) -> &[OptionalMod] {
+        slice(&self.pack_optional_mods)
     }
 
     /// The config list (empty when absent).
