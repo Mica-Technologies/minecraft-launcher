@@ -100,6 +100,16 @@ public class ModPackConstants
      */
     public static final String MOD_LOADER_FABRIC   = "fabric";
 
+    /**
+     * Modloader type identifier for Cleanroom, the Forge 1.12.2 fork on Java 25 and LWJGL 3.
+     * Stored lowercase in the modpack manifest's {@code packModLoader} field and matched
+     * case-insensitively. A Cleanroom pack names its installer JAR in {@code packForgeURL} /
+     * {@code packForgeHash} (one installer for both sides).
+     *
+     * @since 2026.11
+     */
+    public static final String MOD_LOADER_CLEANROOM = "cleanroom";
+
     /** Default modloader assumed when {@code packModLoader} is absent
      *  from a manifest — the historically-only-supported value, kept as
      *  the default for back-compat with every existing modpack. */

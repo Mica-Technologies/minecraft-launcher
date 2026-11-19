@@ -253,6 +253,25 @@ class CleanroomProfileLibrariesTest
     }
 
     @Test
+    void clearingNativesRemovesStaleLwjgl2Files( @org.junit.jupiter.api.io.TempDir java.nio.file.Path dir )
+            throws Exception
+    {
+        java.nio.file.Path natives = dir.resolve( "bin" ).resolve( "natives" );
+        java.nio.file.Files.createDirectories( natives.resolve( "windows/x64/org/lwjgl" ) );
+        java.nio.file.Files.writeString( natives.resolve( "lwjgl64.dll" ), "lwjgl2" );
+        java.nio.file.Files.writeString( natives.resolve( "windows/x64/org/lwjgl/lwjgl.dll" ), "lwjgl3" );
+        GameLibraryManifest.clearNativesFolder( natives );
+        assertTrue( java.nio.file.Files.isDirectory( natives ) );
+        try ( var listing = java.nio.file.Files.list( natives ) ) {
+            assertEquals( 0, listing.count() );
+        }
+        // Absent is fine: the folder is created.
+        java.nio.file.Path missing = dir.resolve( "other" );
+        GameLibraryManifest.clearNativesFolder( missing );
+        assertTrue( java.nio.file.Files.isDirectory( missing ) );
+    }
+
+    @Test
     void sideMarkedEntriesFollowTheGameSide()
     {
         JsonObject client = new JsonObject();

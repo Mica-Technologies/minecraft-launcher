@@ -672,6 +672,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 if ( mostRecent == null || maxTs == 0 ) {
                     return;  // no play history yet — nothing to warm
                 }
+                if ( mostRecent.usesStandaloneLoaderProfile() ) {
+                    return;  // Cleanroom: its own profile replaces the vanilla client.json
+                }
                 String mcVersion = mostRecent.getMinecraftVersion();
                 if ( mcVersion != null && !mcVersion.isBlank() ) {
                     com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameVersionManifest

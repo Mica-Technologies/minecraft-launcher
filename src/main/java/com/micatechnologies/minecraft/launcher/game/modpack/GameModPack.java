@@ -266,9 +266,11 @@ public class GameModPack extends GameModPackMetadata
                     new GameModLoaderNeoForge( url, hash, this );
             case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC ->
                     new GameModLoaderFabric( url, hash, this );
+            case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM ->
+                    new GameModLoaderCleanroom( url, hash, this );
             default -> throw new ModpackException(
                     "Unsupported modloader type \"" + type + "\" for pack "
-                            + getPackName() + " — known types: forge, neoforge, fabric." );
+                            + getPackName() + " — known types: forge, neoforge, fabric, cleanroom." );
         };
     }
 
@@ -310,17 +312,37 @@ public class GameModPack extends GameModPackMetadata
      * NeoForge (modern installers run install processors here; legacy
      * Forge's runForgeProcessors short-circuits but still uses the
      * row). False for Fabric (runtime loader — no patching pipeline)
-     * and vanilla. Doesn't construct the loader so this is safe to
+     * and vanilla, and for Cleanroom (its install profile has no
+     * processors). Doesn't construct the loader so this is safe to
      * call before launch / verify starts.
      *
      * @return {@code true} if the launch UI should show the post-install
-     *         (game-patching) step for this pack; {@code false} for Fabric
-     *         and vanilla
+     *         (game-patching) step for this pack; {@code false} for Fabric,
+     *         Cleanroom and vanilla
      */
     public boolean usesPostInstallSteps() {
         if ( vanillaVersion ) return false;
-        return !com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC
-                .equals( getModLoaderType() );
+        String type = getModLoaderType();
+        return !com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC.equals( type )
+                && !com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM.equals( type );
+    }
+
+    /**
+     * Whether this pack's loader brings a standalone version profile that replaces the vanilla
+     * client.json (Cleanroom): its own libraries and LWJGL, Java runtime, assets and game jar.
+     * Nothing keyed on the Minecraft version's vanilla libraries applies to such a pack: not the
+     * LWJGL 2 ARM64 patch (nor its JVM flags and mod disabling), not Mojang's log4j config file,
+     * not a prefetch of the vanilla client.json. Read from the manifest's loader type, so it does
+     * not construct the loader and is safe to call before a launch starts.
+     *
+     * @return {@code true} for a Cleanroom pack; {@code false} for every other loader and vanilla
+     *
+     * @since 2026.11
+     */
+    public boolean usesStandaloneLoaderProfile() {
+        return !vanillaVersion
+                && com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_CLEANROOM
+                        .equals( getModLoaderType() );
     }
 
     /** Loader-agnostic version string — Forge's
@@ -348,7 +370,14 @@ public class GameModPack extends GameModPackMetadata
         // this, as do repeated UI card renders. The instance parses the version's
         // 2-4 MB client.json once; sharing it avoids a redundant re-parse.
         if ( cachedLibraryManifest == null ) {
-            cachedLibraryManifest = GameVersionManifest.getMinecraftLibraryManifest( getMinecraftVersion(), this );
+            // A standalone loader profile (Cleanroom) replaces the vanilla client.json: its own
+            // libraries (no vanilla LWJGL 2), Java runtime, asset index and game jar. Mojang's
+            // version manifest is not consulted for such a pack.
+            com.google.gson.JsonObject standalone = vanillaVersion ? null
+                                                    : getModLoader().getStandaloneVersionManifest();
+            cachedLibraryManifest = standalone != null
+                                    ? GameLibraryManifest.standalone( standalone, this )
+                                    : GameVersionManifest.getMinecraftLibraryManifest( getMinecraftVersion(), this );
         }
         return cachedLibraryManifest;
     }
