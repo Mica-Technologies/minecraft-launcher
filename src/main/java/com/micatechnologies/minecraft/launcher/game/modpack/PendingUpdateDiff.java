@@ -210,7 +210,8 @@ public final class PendingUpdateDiff
                     optionalNames.add( change );
                 }
             }
-            else if ( knownKeys == null || !knownKeys.contains( mod.key() ) ) {
+            else if ( mod.isClientSide() && ( knownKeys == null || !knownKeys.contains( mod.key() ) ) ) {
+                // Server-only optional mods are never offered on a client, so never "available".
                 newOptional.add( mod.getDisplayName() );
             }
         }

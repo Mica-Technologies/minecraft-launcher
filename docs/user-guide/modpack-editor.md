@@ -89,6 +89,7 @@ Besides the usual columns, each optional mod has:
 
 The editor will not save the pack while:
 
+- an optional mod's local path is not a plain file name (write `ausm.jar`, not `mods/ausm.jar`),
 - a file is listed both on the **Mods** tab and on the **Optional mods** tab,
 - an optional mod is listed twice, or
 - **Requires** or **Conflicts with** names a file that is not an optional mod of this pack, or the mod itself.

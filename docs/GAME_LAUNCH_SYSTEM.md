@@ -134,8 +134,11 @@ Entries have every `packMods` field plus:
 | `clientReq` | Installed on clients when on | `true` |
 | `serverReq` | A dedicated server may install it (see Sides) | `false` |
 
-A file may be in `packMods` or `packOptionalMods`, never both. `requires` and `conflictsWith` may
-only name optional mods of the same pack. The editor refuses to save a manifest that breaks either
+A file may be in `packMods` or `packOptionalMods`, never both. An optional mod's `local` must be a
+plain file name (`ausm.jar`, not `mods/ausm.jar`): the sync joins it to the `mods` folder as
+written, so a folder would land the jar in `mods/mods/`, where the game does not load it; the sync
+skips such an entry instead of installing it. `requires` and `conflictsWith` may only name
+optional mods of the same pack. The editor refuses to save a manifest that breaks either
 rule (`ModPackDocument.validateOptionalMods`), and `ModPackDocument.addMod` refuses a file that is
 already an optional mod. Optional mods are identified everywhere by their `local` name normalised
 with `ModPackDocument.normalizeModLocalPath` and compared ignoring case
@@ -204,7 +207,8 @@ optional mod changes the fingerprint, so the next launch hash-verifies every fil
 scan treats the pack as changed.
 
 After a successful mod sync the launcher writes `.known_optional_mods` in the pack root (the keys
-of every optional mod the manifest declared). `PendingUpdateDiff` uses it to tell an optional mod
+of every optional mod the manifest declared, one per line; written only for packs that have, or
+had, optional mods). `PendingUpdateDiff` uses it to tell an optional mod
 that is new in an update from one the player left off.
 
 ### Pending-update summary
@@ -212,7 +216,8 @@ that is new in an update from one the player left off.
 `PendingUpdateDiff` lists changes to optional mods the player has on like any other mod change,
 with their names in `Result.optionalNames()` so the modal tags them "(optional)". An optional mod
 that is off and not in `.known_optional_mods` is listed as a new optional mod available, off
-(`Result.newOptionalNames()`). Changes to optional mods that are off are hidden, and an optional
+(`Result.newOptionalNames()`); a server-only optional mod is never offered this way on a client.
+Changes to optional mods that are off are hidden, and an optional
 jar on disk is never reported as removed.
 
 ## Manifest Resolution Chain

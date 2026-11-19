@@ -278,6 +278,11 @@ class GameModPackFileSync
                 keys.add( mod.key() );
             }
         }
+        // A pack that never had optional mods gets no sidecar; one that had them keeps its file
+        // up to date, even when the list is now empty.
+        if ( keys.isEmpty() && PackDotFile.read( metadata.getPackRootFolder(), KNOWN_OPTIONAL_MODS_FILE ) == null ) {
+            return;
+        }
         try {
             PackDotFile.write( metadata.getPackRootFolder(), KNOWN_OPTIONAL_MODS_FILE, String.join( "\n", keys ) );
         }
@@ -290,7 +295,10 @@ class GameModPackFileSync
     /**
      * Lists the mods a sync installs and keeps on one side: every {@code packMods} entry, then the
      * optional mods {@link OptionalModResolver#selectForSide} picks. An optional mod whose file is
-     * also a {@code packMods} entry is skipped (the manifest is invalid; the required entry wins).
+     * also a {@code packMods} entry is skipped (the manifest is invalid; the required entry wins),
+     * and so is one whose {@code local} is not a plain file name: joined to the {@code mods}
+     * prefix it would land in a subfolder (e.g. {@code mods/mods/x.jar}) the game does not load
+     * and the sweep does not clean.
      * Side filtering of the {@code packMods} entries themselves stays with
      * {@link GameMod#isRequiredFor}, as before.
      *
@@ -320,6 +328,11 @@ class GameModPackFileSync
         }
         List< GameOptionalMod > selected = OptionalModResolver.selectForSide( optional, side, choices );
         for ( GameOptionalMod mod : selected ) {
+            if ( !mod.isPlainFileName() ) {
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackFileSync.optionalInFolderSkipped",
+                                                                     mod.getLocalFilePath(), metadata.getPackName() ) );
+                continue;
+            }
             if ( !requiredNames.contains( mod.key() ) ) {
                 mods.add( mod );
             }

@@ -223,6 +223,21 @@ public class GameOptionalMod extends GameMod
     }
 
     /**
+     * Reports whether the entry's {@code local} is a plain file name, which an optional mod's must
+     * be: the sync joins it to the pack's {@code mods} folder as written, so {@code mods/x.jar}
+     * would install to {@code mods/mods/x.jar}, where the game does not load it.
+     *
+     * @return {@code true} when {@code local} is non-blank and holds no folder
+     *
+     * @since 2026.11
+     */
+    public boolean isPlainFileName()
+    {
+        String local = rawLocal();
+        return local != null && !local.isBlank() && !local.contains( "/" );
+    }
+
+    /**
      * Returns the identity key the player's choices and the {@code requires}/{@code conflictsWith}
      * lists are matched by: the normalised local name, lower-cased, since the launcher runs on
      * filesystems that ignore case.
