@@ -111,6 +111,18 @@ impl HostInfo {
         self.java_os_arch.contains("aarch64") || self.java_os_arch.contains("arm64")
     }
 
+    /// The normalized architecture name some loader profiles use in rule `os.arch` blocks
+    /// instead of a Java `os.arch` pattern (Cleanroom: `x64`, `arm64`, `x86`): `None` for
+    /// [`Arch::Other`]. See [`crate::rules`].
+    pub fn rule_arch_name(&self) -> Option<&'static str> {
+        match self.arch {
+            Arch::X86_64 => Some("x64"),
+            Arch::Aarch64 => Some("arm64"),
+            Arch::X86 => Some("x86"),
+            Arch::Other => None,
+        }
+    }
+
     /// The platform key in Mojang's Java runtime index (`all.json`).
     ///
     /// Re-specified from Java's substring logic (spec 9.1). Windows x86 gets

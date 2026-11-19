@@ -13,11 +13,12 @@
 //!   `${placeholder}` substitution.
 //! - [`version_manifest`], [`client_json`], [`asset_index`]: Mojang manifests.
 //! - [`maven`]: Maven coordinates with traversal checks.
-//! - [`forge_profile`], [`fabric_profile`], [`runtime_index`]: loader and Java
-//!   runtime metadata.
+//! - [`forge_profile`], [`fabric_profile`], [`cleanroom_profile`],
+//!   [`runtime_index`]: loader and Java runtime metadata.
 
 pub mod args;
 pub mod asset_index;
+pub mod cleanroom_profile;
 pub mod client_json;
 pub mod error;
 pub mod fabric_profile;

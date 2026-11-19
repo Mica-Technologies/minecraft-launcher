@@ -247,6 +247,20 @@ impl ClientJson {
     /// Resolve the libraries and natives that apply to `host`
     /// (`GameLibraryManifest.extractLibraries`).
     pub fn resolve_libraries(&self, host: &HostInfo) -> Result<LibraryResolution, ManifestError> {
+        self.resolve_libraries_for(host, None)
+    }
+
+    /// [`Self::resolve_libraries`] for one game side: an entry whose `side` names the other
+    /// side is left out (Cleanroom marks every natives entry `"side": "client"`, and its
+    /// installer leaves them off a server). Mojang's client.json has no `side`.
+    ///
+    /// A classifier (or artifact) without a `path` gets the Maven path of `name` plus the
+    /// classifier: Cleanroom's legacy natives entries carry only `url` and `sha1`.
+    pub fn resolve_libraries_for(
+        &self,
+        host: &HostInfo,
+        side: Option<GameSide>,
+    ) -> Result<LibraryResolution, ManifestError> {
         let libs = self
             .raw_libraries()
             .ok_or_else(|| ManifestError::MissingField("libraries".into()))?;
@@ -262,9 +276,14 @@ impl ClientJson {
                 continue;
             };
             let name = opt_string(obj, "name").unwrap_or_default();
+            if let (Some(want), Some(lib_side)) = (side, opt_string(obj, "side"))
+                && !lib_side.trim().eq_ignore_ascii_case(want.as_str())
+            {
+                continue;
+            }
             let artifact = match opt_object(downloads, "artifact") {
                 Some(a) => Some((
-                    required_string(a, "path")?,
+                    path_or_derived(a, &name, None)?,
                     required_string(a, "sha1")?,
                     required_string(a, "url")?,
                 )),
@@ -286,7 +305,7 @@ impl ClientJson {
                     if let Some(native) = opt_object(classifiers, &key) {
                         out.libraries.push(ResolvedLibrary {
                             name: name.clone(),
-                            path: required_string(native, "path")?,
+                            path: path_or_derived(native, &name, Some(&key))?,
                             url: required_string(native, "url")?,
                             sha1: required_string(native, "sha1")?,
                             native: true,
@@ -314,6 +333,25 @@ impl ClientJson {
     pub fn libraries(&self, host: &HostInfo) -> Result<Vec<ResolvedLibrary>, ManifestError> {
         self.resolve_libraries(host).map(|r| r.libraries)
     }
+}
+
+/// A download's `path`, or (when absent or blank) the Maven path of `name` with `classifier`.
+/// A name that is no usable coordinate, or a classifier that would leave the libraries
+/// folder, leaves the path missing.
+fn path_or_derived(
+    download: &Map<String, Value>,
+    name: &str,
+    classifier: Option<&str>,
+) -> Result<String, ManifestError> {
+    if let Some(p) = opt_string(download, "path").filter(|p| !p.trim().is_empty()) {
+        return Ok(p);
+    }
+    let missing = || ManifestError::MissingField("path".into());
+    let coord = match classifier {
+        Some(c) => crate::maven::parse_strict(&format!("{name}:{c}")),
+        None => crate::maven::parse_strict(name),
+    };
+    coord.map(|c| c.relative_path()).map_err(|_| missing())
 }
 
 /// Reject an asset index id that is not a single plain path component.
@@ -1039,5 +1077,61 @@ mod tests {
         let libs = m.libraries(&mac_intel()).unwrap();
         assert_eq!(libs.len(), 1);
         assert!(libs[0].native);
+    }
+
+    /// A Cleanroom 0.7.14-alpha natives entry, verbatim: no `path`, an `x64` arch rule, and
+    /// `"side": "client"`.
+    fn cleanroom_native() -> Value {
+        json!({"name": "org.lwjgl:lwjgl:3.4.3",
+               "downloads": {"classifiers": {"natives-windows": {
+                   "url": "https://repo.maven.apache.org/maven2/org/lwjgl/lwjgl/3.4.3/lwjgl-3.4.3-natives-windows.jar",
+                   "sha1": "27e3d2f08b2bcf4fb56a58b836d9437419b980d7", "size": 178848}}},
+               "natives": {"windows": "natives-windows"},
+               "extract": {"exclude": ["META-INF/"]},
+               "side": "client",
+               "rules": [{"action": "allow", "os": {"name": "windows", "arch": "x64"}}]})
+    }
+
+    #[test]
+    fn a_native_without_a_path_gets_its_maven_path() {
+        let m = manifest(vec![cleanroom_native()]);
+        let libs = m.libraries(&windows_x64()).unwrap();
+        assert_eq!(libs.len(), 1);
+        assert!(libs[0].native);
+        assert_eq!(
+            libs[0].path,
+            "org/lwjgl/lwjgl/3.4.3/lwjgl-3.4.3-natives-windows.jar"
+        );
+        assert!(m.libraries(&windows_arm64()).unwrap().is_empty());
+        // A name that is no coordinate still fails rather than inventing a path.
+        let mut bad = cleanroom_native();
+        bad["name"] = json!("not-a-coordinate");
+        assert_eq!(
+            manifest(vec![bad]).libraries(&windows_x64()),
+            Err(ManifestError::MissingField("path".into()))
+        );
+    }
+
+    #[test]
+    fn side_marked_entries_follow_the_game_side() {
+        let plain = entry(
+            "c:l:1",
+            Some(artifact("c/l/1/l-1.jar", "a", "https://a")),
+            None,
+            None,
+        );
+        let m = manifest(vec![cleanroom_native(), plain]);
+        let host = windows_x64();
+        assert_eq!(m.resolve_libraries(&host).unwrap().libraries.len(), 2);
+        let client = m
+            .resolve_libraries_for(&host, Some(GameSide::Client))
+            .unwrap();
+        assert_eq!(client.libraries.len(), 2);
+        let server = m
+            .resolve_libraries_for(&host, Some(GameSide::Server))
+            .unwrap();
+        assert_eq!(server.libraries.len(), 1);
+        assert!(!server.libraries[0].native);
+        assert!(server.skipped.is_empty(), "left out, not malformed");
     }
 }

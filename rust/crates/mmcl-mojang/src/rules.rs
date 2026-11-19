@@ -82,7 +82,7 @@ fn os_matches(os: &Map<String, Value>, host: &HostInfo) -> bool {
     }
     if let Some(arch) = os.get("arch") {
         match primitive_string(arch) {
-            Some(p) if regex_find(&p, &host.java_os_arch) => {}
+            Some(p) if arch_matches(&p, host) => {}
             _ => return false,
         }
     }
@@ -98,6 +98,17 @@ fn os_matches(os: &Map<String, Value>, host: &HostInfo) -> bool {
         Some(_) => return false,
     }
     true
+}
+
+/// Match an `os.arch` value: a regex found in the Java `os.arch` (Mojang's format), or the
+/// host's normalized architecture name written out in full (Cleanroom's `x64` / `arm64` /
+/// `x86`, which no Java `os.arch` contains: Windows x64 reports `amd64`). Mojang's only arch
+/// rule, `x86`, means 32-bit x86 in both readings.
+fn arch_matches(pattern: &str, host: &HostInfo) -> bool {
+    regex_find(pattern, &host.java_os_arch)
+        || host
+            .rule_arch_name()
+            .is_some_and(|n| pattern.trim().eq_ignore_ascii_case(n))
 }
 
 /// Match a Mojang `os.name` token against the host. `windows|win|bindoj` →
@@ -553,6 +564,30 @@ mod tests {
         assert!(!eval(r.clone(), &windows_x64()));
         assert!(!eval(r.clone(), &linux_x64()));
         assert!(!eval(r, &mac_arm()));
+    }
+
+    #[test]
+    fn normalized_arch_names_match_their_hosts() {
+        // Cleanroom's version.json writes `x64` / `arm64` / `x86`, which no Java `os.arch`
+        // contains (Windows x64 is `amd64`, Apple Silicon is `aarch64`).
+        let rule =
+            |os: &str, arch: &str| json!([{"action": "allow", "os": {"name": os, "arch": arch}}]);
+        assert!(eval(rule("windows", "x64"), &windows_x64()));
+        assert!(!eval(rule("windows", "arm64"), &windows_x64()));
+        assert!(!eval(rule("windows", "x86"), &windows_x64()));
+        assert!(eval(rule("windows", "arm64"), &windows_arm64()));
+        assert!(!eval(rule("windows", "x64"), &windows_arm64()));
+        assert!(eval(rule("windows", "x86"), &windows_x86()));
+        assert!(!eval(rule("windows", "x64"), &windows_x86()));
+        assert!(eval(rule("osx", "x64"), &mac_intel()));
+        assert!(!eval(rule("osx", "arm64"), &mac_intel()));
+        assert!(eval(rule("osx", "arm64"), &mac_arm()));
+        assert!(!eval(rule("osx", "x64"), &mac_arm()));
+        assert!(eval(rule("linux", "x64"), &linux_x64()));
+        assert!(eval(rule("linux", "ARM64"), &linux_arm64()));
+        assert!(!eval(rule("linux", "arm32"), &linux_arm64()));
+        assert!(!eval(rule("linux", "riscv64"), &linux_x64()));
+        assert!(!eval(rule("freebsd", "x64"), &freebsd_x64()));
     }
 
     #[test]
