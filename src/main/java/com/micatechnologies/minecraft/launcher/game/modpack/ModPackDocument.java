@@ -90,6 +90,17 @@ public class ModPackDocument
         /** Mod files. The only list whose entries carry a display name. */
         MODS( "packMods", true, true, "editor.validate.label.mods" ),
 
+        /**
+         * Optional mods: mods each player switches on or off. Entries carry everything a
+         * {@link #MODS} entry does plus {@code description}, {@code defaultEnabled},
+         * {@code requires} and {@code conflictsWith}. An absent {@code serverReq} means
+         * {@code false} (client-only), and the key is left out of the manifest while the list is
+         * empty, so saving a pack without optional mods does not add it.
+         *
+         * @since 2026.11
+         */
+        OPTIONAL_MODS( "packOptionalMods", true, true, "editor.validate.label.optionalMods", false ),
+
         /** Configuration files. */
         CONFIGS( "packConfigs", false, true, "editor.validate.label.configs" ),
 
@@ -115,6 +126,13 @@ public class ModPackDocument
         private final String labelKey;
 
         /**
+         * The {@code serverReq} an entry gets when its JSON has none: {@code true} for the classic
+         * lists, {@code false} for {@link #OPTIONAL_MODS}. Doubles as the marker for the list
+         * whose key is omitted while empty.
+         */
+        private final boolean serverReqDefault;
+
+        /**
          * Constructs a file-list descriptor.
          *
          * @param key                the manifest key
@@ -124,10 +142,26 @@ public class ModPackDocument
          */
         FileList( String key, boolean hasName, boolean hasClientServerReq, String labelKey )
         {
+            this( key, hasName, hasClientServerReq, labelKey, true );
+        }
+
+        /**
+         * Constructs a file-list descriptor with an explicit {@code serverReq} default.
+         *
+         * @param key                the manifest key
+         * @param hasName            whether entries carry a name
+         * @param hasClientServerReq whether entries carry requirement flags
+         * @param labelKey           localization key for the list's display label
+         * @param serverReqDefault   the {@code serverReq} of an entry whose JSON has none
+         */
+        FileList( String key, boolean hasName, boolean hasClientServerReq, String labelKey,
+                  boolean serverReqDefault )
+        {
             this.key = key;
             this.hasName = hasName;
             this.hasClientServerReq = hasClientServerReq;
             this.labelKey = labelKey;
+            this.serverReqDefault = serverReqDefault;
         }
 
         /**
@@ -165,6 +199,25 @@ public class ModPackDocument
          * @since 3.0
          */
         public String getLabelKey() { return labelKey; }
+
+        /**
+         * Reports whether entries in this list carry the optional-mod fields
+         * ({@code description}, {@code defaultEnabled}, {@code requires}, {@code conflictsWith}).
+         *
+         * @return {@code true} for {@link #OPTIONAL_MODS} only
+         *
+         * @since 2026.11
+         */
+        public boolean isOptional() { return this == OPTIONAL_MODS; }
+
+        /**
+         * Returns the {@code serverReq} an entry gets when its JSON has none.
+         *
+         * @return {@code false} for {@link #OPTIONAL_MODS}, {@code true} otherwise
+         *
+         * @since 2026.11
+         */
+        public boolean serverReqDefault() { return serverReqDefault; }
     }
 
     /**
@@ -240,7 +293,9 @@ public class ModPackDocument
         doc.addProperty( "packMinecraftVersion", "" );
         doc.add( KEY_SCAN_EXCLUSIONS, new JsonArray() );
         for ( FileList list : FileList.values() ) {
-            doc.add( list.getKey(), new JsonArray() );
+            if ( !list.isOptional() ) {
+                doc.add( list.getKey(), new JsonArray() );
+            }
         }
         return new ModPackDocument( doc );
     }
@@ -519,8 +574,8 @@ public class ModPackDocument
 
             boolean clientReq = !list.hasClientServerReq() || !obj.has( "clientReq" ) ||
                     obj.get( "clientReq" ).getAsBoolean();
-            boolean serverReq = !list.hasClientServerReq() || !obj.has( "serverReq" ) ||
-                    obj.get( "serverReq" ).getAsBoolean();
+            boolean serverReq = !list.hasClientServerReq()
+                    || ( obj.has( "serverReq" ) ? obj.get( "serverReq" ).getAsBoolean() : list.serverReqDefault() );
 
             ModPackFileEntry entry = new ModPackFileEntry( name, remote, local, hash, hashType,
                                                            clientReq, serverReq );
@@ -535,6 +590,15 @@ public class ModPackDocument
             }
             if ( obj.has( "modrinthSlug" ) ) {
                 entry.setModrinthSlug( obj.get( "modrinthSlug" ).getAsString() );
+            }
+            if ( list.isOptional() ) {
+                if ( obj.has( "description" ) && !obj.get( "description" ).isJsonNull() ) {
+                    entry.setDescription( obj.get( "description" ).getAsString() );
+                }
+                entry.setDefaultEnabled( obj.has( "defaultEnabled" ) && !obj.get( "defaultEnabled" ).isJsonNull()
+                                         && obj.get( "defaultEnabled" ).getAsBoolean() );
+                entry.setRequires( readNameArray( obj, "requires" ) );
+                entry.setConflictsWith( readNameArray( obj, "conflictsWith" ) );
             }
             entries.add( entry );
         }
@@ -589,8 +653,24 @@ public class ModPackDocument
                 if ( !entry.getModrinthSlug().isEmpty() ) {
                     obj.addProperty( "modrinthSlug", entry.getModrinthSlug() );
                 }
+                if ( list.isOptional() ) {
+                    obj.addProperty( "description", entry.getDescription() );
+                    obj.addProperty( "defaultEnabled", entry.isDefaultEnabled() );
+                    if ( !entry.getRequires().isEmpty() ) {
+                        obj.add( "requires", toJsonArray( entry.getRequires() ) );
+                    }
+                    if ( !entry.getConflictsWith().isEmpty() ) {
+                        obj.add( "conflictsWith", toJsonArray( entry.getConflictsWith() ) );
+                    }
+                }
                 array.add( obj );
             }
+        }
+        if ( list.isOptional() && array.isEmpty() ) {
+            // Leave the key out rather than writing an empty array, so saving a pack that has
+            // no optional mods does not add a key it never had.
+            document.remove( list.getKey() );
+            return;
         }
         document.add( list.getKey(), array );
     }
@@ -633,6 +713,18 @@ public class ModPackDocument
     public List< ModPackFileEntry > mods()
     {
         return readFileList( FileList.MODS );
+    }
+
+    /**
+     * Returns this pack's optional mods ({@code packOptionalMods}).
+     *
+     * @return the optional mods, in manifest order; empty when the pack has none
+     *
+     * @since 2026.11
+     */
+    public List< ModPackFileEntry > optionalMods()
+    {
+        return readFileList( FileList.OPTIONAL_MODS );
     }
 
     /**
@@ -679,7 +771,7 @@ public class ModPackDocument
      * @param entry the mod to add
      *
      * @return {@code true} when the mod was added; {@code false} when the entry is
-     *         {@code null}, has no local path, or collides with an existing one
+     *         {@code null}, has no local path, or collides with an existing mod or optional mod
      *
      * @since 3.0
      */
@@ -691,6 +783,12 @@ public class ModPackDocument
         String key = normalizeModLocalPath( entry.getLocal() );
         List< ModPackFileEntry > mods = mods();
         for ( ModPackFileEntry existing : mods ) {
+            if ( normalizeModLocalPath( existing.getLocal() ).equalsIgnoreCase( key ) ) {
+                return false;
+            }
+        }
+        // A file may be a mod or an optional mod, never both.
+        for ( ModPackFileEntry existing : optionalMods() ) {
             if ( normalizeModLocalPath( existing.getLocal() ).equalsIgnoreCase( key ) ) {
                 return false;
             }
@@ -869,7 +967,8 @@ public class ModPackDocument
      * <p>
      * Checks, in order: that {@code packName} and {@code packVersion} are present and non-blank;
      * that {@code packMinRAMGB} parses as a number when present; that every file-list entry has a
-     * non-blank remote URL and local path; and that the manifest still deserializes into a
+     * non-blank remote URL and local path; the optional-mod rules of
+     * {@link #validateOptionalMods}; and that the manifest still deserializes into a
      * {@link GameModPack}.
      *
      * @param resolver resolves localization keys to display text
@@ -901,6 +1000,8 @@ public class ModPackDocument
             validateFileEntries( issues, resolver, list );
         }
 
+        issues.addAll( validateOptionalMods( resolver ) );
+
         try {
             JSONUtilities.getGson().fromJson( toPrettyJson(), GameModPack.class );
         }
@@ -909,6 +1010,135 @@ public class ModPackDocument
         }
 
         return issues;
+    }
+
+    /**
+     * Checks the optional-mod rules a pack must satisfy before it can be saved: no file is both
+     * a mod and an optional mod, no optional mod is listed twice, and every name in an optional
+     * mod's {@code requires} or {@code conflictsWith} is another optional mod of this pack.
+     * Names are compared after {@link #normalizeModLocalPath(String)}, ignoring case.
+     * <p>
+     * The editor refuses to save while this returns anything.
+     *
+     * @param resolver resolves localization keys to display text
+     *
+     * @return one message per problem; empty when the optional mods are valid
+     *
+     * @since 2026.11
+     */
+    public List< String > validateOptionalMods( MessageResolver resolver )
+    {
+        List< String > issues = new ArrayList<>();
+        List< ModPackFileEntry > optional = optionalMods();
+        if ( optional.isEmpty() ) {
+            return issues;
+        }
+        java.util.Set< String > required = new java.util.HashSet<>();
+        for ( ModPackFileEntry mod : mods() ) {
+            required.add( nameKey( mod.getLocal() ) );
+        }
+        java.util.Set< String > optionalKeys = new java.util.HashSet<>();
+        java.util.Set< String > reported = new java.util.HashSet<>();
+        for ( ModPackFileEntry mod : optional ) {
+            String key = nameKey( mod.getLocal() );
+            if ( key.isEmpty() ) {
+                continue;
+            }
+            String shown = normalizeModLocalPath( mod.getLocal() );
+            if ( required.contains( key ) ) {
+                issues.add( resolver.resolve( "editor.validate.optional.inBothLists", shown ) );
+            }
+            if ( !optionalKeys.add( key ) && reported.add( key ) ) {
+                issues.add( resolver.resolve( "editor.validate.optional.duplicate", shown ) );
+            }
+        }
+        for ( ModPackFileEntry mod : optional ) {
+            String key = nameKey( mod.getLocal() );
+            String shown = normalizeModLocalPath( mod.getLocal() );
+            for ( String name : mod.getRequires() ) {
+                checkOptionalReference( issues, resolver, key, shown, name, optionalKeys,
+                                        "editor.validate.optional.unknownRequires" );
+            }
+            for ( String name : mod.getConflictsWith() ) {
+                checkOptionalReference( issues, resolver, key, shown, name, optionalKeys,
+                                        "editor.validate.optional.unknownConflict" );
+            }
+        }
+        return issues;
+    }
+
+    /**
+     * Appends a message when an optional mod's {@code requires} or {@code conflictsWith} names
+     * itself or something that is not an optional mod of this pack.
+     *
+     * @param issues       accumulator
+     * @param resolver     resolves localization keys to display text
+     * @param ownKey       the referring mod's name key
+     * @param ownName      the referring mod's local name, for the message
+     * @param name         the referenced name as written
+     * @param optionalKeys the name keys of every optional mod in the pack
+     * @param unknownKey   the message key for a name that is not an optional mod
+     */
+    private static void checkOptionalReference( List< String > issues, MessageResolver resolver, String ownKey,
+                                                String ownName, String name, java.util.Set< String > optionalKeys,
+                                                String unknownKey )
+    {
+        String key = nameKey( name );
+        if ( key.equals( ownKey ) ) {
+            issues.add( resolver.resolve( "editor.validate.optional.selfReference", ownName ) );
+        }
+        else if ( !optionalKeys.contains( key ) ) {
+            issues.add( resolver.resolve( unknownKey, ownName, name ) );
+        }
+    }
+
+    /**
+     * Turns a local name into the key optional-mod rules compare: normalised and lower-cased.
+     *
+     * @param local the local name as written
+     *
+     * @return the key; {@code ""} for {@code null}
+     */
+    private static String nameKey( String local )
+    {
+        return normalizeModLocalPath( local ).toLowerCase( Locale.ROOT );
+    }
+
+    /**
+     * Reads an array of names from an entry, skipping anything that is not a non-blank string.
+     *
+     * @param obj the entry
+     * @param key the array's key
+     *
+     * @return the names, empty when absent or not an array
+     */
+    private static List< String > readNameArray( JsonObject obj, String key )
+    {
+        List< String > names = new ArrayList<>();
+        if ( obj.has( key ) && obj.get( key ).isJsonArray() ) {
+            for ( JsonElement el : obj.getAsJsonArray( key ) ) {
+                if ( el != null && el.isJsonPrimitive() && !el.getAsString().isBlank() ) {
+                    names.add( el.getAsString().trim() );
+                }
+            }
+        }
+        return names;
+    }
+
+    /**
+     * Builds a JSON array of strings.
+     *
+     * @param values the strings
+     *
+     * @return the array
+     */
+    private static JsonArray toJsonArray( List< String > values )
+    {
+        JsonArray array = new JsonArray();
+        for ( String value : values ) {
+            array.add( value );
+        }
+        return array;
     }
 
     /**
