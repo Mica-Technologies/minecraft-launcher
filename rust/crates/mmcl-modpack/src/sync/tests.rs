@@ -397,6 +397,17 @@ async fn an_optional_mod_installs_when_on_and_is_swept_when_off() {
     .unwrap();
     assert!(!mods.join("ausm.jar").exists());
     assert!(mods.join("jei.jar").exists());
+
+    // On again in the same session: the session-verified flag never skips the existence check,
+    // so the swept jar is downloaded again.
+    FileSync::new(
+        p.clone(),
+        optional_env(Side::Client, http.clone(), Some(true)),
+    )
+    .fetch_latest_mods()
+    .await
+    .unwrap();
+    assert_eq!(fs::read(mods.join("ausm.jar")).unwrap(), b"ausm");
 }
 
 #[tokio::test]
