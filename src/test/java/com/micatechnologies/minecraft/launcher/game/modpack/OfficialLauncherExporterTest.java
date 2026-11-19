@@ -261,6 +261,42 @@ class OfficialLauncherExporterTest
                 OfficialLauncherExporter.computeVersionId( pack ) );
     }
 
+    @Test
+    void versionIdForCleanroomIsItsVersionJsonId() throws Exception
+    {
+        // The Cleanroom installer writes versions/Cleanroom-<version>/, named by its
+        // version.json id, which is the loader version.
+        FakePack pack = new FakePack( "CR", "https://example/cr.json", false,
+                "1.12.2", "cleanroom", "Cleanroom-0.7.14-alpha" );
+        assertEquals( "Cleanroom-0.7.14-alpha", OfficialLauncherExporter.computeVersionId( pack ) );
+    }
+
+    @Test
+    void cleanroomExportsRunOnTheProfileRuntimeNotThe112Heuristic()
+    {
+        // 1.12.2 alone would pick Java 8; Cleanroom's profile names Java 25.
+        assertEquals( "java-runtime-epsilon",
+                      OfficialLauncherExporter.exportRuntimeComponent( "1.12.2", "java-runtime-epsilon" ) );
+        assertEquals( "jre-legacy", OfficialLauncherExporter.exportRuntimeComponent( "1.12.2", null ) );
+        assertEquals( "jre-legacy", OfficialLauncherExporter.exportRuntimeComponent( "1.12.2", " " ) );
+    }
+
+    @Test
+    void installerCommandLines()
+    {
+        String javaExe = "/rt/bin/java";
+        String jar = "/p/bin/modpack.jar";
+        String mc = "/home/u/.minecraft";
+        assertEquals( java.util.List.of( javaExe, "-jar", jar, "--installClient", mc ),
+                      LoaderInstallerRunner.installerCommand( "forge", javaExe, jar, mc ) );
+        assertEquals( java.util.List.of( javaExe, "-jar", jar, "--installClient", mc ),
+                      LoaderInstallerRunner.installerCommand( "neoforge", javaExe, jar, mc ) );
+        // Cleanroom's installer is mode-based (client | server | mmc): no --installClient.
+        assertEquals( java.util.List.of( javaExe, "-jar", jar, "client", "--dir", mc, "--no-gui", "--yes",
+                                         "--no-profile", "--java", javaExe, "--no-provision-java" ),
+                      LoaderInstallerRunner.installerCommand( "cleanroom", javaExe, jar, mc ) );
+    }
+
     // =========================================================================================
     //  Runtime-component mapping (used to pick a javaDir for the Mojang profile)
     // =========================================================================================
