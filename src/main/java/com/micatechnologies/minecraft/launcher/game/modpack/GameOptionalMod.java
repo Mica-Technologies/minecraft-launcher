@@ -196,8 +196,10 @@ public class GameOptionalMod extends GameMod
     }
 
     /**
-     * Reports whether a dedicated server may install the mod. A server installs it only when this
-     * and {@link #isDefaultEnabled()} are both true, since a server has no player to choose.
+     * Reports whether a dedicated server may install the mod. A server, having no player to
+     * choose, starts from the mods where this and {@link #isDefaultEnabled()} are both true and
+     * adds what they require; a required mod for which this is false keeps its whole group off
+     * the server (see {@link OptionalModResolver}).
      *
      * @return the entry's {@code serverReq} ({@code false} when absent)
      *
