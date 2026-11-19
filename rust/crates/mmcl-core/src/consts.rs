@@ -33,6 +33,8 @@ pub mod modpack {
     pub const MOD_LOADER_NEOFORGE: &str = "neoforge";
     /// Fabric mod loader id.
     pub const MOD_LOADER_FABRIC: &str = "fabric";
+    /// Cleanroom mod loader id (Forge 1.12.2 fork on Java 25).
+    pub const MOD_LOADER_CLEANROOM: &str = "cleanroom";
     /// The loader assumed when a manifest names none.
     pub const MOD_LOADER_DEFAULT: &str = MOD_LOADER_FORGE;
     /// Mojang rule OS name for Windows.

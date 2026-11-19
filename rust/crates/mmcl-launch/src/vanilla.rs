@@ -118,10 +118,26 @@ pub struct LibraryManifest {
     pub mc_version: String,
     /// The parsed client.json.
     pub client: Arc<ClientJson>,
-    file: ManagedFile,
+    /// `bin/libraries.manifest`; `None` for a loader's standalone profile.
+    file: Option<ManagedFile>,
 }
 
 impl LibraryManifest {
+    /// A loader's standalone version profile (Cleanroom) used in place of the vanilla
+    /// client.json for `mc_version`: nothing of vanilla's is merged in.
+    pub fn standalone(mc_version: &str, client: Arc<ClientJson>) -> LibraryManifest {
+        LibraryManifest {
+            mc_version: mc_version.to_string(),
+            client,
+            file: None,
+        }
+    }
+
+    /// `true` when this is a loader's standalone profile rather than Mojang's client.json.
+    pub fn is_standalone(&self) -> bool {
+        self.file.is_none()
+    }
+
     /// The runtime component (`javaVersion.component`, default `jre-legacy`).
     pub fn runtime_component(&self) -> String {
         self.client.runtime_component()
@@ -132,9 +148,9 @@ impl LibraryManifest {
         self.client.java_major()
     }
 
-    /// The managed file behind it.
-    pub fn file(&self) -> &ManagedFile {
-        &self.file
+    /// The managed file behind it (`None` for a standalone profile).
+    pub fn file(&self) -> Option<&ManagedFile> {
+        self.file.as_ref()
     }
 }
 
@@ -147,8 +163,10 @@ pub async fn library_manifest(run: &PackRun, mc_version: &str) -> Result<Arc<Lib
         .clone()
         .and_then(|a| a.downcast::<LibraryManifest>().ok())
         .filter(|m| m.mc_version == mc_version);
-    if let Some(m) = memo {
-        let changed = m.file.update(&run.ctx, run.env.http.as_ref()).await?;
+    if let Some(m) = memo
+        && let Some(file) = &m.file
+    {
+        let changed = file.update(&run.ctx, run.env.http.as_ref()).await?;
         if !changed {
             return Ok(m);
         }
@@ -168,7 +186,7 @@ pub async fn library_manifest(run: &PackRun, mc_version: &str) -> Result<Arc<Lib
     let m = Arc::new(LibraryManifest {
         mc_version: mc_version.to_string(),
         client,
-        file,
+        file: Some(file),
     });
     *slot.lock() = Some(m.clone());
     Ok(m)
@@ -215,7 +233,11 @@ pub async fn build_minecraft_classpath(
     lm: &LibraryManifest,
     sink: &Arc<dyn ProgressSink>,
 ) -> Result<MinecraftFiles> {
-    let resolution = lm.client.resolve_libraries(&run.env.host)?;
+    let side = match run.env.mode() {
+        GameMode::Client => GameSide::Client,
+        GameMode::Server => GameSide::Server,
+    };
+    let resolution = lm.client.resolve_libraries_for(&run.env.host, Some(side))?;
     for s in &resolution.skipped {
         mmcl_log::warn_silent(&tf!("log.libraryManifest.skippedUnknownType", s));
     }
@@ -223,11 +245,18 @@ pub async fn build_minecraft_classpath(
     sink.submit_progress(&t!("libraryManifest.gotLibraryList"), 5.0);
     run.check_cancelled()?;
 
+    if lm.is_standalone() {
+        // A standalone profile brings its own LWJGL: natives a vanilla or Forge launch of
+        // this pack left behind (LWJGL 2's `lwjgl.dll`, `OpenAL64.dll`) must not be found.
+        let natives = run.natives_dir()?;
+        blocking(move || crate::loader::cleanroom::clear_natives(&natives)).await??;
+    }
     download_verify_libraries(run, &libs, sink).await?;
     run.check_cancelled()?;
 
     let libs_dir = run.libraries_dir()?;
-    if arm64::is_needed(&run.env, &lm.mc_version) {
+    // The LWJGL 2 ARM64 patch is for vanilla's LWJGL 2 natives only.
+    if !lm.is_standalone() && arm64::is_needed(&run.env, &lm.mc_version) {
         arm64::patch_natives_for(
             run.env.http.as_ref(),
             run.env.host.os,

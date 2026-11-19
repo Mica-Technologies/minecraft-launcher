@@ -21,6 +21,8 @@ pub const MOD_LOADER_FORGE: &str = "forge";
 pub const MOD_LOADER_NEOFORGE: &str = "neoforge";
 /// The manifest's `packModLoader` value for Fabric.
 pub const MOD_LOADER_FABRIC: &str = "fabric";
+/// The manifest's `packModLoader` value for Cleanroom (its installer jar goes in `packForgeURL`).
+pub const MOD_LOADER_CLEANROOM: &str = "cleanroom";
 
 /// Stable sentinel for the bundled default logo, written into generated manifests in place
 /// of Java's install-location-dependent resource URL.
@@ -57,6 +59,7 @@ pub enum ModLoaderKind {
     Forge,
     NeoForge,
     Fabric,
+    Cleanroom,
     /// A value the launcher does not support; loader construction fails with
     /// "Unsupported modloader type".
     Unknown(String),
@@ -69,6 +72,7 @@ impl ModLoaderKind {
             MOD_LOADER_FORGE => ModLoaderKind::Forge,
             MOD_LOADER_NEOFORGE => ModLoaderKind::NeoForge,
             MOD_LOADER_FABRIC => ModLoaderKind::Fabric,
+            MOD_LOADER_CLEANROOM => ModLoaderKind::Cleanroom,
             other => ModLoaderKind::Unknown(other.to_string()),
         }
     }
@@ -79,6 +83,7 @@ impl ModLoaderKind {
             ModLoaderKind::Forge => MOD_LOADER_FORGE,
             ModLoaderKind::NeoForge => MOD_LOADER_NEOFORGE,
             ModLoaderKind::Fabric => MOD_LOADER_FABRIC,
+            ModLoaderKind::Cleanroom => MOD_LOADER_CLEANROOM,
             ModLoaderKind::Unknown(s) => s,
         }
     }
@@ -378,9 +383,13 @@ impl PackManifest {
     }
 
     /// Whether the loader runs post-install steps (the "Game patching" progress row): true
-    /// for everything but Fabric. Vanilla packs answer false in the pack runtime.
+    /// for everything but Fabric and Cleanroom (whose install profile has no processors).
+    /// Vanilla packs answer false in the pack runtime.
     pub fn uses_post_install_steps(&self) -> bool {
-        self.mod_loader_kind() != ModLoaderKind::Fabric
+        !matches!(
+            self.mod_loader_kind(),
+            ModLoaderKind::Fabric | ModLoaderKind::Cleanroom
+        )
     }
 
     /// The default quick-join server: `None` without a host; a port outside 1..=65535 (or
@@ -698,6 +707,21 @@ mod tests {
             ModLoaderKind::Unknown("quilt".into())
         );
         assert!(odd.uses_post_install_steps());
+        // Cleanroom: the installer jar in the legacy `packForgeURL`, one URL for both sides.
+        let cr = PackManifest::parse(
+            r#"{"packModLoader": "Cleanroom", "packForgeURL": "https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-installer.jar",
+                "packForgeHash": "8aad156fec391bb97ec6956c40fb795d08fc7c0d"}"#,
+        )
+        .unwrap();
+        assert_eq!(cr.mod_loader_type(), MOD_LOADER_CLEANROOM);
+        assert_eq!(cr.mod_loader_kind(), ModLoaderKind::Cleanroom);
+        assert_eq!(cr.mod_loader_kind().as_str(), "cleanroom");
+        assert!(!cr.uses_post_install_steps(), "no install processors");
+        assert!(cr.mod_loader_url().unwrap().ends_with("-installer.jar"));
+        assert_eq!(
+            cr.mod_loader_hash(),
+            Some("8aad156fec391bb97ec6956c40fb795d08fc7c0d")
+        );
     }
 
     #[test]

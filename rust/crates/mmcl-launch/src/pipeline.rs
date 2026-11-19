@@ -393,6 +393,7 @@ async fn prepare_with_context(
         let (lm, files) = minecraft_then_jre(
             &run,
             &mc_version,
+            None,
             step(StepId::McLibsAssets),
             step(StepId::JreInstall),
         )
@@ -425,7 +426,15 @@ async fn prepare_with_context(
                 let l = loader_of(&run.env, &run.pack)
                     .await?
                     .ok_or(lerr!("launch.error.stepFailed"))?;
-                let (lm, files) = minecraft_then_jre(&run, &l.minecraft_version(), mc, jre).await?;
+                // A standalone loader profile (Cleanroom) replaces the vanilla client.json.
+                let (lm, files) = minecraft_then_jre(
+                    &run,
+                    &l.minecraft_version(),
+                    l.standalone_manifest(),
+                    mc,
+                    jre,
+                )
+                .await?;
                 Ok(BranchOut::Minecraft(lm, files))
             });
         }
@@ -491,7 +500,11 @@ async fn content_branch(run: &PackRun, step: Step) -> Result<()> {
         sync.fetch_latest_mods().await?;
         run.check_cancelled()?;
         let mc = run.pack.minecraft_version_hint().unwrap_or_default();
-        if crate::arm64::is_needed(&run.env, &mc) {
+        // A standalone loader (Cleanroom) runs LWJGL 3 on 1.12.2: no LWJGL 2 patch, so no
+        // mods to disable for it.
+        if !crate::loader::pack_loader_is_standalone(&run.pack)
+            && crate::arm64::is_needed(&run.env, &mc)
+        {
             crate::arm64::disable_incompatible_mods(&run.pack.mods_dir());
         }
         sink.end_section(&t!("gameModPackLauncher.progress.modsReady"));
@@ -537,6 +550,7 @@ async fn loader_branch(run: &PackRun, step: Step) -> Result<Vec<String>> {
 async fn minecraft_then_jre(
     run: &PackRun,
     mc_version: &str,
+    standalone: Option<Arc<mmcl_mojang::ClientJson>>,
     mc: Step,
     jre: Step,
 ) -> Result<(Arc<LibraryManifest>, vanilla::MinecraftFiles)> {
@@ -552,7 +566,10 @@ async fn minecraft_then_jre(
                 &t!("gameModPackLauncher.progress.downloadingMcLibs"),
                 weight.0,
             );
-            let lm = vanilla::library_manifest(run, mc_version).await?;
+            let lm = match standalone {
+                Some(client) => Arc::new(LibraryManifest::standalone(mc_version, client)),
+                None => vanilla::library_manifest(run, mc_version).await?,
+            };
             run.check_cancelled()?;
             let files = vanilla::build_minecraft_classpath(run, &lm, &mc.sink).await?;
             run.check_cancelled()?;
@@ -774,7 +791,7 @@ pub fn main_class_and_game_args(
                     command::split_command_line(&l.minecraft_arguments()),
                 )
             } else {
-                Vec::new()
+                l.server_arguments()
             };
             (main, args)
         }
@@ -884,7 +901,9 @@ pub async fn launch(env: &LaunchEnv, req: LaunchRequest) -> Result<GameProcess> 
     )
     .await?;
     let lm = prepared.library_manifest.clone();
+    // A standalone loader profile names its own runtime (Cleanroom: java-runtime-epsilon).
     let component = lm.runtime_component();
+    let standalone = lm.is_standalone();
     mmcl_log::std(&tf!(
         "log.gameModPackLauncher.versionRequiresRuntime",
         &prepared.mc_version,
@@ -944,9 +963,15 @@ pub async fn launch(env: &LaunchEnv, req: LaunchRequest) -> Result<GameProcess> 
         custom_jvm_args: env.config.custom_jvm_args(),
         min_ram_mb,
         max_ram_mb,
-        log4j_config: log4j_config(env, &prepared.mc_version).await,
+        // Mojang's log4j config replaces the game's own logging setup; a standalone profile
+        // declares none (Cleanroom ships a patched log4j), so it keeps its own.
+        log4j_config: if standalone {
+            None
+        } else {
+            log4j_config(env, &prepared.mc_version).await
+        },
         natives: natives_s,
-        arm64_flags: crate::arm64::is_needed(env, &prepared.mc_version),
+        arm64_flags: !standalone && crate::arm64::is_needed(env, &prepared.mc_version),
         logo: logo.to_string_lossy().into_owned(),
         title: pack.name(),
         manifest_jvm: lm.client.jvm_arguments_vec(&env.host),

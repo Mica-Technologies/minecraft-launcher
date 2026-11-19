@@ -158,8 +158,12 @@ pub fn mc_version_from_neoforge(version: &str) -> Option<String> {
 }
 
 /// The Minecraft version of a loader manifest: `inheritsFrom`, else (NeoForge) the mapped
-/// NeoForge number, else the id before `-forge`, else the id.
+/// NeoForge number, else (Cleanroom, whose standalone id `Cleanroom-0.7.14-alpha` names no
+/// Minecraft version) 1.12.2, else the id before `-forge`, else the id.
 pub fn minecraft_version_for(kind: LoaderKind, m: &ForgeVersionManifest) -> String {
+    if kind == LoaderKind::Cleanroom {
+        return mmcl_mojang::cleanroom_profile::cleanroom_minecraft_version(None, m.raw());
+    }
     if m.raw()
         .get("inheritsFrom")
         .and_then(|v| v.as_str())
@@ -578,6 +582,18 @@ mod tests {
             json!({"id": "1.12.2-forge-14.23.5.2860", "mainClass": "net.minecraft.launchwrapper.Launch"}),
         );
         assert_eq!(minecraft_version_for(LoaderKind::Forge, &forge), "1.12.2");
+        let cleanroom = manifest(
+            json!({"id": "Cleanroom-0.7.14-alpha", "mainClass": "top.outlands.foundation.boot.Foundation"}),
+        );
+        assert_eq!(
+            minecraft_version_for(LoaderKind::Cleanroom, &cleanroom),
+            "1.12.2"
+        );
+        // Without the Cleanroom rule the standalone id would come back whole.
+        assert_eq!(
+            minecraft_version_for(LoaderKind::Forge, &cleanroom),
+            "Cleanroom-0.7.14-alpha"
+        );
     }
 
     fn url_of(e: &str) -> String {

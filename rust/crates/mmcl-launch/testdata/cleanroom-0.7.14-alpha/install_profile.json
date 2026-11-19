@@ -1,0 +1,96 @@
+{
+  "spec": 1,
+  "profile": "Cleanroom",
+  "version": "Cleanroom-0.7.14-alpha",
+  "minecraft": "1.12.2",
+  "cleanroomVersion": "0.7.14-alpha",
+  "json": "/version.json",
+  "path": "com.cleanroommc:cleanroom:0.7.14-alpha:universal",
+  "logo": "/cleanroom.png",
+  "welcome": "Installing Cleanroom 0.7.14-alpha",
+  "mirrorList": "",
+  "libraries": [
+    {
+      "name": "com.cleanroommc:cleanroom:0.7.14-alpha:universal",
+      "downloads": {
+        "artifact": {
+          "path": "com/cleanroommc/cleanroom/0.7.14-alpha/cleanroom-0.7.14-alpha-universal.jar",
+          "url": "",
+          "sha1": "9e7ed10176074d58903f72358d4f54dba0c50677",
+          "size": 12795007
+        }
+      }
+    }
+  ],
+  "processors": [],
+  "data": {},
+  "java": {
+    "minimum": 25,
+    "recommended": 25,
+    "distro": "zulu"
+  },
+  "jvmArgs": [],
+  "mainClass": "top.outlands.foundation.boot.Foundation",
+  "serverMainClass": "top.outlands.foundation.boot.Foundation",
+  "tweakers": [
+    "net.minecraftforge.fml.common.launcher.FMLTweaker"
+  ],
+  "serverTweakers": [
+    "net.minecraftforge.fml.common.launcher.FMLServerTweaker"
+  ],
+  "serverJarPath": "libraries/com/cleanroommc/cleanroom/0.7.14-alpha/cleanroom-0.7.14-alpha-universal.jar",
+  "repositories": {
+    "ca.weblite": "https://repo.maven.apache.org/maven2/",
+    "com.cleanroommc": "https://maven.cleanroommc.com/",
+    "com.github.oshi": "https://repo.maven.apache.org/maven2/",
+    "com.google.code.findbugs": "https://repo.maven.apache.org/maven2/",
+    "com.google.code.gson": "https://repo.maven.apache.org/maven2/",
+    "com.google.errorprone": "https://repo.maven.apache.org/maven2/",
+    "com.google.guava": "https://repo.maven.apache.org/maven2/",
+    "com.google.j2objc": "https://repo.maven.apache.org/maven2/",
+    "com.ibm.icu": "https://repo.maven.apache.org/maven2/",
+    "com.mojang": "https://libraries.minecraft.net/",
+    "com.paulscode": "https://libraries.minecraft.net/",
+    "com.sun.istack": "https://repo.maven.apache.org/maven2/",
+    "commons-codec": "https://repo.maven.apache.org/maven2/",
+    "commons-io": "https://repo.maven.apache.org/maven2/",
+    "commons-logging": "https://repo.maven.apache.org/maven2/",
+    "io.github.classgraph": "https://repo.maven.apache.org/maven2/",
+    "io.netty": "https://repo.maven.apache.org/maven2/",
+    "it.unimi.dsi": "https://repo.maven.apache.org/maven2/",
+    "jakarta.activation": "https://repo.maven.apache.org/maven2/",
+    "jakarta.annotation": "https://repo.maven.apache.org/maven2/",
+    "jakarta.inject": "https://repo.maven.apache.org/maven2/",
+    "jakarta.xml.bind": "https://repo.maven.apache.org/maven2/",
+    "jakarta.xml.soap": "https://repo.maven.apache.org/maven2/",
+    "jakarta.xml.ws": "https://repo.maven.apache.org/maven2/",
+    "java3d": "https://libraries.minecraft.net/",
+    "lzma": "https://libraries.minecraft.net/",
+    "net.java.dev.jna": "https://repo.maven.apache.org/maven2/",
+    "net.java.jinput": "https://repo.maven.apache.org/maven2/",
+    "net.sf.jopt-simple": "https://repo.maven.apache.org/maven2/",
+    "net.sf.trove4j": "https://repo.maven.apache.org/maven2/",
+    "org.apache.commons": "https://repo.maven.apache.org/maven2/",
+    "org.apache.httpcomponents": "https://repo.maven.apache.org/maven2/",
+    "org.apache.httpcomponents.client5": "https://repo.maven.apache.org/maven2/",
+    "org.apache.httpcomponents.core5": "https://repo.maven.apache.org/maven2/",
+    "org.apache.logging.log4j": "https://repo.maven.apache.org/maven2/",
+    "org.apache.maven": "https://repo.maven.apache.org/maven2/",
+    "org.codehaus.plexus": "https://repo.maven.apache.org/maven2/",
+    "org.eclipse.angus": "https://repo.maven.apache.org/maven2/",
+    "org.glassfish.corba": "https://repo.maven.apache.org/maven2/",
+    "org.glassfish.jaxb": "https://repo.maven.apache.org/maven2/",
+    "org.javassist": "https://repo.maven.apache.org/maven2/",
+    "org.jctools": "https://repo.maven.apache.org/maven2/",
+    "org.jline": "https://repo.maven.apache.org/maven2/",
+    "org.joml": "https://repo.maven.apache.org/maven2/",
+    "org.jspecify": "https://repo.maven.apache.org/maven2/",
+    "org.lwjgl": "https://repo.maven.apache.org/maven2/",
+    "org.openjdk.nashorn": "https://repo.maven.apache.org/maven2/",
+    "org.ow2.asm": "https://repo.maven.apache.org/maven2/",
+    "org.slf4j": "https://repo.maven.apache.org/maven2/",
+    "org.tukaani": "https://repo.maven.apache.org/maven2/",
+    "top.outlands": "https://maven.cleanroommc.com/",
+    "zone.rong": "https://maven.cleanroommc.com/"
+  }
+}

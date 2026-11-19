@@ -2,10 +2,12 @@
 
 //! Installing a pack's loader into the official Minecraft Launcher's `.minecraft` (Java
 //! `LoaderInstallerRunner`): Forge/NeoForge run their verified installer with
-//! `--installClient`; Fabric's profile JSON is written into `versions/<id>/<id>.json`.
+//! `--installClient`; Cleanroom's installer takes a mode instead (`client --dir <.minecraft>`);
+//! Fabric's profile JSON is written into `versions/<id>/<id>.json`.
 //!
-//! There is no launcher JVM in Rust (Q-3): the installer runs on the pack's own Minecraft
-//! version's Java runtime, falling back to `java-runtime-delta`.
+//! There is no launcher JVM in Rust (Q-3): the installer runs on the pack's own Java runtime
+//! (the Minecraft version's, or a standalone loader profile's own), falling back to
+//! `java-runtime-delta`.
 
 use std::fs;
 use std::path::Path;
@@ -69,7 +71,9 @@ pub fn compute_version_id(
 ) -> String {
     match kind {
         None => mc_version.to_string(),
-        Some(LoaderKind::Forge | LoaderKind::NeoForge) => loader_version.to_string(),
+        Some(LoaderKind::Forge | LoaderKind::NeoForge | LoaderKind::Cleanroom) => {
+            loader_version.to_string()
+        }
         Some(LoaderKind::Fabric) => format!("fabric-loader-{loader_version}-{mc_version}"),
     }
 }
@@ -111,8 +115,56 @@ pub async fn install_loader_for_official_launcher(
     };
     match kind {
         LoaderKind::Fabric => write_fabric_profile(env, pack, dot_mc).await,
-        LoaderKind::Forge | LoaderKind::NeoForge => run_installer(env, pack, dot_mc, cancel).await,
+        LoaderKind::Forge | LoaderKind::NeoForge | LoaderKind::Cleanroom => {
+            run_installer(env, pack, dot_mc, cancel).await
+        }
     }
+}
+
+/// The command line that installs `kind`'s client into `dot_mc` with the installer at
+/// `installer`, run on `java`.
+///
+/// - Forge / NeoForge: `--installClient <dot_mc>`.
+/// - Cleanroom: its installer is mode-based (`client | server | mmc`, no `--installClient`):
+///   `client --dir <dot_mc> --no-gui --yes`, plus `--no-profile` (the export writes the pack's
+///   own launcher profile) and `--java <java> --no-provision-java` (never download a second
+///   Java).
+pub fn installer_argv(
+    kind: LoaderKind,
+    java: &Path,
+    installer: &Path,
+    dot_mc: &Path,
+) -> Vec<String> {
+    let s = |p: &Path| p.to_string_lossy().into_owned();
+    let mut argv = vec![s(java), "-jar".to_string(), s(installer)];
+    match kind {
+        LoaderKind::Cleanroom => argv.extend([
+            "client".to_string(),
+            "--dir".to_string(),
+            s(dot_mc),
+            "--no-gui".to_string(),
+            "--yes".to_string(),
+            "--no-profile".to_string(),
+            "--java".to_string(),
+            s(java),
+            "--no-provision-java".to_string(),
+        ]),
+        _ => argv.extend(["--installClient".to_string(), s(dot_mc)]),
+    }
+    argv
+}
+
+/// The Java runtime component a pack's loader runs on when its profile is standalone
+/// (Cleanroom: `java-runtime-epsilon`), else `None` (the Minecraft version decides).
+pub async fn standalone_runtime_component(
+    env: &LaunchEnv,
+    pack: &Arc<GameModPack>,
+) -> Option<String> {
+    if !crate::loader::pack_loader_is_standalone(pack) {
+        return None;
+    }
+    let loader = loader_of(env, pack).await.ok().flatten()?;
+    loader.standalone_manifest().map(|m| m.runtime_component())
 }
 
 async fn run_installer(
@@ -149,9 +201,12 @@ async fn run_installer(
         installer.display().to_string()
     ));
     let mc = loader.minecraft_version();
-    let component = crate::vanilla::required_runtime_component(env, &mc)
-        .await
-        .unwrap_or_else(|_| FALLBACK_COMPONENT.to_string());
+    let component = match loader.standalone_manifest() {
+        Some(m) => m.runtime_component(),
+        None => crate::vanilla::required_runtime_component(env, &mc)
+            .await
+            .unwrap_or_else(|_| FALLBACK_COMPONENT.to_string()),
+    };
     let java = match env.runtimes.java_path(&component, cancel).await {
         Ok(j) => j,
         Err(_) => match env.runtimes.java_path(FALLBACK_COMPONENT, cancel).await {
@@ -165,13 +220,7 @@ async fn run_installer(
         },
     };
     let abs = |p: &Path| std::path::absolute(p).unwrap_or_else(|_| p.to_path_buf());
-    let argv = vec![
-        java.to_string_lossy().into_owned(),
-        "-jar".to_string(),
-        abs(&installer).to_string_lossy().into_owned(),
-        "--installClient".to_string(),
-        abs(dot_mc).to_string_lossy().into_owned(),
-    ];
+    let argv = installer_argv(loader.kind(), &java, &abs(&installer), &abs(dot_mc));
     mmcl_log::std(&tf!("log.loaderInstallerRunner.running", argv.join(" ")));
     let cwd = abs(dot_mc);
     let mut cmd = match build_command(&argv, &cwd, ChildIoMode::Pipe) {
@@ -320,6 +369,54 @@ mod tests {
             compute_version_id(Some(LoaderKind::Fabric), "1.21.5", "0.16.10"),
             "fabric-loader-0.16.10-1.21.5"
         );
+        // The Cleanroom installer writes versions/Cleanroom-<version>/.
+        assert_eq!(
+            compute_version_id(
+                Some(LoaderKind::Cleanroom),
+                "1.12.2",
+                "Cleanroom-0.7.14-alpha"
+            ),
+            "Cleanroom-0.7.14-alpha"
+        );
+    }
+
+    #[test]
+    fn installer_command_lines() {
+        let (java, jar, mc) = (
+            Path::new("/rt/bin/java"),
+            Path::new("/p/bin/modpack.jar"),
+            Path::new("/home/u/.minecraft"),
+        );
+        let forge = installer_argv(LoaderKind::Forge, java, jar, mc);
+        assert_eq!(
+            forge,
+            [
+                "/rt/bin/java",
+                "-jar",
+                "/p/bin/modpack.jar",
+                "--installClient",
+                "/home/u/.minecraft"
+            ]
+        );
+        let cr = installer_argv(LoaderKind::Cleanroom, java, jar, mc);
+        assert_eq!(
+            cr,
+            [
+                "/rt/bin/java",
+                "-jar",
+                "/p/bin/modpack.jar",
+                "client",
+                "--dir",
+                "/home/u/.minecraft",
+                "--no-gui",
+                "--yes",
+                "--no-profile",
+                "--java",
+                "/rt/bin/java",
+                "--no-provision-java"
+            ]
+        );
+        assert!(!cr.iter().any(|a| a == "--installClient"));
     }
 
     #[test]

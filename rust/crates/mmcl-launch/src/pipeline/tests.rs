@@ -477,6 +477,251 @@ fn server_heap_override_wins_only_in_server_mode() {
     assert_eq!(ram_mb(&fx.env), (512, 2048));
 }
 
+// ---- Cleanroom (standalone loader profile) ---------------------------------------------------
+
+const CR_INSTALLER_URL: &str = "https://github.com/CleanroomMC/Cleanroom/releases/download/0.7.14-alpha/cleanroom-0.7.14-alpha-installer.jar";
+const CR_UNIVERSAL: &str =
+    "com/cleanroommc/cleanroom/0.7.14-alpha/cleanroom-0.7.14-alpha-universal.jar";
+const CR_MAVEN: &str = "https://repo.maven.apache.org/maven2/org/lwjgl/lwjgl/3.4.3/";
+
+/// A Cleanroom-shaped installer: the real install profile, and a small standalone
+/// `version.json` with the same structure as the real one (blank-URL universal jar, LWJGL 3
+/// with legacy `natives`/`extract` entries ruled by `x64` / `arm64` arch names, its own
+/// runtime, asset index and game jars, no `inheritsFrom`). Serves everything it lists.
+fn serve_cleanroom(fx: &Fixture) -> Vec<u8> {
+    let natives = crate::jar::build_jar(&[
+        ("windows/x64/org/lwjgl/lwjgl.dll", b"lwjgl3-dll".as_slice()),
+        ("linux/x64/org/lwjgl/liblwjgl.so", b"lwjgl3-so".as_slice()),
+        ("META-INF/MANIFEST.MF", b"x".as_slice()),
+    ])
+    .unwrap();
+    let obj = b"cleanroom-ogg".to_vec();
+    let index = format!(
+        r#"{{"objects":{{"minecraft/sounds/b.ogg":{{"hash":"{}","size":13}}}}}}"#,
+        sha1(&obj)
+    );
+    let native_entry = |classifier: &str, os: &str, key: &str, arch: &str| {
+        format!(
+            r#"{{"name":"org.lwjgl:lwjgl:3.4.3","side":"client","downloads":{{"classifiers":{{"{classifier}":{{
+                "sha1":"{s}",
+                "url":"{CR_MAVEN}lwjgl-3.4.3-{classifier}.jar"}}}}}},
+              "natives":{{"{key}":"{classifier}"}},"extract":{{"exclude":["META-INF/"]}},
+              "rules":[{{"action":"allow","os":{{"name":"{os}","arch":"{arch}"}}}}]}}"#,
+            s = sha1(&natives)
+        )
+    };
+    let version = format!(
+        r#"{{"id":"Cleanroom-0.7.14-alpha","type":"release",
+        "mainClass":"top.outlands.foundation.boot.Foundation",
+        "assetIndex":{{"id":"1.12","url":"https://piston-meta.mojang.com/v1/packages/i/1.12.json","sha1":"{isha}"}},
+        "assets":"1.12",
+        "downloads":{{"client":{{"url":"https://piston-data.mojang.com/v1/objects/c/client.jar","sha1":"{csha}"}},
+                     "server":{{"url":"https://piston-data.mojang.com/v1/objects/s/server.jar","sha1":"{ssha}"}}}},
+        "javaVersion":{{"component":"java-runtime-epsilon","majorVersion":25}},
+        "minecraftArguments":"--username ${{auth_player_name}} --version ${{version_name}} --gameDir ${{game_directory}} --assetsDir ${{assets_root}} --assetIndex ${{assets_index_name}} --uuid ${{auth_uuid}} --accessToken ${{auth_access_token}} --userType ${{user_type}} --tweakClass net.minecraftforge.fml.common.launcher.FMLTweaker --versionType Cleanroom",
+        "libraries":[
+          {{"name":"com.cleanroommc:cleanroom:0.7.14-alpha:universal","downloads":{{"artifact":{{"path":"{CR_UNIVERSAL}","url":"","sha1":"{usha}","size":9}}}}}},
+          {{"name":"org.lwjgl:lwjgl:3.4.3","downloads":{{"artifact":{{"path":"org/lwjgl/lwjgl/3.4.3/lwjgl-3.4.3.jar","url":"{CR_MAVEN}lwjgl-3.4.3.jar","sha1":"{lsha}"}}}}}},
+          {n1},{n2},{n3}
+        ]}}"#,
+        isha = sha1(index.as_bytes()),
+        csha = sha1(b"vanilla-1.12.2-client"),
+        ssha = sha1(b"vanilla-1.12.2-server"),
+        usha = sha1(b"universal"),
+        lsha = sha1(b"lwjgl-3.4.3"),
+        n1 = native_entry("natives-windows", "windows", "windows", "x64"),
+        n2 = native_entry("natives-windows-arm64", "windows", "windows", "arm64"),
+        n3 = native_entry("natives-linux", "linux", "linux", "x64"),
+    );
+    let installer = crate::jar::build_jar(&[
+        ("version.json", version.as_bytes()),
+        (
+            "install_profile.json",
+            include_bytes!("../../testdata/cleanroom-0.7.14-alpha/install_profile.json").as_slice(),
+        ),
+        (&format!("maven/{CR_UNIVERSAL}"), b"universal".as_slice()),
+    ])
+    .unwrap();
+    fx.http.body(CR_INSTALLER_URL, installer.clone());
+    fx.http.body(
+        &format!("{CR_MAVEN}lwjgl-3.4.3.jar"),
+        b"lwjgl-3.4.3".to_vec(),
+    );
+    for c in ["natives-windows", "natives-windows-arm64", "natives-linux"] {
+        fx.http
+            .body(&format!("{CR_MAVEN}lwjgl-3.4.3-{c}.jar"), natives.clone());
+    }
+    fx.http.body(
+        "https://piston-meta.mojang.com/v1/packages/i/1.12.json",
+        index,
+    );
+    fx.http
+        .body(&mmcl_mojang::asset_index::object_url(&sha1(&obj)), obj);
+    fx.http.body(
+        "https://piston-data.mojang.com/v1/objects/c/client.jar",
+        b"vanilla-1.12.2-client".to_vec(),
+    );
+    fx.http.body(
+        "https://piston-data.mojang.com/v1/objects/s/server.jar",
+        b"vanilla-1.12.2-server".to_vec(),
+    );
+    installer
+}
+
+fn cleanroom_pack(fx: &Fixture, installer: &[u8]) -> Arc<GameModPack> {
+    fx.pack(PackManifest {
+        pack_name: Some("Cleanroom Pack".into()),
+        pack_version: Some("1".into()),
+        pack_mod_loader: Some("Cleanroom".into()),
+        pack_forge_url: Some(CR_INSTALLER_URL.into()),
+        pack_forge_hash: Some(sha1(installer)),
+        pack_mods: Some(Vec::new()),
+        ..Default::default()
+    })
+}
+
+#[tokio::test]
+async fn cleanroom_client_prepare_uses_only_its_own_profile() {
+    let fx = Fixture::with_host(GameMode::Client, presets::windows_x64());
+    // Vanilla 1.12.2 is served too: none of it may be used.
+    serve_vanilla(&fx, "1.12.2");
+    let installer = serve_cleanroom(&fx);
+    fake_runtime(&fx, "java-runtime-epsilon");
+    let pack = cleanroom_pack(&fx, &installer);
+    // A Forge launch of this pack left LWJGL 2 natives behind.
+    let natives = pack.pack_root().join("bin/natives");
+    std::fs::create_dir_all(&natives).unwrap();
+    std::fs::write(natives.join("lwjgl64.dll"), b"lwjgl2").unwrap();
+
+    let c = CancelToken::new();
+    let p = prepare(&fx.env, &pack, Arc::new(NullSink), None, &c)
+        .await
+        .unwrap();
+    let l = p.loader.as_ref().unwrap();
+    assert_eq!(l.kind(), crate::loader::LoaderKind::Cleanroom);
+    assert_eq!(l.name(), "Cleanroom");
+    assert_eq!(l.loader_version(), "Cleanroom-0.7.14-alpha");
+    assert_eq!(l.minecraft_version(), "1.12.2");
+    assert_eq!(p.mc_version, "1.12.2");
+    assert_eq!(pack.minecraft_version_hint().as_deref(), Some("1.12.2"));
+
+    // Java 25 from the loader profile, not vanilla 1.12.2's jre-legacy.
+    assert!(p.library_manifest.is_standalone());
+    assert_eq!(
+        p.library_manifest.runtime_component(),
+        "java-runtime-epsilon"
+    );
+    assert_eq!(p.library_manifest.java_major(), 25);
+    assert_eq!(p.assets.index_id, "1.12");
+    // Mojang's version manifest and 1.12.2 client.json were never fetched.
+    assert_eq!(
+        fx.http
+            .count(mmcl_mojang::version_manifest::VERSION_MANIFEST_URL),
+        0
+    );
+    assert_eq!(fx.http.count("/v/1.12.2.json"), 0);
+    assert_eq!(fx.http.count("libraries.minecraft.net"), 0);
+
+    let norm: Vec<String> = p.classpath.iter().map(|e| e.replace('\\', "/")).collect();
+    assert_eq!(norm.len(), 4, "{norm:#?}");
+    assert!(norm[0].ends_with(CR_UNIVERSAL), "the installer's jar first");
+    // Profile order: the artifact entry, then its (separate) natives entry for this host.
+    assert!(norm[1].ends_with("lwjgl-3.4.3.jar"));
+    assert!(norm[2].ends_with("lwjgl-3.4.3-natives-windows.jar"));
+    assert!(norm[3].ends_with("bin/minecraft.jar"));
+    assert!(
+        !norm
+            .iter()
+            .any(|e| e.contains("asm-9.6") || e.contains("3.3.3"))
+    );
+    let root = pack.pack_root();
+    assert_eq!(
+        std::fs::read(root.join("libraries").join(CR_UNIVERSAL)).unwrap(),
+        b"universal"
+    );
+    assert_eq!(
+        std::fs::read(root.join("bin/minecraft.jar")).unwrap(),
+        b"vanilla-1.12.2-client"
+    );
+    // Natives: only this host's LWJGL 3 jar, extracted; the stale LWJGL 2 file is gone.
+    assert!(natives.join("windows/x64/org/lwjgl/lwjgl.dll").is_file());
+    assert!(!natives.join("lwjgl64.dll").exists());
+    assert!(!natives.join("META-INF").exists());
+
+    let (main, args) =
+        main_class_and_game_args(true, &p.library_manifest, Some(l.as_ref()), &fx.env.host);
+    assert_eq!(main, "top.outlands.foundation.boot.Foundation");
+    assert_eq!(args.iter().filter(|a| *a == "--tweakClass").count(), 1);
+    assert_eq!(args.iter().filter(|a| *a == "--username").count(), 1);
+    assert!(args.contains(&"net.minecraftforge.fml.common.launcher.FMLTweaker".to_string()));
+    assert!(l.jvm_arguments().is_empty());
+}
+
+#[tokio::test]
+async fn cleanroom_server_prepare_mirrors_the_installer_server_mode() {
+    let fx = Fixture::with_host(GameMode::Server, presets::linux_x64());
+    let installer = serve_cleanroom(&fx);
+    fake_runtime(&fx, "java-runtime-epsilon");
+    let pack = cleanroom_pack(&fx, &installer);
+    let c = CancelToken::new();
+    let p = prepare(&fx.env, &pack, Arc::new(NullSink), None, &c)
+        .await
+        .unwrap();
+    let l = p.loader.as_ref().unwrap();
+    assert_eq!(
+        p.library_manifest.runtime_component(),
+        "java-runtime-epsilon"
+    );
+    let root = pack.pack_root();
+    assert_eq!(
+        std::fs::read(root.join("bin/minecraft.jar")).unwrap(),
+        b"vanilla-1.12.2-server"
+    );
+    let norm: Vec<String> = p.classpath.iter().map(|e| e.replace('\\', "/")).collect();
+    assert!(norm[0].ends_with(CR_UNIVERSAL));
+    // Natives entries are `"side": "client"`: the installer leaves them off a server.
+    assert!(!norm.iter().any(|e| e.contains("-natives-")), "{norm:#?}");
+    assert!(norm.iter().any(|e| e.ends_with("lwjgl-3.4.3.jar")));
+    assert!(norm.last().unwrap().ends_with("bin/minecraft.jar"));
+
+    // `serverMainClass` and `--tweakClass` per `serverTweakers`, never legacy Forge's
+    // ServerLaunchWrapper (which would pick its own tweaker).
+    let (main, args) =
+        main_class_and_game_args(false, &p.library_manifest, Some(l.as_ref()), &fx.env.host);
+    assert_eq!(main, "top.outlands.foundation.boot.Foundation");
+    assert_eq!(
+        args,
+        [
+            "--tweakClass",
+            "net.minecraftforge.fml.common.launcher.FMLServerTweaker"
+        ]
+    );
+    let argv = build_argv(&ArgvInputs {
+        client: false,
+        java: "/rt/java-runtime-epsilon/bin/java".into(),
+        min_ram_mb: 512,
+        max_ram_mb: 4096,
+        natives: "/p/bin/natives".into(),
+        manifest_jvm: p.library_manifest.client.jvm_arguments_vec(&fx.env.host),
+        classpath: "CP".into(),
+        main_class: main,
+        game_args: args,
+        ..Default::default()
+    });
+    let at = argv.iter().position(|a| a == "-cp").unwrap();
+    assert_eq!(
+        &argv[at..],
+        [
+            "-cp",
+            "CP",
+            "top.outlands.foundation.boot.Foundation",
+            "--tweakClass",
+            "net.minecraftforge.fml.common.launcher.FMLServerTweaker"
+        ]
+    );
+    assert!(!argv.iter().any(|a| a.contains("ServerLaunchWrapper")));
+}
+
 #[test]
 fn scan_skip_reasons() {
     assert_eq!(
