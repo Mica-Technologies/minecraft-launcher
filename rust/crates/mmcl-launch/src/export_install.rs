@@ -154,17 +154,33 @@ pub fn installer_argv(
     argv
 }
 
-/// The Java runtime component a pack's loader runs on when its profile is standalone
-/// (Cleanroom: `java-runtime-epsilon`), else `None` (the Minecraft version decides).
-pub async fn standalone_runtime_component(
+/// What an exported profile takes from a standalone loader profile (Cleanroom), whose
+/// installer runs with `--no-profile` and so writes no launcher profile of its own.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct StandaloneExport {
+    /// The Java runtime component the profile names (Cleanroom: `java-runtime-epsilon`);
+    /// `None` lets the Minecraft version decide.
+    pub runtime_component: Option<String>,
+    /// The JVM arguments the installer's own profile would have carried: the install
+    /// profile's `jvmArgs`, plus `-XstartOnFirstThread` on macOS.
+    pub jvm_args: Vec<String>,
+}
+
+/// The runtime and JVM arguments a pack's standalone loader profile gives its exported
+/// profile; `None` when the pack's loader is not standalone (Forge, NeoForge and Fabric
+/// profiles come from their installers) or cannot be resolved.
+pub async fn standalone_export(
     env: &LaunchEnv,
     pack: &Arc<GameModPack>,
-) -> Option<String> {
+) -> Option<StandaloneExport> {
     if !crate::loader::pack_loader_is_standalone(pack) {
         return None;
     }
     let loader = loader_of(env, pack).await.ok().flatten()?;
-    loader.standalone_manifest().map(|m| m.runtime_component())
+    Some(StandaloneExport {
+        runtime_component: loader.standalone_manifest().map(|m| m.runtime_component()),
+        jvm_args: loader.jvm_arguments(),
+    })
 }
 
 async fn run_installer(

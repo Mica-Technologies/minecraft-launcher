@@ -282,6 +282,9 @@ pub(crate) struct ProfileInputs {
     pub java_dir: Option<String>,
     pub max_ram_mb: i64,
     pub custom_jvm_args: String,
+    /// A standalone loader profile's JVM arguments (Cleanroom: its `jvmArgs`, and
+    /// `-XstartOnFirstThread` on macOS); empty for every other loader.
+    pub loader_jvm_args: Vec<String>,
     pub icon: Option<String>,
 }
 
@@ -316,6 +319,12 @@ pub(crate) fn populate_profile(profile: &mut Map<String, Value>, i: &ProfileInpu
     if !i.custom_jvm_args.trim().is_empty() {
         args.push(' ');
         args.push_str(i.custom_jvm_args.trim());
+    }
+    for a in i.loader_jvm_args.iter().map(|a| a.trim()) {
+        if !a.is_empty() {
+            args.push(' ');
+            args.push_str(a);
+        }
     }
     profile.insert("javaArgs".into(), Value::from(args));
     if let Some(icon) = &i.icon {
@@ -532,13 +541,13 @@ impl Engine {
             None => pack.minecraft_version().await.ok().flatten(),
         };
         // A standalone loader profile (Cleanroom: Java 25) names its own runtime; the
-        // Minecraft-version heuristic would pick Java 8 for 1.12.2.
-        let component = match mmcl_launch::export_install::standalone_runtime_component(
-            &self.inner.launch_env,
-            &pack,
-        )
-        .await
-        {
+        // Minecraft-version heuristic would pick Java 8 for 1.12.2. Its installer runs with
+        // --no-profile, so the JVM arguments its own profile would have had go into ours.
+        let standalone =
+            mmcl_launch::export_install::standalone_export(&self.inner.launch_env, &pack)
+                .await
+                .unwrap_or_default();
+        let component = match standalone.runtime_component {
             Some(c) => c,
             None => pick_runtime_component(mc_for_runtime.as_deref()).to_string(),
         };
@@ -549,6 +558,7 @@ impl Engine {
             java_dir: runtime_java(&self.inner.paths, &component),
             max_ram_mb: self.inner.config.max_ram_mb(),
             custom_jvm_args: self.inner.config.custom_jvm_args(),
+            loader_jvm_args: standalone.jvm_args,
             icon: None,
         };
         let file = profiles_file.clone();
@@ -746,6 +756,46 @@ mod tests {
     }
 
     #[test]
+    fn a_standalone_loaders_jvm_arguments_follow_the_custom_ones() {
+        // Cleanroom's installer runs with --no-profile, so the exported profile carries the
+        // arguments its own profile would have had: on macOS, -XstartOnFirstThread.
+        use mmcl_launch::loader::cleanroom::client_jvm_args;
+        use mmcl_mojang::host::presets;
+        let inputs = |loader_jvm_args: Vec<String>| ProfileInputs {
+            name: "CR (Mica)".into(),
+            version_id: "Cleanroom-0.7.14-alpha".into(),
+            game_dir: PathBuf::from("g"),
+            java_dir: None,
+            max_ram_mb: 4096,
+            custom_jvm_args: "-XX:+UseG1GC".into(),
+            loader_jvm_args,
+            icon: None,
+        };
+        let java_args = |i: &ProfileInputs| {
+            let mut p = Map::new();
+            populate_profile(&mut p, i);
+            p["javaArgs"].as_str().unwrap().to_string()
+        };
+        let profile_args = vec!["-Dcleanroom.flag=true".to_string()];
+        assert_eq!(
+            java_args(&inputs(client_jvm_args(
+                profile_args.clone(),
+                &presets::mac_arm()
+            ))),
+            "-Xmx4096M -XX:+UseG1GC -Dcleanroom.flag=true -XstartOnFirstThread"
+        );
+        assert_eq!(
+            java_args(&inputs(client_jvm_args(
+                profile_args,
+                &presets::windows_x64()
+            ))),
+            "-Xmx4096M -XX:+UseG1GC -Dcleanroom.flag=true"
+        );
+        // Every other loader adds nothing.
+        assert_eq!(java_args(&inputs(Vec::new())), "-Xmx4096M -XX:+UseG1GC");
+    }
+
+    #[test]
     fn profiles_merge_and_remove_without_touching_others() {
         let d = tempfile::tempdir().unwrap();
         let file = d.path().join(PROFILES_FILE);
@@ -761,6 +811,7 @@ mod tests {
             java_dir: None,
             max_ram_mb: 4096,
             custom_jvm_args: " -XX:+UseG1GC ".into(),
+            loader_jvm_args: Vec::new(),
             icon: None,
         };
         upsert_profile(&file, "k", &inputs).unwrap();
