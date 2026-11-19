@@ -174,8 +174,8 @@ fn turning_a_mod_off_again_restores_the_state_before_it_was_turned_on() {
     assert_eq!(
         why,
         [
-            ("b.jar", Reason::NoLongerNeeded, "a"),
-            ("c.jar", Reason::NoLongerNeeded, "b")
+            ("b.jar", Reason::NoLongerRequired, "a"),
+            ("c.jar", Reason::NoLongerRequired, "b")
         ]
     );
     assert!(off.changes.iter().all(|c| !c.enabled));
@@ -209,7 +209,7 @@ fn a_requirement_turned_off_by_the_player_returns_to_off() {
     assert_eq!(on.enabled, set(&["a.jar", "b.jar"]));
     let off = toggle(&mods, &on.choices, "a.jar", false);
     assert_eq!(off.enabled, IndexSet::<String>::new());
-    assert_eq!(off.changes[0].reason, Reason::NoLongerNeeded);
+    assert_eq!(off.changes[0].reason, Reason::NoLongerRequired);
 }
 
 #[test]
@@ -229,7 +229,7 @@ fn a_requirement_shared_by_two_enabled_mods_stays_on_while_either_is_on() {
     let c_off = toggle(&mods, &a_off.choices, "c.jar", false);
     assert_eq!(c_off.enabled, IndexSet::<String>::new());
     assert_eq!(c_off.changes[0].key, "lib.jar");
-    assert_eq!(c_off.changes[0].reason, Reason::NoLongerNeeded);
+    assert_eq!(c_off.changes[0].reason, Reason::NoLongerRequired);
     assert_eq!(c_off.changes[0].cause, "c");
 
     // The other order too: c off first, then a.
@@ -252,6 +252,29 @@ fn turning_a_requirement_off_turns_off_the_mod_that_needs_it() {
 }
 
 #[test]
+fn turning_on_stores_conflicts_off_so_turning_off_does_not_bring_them_back() {
+    let mods = [m("a.jar", false, &[], &["f.jar"]), plain("f.jar", true)];
+    let on = toggle(&mods, &Choices::new(), "a.jar", true);
+    assert_eq!(on.choices, choices(&[("a.jar", true), ("f.jar", false)]));
+    let off = toggle(&mods, &on.choices, "a.jar", false);
+    assert!(off.enabled.is_empty());
+    assert!(off.changes.is_empty());
+}
+
+#[test]
+fn a_mod_held_off_by_a_conflict_comes_back_when_the_other_goes_off() {
+    // Both on by default: a is listed first and wins until the player turns it off.
+    let mods = [plain("a.jar", true), m("m.jar", true, &[], &["a.jar"])];
+    assert_eq!(resolve_enabled(&mods, &Choices::new()), set(&["a.jar"]));
+    let off = toggle(&mods, &Choices::new(), "a.jar", false);
+    assert_eq!(off.enabled, set(&["m.jar"]));
+    let c = &off.changes[0];
+    assert!(c.enabled);
+    assert_eq!(c.reason, Reason::ConflictCleared);
+    assert_eq!(c.cause, "a");
+}
+
+#[test]
 fn a_requirement_of_a_mod_forced_off_by_a_conflict_goes_off_with_it() {
     let mods = [
         m("fast.jar", true, &["flib.jar"], &[]),
@@ -269,7 +292,7 @@ fn a_requirement_of_a_mod_forced_off_by_a_conflict_goes_off_with_it() {
         why,
         [
             ("fast.jar", Reason::ConflictsWith, "ausm"),
-            ("flib.jar", Reason::NoLongerNeeded, "fast")
+            ("flib.jar", Reason::NoLongerRequired, "fast")
         ]
     );
 }
@@ -303,7 +326,7 @@ fn toggling_off_turns_dependents_off_and_requirements_back_to_their_wish() {
     assert_eq!(
         why,
         [
-            ("b.jar", Reason::NoLongerNeeded, "a"),
+            ("b.jar", Reason::NoLongerRequired, "a"),
             ("c.jar", Reason::RequiresOff, "a")
         ]
     );

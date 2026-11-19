@@ -1287,9 +1287,14 @@ that needs a mod being turned off is stored off too. So turning a mod off undoes
 it alone switched on: each falls back to its own wish (a stored `true` stays on, `defaultEnabled`
 decides otherwise), and one that another enabled mod needs stays on. Stored order: existing
 choices, then the toggled mod, then the turned-off mods (as Java's `LinkedHashMap`). Each other
-mod that changed is reported with `RequiredBy` / `ConflictsWith` / `RequiresOff` /
-`NoLongerNeeded` (went off because the mod that needed it is off now;
-`modal.optionalMods.reason.noLongerNeeded`) and the cause's display name; a self-conflicting group
+mod that changed is reported with a reason and the cause's display name, the first candidate in
+manifest order (Java `OptionalModResolver.explain`): turned on → `RequiredBy` (a mod on afterwards
+directly requires it), else `ConflictCleared` (a mod that was on, is off now and conflicts with it;
+`modal.optionalMods.reason.conflictCleared`), else `RequiredBy` with no cause; turned off and stored
+off → `ConflictsWith` (a mod on afterwards), else `RequiresOff` (its first requirement that is off);
+turned off without being stored → `NoLongerRequired` (a mod that was on, is off now and directly
+requires it; `modal.optionalMods.reason.noLongerRequired`), else `ConflictsWith`, else
+`RequiresOff` with no cause. A self-conflicting group
 (or one that needs what it conflicts with) is refused as `Unsatisfiable`, an unknown name as
 `Unknown`, and nothing is stored. Choices stored by the earlier rule, which wrote every cascaded
 requirement as `true`, read as the player's own picks.

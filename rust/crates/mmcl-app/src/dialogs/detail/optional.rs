@@ -48,7 +48,9 @@ pub fn describe_toggle(
             Reason::RequiredBy if has_cause => "modal.optionalMods.reason.requiredBy",
             Reason::RequiredBy => "modal.optionalMods.reason.turnedOn",
             Reason::ConflictsWith => "modal.optionalMods.reason.conflictsWith",
-            Reason::NoLongerNeeded if has_cause => "modal.optionalMods.reason.noLongerNeeded",
+            Reason::NoLongerRequired if has_cause => "modal.optionalMods.reason.noLongerRequired",
+            Reason::ConflictCleared if has_cause => "modal.optionalMods.reason.conflictCleared",
+            Reason::ConflictCleared => "modal.optionalMods.reason.turnedOn",
             _ if has_cause => "modal.optionalMods.reason.requiresOff",
             _ => "modal.optionalMods.reason.turnedOff",
         };
@@ -172,7 +174,23 @@ mod tests {
             describe_toggle(&off, "AUSM", false, &echo),
             [
                 "modal.optionalMods.status.off|AUSM",
-                "modal.optionalMods.reason.noLongerNeeded|Lib|AUSM"
+                "modal.optionalMods.reason.noLongerRequired|Lib|AUSM"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_mod_held_off_by_a_conflict_says_it_came_back() {
+        let both = [
+            m("A", "a.jar", true, &[], &[]),
+            m("M", "m.jar", true, &[], &["a.jar"]),
+        ];
+        let off = toggle(&both, &Choices::new(), "a.jar", false);
+        assert_eq!(
+            describe_toggle(&off, "A", false, &echo),
+            [
+                "modal.optionalMods.status.off|A",
+                "modal.optionalMods.reason.conflictCleared|M|A"
             ]
         );
     }

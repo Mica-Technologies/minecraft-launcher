@@ -689,12 +689,19 @@ pub(crate) fn describe_toggle(
                 change.name,
                 cause.unwrap_or("")
             ),
-            Reason::NoLongerNeeded => match cause {
+            Reason::NoLongerRequired => match cause {
                 Some(c) => format!(
-                    "Turned off \"{}\", which was only on because \"{c}\" needed it.",
+                    "Turned off \"{}\" too; it was only on because \"{c}\" requires it.",
                     change.name
                 ),
-                None => format!("Turned off \"{}\".", change.name),
+                None => format!("Turned off \"{}\" too.", change.name),
+            },
+            Reason::ConflictCleared => match cause {
+                Some(c) => format!(
+                    "Turned on \"{}\" again; it was only off because it conflicts with \"{c}\", which is now off.",
+                    change.name
+                ),
+                None => format!("Turned on \"{}\" again.", change.name),
             },
             _ => match cause {
                 Some(c) => format!("Turned off \"{}\", which requires \"{c}\".", change.name),
@@ -946,7 +953,7 @@ mod tests {
         );
         assert_eq!(
             off.message,
-            "Turned \"AUSM\" off in \"Alto\". Turned off \"Lib\", which was only on because \"AUSM\" needed it. Takes effect the next time the pack launches or syncs."
+            "Turned \"AUSM\" off in \"Alto\". Turned off \"Lib\" too; it was only on because \"AUSM\" requires it. Takes effect the next time the pack launches or syncs."
         );
         let refused = describe_toggle(
             &toggle(&mods, &none, "ghost.jar", true),

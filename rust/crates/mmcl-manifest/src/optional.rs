@@ -237,9 +237,12 @@ pub enum Reason {
     ConflictsWith,
     /// Turned off because it requires a mod that is now off.
     RequiresOff,
-    /// Turned off because it was on only while a mod that is now off needed it; it is back
-    /// to its own wish (the player's choice, else its default).
-    NoLongerNeeded,
+    /// Turned off because it was only on as a requirement of a mod that is now off; it fell
+    /// back to its own wish (the player's choice, else its default).
+    NoLongerRequired,
+    /// Turned on because the mod it conflicts with is now off; it was wished on but held off
+    /// by that conflict.
+    ConflictCleared,
     /// Refused: the mod needs a group of mods that conflict among themselves.
     Unsatisfiable,
     /// Refused: no optional mod has that name.
@@ -528,8 +531,7 @@ pub fn toggle(mods: &[OptionalMod], choices: &Choices, local: &str, enable: bool
             let states = States {
                 before: &enabled_before,
                 after: &enabled_after,
-                forced_off: &turn_off,
-                target: &target,
+                forced: turn_off.contains(k),
             };
             explain(&by_key, k, m, &states)
         })
@@ -549,67 +551,96 @@ struct States<'a> {
     before: &'a IndexSet<String>,
     /// The mods on after it.
     after: &'a IndexSet<String>,
-    /// The mods the toggle stored off (conflicts and everything needing a mod turned off).
-    forced_off: &'a IndexSet<String>,
-    /// The toggled mod.
-    target: &'a str,
+    /// Whether the toggle stored this mod off (a conflict, or something needing a mod turned
+    /// off).
+    forced: bool,
 }
 
-/// Why a mod switched.
+/// The first mod in manifest order that is in `within`, not in `except`, and directly
+/// requires `key`; its display name.
+fn first_requirer(
+    by_key: &IndexMap<String, &OptionalMod>,
+    key: &str,
+    within: &IndexSet<String>,
+    except: &IndexSet<String>,
+) -> Option<String> {
+    by_key
+        .iter()
+        .find(|(k, c)| {
+            within.contains(*k) && !except.contains(*k) && keys_of(c.requires()).contains(key)
+        })
+        .map(|(_, c)| c.display_name())
+}
+
+/// The first mod in manifest order that is in `within`, not in `except`, and conflicts with
+/// `key` in either direction; its display name.
+fn first_conflict(
+    by_key: &IndexMap<String, &OptionalMod>,
+    key: &str,
+    within: &IndexSet<String>,
+    except: &IndexSet<String>,
+) -> Option<String> {
+    by_key
+        .iter()
+        .find(|(k, _)| within.contains(*k) && !except.contains(*k) && conflicts(by_key, key, k))
+        .map(|(_, c)| c.display_name())
+}
+
+/// Why a mod switched (Java `OptionalModResolver.explain`); each cause is the first candidate
+/// in manifest order.
+///
+/// - Turned on: `RequiredBy` the first mod on afterwards that directly requires it; else
+///   `ConflictCleared` by the first mod that was on, is off now and conflicts with it; else
+///   `RequiredBy` with no cause.
+/// - Turned off and stored off (`forced`): `ConflictsWith` the first mod on afterwards it
+///   conflicts with; else `RequiresOff` the first mod it directly requires that is off now;
+///   else `RequiresOff` with no cause.
+/// - Turned off without being stored (it fell back to its own wish): `NoLongerRequired` by the
+///   first mod that was on, is off now and directly requires it; else `ConflictsWith` as above;
+///   else `RequiresOff` with no cause.
 fn explain(
     by_key: &IndexMap<String, &OptionalMod>,
     key: &str,
     m: &OptionalMod,
     s: &States<'_>,
 ) -> Change {
+    let none = IndexSet::new();
     let is_on = s.after.contains(key);
-    let change = |reason, cause: String| Change {
+    let change = |reason, cause: Option<String>| Change {
         key: key.to_string(),
         name: m.display_name(),
         enabled: is_on,
         reason,
-        cause,
+        cause: cause.unwrap_or_default(),
     };
     if is_on {
-        let cause = s
-            .after
+        if let Some(c) = first_requirer(by_key, key, s.after, &none) {
+            return change(Reason::RequiredBy, Some(c));
+        }
+        if let Some(c) = first_conflict(by_key, key, s.before, s.after) {
+            return change(Reason::ConflictCleared, Some(c));
+        }
+        return change(Reason::RequiredBy, None);
+    }
+    if !s.forced
+        && let Some(c) = first_requirer(by_key, key, s.before, s.after)
+    {
+        return change(Reason::NoLongerRequired, Some(c));
+    }
+    if let Some(c) = first_conflict(by_key, key, s.after, &none) {
+        return change(Reason::ConflictsWith, Some(c));
+    }
+    if s.forced {
+        let cause = keys_of(m.requires())
             .iter()
-            .filter_map(|other| by_key.get(other))
-            .find(|c| keys_of(c.requires()).contains(key))
-            .map(|c| c.display_name())
-            .unwrap_or_default();
-        return change(Reason::RequiredBy, cause);
+            .filter(|r| !s.after.contains(*r))
+            .find_map(|r| by_key.get(r))
+            .map(|r| r.display_name());
+        if cause.is_some() {
+            return change(Reason::RequiresOff, cause);
+        }
     }
-    if let Some(other) = s.after.iter().find(|other| conflicts(by_key, key, other)) {
-        return change(Reason::ConflictsWith, by_key[other].display_name());
-    }
-    if !s.forced_off.contains(key) {
-        // Not stored off: it was on only because a mod that is now off needed it, and its own
-        // wish is off. Name the toggled mod when it was the one that needed it.
-        let needed_it = |k: &&String| {
-            s.before.contains(*k)
-                && !s.after.contains(*k)
-                && by_key
-                    .get(*k)
-                    .is_some_and(|c| keys_of(c.requires()).contains(key))
-        };
-        let cause = s
-            .before
-            .iter()
-            .filter(needed_it)
-            .min_by_key(|k| k.as_str() != s.target)
-            .and_then(|k| by_key.get(k))
-            .map(|c| c.display_name())
-            .unwrap_or_default();
-        return change(Reason::NoLongerNeeded, cause);
-    }
-    let cause = keys_of(m.requires())
-        .iter()
-        .filter(|r| !s.after.contains(*r))
-        .find_map(|r| by_key.get(r))
-        .map(|r| r.display_name())
-        .unwrap_or_default();
-    change(Reason::RequiresOff, cause)
+    change(Reason::RequiresOff, None)
 }
 
 /// Resolver choices (by identity key) in their stored form, keyed by each mod's local name as
