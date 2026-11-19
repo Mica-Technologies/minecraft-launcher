@@ -335,6 +335,62 @@ class OptionalModResolverTest
         assertEquals( "s1.jar", picked.get( 0 ).key() );
     }
 
+    private static GameOptionalMod sided( String local, boolean clientReq, boolean serverReq, boolean defaultOn,
+                                          List< String > requires, List< String > conflicts )
+    {
+        return new GameOptionalMod( local.replace( ".jar", "" ), "https://example.invalid/" + local, local, null,
+                                    clientReq, serverReq, "", defaultOn, requires, conflicts );
+    }
+
+    private static List< String > keys( List< GameOptionalMod > mods )
+    {
+        return mods.stream().map( GameOptionalMod::key ).toList();
+    }
+
+    @Test
+    void aServerTurnsOnTheRequirementsOfItsDefaultMods()
+    {
+        List< GameOptionalMod > mods = List.of( sided( "a.jar", true, true, true, List.of( "b.jar" ), null ),
+                                                sided( "b.jar", true, true, false, List.of( "c.jar" ), null ),
+                                                sided( "c.jar", false, true, false, null, null ) );
+        assertEquals( List.of( "a.jar", "b.jar", "c.jar" ),
+                      keys( OptionalModResolver.selectForSide( mods, GameMode.SERVER, Map.of() ) ) );
+    }
+
+    @Test
+    void aServerSkipsAGroupThatNeedsAClientOnlyMod()
+    {
+        List< GameOptionalMod > mods = List.of( sided( "a.jar", true, true, true, List.of( "b.jar" ), null ),
+                                                sided( "b.jar", true, false, true, null, null ),
+                                                sided( "c.jar", false, true, true, null, null ) );
+        assertEquals( List.of( "c.jar" ),
+                      keys( OptionalModResolver.selectForSide( mods, GameMode.SERVER, Map.of() ) ) );
+    }
+
+    @Test
+    void aServerLetsTheEarlierGroupWinAConflictInEitherDirection()
+    {
+        // b's requirement r conflicts with a (only r names it), so b's whole group is skipped;
+        // d names a itself and is skipped too.
+        List< GameOptionalMod > mods = List.of( sided( "a.jar", true, true, true, null, null ),
+                                                sided( "b.jar", true, true, true, List.of( "r.jar" ), null ),
+                                                sided( "r.jar", true, true, false, null, List.of( "a.jar" ) ),
+                                                sided( "d.jar", true, true, true, null, List.of( "a.jar" ) ) );
+        assertEquals( List.of( "a.jar" ),
+                      keys( OptionalModResolver.selectForSide( mods, GameMode.SERVER, Map.of() ) ) );
+    }
+
+    @Test
+    void aServerSkipsAGroupThatConflictsWithItself()
+    {
+        List< GameOptionalMod > mods = List.of( sided( "a.jar", true, true, true, List.of( "b.jar" ),
+                                                       List.of( "b.jar" ) ),
+                                                sided( "b.jar", true, true, false, null, null ),
+                                                sided( "c.jar", true, true, true, null, null ) );
+        assertEquals( List.of( "c.jar" ),
+                      keys( OptionalModResolver.selectForSide( mods, GameMode.SERVER, Map.of() ) ) );
+    }
+
     @Test
     void storedChoicesUseTheManifestSpelling()
     {
