@@ -61,7 +61,7 @@ Other classes in `gui/`:
 | Class | Role |
 |---|---|
 | `MCLauncherModpackDetailModal` | In-scene modal overlay for one pack (see [Detail Modal](#modpack-detail-modal)) |
-| `ModpackContentBrowser`, `ModrinthAddModDialog` | Content tab file browsers; add a mod from Modrinth |
+| `ModpackContentBrowser`, `ModrinthAddModDialog` | Mods and Worlds & files tab browsers; add a mod from Modrinth |
 | `MCLauncherImportConfirmDialog` | Second step of the modpack import flow |
 | `MCLauncherHelpWindow`, `HelpTopic` | Singleton help window; each screen returns its topic from `getHelpTopic()` |
 | `MCLauncherQuickStartWizard` | First-launch wizard (theme, RAM, toggles), opened from Home |
@@ -283,27 +283,59 @@ These follow decisions D3, D10 and D11 in `docs/agent-progress-plans/MULTI_ACCOU
 (`attachToGridPane`). It opens with `show( pack )` and closes on backdrop click, the close button
 or Esc. Home calls `dispose()` from its `cleanup()`.
 
-The modal has a persistent hero image, a meta header and a sticky Play / Website row. Play uses the
-same running-pack check as Home. The meta header shows stat chips and, when the audit finds
-problems, a Problems banner. A pack with a launch-account override gets a "Plays as <name>" chip
-(or a "missing account" chip). The tabbed body builds each tab when it is first opened:
+The window is one scroll area over a fixed Play / Website row. Play uses the same running-pack
+check as Home. In the scroll area, top to bottom: the hero image (art, logo, name, badges, the image
+cycle's arrows and a close button), the meta header (stat chips and, when the audit finds problems, a
+Problems banner whose Review opens the Problems tab), the tab bar, and the active tab's body. A pack
+with a launch-account override gets a "Plays as <name>" chip (or a "missing account" chip).
+
+**Sticky tab bar.** The hero and header scroll away; when the tab bar reaches the top of the scroll
+area it stays there and the body scrolls under it. JavaFX has no sticky positioning, so
+`installTabBarPinning` does it by hand:
+- The bar is translated down by however far the area has scrolled past its place
+  (`DetailModalLayout.pinTranslation`), and drawn over the body (`viewOrder -1`). While pinned it
+  gets the `pinned` class (the card's surface and a soft shadow; the native themes give it their
+  opaque card colour) and shows a close button at its end, since the hero's has scrolled away.
+- The scroll position is kept in pixels (`scrollOffsetPx`), not as the scroll pane's fraction. When
+  the content's height changes (a section loads, a tab switches, a section collapses) the same pixel
+  position is restored. The scroll pane's skin re-fits the fraction from its own layout-bounds
+  listener; the modal's listener on the same property is added before the skin exists, so it runs
+  first and raises `contentResizing`, and the skin's change is then put back rather than read as the
+  player scrolling.
+- The body's minimum height is the viewport less the tab bar (rounded up, plus a pixel), so every
+  tab, however short, can scroll to the pinned position.
+- Switching tabs never jumps back over the hero: a pinned bar stays pinned and the new tab shows
+  from its top; an unpinned position stays where it was (`DetailModalLayout.offsetAfterTabSwitch`).
+  The Problems banner's Review and the Optional mods summary's Choose open their tab pinned.
+- The scroll area's clip rounds its top corners to the card's, so the pinned bar and the body under
+  it stay inside the card. `SmoothScroll` still drives the wheel.
+- The tab labels wrap onto a second row in a narrow window (a `FlowPane` whose wrap length follows
+  the row's width) rather than being cut short.
+
+Tabs are grouped by task (`DetailModalLayout.tabsFor`); each builds when first opened, streaming its
+sections in a few per frame, and is cached:
 
 | Tab | Shown when | Contents |
 |---|---|---|
-| Overview | always | News, Links, Quick Actions, Stats |
-| Content | the pack has an install folder | Worlds / Servers / Mods / Screenshots / Shader / Resource packs browsers (`ModpackContentBrowser`), Modrinth add |
-| Activity | the pack has an install folder | Update Log, Crash History |
-| Advanced | `pack.getSettingsKey() != null` (a manifest or a vanilla version) | **Optional mods** (packs that have any), **Launch as** account choice, plus manifest-only verify controls |
+| Overview | always | **What's new** (a pending update; hidden otherwise), **Optional mods** summary ("N available · M on" and Choose, when the pack has client-side optional mods), News, Links, At a glance (stats), Quick actions |
+| Problems | the audit found problems | one tile per file re-downloaded on every launch |
+| Mods | a modded pack with an install folder or a settings key | **Optional mods** switches, then **Installed mods** (`ModpackContentBrowser`, Modrinth update check and add) |
+| Worlds & files | the pack has an install folder | Worlds / Server favorites / Screenshots / Shader packs / Resource packs browsers |
+| Activity | the pack has an install folder | Update log, Crash history |
+| Settings | `pack.getSettingsKey() != null` (a manifest or a vanilla version) | **Launch as**; with a manifest also **Game files** (always verify, Verify now, scan frequency, acknowledged scan findings) and **Official Minecraft Launcher** (add or remove) |
 
-**Launch as** (`buildAccountOverride`) is an `MFXComboBox` of account uuids:
+Every section is a `buildSectionBox` card with a sentence-case heading. The folder browsers' empty
+state ("Nothing here yet.") carries an Open Folder button that creates the folder if needed.
+
+**Launch as** (`buildAccountSection`) is an `MFXComboBox` of account uuids:
 - The first entry is the default account (no override). Choosing it calls `ConfigManager.setAccountOverrideForPack( key, null )`.
 - Accounts that need sign-in are labelled as such.
 - An override whose account is gone stays in the list as "missing". At launch `LauncherCore.resolveLaunchUser` then blocks and asks what to do instead of falling back silently (D9).
 
-Vanilla versions get only this control. Packs with a manifest also get the verify toggles and
-"Verify now" (`VerifyAction`).
+Vanilla versions get only this section. Packs with a manifest also get Game files (verify toggles,
+"Verify now" through `VerifyAction`) and, with an install folder, Official Minecraft Launcher.
 
-**Optional mods** (`buildOptionalModsSection`) lists the pack's `packOptionalMods` (see
+**Optional mods** (`buildOptionalModsSection`, top of the Mods tab) lists the pack's `packOptionalMods` (see
 `GAME_LAUNCH_SYSTEM.md`, Optional Mods). The list may need the manifest read from disk when the pack
 is a stub, so it loads off the FX thread (`OptionalMods.of`) and the section stays hidden until it
 knows the pack has client-side optional mods (a server-only one gets no switch). Each mod is an `MFXToggleButton` labelled with its name, its
@@ -316,11 +348,17 @@ so the programmatic flips are not treated as player toggles, and shows a status 
 `OptionalModMessages.describeToggle`: the mod's new state (installed or removed the next time the
 pack launches) and one line per other mod that switched, with the reason. A refused toggle reverts
 and says nothing changed. Styling reuses the existing token-driven classes (`muted`, `subtle`,
-`type-label-small`, `type-body-small`).
+`type-label-small`, `type-body-small`). Each toggle also updates the Overview's summary counts
+(`optionalSummaryUpdater`), which count the way the switches list (`DetailModalLayout.optionalCounts`:
+client-side only, each identity key once).
 
-The Activity tab's pending-update card (`buildPendingChangesNode`) tags changes to optional mods the
-player has on with "(optional)" and adds a "New optional mods, off until you turn them on" line from
-`PendingUpdateDiff.Result.newOptionalNames()`.
+The Overview's What's new card (`buildWhatsNewSection` → `buildPendingChangesNode`) tags changes to
+optional mods the player has on with "(optional)" and adds a "New optional mods, off until you turn
+them on in the Mods tab" line from `PendingUpdateDiff.Result.newOptionalNames()`.
+
+Test seams (package-private statics, like `problemSource`): `pendingDiffSource`,
+`optionalModsSource` and `optionalEnabledSource`, so `DetailModalSnapshotFxTest` can show a pending
+update and optional mods without an installed pack or the player's stored choices.
 
 ## Theming
 
@@ -392,7 +430,7 @@ a menu, a tooltip and a dialog at each scale (`build/target/snapshots/scale/`).
 **Snapshots.** `ThemeSnapshotFxTest` (`MMCL_RUN_TESTFX=true`) renders every screen, two control
 galleries, a dialog and the popups in all seven theme variants to `build/target/snapshots/themes/`.
 `DetailModalSnapshotFxTest`, `RunningGamesSnapshotFxTest` and `SecondaryScreensSnapshotFxTest` render the
-data-driven parts the FXML-only snapshots can't (detail tabs and pack colours, game sessions, runtime
+data-driven parts the FXML-only snapshots can't (detail tabs, the sticky tab bar and pack colours, game sessions, runtime
 tiles). `tools/ui-snapshots/diff_snapshots.py BEFORE AFTER` reports changed pixels per image and writes
 highlighted diffs. Every Maven run wipes `build/` (except `build/jdk`), so keep a baseline outside it.
 

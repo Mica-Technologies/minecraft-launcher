@@ -162,7 +162,7 @@ Stored per pack in `configuration.json` under `optionalModsByPack`, keyed like
 
 A mod with no entry follows its `defaultEnabled`. It is a player setting and is never written into
 the manifest. Accessors: `ConfigManager.getOptionalModChoices` / `setOptionalModChoices`
-(`ModPackConfig`). The choice is set from the detail modal's Advanced tab or the MCP
+(`ModPackConfig`). The choice is set from the detail modal's Mods tab or the MCP
 `set_optional_mod` tool, both through `OptionalMods.toggle`.
 
 ### Resolution rules (`OptionalModResolver`)
