@@ -199,7 +199,17 @@ public class MCLauncherGuiWindow extends Application
         javafx.scene.layout.StackPane placeholder = new javafx.scene.layout.StackPane();
         placeholder.setStyle( "-fx-background-color: #0C1017;" );
         this.placeholderRoot = placeholder;
-        javafx.scene.Scene initialScene = new javafx.scene.Scene( placeholder, PREF_WIDTH, PREF_HEIGHT );
+        // A first run opens at the designed size, shrunk to fit a small screen (a Steam Deck's
+        // 1280x800 less its panel and the title bar is shorter than 800).
+        double initialWidth = PREF_WIDTH;
+        double initialHeight = PREF_HEIGHT;
+        if ( !restored ) {
+            javafx.geometry.Rectangle2D screen = javafx.stage.Screen.getPrimary().getVisualBounds();
+            initialWidth = MCLauncherQuickStartWizard.fitToScreen( PREF_WIDTH, screen.getWidth() );
+            initialHeight = MCLauncherQuickStartWizard.fitToScreen(
+                    PREF_HEIGHT, screen.getHeight() - MCLauncherQuickStartWizard.TITLE_BAR_ALLOWANCE );
+        }
+        javafx.scene.Scene initialScene = new javafx.scene.Scene( placeholder, initialWidth, initialHeight );
         initialScene.setFill( javafx.scene.paint.Color.web( "#0C1017" ) );
         stage.setScene( initialScene );
         show();
