@@ -2185,6 +2185,9 @@ public class LauncherCore
             Logger.logDebug( LocalizationManager.get( "log.launcherCore.lifecycleTransitionIgnored" ) );
             return;
         }
+        // A quit that hangs leaves a windowless process behind, which in the Steam Deck's Game
+        // Mode is a black screen until the player aborts the "game".
+        com.micatechnologies.minecraft.launcher.utilities.ExitWatchdog.arm( LauncherConstants.EXIT_STATUS_CODE_GOOD );
         runLifecycleTransition( LauncherCore::closeAppNow, "Launcher-Close" );
     }
 
