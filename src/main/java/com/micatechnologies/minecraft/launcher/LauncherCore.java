@@ -356,8 +356,9 @@ public class LauncherCore
     private static boolean handleSecondLaunch( String[] args )
     {
         // Every outcome below is reported by this method or by the running launcher, before any
-        // window of ours. The macOS starter cannot see exit codes, so it must be told up front.
-        StarterHandshake.reportedOutcome();
+        // window of ours. The macOS starter cannot see exit codes, so it must be told before this
+        // process exits. Not up front: a launch that ends a frozen copy carries on starting, and
+        // the starter must still report it if that start then fails.
         String uri = null;
         for ( String arg : args ) {
             if ( LauncherUriHandler.isLauncherUri( arg ) ) {
@@ -375,6 +376,7 @@ public class LauncherCore
         // --cli session. Keep the console message.
         boolean tui = com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled();
         if ( tui && uri == null ) {
+            StarterHandshake.reportedOutcome();
             StartupDiagnostics.record( "Port " + port + " unavailable (" + reason + "); --cli exits" );
             com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut()
                     .println( LocalizationManager.get( "tui.alreadyRunning" ) );
@@ -387,6 +389,11 @@ public class LauncherCore
         StartupDiagnostics.record( "Port " + port + " unavailable (" + reason + "); handed "
                                    + ( uri != null ? "a deep link" : "an open request" )
                                    + " to the running launcher: " + result );
+        boolean offerToEnd = result == SingleInstanceLock.ForwardResult.HOLDER_NOT_RESPONDING && !tui
+                && !java.awt.GraphicsEnvironment.isHeadless();
+        if ( !offerToEnd ) {
+            StarterHandshake.reportedOutcome();
+        }
         if ( result.delivered() ) {
             System.exit( 0 );
             return false;
@@ -394,8 +401,7 @@ public class LauncherCore
 
         // The running copy's windows are frozen: it can never come forward, and before this
         // reply existed every later launch exited silently into it. Offer to end it.
-        if ( result == SingleInstanceLock.ForwardResult.HOLDER_NOT_RESPONDING && !tui
-                && !java.awt.GraphicsEnvironment.isHeadless() ) {
+        if ( offerToEnd ) {
             long pid = SingleInstanceLock.hungHolderPid();
             if ( pid > 0 && confirmStartupDialog( LocalizationManager.get( "startup.alreadyRunning.notResponding" ),
                                                   LocalizationManager.get( "startup.alreadyRunning.endAndStart" ) ) ) {
@@ -404,8 +410,10 @@ public class LauncherCore
                     return true;
                 }
                 StartupDiagnostics.record( "Could not end the frozen launcher (pid " + pid + ")" );
+                StarterHandshake.reportedOutcome();
                 showStartupDialog( LocalizationManager.get( "startup.alreadyRunning.couldNotEnd" ) );
             }
+            StarterHandshake.reportedOutcome();
             System.exit( 1 );
             return false;
         }

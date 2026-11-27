@@ -54,8 +54,9 @@ import java.util.Map;
  * <p>Tracked via {@link ConfigConstants#QUICK_START_COMPLETED_KEY} in the
  * launcher config — defaults to false, so existing installs see the wizard
  * exactly once when they upgrade to a version that ships it. The flag flips
- * true when the user either Finishes or Skips, so subsequent launches go
- * straight to the main menu without re-prompting.
+ * true as soon as the wizard opens, so subsequent launches go straight to the
+ * main menu without re-prompting, even if this one froze or was closed
+ * mid-way.
  *
  * <p>Steps (in order):
  * <ol>
@@ -176,9 +177,9 @@ public final class MCLauncherQuickStartWizard
 
     /**
      * Opens the quick-start wizard as a modal stage owned by {@code owner}.
-     * Blocks the owner until the user closes the wizard. On close — whether
-     * via Finish, Skip, or the OS close button — the quick-start-completed
-     * flag is persisted to config.
+     * Blocks the owner until the user closes the wizard. The
+     * quick-start-completed flag is persisted as soon as it opens (and again
+     * on Finish, Skip, or the OS close button).
      *
      * @param owner the parent stage (typically the main GUI's stage)
      */
