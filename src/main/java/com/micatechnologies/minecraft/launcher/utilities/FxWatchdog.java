@@ -61,8 +61,10 @@ public final class FxWatchdog
     /** Most dumps written in one session, so a launcher stuck for hours doesn't fill the disk. */
     static final int MAX_DUMPS = 5;
 
-    /** When the FX thread last ran a ping, in {@link System#nanoTime()} units; 0 before it starts. */
-    private static volatile long lastAnswerNanos = 0;
+    /** How many watchdog ticks in a row have found the last ping still unanswered. Counted in
+     *  ticks rather than measured with a clock, so a computer waking from sleep (the clock moved,
+     *  nothing ran) doesn't read as a stall. */
+    private static volatile int missedTicks = 0;
 
     /** Whether a ping is posted and hasn't run yet. */
     private static volatile boolean pingPending = false;
@@ -82,7 +84,6 @@ public final class FxWatchdog
         if ( thread != null ) {
             return;
         }
-        lastAnswerNanos = System.nanoTime();
         thread = new Thread( FxWatchdog::run, "FX watchdog" );
         thread.setDaemon( true );
         thread.setPriority( Thread.MAX_PRIORITY );
@@ -99,22 +100,20 @@ public final class FxWatchdog
      */
     public static boolean isUnresponsive()
     {
-        long last = lastAnswerNanos;
-        return last != 0 && stalledFor( last, System.nanoTime(), UNRESPONSIVE_MS );
+        return stalledFor( missedTicks, UNRESPONSIVE_MS );
     }
 
     /**
-     * Whether more than a threshold has passed since the last answer. Pure, for tests.
+     * Whether a run of unanswered ticks reaches a threshold. Pure, for tests.
      *
-     * @param lastNanos   the last answer, in nanoTime units
-     * @param nowNanos    now, in nanoTime units
+     * @param missed      consecutive ticks that found the ping unanswered
      * @param thresholdMs the threshold in milliseconds
      *
-     * @return {@code true} when the gap reaches the threshold
+     * @return {@code true} when the unanswered time reaches the threshold
      */
-    static boolean stalledFor( long lastNanos, long nowNanos, long thresholdMs )
+    static boolean stalledFor( int missed, long thresholdMs )
     {
-        return ( nowNanos - lastNanos ) / 1_000_000L >= thresholdMs;
+        return (long) missed * PING_MS >= thresholdMs;
     }
 
     private static void run()
@@ -128,21 +127,22 @@ public final class FxWatchdog
             catch ( InterruptedException e ) {
                 return;
             }
-            if ( !pingPending ) {
+            if ( pingPending ) {
+                missedTicks++;
+            }
+            else {
+                missedTicks = 0;
                 pingPending = true;
                 try {
-                    Platform.runLater( () -> {
-                        lastAnswerNanos = System.nanoTime();
-                        pingPending = false;
-                    } );
+                    Platform.runLater( () -> pingPending = false );
                 }
                 catch ( IllegalStateException toolkitGone ) {
                     // The toolkit has exited (launcher shutting down): nothing left to watch.
+                    missedTicks = 0;
                     return;
                 }
             }
-            boolean stalled = stalledFor( lastAnswerNanos, System.nanoTime(), STALL_MS );
-            if ( !stalled ) {
+            if ( !stalledFor( missedTicks, STALL_MS ) ) {
                 dumpedThisStall = false;
             }
             else if ( !dumpedThisStall && dumps < MAX_DUMPS ) {
@@ -155,7 +155,7 @@ public final class FxWatchdog
 
     private static void writeDump()
     {
-        long stalledMs = ( System.nanoTime() - lastAnswerNanos ) / 1_000_000L;
+        long stalledMs = (long) missedTicks * PING_MS;
         try {
             Path folder = Path.of( LocalPathConstants.CLIENT_MODE_LAUNCHER_FOLDER_PATH + LocalPathConstants.LOG_FOLDER );
             Files.createDirectories( folder );

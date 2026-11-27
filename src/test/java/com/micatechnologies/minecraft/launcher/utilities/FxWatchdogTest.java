@@ -30,19 +30,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class FxWatchdogTest
 {
-    private static final long MS = 1_000_000L;
-
     @Test
-    void aGapShorterThanTheThresholdIsNoStall()
+    void fewerUnansweredTicksThanTheThresholdIsNoStall()
     {
-        assertFalse( FxWatchdog.stalledFor( 0, 4_999 * MS, 5_000 ) );
+        assertFalse( FxWatchdog.stalledFor( 0, FxWatchdog.UNRESPONSIVE_MS ) );
+        assertFalse( FxWatchdog.stalledFor( 4, FxWatchdog.UNRESPONSIVE_MS ) );
     }
 
     @Test
-    void aGapReachingTheThresholdIsAStall()
+    void enoughUnansweredTicksIsAStall()
     {
-        assertTrue( FxWatchdog.stalledFor( 0, 5_000 * MS, 5_000 ) );
-        assertTrue( FxWatchdog.stalledFor( 100 * MS, 20_000 * MS, 10_000 ) );
+        assertTrue( FxWatchdog.stalledFor( 5, FxWatchdog.UNRESPONSIVE_MS ) );
+        assertTrue( FxWatchdog.stalledFor( 10, FxWatchdog.STALL_MS ) );
+        assertFalse( FxWatchdog.stalledFor( 9, FxWatchdog.STALL_MS ) );
     }
 
     @Test
