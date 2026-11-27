@@ -49,7 +49,7 @@
           AboutUrl="https://minecraft.micatechnologies.com/"
           HelpUrl="https://github.com/Mica-Technologies/minecraft-launcher/issues"
           UpdateUrl="https://github.com/Mica-Technologies/minecraft-launcher/releases"
-          UpgradeCode="b3a4f7c2-1d9e-4f88-9b06-3a2c1c7e9501"
+          UpgradeCode="$(var.BundleUpgradeCode)"
           IconSourceFile="$(var.ProjectDir)/deploy/windows/Mica Minecraft Launcher.ico"
           DisableModify="yes"
           Compressed="yes">
@@ -62,7 +62,7 @@
          with the same BundleVersion of "25.1.2.0") — without this, those
          pre-existing entries would never be cleaned up because the version-
          comparison path only fires for strictly-older versions. -->
-    <RelatedBundle Id="b3a4f7c2-1d9e-4f88-9b06-3a2c1c7e9501" Action="Upgrade"/>
+    <RelatedBundle Id="$(var.BundleUpgradeCode)" Action="Upgrade"/>
 
     <!-- Use the WixStdBA HyperlinkLargeLicense theme with our customized
          theme + localization files. The theme XML adds a scope-chooser
@@ -113,7 +113,7 @@
     <util:RegistrySearch
         Id="PerUserInstallSearch"
         Root="HKCU"
-        Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\{3699f9a3-0d10-4228-ab2f-b86ca9a500ac}"
+        Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\{$(var.MsiUpgradeCode)}"
         Value="DisplayVersion"
         Variable="MMCL_EXISTING_USER_VERSION"
         Result="value"
@@ -121,7 +121,7 @@
     <util:RegistrySearch
         Id="PerMachineInstallSearch"
         Root="HKLM"
-        Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\{3699f9a3-0d10-4228-ab2f-b86ca9a500ac}"
+        Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\{$(var.MsiUpgradeCode)}"
         Value="DisplayVersion"
         Variable="MMCL_EXISTING_MACHINE_VERSION"
         Result="value"

@@ -693,6 +693,8 @@
                 <!-- MSI UpgradeCode, shared by both install scopes (and compiled into the starter,
                      which looks the install up by it to repair it). -->
                 <windows.upgrade.uuid>3699f9a3-0d10-4228-ab2f-b86ca9a500ac</windows.upgrade.uuid>
+                <!-- UpgradeCode of the Burn bundle (Setup.exe) that chains both MSIs. -->
+                <windows.bundle.upgrade.uuid>b3a4f7c2-1d9e-4f88-9b06-3a2c1c7e9501</windows.bundle.upgrade.uuid>
                 <!-- Root of the WiX 3.x install. CI may override via -Dwix.toolset.bin
                      when WiX lives somewhere other than the default Program Files path. -->
                 <wix.toolset.bin>C:/Program Files (x86)/WiX Toolset v3.14/bin</wix.toolset.bin>
@@ -1004,6 +1006,8 @@
                                         <argument>-dMsiMachinePath=${msi.machine.path}</argument>
                                         <argument>-dAppName=${packaging.displayName}</argument>
                                         <argument>-dAppVersion=${jpackage.app.version}</argument>
+                                        <argument>-dBundleUpgradeCode=${windows.bundle.upgrade.uuid}</argument>
+                                        <argument>-dMsiUpgradeCode=${windows.upgrade.uuid}</argument>
                                         <argument>-dBundleBuildRevision=${bundle.build.revision}</argument>
                                         <argument>-dAppDescription=Mica Minecraft Launcher — Forge modpacks, made simple.</argument>
                                         <argument>-out</argument>
@@ -1438,8 +1442,8 @@
 
         <!-- Dev build profile: produces a side-by-side installable dev version.
              Usage: mvn -Pdev package
-             The dev build uses a different app name, install dir, and data folder
-             so it does not conflict with a standard production install. -->
+             The dev build uses a different app name, install dir, data folder and MSI
+             UpgradeCode so it does not conflict with a standard production install. -->
         <profile>
             <id>dev</id>
             <properties>
@@ -1447,6 +1451,13 @@
                 <appcds.folder.name>MicaMinecraftLauncherDEV</appcds.folder.name>
                 <packaging.displayName>Mica Minecraft Launcher DEV</packaging.displayName>
                 <packaging.name>${packaging.displayName}</packaging.name>
+                <!-- Its own MSI and bundle UpgradeCodes. With production's, Windows Installer
+                     and Burn treat a DEV install as an upgrade of the real launcher (or the
+                     reverse), and the starter's repair looks up the wrong product. This
+                     profile is declared after the Windows one, so these values win when both
+                     are active. -->
+                <windows.upgrade.uuid>1aa6649c-9bf4-48e3-abbb-7798a13d1db2</windows.upgrade.uuid>
+                <windows.bundle.upgrade.uuid>c76688a7-9292-4504-8c9d-b24ab42973d7</windows.bundle.upgrade.uuid>
             </properties>
         </profile>
         <!-- Linux + dev combined: override the Linux package identifier so the dev build installs
