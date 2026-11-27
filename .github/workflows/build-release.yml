@@ -346,16 +346,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v8
-        with:
-          path: artifacts
-
       # Only the install guide is needed from the repository: which file to download, and how
-      # to install on a Steam Deck. It goes into every release and pre-release body.
+      # to install on a Steam Deck. It goes into every release and pre-release body. Checked out
+      # into its own folder, first: checkout empties a folder that isn't already a clone, which
+      # would delete the downloaded artifacts.
       - name: Check out the release notes
         uses: actions/checkout@v7
         with:
+          path: release-notes-src
           sparse-checkout: .github/release-notes
           sparse-checkout-cone-mode: false
 
@@ -363,8 +361,13 @@ jobs:
         id: notes
         run: |
           echo "install<<NOTES_EOF" >> $GITHUB_OUTPUT
-          cat .github/release-notes/install.md >> $GITHUB_OUTPUT
+          cat release-notes-src/.github/release-notes/install.md >> $GITHUB_OUTPUT
           echo "NOTES_EOF" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
 
       - name: Calculate hashes
         id: hashes

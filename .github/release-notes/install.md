@@ -8,7 +8,6 @@
 | Steam Deck, or a Linux system where you can't install packages | the `-x86_64.AppImage` |
 | Debian, Ubuntu, Linux Mint | the `_amd64.deb` |
 | Fedora, openSUSE | the `.x86_64.rpm` |
-| Anything else with Java 26 and JavaFX | the `-jar-with-dependencies.jar` |
 
 ## Installing on a Steam Deck
 
