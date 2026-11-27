@@ -197,6 +197,55 @@ public final class SmoothScroll
             glide.running = true;
             ticker.start();
         } );
+        glide.ticker = ticker;
+
+        // On a touch screen (the Steam Deck), dragging the page scrolls it.
+        DragScroll.install( scrollPane );
+    }
+
+    /**
+     * Stops a glide in progress on a smooth-scrolled pane, leaving it where it is. Others are
+     * ignored.
+     *
+     * @param scrollPane a pane set up with {@link #install(ScrollPane)}
+     *
+     * @since 2026.11
+     */
+    static void stopGlide( ScrollPane scrollPane )
+    {
+        if ( scrollPane.getProperties().get( GLIDE_KEY ) instanceof Glide glide && glide.ticker != null ) {
+            glide.ticker.stop();
+            glide.running = false;
+            glide.target = scrollPane.getVvalue();
+        }
+    }
+
+    /**
+     * Glides a smooth-scrolled pane by a distance, easing out as a wheel scroll does: the
+     * carry-on of a flick. Others are ignored.
+     *
+     * @param scrollPane a pane set up with {@link #install(ScrollPane)}
+     * @param pixels     how far to scroll the content, in layout pixels; positive scrolls down
+     *
+     * @since 2026.11
+     */
+    static void glideBy( ScrollPane scrollPane, double pixels )
+    {
+        if ( !( scrollPane.getProperties().get( GLIDE_KEY ) instanceof Glide glide ) || glide.ticker == null
+             || scrollPane.getContent() == null ) {
+            return;
+        }
+        double scrollable = scrollPane.getContent().getLayoutBounds().getHeight()
+                            - scrollPane.getViewportBounds().getHeight();
+        if ( scrollable <= 0 || pixels == 0 ) {
+            return;
+        }
+        if ( !glide.running ) {
+            glide.target = scrollPane.getVvalue();
+        }
+        glide.target = clamp( glide.target + pixels / scrollable, 0, 1 );
+        glide.running = true;
+        glide.ticker.start();
     }
 
     /** Property key under which {@link #install(ScrollPane)} keeps a pane's {@link Glide}. */
@@ -216,6 +265,8 @@ public final class SmoothScroll
         /** Set from a content-height change until the next pulse; vvalue changes in that window
          *  only re-fit the position to the new height. */
         boolean refitting;
+        /** Drives the chase; set once the pane is set up. */
+        AnimationTimer ticker;
     }
 
     /**
@@ -255,7 +306,7 @@ public final class SmoothScroll
      *
      * @return {@code true} when something between them should get the wheel first
      */
-    private static boolean isInsideNestedScrollable( Node target, ScrollPane outer )
+    static boolean isInsideNestedScrollable( Node target, ScrollPane outer )
     {
         for ( Node n = target; n != null && n != outer; n = n.getParent() ) {
             if ( n instanceof javafx.scene.control.TextArea
