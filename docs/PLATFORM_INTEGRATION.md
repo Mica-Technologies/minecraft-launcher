@@ -340,6 +340,24 @@ running until every process it started has exited, returns to the library. In Ga
 gamescope shows only the most recently mapped window. If the launch fails or the game crashes,
 the windows come back and the launcher stays open.
 
+**Under gamescope** (`SteamProcess.underGamescope`: Game Mode, or `GAMESCOPE_WAYLAND_DISPLAY`
+set), `GamescopeWindows` sizes the main window and every resizable window to the screen as it is
+shown. gamescope has no window manager to maximize anything and scales each window to the screen
+keeping its shape, so a window of any other shape got black bars. The main window's bounds aren't
+restored or saved there, so Desktop Mode keeps its own size. Fixed-size dialogs keep their size.
+
+**Touch scrolling:** on Linux, JavaFX gets the Deck's touch screen as a mouse, so a finger drag
+was a mouse drag that scrolled nothing. On a Steam Deck or under gamescope, `DragScroll` (installed
+by `SmoothScroll.install`) turns a vertical drag on a scroll pane into a scroll with a short fling.
+It starts after 10 px of mostly vertical movement, so taps still click. Once it starts, it disarms
+the pressed button and swallows the release and click. Drags that start on scroll bars, sliders,
+text fields and nested lists are left to those controls.
+
+**Quitting:** a quit that hangs would leave a windowless process, which in Game Mode is a black
+screen until the player aborts the "game". `ExitWatchdog`, armed by `LauncherCore.closeApp`, writes
+a thread dump to `logs/exit-hang-<time>.log` and halts the JVM if the process is still alive 20 s
+after the quit began.
+
 `SteamDeck.isSteamDeck()` (DMI vendor `Valve`, product `Jupiter` or `Galileo`) makes sign-in start
 with a code instead of Microsoft's page (see `docs/AUTHENTICATION_SYSTEM.md`).
 
