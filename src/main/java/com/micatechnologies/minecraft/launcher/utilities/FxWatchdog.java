@@ -156,18 +156,32 @@ public final class FxWatchdog
     private static void writeDump()
     {
         long stalledMs = (long) missedTicks * PING_MS;
+        writeDumpFile( "ui-hang-", "FX application thread unanswered for " + stalledMs + " ms",
+                       "The UI thread has not answered for " + stalledMs + " ms" );
+    }
+
+    /**
+     * Writes a thread dump to {@code logs/<prefix><time>.log} in the launcher folder and notes it
+     * in {@code startup.log}. Never throws.
+     *
+     * @param prefix  the file name's start, such as {@code ui-hang-}
+     * @param heading the dump's first line
+     * @param event   what happened, for the {@code startup.log} line
+     *
+     * @since 2026.11
+     */
+    static void writeDumpFile( String prefix, String heading, String event )
+    {
         try {
             Path folder = Path.of( LocalPathConstants.CLIENT_MODE_LAUNCHER_FOLDER_PATH + LocalPathConstants.LOG_FOLDER );
             Files.createDirectories( folder );
             String stamp = LocalDateTime.now().format( DateTimeFormatter.ofPattern( "yyyyMMdd-HHmmss" ) );
-            Path file = folder.resolve( "ui-hang-" + stamp + ".log" );
-            Files.writeString( file, threadDump( stalledMs ), StandardCharsets.UTF_8 );
-            StartupDiagnostics.record( "The UI thread has not answered for " + stalledMs + " ms; thread dump in "
-                                       + file.getFileName() );
+            Path file = folder.resolve( prefix + stamp + ".log" );
+            Files.writeString( file, threadDump( heading ), StandardCharsets.UTF_8 );
+            StartupDiagnostics.record( event + "; thread dump in " + file.getFileName() );
         }
         catch ( Throwable t ) {
-            StartupDiagnostics.record( "The UI thread has not answered for " + stalledMs
-                                       + " ms, and the thread dump could not be written", t );
+            StartupDiagnostics.record( event + ", and the thread dump could not be written", t );
         }
     }
 
@@ -180,9 +194,21 @@ public final class FxWatchdog
      */
     static String threadDump( long stalledMs )
     {
+        return threadDump( "FX application thread unanswered for " + stalledMs + " ms" );
+    }
+
+    /**
+     * Every live thread's stack with its locks, headed by any deadlock the JVM can see.
+     *
+     * @param heading the dump's first line
+     *
+     * @return the dump as text
+     */
+    static String threadDump( String heading )
+    {
         ThreadMXBean bean = ManagementFactory.getThreadMXBean();
         StringBuilder out = new StringBuilder();
-        out.append( "FX application thread unanswered for " ).append( stalledMs ).append( " ms\n" );
+        out.append( heading ).append( '\n' );
         out.append( "Java " ).append( System.getProperty( "java.version" ) ).append( ", " )
            .append( System.getProperty( "os.name" ) ).append( ' ' ).append( System.getProperty( "os.version" ) )
            .append( ' ' ).append( System.getProperty( "os.arch" ) ).append( "\n\n" );
