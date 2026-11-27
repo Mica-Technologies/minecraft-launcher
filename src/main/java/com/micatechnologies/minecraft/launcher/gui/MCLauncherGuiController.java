@@ -274,6 +274,8 @@ public class MCLauncherGuiController
                     // logic is ever added.
                     guiWindow.start( stage );
                     startSuccess.set( true );
+                    // From here a frozen window writes a thread dump to the logs by itself.
+                    com.micatechnologies.minecraft.launcher.utilities.FxWatchdog.start();
                 }
                 catch ( Exception e ) {
                     guiWindow = null;

@@ -247,8 +247,7 @@ public class LauncherCore
         // Enforce single instance. If another copy holds the lock, hand this launch to it (a
         // mmcl:// URI from argv, or a plain "open" that brings its window forward) and exit; if
         // that can't be done, say why instead of exiting silently.
-        if ( !SingleInstanceLock.tryAcquire() ) {
-            handleSecondLaunch( args );
+        if ( !SingleInstanceLock.tryAcquire() && !handleSecondLaunch( args ) ) {
             return;
         }
 
@@ -344,13 +343,17 @@ public class LauncherCore
      * running copy: the {@code mmcl://} URI from argv, or {@code mmcl://open} for a plain
      * launch, which brings its window forward. If no launcher took it, or the one that did has
      * no window to show, tells the user why with a dialog that stays on top, rather than ending
-     * with a busy cursor and nothing else. Every outcome goes to the startup log. Exits.
+     * with a busy cursor and nothing else. Every outcome goes to the startup log. Exits, except
+     * when the running copy has frozen and the user chose to end it: then this launch takes the
+     * lock and carries on starting.
      *
      * @param args the launcher's arguments
      *
+     * @return {@code true} if this launch now holds the lock and should carry on
+     *
      * @since 2026.10
      */
-    private static void handleSecondLaunch( String[] args )
+    private static boolean handleSecondLaunch( String[] args )
     {
         // Every outcome below is reported by this method or by the running launcher, before any
         // window of ours. The macOS starter cannot see exit codes, so it must be told up front.
@@ -376,7 +379,7 @@ public class LauncherCore
             com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut()
                     .println( LocalizationManager.get( "tui.alreadyRunning" ) );
             System.exit( 0 );
-            return;
+            return false;
         }
 
         SingleInstanceLock.ForwardResult result = SingleInstanceLock.forwardToRunningInstance(
@@ -386,7 +389,25 @@ public class LauncherCore
                                    + " to the running launcher: " + result );
         if ( result.delivered() ) {
             System.exit( 0 );
-            return;
+            return false;
+        }
+
+        // The running copy's windows are frozen: it can never come forward, and before this
+        // reply existed every later launch exited silently into it. Offer to end it.
+        if ( result == SingleInstanceLock.ForwardResult.HOLDER_NOT_RESPONDING && !tui
+                && !java.awt.GraphicsEnvironment.isHeadless() ) {
+            long pid = SingleInstanceLock.hungHolderPid();
+            if ( pid > 0 && confirmStartupDialog( LocalizationManager.get( "startup.alreadyRunning.notResponding" ),
+                                                  LocalizationManager.get( "startup.alreadyRunning.endAndStart" ) ) ) {
+                if ( endFrozenLauncher( pid ) ) {
+                    StartupDiagnostics.record( "Ended the frozen launcher (pid " + pid + "); starting in its place" );
+                    return true;
+                }
+                StartupDiagnostics.record( "Could not end the frozen launcher (pid " + pid + ")" );
+                showStartupDialog( LocalizationManager.get( "startup.alreadyRunning.couldNotEnd" ) );
+            }
+            System.exit( 1 );
+            return false;
         }
 
         String message = switch ( result ) {
@@ -401,6 +422,81 @@ public class LauncherCore
             showStartupDialog( message );
         }
         System.exit( 1 );
+        return false;
+    }
+
+    /**
+     * Ends a frozen launcher by its process id and takes the single-instance lock it held. The id
+     * comes from the launcher itself, over the token-checked hand-off, so it is a launcher of this
+     * user's. Forced at once: a frozen launcher can't run its shutdown, and a JVM ended politely
+     * exits with code 143, which the macOS/Linux starter would report as an unexpected close,
+     * while a kill signal reads to it as "asked to stop".
+     *
+     * @param pid the frozen launcher's process id
+     *
+     * @return {@code true} once it has exited and this process holds the lock
+     */
+    private static boolean endFrozenLauncher( long pid )
+    {
+        java.util.Optional< ProcessHandle > handle = ProcessHandle.of( pid );
+        if ( handle.isPresent() ) {
+            ProcessHandle process = handle.get();
+            process.destroyForcibly();
+            try {
+                process.onExit().get( 5, java.util.concurrent.TimeUnit.SECONDS );
+            }
+            catch ( Exception stillThere ) {
+                return false;
+            }
+        }
+        // The port can take a moment to free after the process is gone.
+        for ( int attempt = 0; attempt < 20; attempt++ ) {
+            if ( SingleInstanceLock.tryAcquire() ) {
+                return true;
+            }
+            try {
+                Thread.sleep( 250 );
+            }
+            catch ( InterruptedException e ) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Asks a yes/no question before any launcher window exists, on top of other windows.
+     *
+     * @param message     the question
+     * @param confirmText the label of the button that says yes
+     *
+     * @return {@code true} if the user chose {@code confirmText}
+     */
+    private static boolean confirmStartupDialog( String message, String confirmText )
+    {
+        java.util.concurrent.atomic.AtomicBoolean confirmed = new java.util.concurrent.atomic.AtomicBoolean();
+        try {
+            javax.swing.SwingUtilities.invokeAndWait( () -> {
+                String html = "<html><body style='width: 380px'>"
+                              + message.replace( "&", "&amp;" ).replace( "<", "&lt;" ).replace( ">", "&gt;" )
+                                       .replace( "\n", "<br>" )
+                              + "</body></html>";
+                Object[] options = { confirmText, LocalizationManager.get( "startup.alreadyRunning.cancel" ) };
+                javax.swing.JOptionPane pane = new javax.swing.JOptionPane(
+                        html, javax.swing.JOptionPane.WARNING_MESSAGE, javax.swing.JOptionPane.YES_NO_OPTION,
+                        null, options, options[ 0 ] );
+                javax.swing.JDialog dialog = pane.createDialog( null, LauncherConstants.LAUNCHER_APPLICATION_NAME );
+                dialog.setAlwaysOnTop( true );
+                dialog.setVisible( true );
+                dialog.dispose();
+                confirmed.set( confirmText.equals( pane.getValue() ) );
+            } );
+        }
+        catch ( Exception e ) {
+            StartupDiagnostics.record( "Could not show the startup question", e );
+        }
+        return confirmed.get();
     }
 
     /**

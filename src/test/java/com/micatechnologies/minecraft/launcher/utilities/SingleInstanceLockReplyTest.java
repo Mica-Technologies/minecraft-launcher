@@ -82,5 +82,24 @@ class SingleInstanceLockReplyTest
         assertFalse( ForwardResult.DELIVERED_NO_WINDOW.delivered() );
         assertFalse( ForwardResult.NO_TOKEN.delivered() );
         assertFalse( ForwardResult.UNREACHABLE.delivered() );
+        assertFalse( ForwardResult.HOLDER_NOT_RESPONDING.delivered() );
+    }
+
+    @Test
+    void aFrozenHolderIsReportedWithItsProcessId()
+    {
+        // Exiting quietly into a frozen launcher left every later start doing nothing.
+        assertEquals( ForwardResult.HOLDER_NOT_RESPONDING, SingleInstanceLock.parseReply( "OK HUNG 4242" ) );
+        assertEquals( 4242L, SingleInstanceLock.parseHungPid( "OK HUNG 4242\r" ) );
+    }
+
+    @Test
+    void aMalformedHungReplyNamesNoProcess()
+    {
+        assertEquals( -1L, SingleInstanceLock.parseHungPid( "OK HUNG" ) );
+        assertEquals( -1L, SingleInstanceLock.parseHungPid( "OK HUNG abc" ) );
+        assertEquals( -1L, SingleInstanceLock.parseHungPid( "OK HUNG -5" ) );
+        assertEquals( -1L, SingleInstanceLock.parseHungPid( "OK WINDOW" ) );
+        assertEquals( -1L, SingleInstanceLock.parseHungPid( null ) );
     }
 }
