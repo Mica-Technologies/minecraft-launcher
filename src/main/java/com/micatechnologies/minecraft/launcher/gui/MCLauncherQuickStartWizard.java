@@ -276,6 +276,7 @@ public final class MCLauncherQuickStartWizard
         stepScroller.getStyleClass().add( "wizardStepScroller" );
         stepScroller.setStyle( "-fx-background-color: transparent; -fx-background: transparent;" );
         VBox.setVgrow( stepScroller, javafx.scene.layout.Priority.ALWAYS );
+        SmoothScroll.install( stepScroller );
 
         // Navigation row pinned at the bottom of the wizard window.
         progressIndicator = new Label();
