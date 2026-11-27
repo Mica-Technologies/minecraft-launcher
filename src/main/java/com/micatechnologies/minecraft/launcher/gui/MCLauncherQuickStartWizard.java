@@ -116,6 +116,26 @@ public final class MCLauncherQuickStartWizard
      *  doesn't have. */
     private static final int RAM_SLIDER_MAX_GB = 64;
 
+    /** Room left for the window's title bar and frame when fitting it to a screen's height. */
+    static final double TITLE_BAR_ALLOWANCE = 48;
+
+    /**
+     * A window dimension that fits the space available, leaving {@link ScaledMinSize#SCREEN_MARGIN}.
+     * Pure, for tests.
+     *
+     * @param wanted    the size the layout was designed for, at the current scale
+     * @param available the usable size along that axis
+     *
+     * @return the size to use
+     */
+    static double fitToScreen( double wanted, double available )
+    {
+        if ( !( available > 0 ) ) {
+            return wanted;
+        }
+        return Math.max( 1, Math.min( wanted, available - ScaledMinSize.SCREEN_MARGIN ) );
+    }
+
     /** The modal stage hosting the wizard. Created in {@link #buildStage(Stage)}.
      *
      * @since 3.4 */
@@ -179,6 +199,10 @@ public final class MCLauncherQuickStartWizard
     {
         GUIUtilities.JFXPlatformRun( () -> {
             buildStage( owner );
+            // Counted as seen once it opens, not only on Finish or Skip: if the launcher froze or
+            // was closed mid-way, every later start would open the wizard again and could freeze
+            // the same way. Everything in it can be changed in Settings.
+            ConfigManager.setQuickStartCompleted( true );
             stage.showAndWait();
         } );
     }
@@ -243,7 +267,14 @@ public final class MCLauncherQuickStartWizard
             step.setManaged( false );
             stepContainer.getChildren().add( step );
         }
-        VBox.setVgrow( stepContainer, javafx.scene.layout.Priority.ALWAYS );
+        // The steps scroll, so a small or scaled screen (a Steam Deck is 1280x800) still shows
+        // the whole step and keeps the navigation bar below in view.
+        javafx.scene.control.ScrollPane stepScroller = new javafx.scene.control.ScrollPane( stepContainer );
+        stepScroller.setFitToWidth( true );
+        stepScroller.setHbarPolicy( javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER );
+        stepScroller.getStyleClass().add( "wizardStepScroller" );
+        stepScroller.setStyle( "-fx-background-color: transparent; -fx-background: transparent;" );
+        VBox.setVgrow( stepScroller, javafx.scene.layout.Priority.ALWAYS );
 
         // Navigation row pinned at the bottom of the wizard window.
         progressIndicator = new Label();
@@ -277,10 +308,15 @@ public final class MCLauncherQuickStartWizard
         navBar.setPadding( new Insets( 12, 18, 14, 18 ) );
         navBar.getStyleClass().add( "wizardNavBar" );
 
-        VBox root = new VBox( stepContainer, navBar );
+        VBox root = new VBox( stepScroller, navBar );
         root.getStyleClass().add( "wizardRoot" );
 
-        Scene scene = new Scene( UiScale.wrap( root ), 620 * UiScale.get(), 540 * UiScale.get() );
+        // Fit the screen the launcher is on: never larger than its usable area less the title bar.
+        javafx.geometry.Rectangle2D bounds = owner != null ? ScaledMinSize.visualBoundsFor( owner )
+                                                           : javafx.stage.Screen.getPrimary().getVisualBounds();
+        double sceneWidth = fitToScreen( 620 * UiScale.get(), bounds.getWidth() );
+        double sceneHeight = fitToScreen( 540 * UiScale.get(), bounds.getHeight() - TITLE_BAR_ALLOWANCE );
+        Scene scene = new Scene( UiScale.wrap( root ), sceneWidth, sceneHeight );
         UiScale.install( scene );
         // Reuse the same theme stylesheet stack the main launcher uses so the
         // wizard inherits whichever theme the user picks live. Pulling from
@@ -288,7 +324,9 @@ public final class MCLauncherQuickStartWizard
         com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiWindow
                 .installCurrentThemeStylesheets( scene.getRoot() );
         stage.setScene( scene );
-        stage.setResizable( false );
+        stage.setResizable( true );
+        stage.setMinWidth( Math.min( 360, sceneWidth ) );
+        stage.setMinHeight( Math.min( 300, sceneHeight ) );
 
         // Match the OS title-bar appearance to the active launcher theme — same
         // path the main launcher uses post-setScene. WindowChromeManager handles
