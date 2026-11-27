@@ -58,6 +58,23 @@ public final class SteamProcess
     }
 
     /**
+     * Whether the launcher's windows are shown by gamescope: the Steam Deck's Game Mode, or a
+     * gamescope session started some other way. gamescope shows one window at a time and scales
+     * it to the screen, keeping its shape, so a window that isn't the screen's shape gets black
+     * bars.
+     *
+     * @param env the environment
+     *
+     * @return {@code true} under gamescope
+     *
+     * @since 2026.11
+     */
+    public static boolean underGamescope( Map< String, String > env )
+    {
+        return inGameMode( env ) || !env.getOrDefault( "GAMESCOPE_WAYLAND_DISPLAY", "" ).isBlank();
+    }
+
+    /**
      * Whether a Steam client process is running for this user.
      *
      * @return {@code true} when one is

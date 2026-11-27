@@ -184,7 +184,10 @@ public class MCLauncherGuiWindow extends Application
 
         // Restore saved window bounds (or fall back to centered default). Done before show() so the window
         // appears at its final position rather than flashing at the center first.
-        boolean restored = restoreSavedBounds();
+        // Under gamescope (Steam Game Mode) the window fills the screen instead, and its bounds
+        // aren't saved, so Desktop Mode still gets the size the player left it at there.
+        boolean gamescope = GamescopeWindows.active();
+        boolean restored = !gamescope && restoreSavedBounds();
 
         // Install a minimal dark-fill placeholder scene before show() so the
         // very first paint isn't the OS-default white stage background. The
@@ -212,14 +215,17 @@ public class MCLauncherGuiWindow extends Application
         javafx.scene.Scene initialScene = new javafx.scene.Scene( placeholder, initialWidth, initialHeight );
         initialScene.setFill( javafx.scene.paint.Color.web( "#0C1017" ) );
         stage.setScene( initialScene );
+        GamescopeWindows.install( stage );
         show();
         attachPlaceholderVoxelsAsync();
-        if ( !restored ) {
+        if ( !restored && !gamescope ) {
             stage.centerOnScreen();
         }
 
         // Begin tracking bounds changes so we can persist them across launches.
-        installBoundsPersistence();
+        if ( !gamescope ) {
+            installBoundsPersistence();
+        }
         // Animations bound to the placeholder scene are stopped on the first
         // real setScene call below (cleanupPlaceholderAnimations).
 
