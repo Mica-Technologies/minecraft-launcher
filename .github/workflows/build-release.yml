@@ -351,13 +351,28 @@ jobs:
         with:
           path: artifacts
 
+      # Only the install guide is needed from the repository: which file to download, and how
+      # to install on a Steam Deck. It goes into every release and pre-release body.
+      - name: Check out the release notes
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/release-notes
+          sparse-checkout-cone-mode: false
+
+      - name: Read the install guide
+        id: notes
+        run: |
+          echo "install<<NOTES_EOF" >> $GITHUB_OUTPUT
+          cat .github/release-notes/install.md >> $GITHUB_OUTPUT
+          echo "NOTES_EOF" >> $GITHUB_OUTPUT
+
       - name: Calculate hashes
         id: hashes
         run: |
           cd artifacts
           echo "## Checksums (SHA-256)" > checksums.txt
           echo '```' >> checksums.txt
-          find . -type f \( -name "*.msi" -o -name "*.exe" -o -name "*.dmg" -o -name "*.pkg" -o -name "*.deb" -o -name "*.rpm" -o -name "*-jar-with-dependencies.jar" \) \
+          find . -type f \( -name "*.msi" -o -name "*.exe" -o -name "*.dmg" -o -name "*.pkg" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*-jar-with-dependencies.jar" \) \
             -exec sha256sum {} \; | sort >> checksums.txt
           echo '```' >> checksums.txt
           cat checksums.txt
@@ -378,6 +393,8 @@ jobs:
           name: Release ${{ needs.prepare.outputs.version }}
           body: |
             ## Mica Minecraft Launcher ${{ needs.prepare.outputs.version }}
+
+            ${{ steps.notes.outputs.install }}
 
             ${{ steps.hashes.outputs.checksums }}
           draft: false
@@ -408,6 +425,8 @@ jobs:
 
             > **Note:** This is a pre-release build and may not be stable. Pre-releases
             > may be removed after 90 days.
+
+            ${{ steps.notes.outputs.install }}
 
             ${{ steps.hashes.outputs.checksums }}
           draft: false
