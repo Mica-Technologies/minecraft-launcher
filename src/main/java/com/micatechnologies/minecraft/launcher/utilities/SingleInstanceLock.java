@@ -106,6 +106,14 @@ public class SingleInstanceLock
     /** Second word of the reply: the holder is running but has no window (still starting, or stuck). */
     static final String REPLY_NO_WINDOW = "NOWINDOW";
 
+    /** Second word of the reply: the holder's windows have stopped responding. A third word gives
+     *  its process id, so the second launch can offer to end it. Launchers from before this word
+     *  read a three-word reply as unconfirmed and exit as they always did. */
+    static final String REPLY_HUNG = "HUNG";
+
+    /** The process id the last {@link ForwardResult#HOLDER_NOT_RESPONDING} reply named, or -1. */
+    private static volatile long hungHolderPid = -1;
+
     /** The holder's reply when the token didn't match (a stale token file left by a copy that
      *  crashed, or one this holder couldn't write). */
     static final String REPLY_REJECTED = "REJECTED";
@@ -131,7 +139,10 @@ public class SingleInstanceLock
          *  or reserved by something other than a launcher. */
         UNREACHABLE,
         /** A running launcher refused the request because the token on disk didn't match its own. */
-        REJECTED;
+        REJECTED,
+        /** A running launcher took the connection, but its windows have stopped responding, so it
+         *  can't act on the request. {@link #hungHolderPid()} names its process. */
+        HOLDER_NOT_RESPONDING;
 
         /**
          * Whether a running launcher has the request.
@@ -347,6 +358,7 @@ public class SingleInstanceLock
                 // Reset as an older launcher closed its end: same as hanging up.
                 reply = null;
             }
+            hungHolderPid = parseHungPid( reply );
             return parseReply( reply );
         }
         catch ( IOException e ) {
@@ -372,6 +384,9 @@ public class SingleInstanceLock
         String[] words = reply.trim().split( " " );
         if ( words.length == 1 && REPLY_REJECTED.equals( words[ 0 ] ) ) {
             return ForwardResult.REJECTED;
+        }
+        if ( words.length == 3 && REPLY_OK.equals( words[ 0 ] ) && REPLY_HUNG.equals( words[ 1 ] ) ) {
+            return ForwardResult.HOLDER_NOT_RESPONDING;
         }
         if ( words.length == 2 && REPLY_OK.equals( words[ 0 ] ) ) {
             return REPLY_NO_WINDOW.equals( words[ 1 ] ) ? ForwardResult.DELIVERED_NO_WINDOW
@@ -437,6 +452,44 @@ public class SingleInstanceLock
         acceptThread.start();
     }
 
+    /**
+     * The process id in a {@link #REPLY_HUNG} reply. Package-private for tests.
+     *
+     * @param reply the line read, or {@code null}
+     *
+     * @return the id, or -1 when the reply isn't a well-formed hung reply
+     */
+    static long parseHungPid( String reply )
+    {
+        if ( reply == null ) {
+            return -1;
+        }
+        String[] words = reply.trim().split( " " );
+        if ( words.length != 3 || !REPLY_OK.equals( words[ 0 ] ) || !REPLY_HUNG.equals( words[ 1 ] ) ) {
+            return -1;
+        }
+        try {
+            long pid = Long.parseLong( words[ 2 ] );
+            return pid > 0 ? pid : -1;
+        }
+        catch ( NumberFormatException e ) {
+            return -1;
+        }
+    }
+
+    /**
+     * The process id named by the last forward that returned
+     * {@link ForwardResult#HOLDER_NOT_RESPONDING}.
+     *
+     * @return the id, or -1 if none was named
+     *
+     * @since 2026.11
+     */
+    public static long hungHolderPid()
+    {
+        return hungHolderPid;
+    }
+
     private static void acceptLoop()
     {
         ServerSocket server = lockSocket;
@@ -487,6 +540,14 @@ public class SingleInstanceLock
                 return;
             }
             line = line.trim();
+
+            // A frozen launcher can't bring a window forward or act on a deep link. Say so, with
+            // this process's id, so the second launch can offer to end it rather than exit
+            // silently and leave the user with a launcher that never opens.
+            if ( FxWatchdog.isUnresponsive() ) {
+                reply( writer, REPLY_OK + " " + REPLY_HUNG + " " + ProcessHandle.current().pid() );
+                return;
+            }
 
             // Tell the sender whether there is a window to bring forward. Without one (still
             // starting, or stuck before the main window appeared) the sender says so, rather
